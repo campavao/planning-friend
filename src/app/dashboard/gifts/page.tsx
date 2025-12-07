@@ -32,23 +32,34 @@ export default function GiftPlannerPage() {
         fetch("/api/gifts/assignments"),
       ]);
 
-      if (!recipientsRes.ok || !giftsRes.ok) {
-        if (recipientsRes.status === 401 || giftsRes.status === 401) {
-          router.push("/");
-          return;
-        }
-        throw new Error("Failed to fetch data");
+      // Check for auth errors
+      if (recipientsRes.status === 401 || giftsRes.status === 401) {
+        router.push("/");
+        return;
       }
 
-      const [recipientsData, giftsData] = await Promise.all([
-        recipientsRes.json(),
-        giftsRes.json(),
-      ]);
+      // Handle recipients response (may fail if tables don't exist yet)
+      if (recipientsRes.ok) {
+        const recipientsData = await recipientsRes.json();
+        setRecipients(recipientsData.recipients || []);
+      } else {
+        console.warn("Failed to fetch recipients (tables may not exist yet)");
+        setRecipients([]);
+      }
 
-      setRecipients(recipientsData.recipients);
-      setGiftIdeas(giftsData.giftIdeas);
+      // Handle gifts response
+      if (giftsRes.ok) {
+        const giftsData = await giftsRes.json();
+        setGiftIdeas(giftsData.giftIdeas || []);
+      } else {
+        console.warn("Failed to fetch gift ideas");
+        setGiftIdeas([]);
+      }
     } catch (error) {
       console.error("Failed to fetch data:", error);
+      // Don't redirect, just show empty state
+      setRecipients([]);
+      setGiftIdeas([]);
     } finally {
       setLoading(false);
     }
