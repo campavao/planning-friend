@@ -6,17 +6,46 @@ import {
   getGiftIdeas,
 } from "@/lib/supabase";
 
+interface SessionData {
+  userId: string;
+  phoneNumber: string;
+  exp: number;
+}
+
+async function getSessionUser(): Promise<SessionData | null> {
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get("session");
+
+  if (!sessionCookie) {
+    return null;
+  }
+
+  try {
+    const decoded = JSON.parse(
+      Buffer.from(sessionCookie.value, "base64").toString()
+    ) as SessionData;
+
+    // Check if session is expired
+    if (decoded.exp < Date.now()) {
+      return null;
+    }
+
+    return decoded;
+  } catch {
+    return null;
+  }
+}
+
 // GET - Get all gift ideas for the picker
 export async function GET() {
   try {
-    const cookieStore = await cookies();
-    const userId = cookieStore.get("userId")?.value;
+    const session = await getSessionUser();
 
-    if (!userId) {
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const giftIdeas = await getGiftIdeas(userId);
+    const giftIdeas = await getGiftIdeas(session.userId);
     return NextResponse.json({ giftIdeas });
   } catch (error) {
     console.error("Error fetching gift ideas:", error);
@@ -30,10 +59,9 @@ export async function GET() {
 // POST - Assign a gift to a recipient
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const userId = cookieStore.get("userId")?.value;
+    const session = await getSessionUser();
 
-    if (!userId) {
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -60,10 +88,9 @@ export async function POST(request: NextRequest) {
 // DELETE - Remove a gift assignment
 export async function DELETE(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const userId = cookieStore.get("userId")?.value;
+    const session = await getSessionUser();
 
-    if (!userId) {
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -86,4 +113,3 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
-

@@ -8,24 +8,54 @@ import {
   deleteGiftRecipient,
 } from "@/lib/supabase";
 
+interface SessionData {
+  userId: string;
+  phoneNumber: string;
+  exp: number;
+}
+
+async function getSessionUser(): Promise<SessionData | null> {
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get("session");
+
+  if (!sessionCookie) {
+    return null;
+  }
+
+  try {
+    const decoded = JSON.parse(
+      Buffer.from(sessionCookie.value, "base64").toString()
+    ) as SessionData;
+
+    // Check if session is expired
+    if (decoded.exp < Date.now()) {
+      return null;
+    }
+
+    return decoded;
+  } catch {
+    return null;
+  }
+}
+
 // GET - List all recipients for the user
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const userId = cookieStore.get("userId")?.value;
+    const session = await getSessionUser();
 
-    if (!userId) {
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const includeAssignments = request.nextUrl.searchParams.get("include") === "assignments";
+    const includeAssignments =
+      request.nextUrl.searchParams.get("include") === "assignments";
 
     if (includeAssignments) {
-      const recipients = await getRecipientsWithAssignments(userId);
+      const recipients = await getRecipientsWithAssignments(session.userId);
       return NextResponse.json({ recipients });
     }
 
-    const recipients = await getGiftRecipients(userId);
+    const recipients = await getGiftRecipients(session.userId);
     return NextResponse.json({ recipients });
   } catch (error) {
     console.error("Error fetching recipients:", error);
@@ -39,23 +69,19 @@ export async function GET(request: NextRequest) {
 // POST - Create a new recipient
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const userId = cookieStore.get("userId")?.value;
+    const session = await getSessionUser();
 
-    if (!userId) {
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { name } = await request.json();
 
     if (!name || typeof name !== "string" || name.trim().length === 0) {
-      return NextResponse.json(
-        { error: "Name is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    const recipient = await createGiftRecipient(userId, name.trim());
+    const recipient = await createGiftRecipient(session.userId, name.trim());
     return NextResponse.json({ recipient });
   } catch (error) {
     console.error("Error creating recipient:", error);
@@ -69,10 +95,9 @@ export async function POST(request: NextRequest) {
 // PATCH - Update a recipient
 export async function PATCH(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const userId = cookieStore.get("userId")?.value;
+    const session = await getSessionUser();
 
-    if (!userId) {
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -99,20 +124,16 @@ export async function PATCH(request: NextRequest) {
 // DELETE - Delete a recipient
 export async function DELETE(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const userId = cookieStore.get("userId")?.value;
+    const session = await getSessionUser();
 
-    if (!userId) {
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const id = request.nextUrl.searchParams.get("id");
 
     if (!id) {
-      return NextResponse.json(
-        { error: "ID is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "ID is required" }, { status: 400 });
     }
 
     await deleteGiftRecipient(id);
@@ -125,4 +146,3 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
-
