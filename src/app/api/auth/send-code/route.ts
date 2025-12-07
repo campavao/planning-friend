@@ -73,7 +73,12 @@ export async function POST(request: NextRequest) {
     // Send the code via SMS
     console.log("Sending SMS via Twilio...");
     await sendVerificationCode(normalizedPhone, code);
-    console.log("SMS sent successfully to:", normalizedPhone);
+    console.log(
+      "SMS sent successfully to:",
+      normalizedPhone,
+      "with code:",
+      code
+    );
 
     return NextResponse.json({
       success: true,
