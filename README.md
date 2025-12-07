@@ -41,8 +41,15 @@ npm install
 ### 3. Set Up Twilio
 
 1. Sign up at [twilio.com](https://twilio.com)
-2. Buy a phone number with SMS capability
+2. Buy a phone number with SMS capability (for receiving texts)
 3. Copy your Account SID and Auth Token from the dashboard
+4. **Create a Verify Service** (required for sending verification codes):
+   - Go to [Twilio Verify Services](https://console.twilio.com/us1/develop/verify/services)
+   - Click "Create new"
+   - Name it something like "TikTok Helper"
+   - Copy the Service SID (starts with `VA...`)
+
+> **Why Twilio Verify?** Sending SMS from a regular Twilio phone number to US recipients requires [A2P 10DLC registration](https://www.twilio.com/docs/messaging/compliance/a2p-10dlc), which involves a lengthy approval process. Twilio Verify uses pre-registered phone pools that bypass this requirement, making setup instant.
 
 ### 4. Set Up Google AI (Gemini)
 
@@ -65,6 +72,7 @@ Create a `.env.local` file:
 TWILIO_ACCOUNT_SID=your_account_sid
 TWILIO_AUTH_TOKEN=your_auth_token
 TWILIO_PHONE_NUMBER=+1234567890
+TWILIO_VERIFY_SERVICE_SID=VA...  # From Twilio Verify Services
 
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co

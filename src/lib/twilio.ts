@@ -12,7 +12,55 @@ export function getTwilioClient() {
   return twilio(accountSid, authToken);
 }
 
-// Send SMS message
+// Get Twilio Verify Service SID
+function getVerifyServiceSid(): string {
+  const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
+
+  if (!serviceSid) {
+    throw new Error(
+      "Missing TWILIO_VERIFY_SERVICE_SID environment variable. " +
+        "Create a Verify Service in Twilio Console: https://console.twilio.com/us1/develop/verify/services"
+    );
+  }
+
+  return serviceSid;
+}
+
+// Send verification code via Twilio Verify (avoids A2P 10DLC requirements)
+export async function sendVerifyOtp(phoneNumber: string): Promise<void> {
+  const client = getTwilioClient();
+  const serviceSid = getVerifyServiceSid();
+
+  await client.verify.v2.services(serviceSid).verifications.create({
+    to: phoneNumber,
+    channel: "sms",
+  });
+}
+
+// Verify OTP code via Twilio Verify
+export async function checkVerifyOtp(
+  phoneNumber: string,
+  code: string
+): Promise<{ success: boolean }> {
+  const client = getTwilioClient();
+  const serviceSid = getVerifyServiceSid();
+
+  try {
+    const verification = await client.verify.v2
+      .services(serviceSid)
+      .verificationChecks.create({
+        to: phoneNumber,
+        code: code,
+      });
+
+    return { success: verification.status === "approved" };
+  } catch (error) {
+    console.error("Twilio Verify check error:", error);
+    return { success: false };
+  }
+}
+
+// Send SMS message (keeping for potential future use, but note A2P requirements)
 export async function sendSMS(to: string, body: string): Promise<void> {
   const client = getTwilioClient();
   const from = process.env.TWILIO_PHONE_NUMBER;
@@ -28,11 +76,14 @@ export async function sendSMS(to: string, body: string): Promise<void> {
   });
 }
 
-// Send verification code via SMS
+// Legacy function - now uses Twilio Verify instead
 export async function sendVerificationCode(
   phoneNumber: string,
   code: string
 ): Promise<void> {
+  // This function is deprecated - use sendVerifyOtp instead
+  // Keeping for backward compatibility but it will use direct SMS
+  // which requires A2P 10DLC registration
   const message = `Your TikTok Helper verification code is: ${code}. This code expires in 10 minutes.`;
   await sendSMS(phoneNumber, message);
 }
