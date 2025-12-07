@@ -124,13 +124,15 @@ export default function Dashboard() {
             <div className="flex items-center gap-2 md:gap-3">
               <span className="text-xl md:text-2xl">📱</span>
               <div>
-                <h1 className="font-semibold text-base md:text-lg">TikTok Helper</h1>
+                <h1 className="font-semibold text-base md:text-lg">
+                  TikTok Helper
+                </h1>
                 <p className="text-xs text-muted-foreground hidden sm:block">
                   {user?.phoneNumber}
                 </p>
               </div>
             </div>
-            
+
             {/* Desktop Actions */}
             <div className="hidden md:flex items-center gap-3">
               <Link href="/dashboard/planner">
@@ -167,7 +169,12 @@ export default function Dashboard() {
               >
                 🔄
               </Button>
-              <Button variant="ghost" size="sm" className="px-2" onClick={handleLogout}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="px-2"
+                onClick={handleLogout}
+              >
                 👋
               </Button>
             </div>

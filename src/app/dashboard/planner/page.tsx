@@ -197,80 +197,148 @@ export default function PlannerPage() {
           </Button>
         </div>
 
-        {/* Week Grid */}
-        <div className="grid grid-cols-7 gap-1 md:gap-3">
+        {/* Week Grid - Vertical on mobile, horizontal on desktop */}
+        <div className="grid grid-cols-1 md:grid-cols-7 gap-3 md:gap-3">
           {DAYS.map((day, dayIndex) => (
             <Card
               key={day}
-              className={`glass min-h-[120px] md:min-h-[200px] ${
-                isToday(dayIndex) ? "border-primary/50 ring-1 md:ring-2 ring-primary/20" : ""
+              className={`glass ${
+                isToday(dayIndex) ? "border-primary/50 ring-2 ring-primary/20" : ""
               }`}
             >
-              <CardHeader className="p-2 md:pb-2 text-center">
-                <div className="text-lg md:text-2xl">{DAY_EMOJIS[dayIndex]}</div>
-                <CardTitle className="text-xs md:text-sm font-medium">
-                  <span className="md:hidden">{day}</span>
-                  <span className="hidden md:inline">{DAYS_FULL[dayIndex]}</span>
-                  <span className="block text-lg md:text-2xl font-bold text-primary">
-                    {getDateForDay(dayIndex)}
-                  </span>
-                </CardTitle>
-                {isToday(dayIndex) && (
-                  <Badge className="mx-auto text-[10px] md:text-xs px-1 md:px-2">Today</Badge>
-                )}
-              </CardHeader>
-              <CardContent className="p-1 md:p-3 pt-0 space-y-1 md:space-y-2">
-                {/* Items */}
-                {itemsByDay[dayIndex].map((item) => (
-                  <div
-                    key={item.id}
-                    className="group relative glass rounded p-1 md:p-2 hover:bg-secondary/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs md:text-sm">
-                        {CATEGORY_EMOJI[item.content?.category || "other"]}
-                      </span>
-                      <span className="text-[10px] md:text-xs line-clamp-1 flex-1">
-                        {item.content?.title}
-                      </span>
+              {/* Mobile: Horizontal layout */}
+              <div className="md:hidden">
+                <div className="flex items-center gap-3 p-3">
+                  {/* Day Info */}
+                  <div className="flex items-center gap-2 min-w-[100px]">
+                    <span className="text-2xl">{DAY_EMOJIS[dayIndex]}</span>
+                    <div>
+                      <p className="font-medium text-sm">{DAYS_FULL[dayIndex]}</p>
+                      <p className="text-2xl font-bold text-primary leading-none">
+                        {getDateForDay(dayIndex)}
+                      </p>
                     </div>
-                    <button
-                      onClick={() => removeFromDay(item.id)}
-                      className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 bg-destructive text-destructive-foreground rounded-full w-4 h-4 md:w-5 md:h-5 text-[10px] md:text-xs flex items-center justify-center transition-opacity"
-                    >
-                      ✕
-                    </button>
+                    {isToday(dayIndex) && (
+                      <Badge className="text-xs">Today</Badge>
+                    )}
                   </div>
-                ))}
 
-                {/* Suggestions on empty days */}
-                {itemsByDay[dayIndex].length === 0 &&
-                  data?.suggestions?.[dayIndex]?.[0] && (
-                    <button
-                      onClick={() => addToDay(data.suggestions[dayIndex][0].id, dayIndex)}
-                      className="w-full glass rounded p-1 md:p-2 text-left hover:bg-primary/10 transition-colors border border-dashed border-primary/30"
+                  {/* Items */}
+                  <div className="flex-1 flex flex-wrap gap-2">
+                    {itemsByDay[dayIndex].map((item) => (
+                      <div
+                        key={item.id}
+                        className="group relative glass rounded-lg px-2 py-1 flex items-center gap-1"
+                      >
+                        <span className="text-sm">
+                          {CATEGORY_EMOJI[item.content?.category || "other"]}
+                        </span>
+                        <span className="text-xs line-clamp-1 max-w-[120px]">
+                          {item.content?.title}
+                        </span>
+                        <button
+                          onClick={() => removeFromDay(item.id)}
+                          className="ml-1 text-destructive hover:bg-destructive/20 rounded p-0.5 text-xs"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+
+                    {/* Suggestion chip */}
+                    {itemsByDay[dayIndex].length === 0 &&
+                      data?.suggestions?.[dayIndex]?.[0] && (
+                        <button
+                          onClick={() => addToDay(data.suggestions[dayIndex][0].id, dayIndex)}
+                          className="glass rounded-lg px-2 py-1 flex items-center gap-1 border border-dashed border-primary/30 hover:bg-primary/10"
+                        >
+                          <span className="text-sm">
+                            {CATEGORY_EMOJI[data.suggestions[dayIndex][0].category]}
+                          </span>
+                          <span className="text-xs text-muted-foreground line-clamp-1 max-w-[100px]">
+                            {data.suggestions[dayIndex][0].title}
+                          </span>
+                        </button>
+                      )}
+
+                    {/* Add Button */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-3 text-xs border border-dashed"
+                      onClick={() => setAddingToDay(dayIndex)}
+                    >
+                      + Add
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Desktop: Vertical card layout */}
+              <div className="hidden md:block">
+                <CardHeader className="pb-2 text-center">
+                  <div className="text-2xl">{DAY_EMOJIS[dayIndex]}</div>
+                  <CardTitle className="text-sm font-medium">
+                    {DAYS_FULL[dayIndex]}
+                    <span className="block text-2xl font-bold text-primary">
+                      {getDateForDay(dayIndex)}
+                    </span>
+                  </CardTitle>
+                  {isToday(dayIndex) && <Badge className="mx-auto">Today</Badge>}
+                </CardHeader>
+                <CardContent className="p-3 pt-0 space-y-2 min-h-[120px]">
+                  {/* Items */}
+                  {itemsByDay[dayIndex].map((item) => (
+                    <div
+                      key={item.id}
+                      className="group relative glass rounded p-2 hover:bg-secondary/50 transition-colors"
                     >
                       <div className="flex items-center gap-1">
-                        <span className="text-xs md:text-sm">
-                          {CATEGORY_EMOJI[data.suggestions[dayIndex][0].category]}
+                        <span className="text-sm">
+                          {CATEGORY_EMOJI[item.content?.category || "other"]}
                         </span>
-                        <span className="text-[10px] md:text-xs line-clamp-1 text-muted-foreground">
-                          {data.suggestions[dayIndex][0].title}
+                        <span className="text-xs line-clamp-1 flex-1">
+                          {item.content?.title}
                         </span>
                       </div>
-                    </button>
-                  )}
+                      <button
+                        onClick={() => removeFromDay(item.id)}
+                        className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 bg-destructive text-destructive-foreground rounded-full w-5 h-5 text-xs flex items-center justify-center transition-opacity"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
 
-                {/* Add Button */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full h-6 md:h-8 text-[10px] md:text-xs border border-dashed"
-                  onClick={() => setAddingToDay(dayIndex)}
-                >
-                  +
-                </Button>
-              </CardContent>
+                  {/* Suggestions on empty days */}
+                  {itemsByDay[dayIndex].length === 0 &&
+                    data?.suggestions?.[dayIndex]?.[0] && (
+                      <button
+                        onClick={() => addToDay(data.suggestions[dayIndex][0].id, dayIndex)}
+                        className="w-full glass rounded p-2 text-left hover:bg-primary/10 transition-colors border border-dashed border-primary/30"
+                      >
+                        <div className="flex items-center gap-1">
+                          <span className="text-sm">
+                            {CATEGORY_EMOJI[data.suggestions[dayIndex][0].category]}
+                          </span>
+                          <span className="text-xs line-clamp-1 text-muted-foreground">
+                            {data.suggestions[dayIndex][0].title}
+                          </span>
+                        </div>
+                      </button>
+                    )}
+
+                  {/* Add Button */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full h-8 text-xs border border-dashed"
+                    onClick={() => setAddingToDay(dayIndex)}
+                  >
+                    + Add
+                  </Button>
+                </CardContent>
+              </div>
             </Card>
           ))}
         </div>
