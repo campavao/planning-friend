@@ -347,3 +347,232 @@ export async function verifyCode(
 
   return true;
 }
+
+// ==================== Weekly Planner ====================
+
+export interface WeeklyPlan {
+  id: string;
+  user_id: string;
+  week_start: string; // ISO date string (Monday)
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface PlanItem {
+  id: string;
+  plan_id: string;
+  content_id: string;
+  day_of_week: number; // 0=Monday, 6=Sunday
+  slot_order: number;
+  notes?: string;
+  created_at: string;
+  content?: Content; // Joined content
+}
+
+export interface WeeklyPlanWithItems extends WeeklyPlan {
+  items: PlanItem[];
+}
+
+// Get Monday of the current week
+export function getWeekStart(date: Date = new Date()): string {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
+  d.setDate(diff);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString().split("T")[0];
+}
+
+// Get or create a weekly plan
+export async function getOrCreateWeeklyPlan(
+  userId: string,
+  weekStart: string
+): Promise<WeeklyPlan> {
+  const supabase = createServerClient();
+
+  // Try to find existing plan
+  const { data: existingPlan, error: findError } = await supabase
+    .from("weekly_plans")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("week_start", weekStart)
+    .single();
+
+  if (existingPlan) {
+    return existingPlan as WeeklyPlan;
+  }
+
+  // Create new plan
+  if (findError && findError.code === "PGRST116") {
+    const { data: newPlan, error: createError } = await supabase
+      .from("weekly_plans")
+      .insert({ user_id: userId, week_start: weekStart })
+      .select()
+      .single();
+
+    if (createError) {
+      throw new Error(`Failed to create weekly plan: ${createError.message}`);
+    }
+
+    return newPlan as WeeklyPlan;
+  }
+
+  throw new Error(`Failed to get weekly plan: ${findError?.message}`);
+}
+
+// Get weekly plan with items and content
+export async function getWeeklyPlanWithItems(
+  userId: string,
+  weekStart: string
+): Promise<WeeklyPlanWithItems | null> {
+  const supabase = createServerClient();
+
+  // Get the plan
+  const { data: plan, error: planError } = await supabase
+    .from("weekly_plans")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("week_start", weekStart)
+    .single();
+
+  if (planError) {
+    if (planError.code === "PGRST116") {
+      return null;
+    }
+    throw new Error(`Failed to get weekly plan: ${planError.message}`);
+  }
+
+  // Get items with content
+  const { data: items, error: itemsError } = await supabase
+    .from("plan_items")
+    .select(`
+      *,
+      content:content_id (*)
+    `)
+    .eq("plan_id", plan.id)
+    .order("day_of_week")
+    .order("slot_order");
+
+  if (itemsError) {
+    throw new Error(`Failed to get plan items: ${itemsError.message}`);
+  }
+
+  return {
+    ...plan,
+    items: items as PlanItem[],
+  } as WeeklyPlanWithItems;
+}
+
+// Add item to plan
+export async function addPlanItem(
+  planId: string,
+  contentId: string,
+  dayOfWeek: number,
+  notes?: string
+): Promise<PlanItem> {
+  const supabase = createServerClient();
+
+  // Get the highest slot order for this day
+  const { data: existingItems } = await supabase
+    .from("plan_items")
+    .select("slot_order")
+    .eq("plan_id", planId)
+    .eq("day_of_week", dayOfWeek)
+    .order("slot_order", { ascending: false })
+    .limit(1);
+
+  const slotOrder = existingItems?.[0]?.slot_order ?? -1;
+
+  const { data, error } = await supabase
+    .from("plan_items")
+    .insert({
+      plan_id: planId,
+      content_id: contentId,
+      day_of_week: dayOfWeek,
+      slot_order: slotOrder + 1,
+      notes,
+    })
+    .select(`
+      *,
+      content:content_id (*)
+    `)
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to add plan item: ${error.message}`);
+  }
+
+  return data as PlanItem;
+}
+
+// Remove item from plan
+export async function removePlanItem(itemId: string): Promise<void> {
+  const supabase = createServerClient();
+
+  const { error } = await supabase
+    .from("plan_items")
+    .delete()
+    .eq("id", itemId);
+
+  if (error) {
+    throw new Error(`Failed to remove plan item: ${error.message}`);
+  }
+}
+
+// Get usage patterns for suggestions
+export async function getUsagePatterns(
+  userId: string
+): Promise<Map<number, ContentCategory[]>> {
+  const supabase = createServerClient();
+
+  // Get all past plan items with content
+  const { data, error } = await supabase
+    .from("plan_items")
+    .select(`
+      day_of_week,
+      content:content_id (category)
+    `)
+    .eq("plan_id.user_id", userId);
+
+  if (error) {
+    console.error("Failed to get usage patterns:", error);
+    return new Map();
+  }
+
+  // Aggregate by day
+  const patterns = new Map<number, ContentCategory[]>();
+  for (const item of data || []) {
+    const day = item.day_of_week;
+    // Handle the joined content which comes as an object
+    const contentData = item.content as unknown as { category: ContentCategory } | null;
+    const category = contentData?.category;
+    if (category) {
+      const existing = patterns.get(day) || [];
+      existing.push(category);
+      patterns.set(day, existing);
+    }
+  }
+
+  return patterns;
+}
+
+// Get past weekly plans
+export async function getPastWeeklyPlans(
+  userId: string,
+  limit: number = 4
+): Promise<WeeklyPlan[]> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("weekly_plans")
+    .select("*")
+    .eq("user_id", userId)
+    .order("week_start", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw new Error(`Failed to get past plans: ${error.message}`);
+  }
+
+  return data as WeeklyPlan[];
+}

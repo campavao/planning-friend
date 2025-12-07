@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { CategoryTabs } from "@/components/category-tabs";
 import type { Content } from "@/lib/supabase";
@@ -63,7 +64,7 @@ export default function Dashboard() {
   // Poll for updates when there are processing items
   useEffect(() => {
     const hasProcessing = content.some((c) => c.status === "processing");
-    
+
     if (!hasProcessing) return;
 
     const interval = setInterval(() => {
@@ -86,7 +87,9 @@ export default function Dashboard() {
 
   // Count stats (only completed items)
   const completedContent = content.filter((c) => c.status === "completed");
-  const processingCount = content.filter((c) => c.status === "processing").length;
+  const processingCount = content.filter(
+    (c) => c.status === "processing"
+  ).length;
 
   if (loading) {
     return (
@@ -114,6 +117,11 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <Link href="/dashboard/planner">
+              <Button variant="default" size="sm">
+                📅 Plan Week
+              </Button>
+            </Link>
             <Button
               variant="ghost"
               size="sm"
@@ -138,10 +146,12 @@ export default function Dashboard() {
               <span className="text-2xl">⏳</span>
               <div>
                 <p className="font-medium">
-                  Processing {processingCount} item{processingCount > 1 ? "s" : ""}...
+                  Processing {processingCount} item
+                  {processingCount > 1 ? "s" : ""}...
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Your TikTok{processingCount > 1 ? "s are" : " is"} being analyzed
+                  Your TikTok{processingCount > 1 ? "s are" : " is"} being
+                  analyzed
                 </p>
               </div>
             </div>
@@ -174,7 +184,10 @@ export default function Dashboard() {
             <div className="h-12 w-px bg-border hidden md:block" />
             <div className="text-center md:text-left">
               <p className="text-3xl font-bold text-date">
-                {completedContent.filter((c) => c.category === "date_idea").length}
+                {
+                  completedContent.filter((c) => c.category === "date_idea")
+                    .length
+                }
               </p>
               <p className="text-sm text-muted-foreground">Date Ideas</p>
             </div>
