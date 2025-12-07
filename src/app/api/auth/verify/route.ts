@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyCode, getUserByPhone } from "@/lib/supabase";
-import { normalizePhoneNumber } from "@/lib/twilio";
+import { verifyPhoneOtp, getUserByPhone, normalizePhoneNumber } from "@/lib/supabase";
 import { cookies } from "next/headers";
 
 interface VerifyRequest {
@@ -23,17 +22,17 @@ export async function POST(request: NextRequest) {
     // Normalize the phone number
     const normalizedPhone = normalizePhoneNumber(phoneNumber);
 
-    // Verify the code
-    const isValid = await verifyCode(normalizedPhone, code);
+    // Verify the code via Supabase Auth
+    const result = await verifyPhoneOtp(normalizedPhone, code);
 
-    if (!isValid) {
+    if (!result.success) {
       return NextResponse.json(
         { error: "Invalid or expired verification code" },
         { status: 401 }
       );
     }
 
-    // Get the user
+    // Get the user from our users table
     const user = await getUserByPhone(normalizedPhone);
 
     if (!user) {

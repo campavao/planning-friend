@@ -1,4 +1,72 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
+
+// ==================== Phone Auth (OTP) ====================
+
+// Get a Supabase client for auth operations
+function getAuthClient(): SupabaseClient {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error("Missing Supabase environment variables");
+  }
+
+  return createClient(supabaseUrl, supabaseAnonKey);
+}
+
+// Send OTP verification code via Supabase (uses Supabase's built-in SMS)
+export async function sendPhoneOtp(phoneNumber: string): Promise<void> {
+  const supabase = getAuthClient();
+
+  const { error } = await supabase.auth.signInWithOtp({
+    phone: phoneNumber,
+  });
+
+  if (error) {
+    throw new Error(`Failed to send verification code: ${error.message}`);
+  }
+}
+
+// Verify phone OTP code via Supabase
+export async function verifyPhoneOtp(
+  phoneNumber: string,
+  code: string
+): Promise<{ success: boolean; userId?: string }> {
+  const supabase = getAuthClient();
+
+  const { data, error } = await supabase.auth.verifyOtp({
+    phone: phoneNumber,
+    token: code,
+    type: "sms",
+  });
+
+  if (error) {
+    return { success: false };
+  }
+
+  return {
+    success: true,
+    userId: data.user?.id,
+  };
+}
+
+// Normalize phone number to E.164 format
+export function normalizePhoneNumber(phoneNumber: string): string {
+  // Remove all non-digit characters except +
+  let normalized = phoneNumber.replace(/[^\d+]/g, "");
+
+  // Ensure it starts with +
+  if (!normalized.startsWith("+")) {
+    // Assume US number if no country code
+    if (normalized.length === 10) {
+      normalized = "+1" + normalized;
+    } else if (normalized.length === 11 && normalized.startsWith("1")) {
+      normalized = "+" + normalized;
+    }
+  }
+
+  return normalized;
+}
 
 // Types for our database
 export type ContentCategory =
