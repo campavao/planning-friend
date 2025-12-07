@@ -5,15 +5,18 @@ import { getOrCreateUser } from "@/lib/supabase";
 // Get the base URL dynamically
 function getBaseUrl(request: NextRequest): string {
   // First check explicit env var
-  if (process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes("localhost")) {
+  if (
+    process.env.NEXT_PUBLIC_APP_URL &&
+    !process.env.NEXT_PUBLIC_APP_URL.includes("localhost")
+  ) {
     return process.env.NEXT_PUBLIC_APP_URL;
   }
-  
+
   // Use Vercel's URL if available
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}`;
   }
-  
+
   // Fall back to request URL
   const url = new URL(request.url);
   return `${url.protocol}//${url.host}`;

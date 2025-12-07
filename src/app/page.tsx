@@ -1,17 +1,23 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export default function Home() {
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
-  const [step, setStep] = useState<'phone' | 'verify'>('phone');
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [step, setStep] = useState<"phone" | "verify">("phone");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [checkingSession, setCheckingSession] = useState(true);
   const router = useRouter();
 
@@ -19,10 +25,10 @@ export default function Home() {
   useEffect(() => {
     async function checkSession() {
       try {
-        const res = await fetch('/api/auth/session');
+        const res = await fetch("/api/auth/session");
         const data = await res.json();
         if (data.authenticated) {
-          router.push('/dashboard');
+          router.push("/dashboard");
         }
       } catch {
         // Not logged in
@@ -35,45 +41,48 @@ export default function Home() {
 
   const formatPhoneNumber = (value: string) => {
     // Remove all non-digits
-    const digits = value.replace(/\D/g, '');
-    
+    const digits = value.replace(/\D/g, "");
+
     // Format as (XXX) XXX-XXXX
     if (digits.length <= 3) {
       return digits;
     } else if (digits.length <= 6) {
       return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
     } else {
-      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(
+        6,
+        10
+      )}`;
     }
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhoneNumber(e.target.value);
     setPhoneNumber(formatted);
-    setError('');
+    setError("");
   };
 
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
-      const res = await fetch('/api/auth/send-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/auth/send-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phoneNumber }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to send code');
+        throw new Error(data.error || "Failed to send code");
       }
 
-      setStep('verify');
+      setStep("verify");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -82,24 +91,24 @@ export default function Home() {
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
-      const res = await fetch('/api/auth/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phoneNumber, code: verificationCode }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Invalid code');
+        throw new Error(data.error || "Invalid code");
       }
 
-      router.push('/dashboard');
+      router.push("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -129,7 +138,8 @@ export default function Home() {
             </span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-lg mx-auto">
-            Text TikTok links, we&apos;ll save and organize your meals, events, and date ideas automagically.
+            Text TikTok links, we&apos;ll save and organize your meals, events,
+            and date ideas automagically.
           </p>
         </div>
 
@@ -137,17 +147,18 @@ export default function Home() {
         <Card className="glass w-full max-w-md animate-fade-in-up opacity-0 stagger-2">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">
-              {step === 'phone' ? 'Access Your Saves' : 'Enter Verification Code'}
+              {step === "phone"
+                ? "Access Your Saves"
+                : "Enter Verification Code"}
             </CardTitle>
             <CardDescription>
-              {step === 'phone' 
-                ? 'Enter the phone number you use to text TikTok links'
-                : `We sent a code to ${phoneNumber}`
-              }
+              {step === "phone"
+                ? "Enter the phone number you use to text TikTok links"
+                : `We sent a code to ${phoneNumber}`}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {step === 'phone' ? (
+            {step === "phone" ? (
               <form onSubmit={handleSendCode} className="space-y-4">
                 <div className="space-y-2">
                   <Input
@@ -160,14 +171,18 @@ export default function Home() {
                   />
                 </div>
                 {error && (
-                  <p className="text-destructive text-sm text-center">{error}</p>
+                  <p className="text-destructive text-sm text-center">
+                    {error}
+                  </p>
                 )}
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="w-full h-12 text-lg font-medium"
-                  disabled={loading || phoneNumber.replace(/\D/g, '').length < 10}
+                  disabled={
+                    loading || phoneNumber.replace(/\D/g, "").length < 10
+                  }
                 >
-                  {loading ? 'Sending...' : 'Send Verification Code'}
+                  {loading ? "Sending..." : "Send Verification Code"}
                 </Button>
               </form>
             ) : (
@@ -178,31 +193,35 @@ export default function Home() {
                     placeholder="123456"
                     value={verificationCode}
                     onChange={(e) => {
-                      setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6));
-                      setError('');
+                      setVerificationCode(
+                        e.target.value.replace(/\D/g, "").slice(0, 6)
+                      );
+                      setError("");
                     }}
                     className="text-center text-2xl tracking-[0.5em] h-14 bg-secondary/50 border-border font-mono"
                     maxLength={6}
                   />
                 </div>
                 {error && (
-                  <p className="text-destructive text-sm text-center">{error}</p>
+                  <p className="text-destructive text-sm text-center">
+                    {error}
+                  </p>
                 )}
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="w-full h-12 text-lg font-medium"
                   disabled={loading || verificationCode.length < 6}
                 >
-                  {loading ? 'Verifying...' : 'Verify & Access'}
+                  {loading ? "Verifying..." : "Verify & Access"}
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
                   className="w-full"
                   onClick={() => {
-                    setStep('phone');
-                    setVerificationCode('');
-                    setError('');
+                    setStep("phone");
+                    setVerificationCode("");
+                    setError("");
                   }}
                 >
                   ← Use Different Number
@@ -214,7 +233,9 @@ export default function Home() {
 
         {/* How it works */}
         <div className="mt-16 w-full max-w-3xl animate-fade-in-up opacity-0 stagger-3">
-          <h2 className="text-2xl font-semibold text-center mb-8">How It Works</h2>
+          <h2 className="text-2xl font-semibold text-center mb-8">
+            How It Works
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="glass rounded-xl p-6 text-center">
               <div className="text-4xl mb-4">💬</div>
@@ -245,6 +266,6 @@ export default function Home() {
       <footer className="text-center py-6 text-sm text-muted-foreground">
         <p>Your TikTok discoveries, organized.</p>
       </footer>
-      </main>
+    </main>
   );
 }
