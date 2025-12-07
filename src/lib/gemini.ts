@@ -215,3 +215,66 @@ Based on the thumbnail and description, analyze what this content is about.`;
     };
   }
 }
+
+// Analyze with just description (last resort when no image/video available)
+export async function analyzeWithDescription(
+  description: string,
+  tiktokUrl: string
+): Promise<AnalysisResult> {
+  const genAI = getGeminiClient();
+
+  // Use Gemini 1.5 Flash for text-only analysis
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+  const prompt = `${ANALYSIS_PROMPT}
+
+I only have the description/caption from a TikTok video. Please analyze it and categorize the content.
+
+TikTok URL: ${tiktokUrl}
+Video caption/description: "${description}"
+
+Based on this information, determine what category this content belongs to and extract any relevant details you can infer.`;
+
+  try {
+    const result = await model.generateContent([{ text: prompt }]);
+
+    const response = result.response;
+    const text = response.text();
+
+    // Extract JSON from the response
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("No JSON found in response");
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]) as AnalysisResult;
+
+    // Validate the response
+    if (!parsed.category || !parsed.title || !parsed.data) {
+      throw new Error("Invalid response structure");
+    }
+
+    // Ensure category is valid
+    const validCategories: ContentCategory[] = [
+      "meal",
+      "event",
+      "date_idea",
+      "other",
+    ];
+    if (!validCategories.includes(parsed.category)) {
+      parsed.category = "other";
+    }
+
+    return parsed;
+  } catch (error) {
+    console.error("Error analyzing with description:", error);
+
+    return {
+      category: "other",
+      title: description.slice(0, 50) || "Saved TikTok",
+      data: {
+        description: description || "Content from TikTok",
+      },
+    };
+  }
+}
