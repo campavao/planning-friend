@@ -445,10 +445,12 @@ export async function getWeeklyPlanWithItems(
   // Get items with content
   const { data: items, error: itemsError } = await supabase
     .from("plan_items")
-    .select(`
+    .select(
+      `
       *,
       content:content_id (*)
-    `)
+    `
+    )
     .eq("plan_id", plan.id)
     .order("day_of_week")
     .order("slot_order");
@@ -492,10 +494,12 @@ export async function addPlanItem(
       slot_order: slotOrder + 1,
       notes,
     })
-    .select(`
+    .select(
+      `
       *,
       content:content_id (*)
-    `)
+    `
+    )
     .single();
 
   if (error) {
@@ -509,10 +513,7 @@ export async function addPlanItem(
 export async function removePlanItem(itemId: string): Promise<void> {
   const supabase = createServerClient();
 
-  const { error } = await supabase
-    .from("plan_items")
-    .delete()
-    .eq("id", itemId);
+  const { error } = await supabase.from("plan_items").delete().eq("id", itemId);
 
   if (error) {
     throw new Error(`Failed to remove plan item: ${error.message}`);
@@ -528,10 +529,12 @@ export async function getUsagePatterns(
   // Get all past plan items with content
   const { data, error } = await supabase
     .from("plan_items")
-    .select(`
+    .select(
+      `
       day_of_week,
       content:content_id (category)
-    `)
+    `
+    )
     .eq("plan_id.user_id", userId);
 
   if (error) {
@@ -544,7 +547,9 @@ export async function getUsagePatterns(
   for (const item of data || []) {
     const day = item.day_of_week;
     // Handle the joined content which comes as an object
-    const contentData = item.content as unknown as { category: ContentCategory } | null;
+    const contentData = item.content as unknown as {
+      category: ContentCategory;
+    } | null;
     const category = contentData?.category;
     if (category) {
       const existing = patterns.get(day) || [];

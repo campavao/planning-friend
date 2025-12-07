@@ -10,6 +10,29 @@ import type {
   DateIdeaData,
 } from "@/lib/supabase";
 
+// Generate Google Maps URL from location string
+function getGoogleMapsUrl(location: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+}
+
+// Clickable location component
+function LocationLink({ location }: { location: string }) {
+  return (
+    <a
+      href={getGoogleMapsUrl(location)}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className="flex items-start gap-2 text-sm hover:text-primary transition-colors"
+    >
+      <span>📍</span>
+      <span className="line-clamp-1 underline decoration-dotted underline-offset-2">
+        {location}
+      </span>
+    </a>
+  );
+}
+
 interface ContentCardProps {
   content: Content;
   index?: number;
@@ -138,12 +161,7 @@ function EventCard({ content, data }: { content: Content; data: EventData }) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {data.location && (
-            <div className="flex items-start gap-2 text-sm">
-              <span>📍</span>
-              <span className="line-clamp-1">{data.location}</span>
-            </div>
-          )}
+          {data.location && <LocationLink location={data.location} />}
           {(data.date || data.time) && (
             <div className="flex items-start gap-2 text-sm">
               <span>📅</span>
@@ -202,12 +220,7 @@ function DateIdeaCard({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {data.location && (
-            <div className="flex items-start gap-2 text-sm">
-              <span>📍</span>
-              <span className="line-clamp-1">{data.location}</span>
-            </div>
-          )}
+          {data.location && <LocationLink location={data.location} />}
           <div className="flex flex-wrap gap-2">
             {data.type && (
               <Badge variant="outline" className="text-xs">

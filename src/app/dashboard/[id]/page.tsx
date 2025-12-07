@@ -13,6 +13,11 @@ import type {
   DateIdeaData,
 } from "@/lib/supabase";
 
+// Generate Google Maps URL from location string
+function getGoogleMapsUrl(location: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+}
+
 export default function ContentDetailPage() {
   const [content, setContent] = useState<Content | null>(null);
   const [loading, setLoading] = useState(true);
@@ -317,13 +322,23 @@ function EventContent({ data }: { data: EventData }) {
   return (
     <div className="space-y-4">
       {data.location && (
-        <div className="flex items-start gap-3">
+        <a
+          href={getGoogleMapsUrl(data.location)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-start gap-3 group hover:bg-secondary/50 -mx-2 px-2 py-2 rounded-lg transition-colors"
+        >
           <span className="text-2xl">📍</span>
           <div>
             <p className="text-sm text-muted-foreground">Location</p>
-            <p className="font-medium">{data.location}</p>
+            <p className="font-medium group-hover:text-primary underline decoration-dotted underline-offset-2">
+              {data.location}
+            </p>
           </div>
-        </div>
+          <span className="text-muted-foreground ml-auto text-sm group-hover:text-primary">
+            Open in Maps →
+          </span>
+        </a>
       )}
 
       {(data.date || data.time) && (
@@ -371,13 +386,23 @@ function DateIdeaContent({ data }: { data: DateIdeaData }) {
   return (
     <div className="space-y-4">
       {data.location && (
-        <div className="flex items-start gap-3">
+        <a
+          href={getGoogleMapsUrl(data.location)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-start gap-3 group hover:bg-secondary/50 -mx-2 px-2 py-2 rounded-lg transition-colors"
+        >
           <span className="text-2xl">📍</span>
           <div>
             <p className="text-sm text-muted-foreground">Location</p>
-            <p className="font-medium">{data.location}</p>
+            <p className="font-medium group-hover:text-primary underline decoration-dotted underline-offset-2">
+              {data.location}
+            </p>
           </div>
-        </div>
+          <span className="text-muted-foreground ml-auto text-sm group-hover:text-primary">
+            Open in Maps →
+          </span>
+        </a>
       )}
 
       <div className="flex flex-wrap gap-2">
