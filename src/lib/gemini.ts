@@ -77,8 +77,8 @@ export async function analyzeVideoWithGemini(
 ): Promise<AnalysisResult> {
   const genAI = getGeminiClient();
 
-  // Use Gemini 2.0 Flash for video analysis (supports video files)
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+  // Use Gemini 1.5 Flash for video analysis
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   // Prepare the prompt with optional description context
   let prompt = ANALYSIS_PROMPT;
@@ -146,8 +146,8 @@ export async function analyzeWithThumbnail(
 ): Promise<AnalysisResult> {
   const genAI = getGeminiClient();
 
-  // Use Gemini 2.0 Flash for image analysis
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+  // Use Gemini 1.5 Flash for image analysis
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   // Fetch the thumbnail
   const imageResponse = await fetch(thumbnailUrl);
@@ -223,8 +223,8 @@ export async function analyzeWithDescription(
 ): Promise<AnalysisResult> {
   const genAI = getGeminiClient();
 
-  // Use Gemini 2.0 Flash for text-only analysis
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+  // Use Gemini 1.5 Flash for text-only analysis
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   const prompt = `${ANALYSIS_PROMPT}
 
