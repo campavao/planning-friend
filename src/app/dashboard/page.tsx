@@ -220,31 +220,47 @@ export default function Dashboard() {
               <p className="text-xl md:text-3xl font-bold text-primary">
                 {completedContent.length}
               </p>
-              <p className="text-[10px] md:text-sm text-muted-foreground">Saves</p>
+              <p className="text-[10px] md:text-sm text-muted-foreground">
+                Saves
+              </p>
             </div>
             <div className="text-center">
               <p className="text-xl md:text-3xl font-bold text-meal">
                 {completedContent.filter((c) => c.category === "meal").length}
               </p>
-              <p className="text-[10px] md:text-sm text-muted-foreground">Meals</p>
+              <p className="text-[10px] md:text-sm text-muted-foreground">
+                Meals
+              </p>
             </div>
             <div className="text-center">
               <p className="text-xl md:text-3xl font-bold text-event">
                 {completedContent.filter((c) => c.category === "event").length}
               </p>
-              <p className="text-[10px] md:text-sm text-muted-foreground">Events</p>
+              <p className="text-[10px] md:text-sm text-muted-foreground">
+                Events
+              </p>
             </div>
             <div className="text-center">
               <p className="text-xl md:text-3xl font-bold text-date">
-                {completedContent.filter((c) => c.category === "date_idea").length}
+                {
+                  completedContent.filter((c) => c.category === "date_idea")
+                    .length
+                }
               </p>
-              <p className="text-[10px] md:text-sm text-muted-foreground">Dates</p>
+              <p className="text-[10px] md:text-sm text-muted-foreground">
+                Dates
+              </p>
             </div>
             <div className="text-center">
               <p className="text-xl md:text-3xl font-bold text-gift">
-                {completedContent.filter((c) => c.category === "gift_idea").length}
+                {
+                  completedContent.filter((c) => c.category === "gift_idea")
+                    .length
+                }
               </p>
-              <p className="text-[10px] md:text-sm text-muted-foreground">Gifts</p>
+              <p className="text-[10px] md:text-sm text-muted-foreground">
+                Gifts
+              </p>
             </div>
           </div>
         </div>

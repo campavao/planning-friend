@@ -121,7 +121,10 @@ export default function ContentDetailPage() {
     );
   }
 
-  const categoryConfig: Record<string, { emoji: string; label: string; color: string }> = {
+  const categoryConfig: Record<
+    string,
+    { emoji: string; label: string; color: string }
+  > = {
     meal: { emoji: "🍽️", label: "Meal", color: "badge-meal" },
     event: { emoji: "🎉", label: "Event", color: "badge-event" },
     date_idea: { emoji: "💕", label: "Date Idea", color: "badge-date_idea" },

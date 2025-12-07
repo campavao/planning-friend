@@ -292,7 +292,11 @@ export default function PlannerPage() {
                             <div className="flex-1 py-2 pr-8 min-w-0">
                               <div className="flex items-center gap-1.5 mb-1">
                                 <span className="text-sm">
-                                  {CATEGORY_EMOJI[item.content?.category || "other"]}
+                                  {
+                                    CATEGORY_EMOJI[
+                                      item.content?.category || "other"
+                                    ]
+                                  }
                                 </span>
                                 <span className="text-xs text-muted-foreground capitalize">
                                   {item.content?.category?.replace("_", " ")}

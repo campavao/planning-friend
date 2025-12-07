@@ -1,7 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
 
 // Types for our database
-export type ContentCategory = "meal" | "event" | "date_idea" | "gift_idea" | "other";
+export type ContentCategory =
+  | "meal"
+  | "event"
+  | "date_idea"
+  | "gift_idea"
+  | "other";
 export type ContentStatus = "processing" | "completed" | "failed";
 
 export interface User {
@@ -54,7 +59,12 @@ export interface Content {
   tiktok_url: string;
   category: ContentCategory;
   title: string;
-  data: MealData | EventData | DateIdeaData | GiftIdeaData | Record<string, unknown>;
+  data:
+    | MealData
+    | EventData
+    | DateIdeaData
+    | GiftIdeaData
+    | Record<string, unknown>;
   thumbnail_url?: string;
   status: ContentStatus;
   created_at: string;
@@ -653,17 +663,19 @@ export async function getRecipientsWithAssignments(
 
   // Get all assignments with content for these recipients
   const recipientIds = recipients.map((r: GiftRecipient) => r.id);
-  
+
   if (recipientIds.length === 0) {
     return [];
   }
 
   const { data: assignments, error: assignmentsError } = await supabase
     .from("gift_assignments")
-    .select(`
+    .select(
+      `
       *,
       content:content_id (*)
-    `)
+    `
+    )
     .in("recipient_id", recipientIds);
 
   if (assignmentsError) {
@@ -749,10 +761,12 @@ export async function assignGiftToRecipient(
   const { data, error } = await supabase
     .from("gift_assignments")
     .insert({ recipient_id: recipientId, content_id: contentId })
-    .select(`
+    .select(
+      `
       *,
       content:content_id (*)
-    `)
+    `
+    )
     .single();
 
   if (error) {
@@ -763,7 +777,9 @@ export async function assignGiftToRecipient(
 }
 
 // Remove a gift assignment
-export async function removeGiftAssignment(assignmentId: string): Promise<void> {
+export async function removeGiftAssignment(
+  assignmentId: string
+): Promise<void> {
   const supabase = createServerClient();
 
   const { error } = await supabase

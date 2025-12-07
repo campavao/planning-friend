@@ -6,7 +6,7 @@ import {
   analyzeWithDescription,
   MultiItemAnalysisResult,
 } from "@/lib/gemini";
-import { updateContent, saveContent, deleteContent, createServerClient } from "@/lib/supabase";
+import { updateContent, saveContent, deleteContent } from "@/lib/supabase";
 
 interface ProcessRequest {
   contentId: string;
@@ -123,15 +123,28 @@ export async function POST(request: NextRequest) {
     });
 
     // Step 3: Handle single vs multi-item results
+    // Validate that we have at least one item
+    if (!analysisResult.items || analysisResult.items.length === 0) {
+      console.error("No items returned from analysis");
+      await updateContent(contentId, {
+        status: "failed",
+        title: "Analysis returned no results",
+        data: { error: "Could not extract content from video" },
+      });
+      return NextResponse.json(
+        { error: "Analysis returned no results" },
+        { status: 500 }
+      );
+    }
+
     if (analysisResult.isMultiItem && analysisResult.items.length > 1) {
       // Multi-item: Delete the placeholder and create individual entries
       console.log(
         `Creating ${analysisResult.items.length} separate content entries...`
       );
 
-      // Delete the original processing placeholder
-      const supabase = createServerClient();
-      await supabase.from("content").delete().eq("id", contentId);
+      // Delete the original processing placeholder (with user validation)
+      await deleteContent(contentId, userId);
 
       // Create individual content entries for each item
       const createdContents = [];
