@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { verifyCode, getUserByPhone } from '@/lib/supabase';
-import { normalizePhoneNumber } from '@/lib/twilio';
-import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from "next/server";
+import { verifyCode, getUserByPhone } from "@/lib/supabase";
+import { normalizePhoneNumber } from "@/lib/twilio";
+import { cookies } from "next/headers";
 
 interface VerifyRequest {
   phoneNumber: string;
@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
 
     if (!phoneNumber || !code) {
       return NextResponse.json(
-        { error: 'Phone number and code are required' },
+        { error: "Phone number and code are required" },
         { status: 400 }
       );
     }
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     if (!isValid) {
       return NextResponse.json(
-        { error: 'Invalid or expired verification code' },
+        { error: "Invalid or expired verification code" },
         { status: 401 }
       );
     }
@@ -38,7 +38,10 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json(
-        { error: 'No content found for this phone number. Text a TikTok link first!' },
+        {
+          error:
+            "No content found for this phone number. Text a TikTok link first!",
+        },
         { status: 404 }
       );
     }
@@ -50,16 +53,16 @@ export async function POST(request: NextRequest) {
         phoneNumber: normalizedPhone,
         exp: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
       })
-    ).toString('base64');
+    ).toString("base64");
 
     // Set the session cookie
     const cookieStore = await cookies();
-    cookieStore.set('session', sessionToken, {
+    cookieStore.set("session", sessionToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60, // 7 days
-      path: '/',
+      path: "/",
     });
 
     return NextResponse.json({
@@ -70,11 +73,10 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error verifying code:', error);
+    console.error("Error verifying code:", error);
     return NextResponse.json(
-      { error: 'Failed to verify code' },
+      { error: "Failed to verify code" },
       { status: 500 }
     );
   }
 }
-

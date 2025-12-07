@@ -7,6 +7,9 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Create content category enum
 CREATE TYPE content_category AS ENUM ('meal', 'event', 'date_idea', 'other');
 
+-- Create content status enum
+CREATE TYPE content_status AS ENUM ('processing', 'completed', 'failed');
+
 -- Users table
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -26,12 +29,15 @@ CREATE TABLE content (
   title TEXT NOT NULL,
   data JSONB NOT NULL DEFAULT '{}',
   thumbnail_url TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  status content_status NOT NULL DEFAULT 'processing',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE
 );
 
 -- Create index on user_id for fast lookups
 CREATE INDEX idx_content_user_id ON content(user_id);
 CREATE INDEX idx_content_category ON content(category);
+CREATE INDEX idx_content_status ON content(status);
 
 -- Verification codes table (for phone auth)
 CREATE TABLE verification_codes (
@@ -52,25 +58,20 @@ ALTER TABLE content ENABLE ROW LEVEL SECURITY;
 ALTER TABLE verification_codes ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for users table
--- Users can only read their own data
 CREATE POLICY "Users can view own data" ON users
   FOR SELECT USING (true);
 
--- Only service role can insert/update users
 CREATE POLICY "Service role can manage users" ON users
   FOR ALL USING (auth.role() = 'service_role');
 
 -- RLS Policies for content table
--- Users can only view their own content (we'll handle this via the API with user lookup)
 CREATE POLICY "Users can view own content" ON content
   FOR SELECT USING (true);
 
--- Only service role can insert/update content
 CREATE POLICY "Service role can manage content" ON content
   FOR ALL USING (auth.role() = 'service_role');
 
 -- RLS Policies for verification_codes
--- Only service role can manage verification codes
 CREATE POLICY "Service role can manage verification codes" ON verification_codes
   FOR ALL USING (auth.role() = 'service_role');
 
@@ -82,3 +83,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Migration for existing tables: Add status column if it doesn't exist
+-- Run this if you already have the content table:
+-- ALTER TABLE content ADD COLUMN IF NOT EXISTS status content_status NOT NULL DEFAULT 'completed';
+-- ALTER TABLE content ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE;

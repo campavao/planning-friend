@@ -60,6 +60,19 @@ export default function Dashboard() {
     checkAuth();
   }, [router, fetchContent]);
 
+  // Poll for updates when there are processing items
+  useEffect(() => {
+    const hasProcessing = content.some((c) => c.status === "processing");
+    
+    if (!hasProcessing) return;
+
+    const interval = setInterval(() => {
+      fetchContent();
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [content, fetchContent]);
+
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/");
@@ -70,6 +83,10 @@ export default function Dashboard() {
     await fetchContent();
     setLoading(false);
   };
+
+  // Count stats (only completed items)
+  const completedContent = content.filter((c) => c.status === "completed");
+  const processingCount = content.filter((c) => c.status === "processing").length;
 
   if (loading) {
     return (
@@ -114,33 +131,50 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Processing Banner */}
+        {processingCount > 0 && (
+          <div className="glass rounded-2xl p-4 mb-6 border-primary/30 animate-pulse">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">⏳</span>
+              <div>
+                <p className="font-medium">
+                  Processing {processingCount} item{processingCount > 1 ? "s" : ""}...
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Your TikTok{processingCount > 1 ? "s are" : " is"} being analyzed
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Stats Banner */}
         <div className="glass rounded-2xl p-6 mb-8 animate-fade-in-up opacity-0">
           <div className="flex flex-wrap gap-6 justify-center md:justify-start">
             <div className="text-center md:text-left">
               <p className="text-3xl font-bold text-primary">
-                {content.length}
+                {completedContent.length}
               </p>
               <p className="text-sm text-muted-foreground">Total Saves</p>
             </div>
             <div className="h-12 w-px bg-border hidden md:block" />
             <div className="text-center md:text-left">
               <p className="text-3xl font-bold text-meal">
-                {content.filter((c) => c.category === "meal").length}
+                {completedContent.filter((c) => c.category === "meal").length}
               </p>
               <p className="text-sm text-muted-foreground">Meals</p>
             </div>
             <div className="h-12 w-px bg-border hidden md:block" />
             <div className="text-center md:text-left">
               <p className="text-3xl font-bold text-event">
-                {content.filter((c) => c.category === "event").length}
+                {completedContent.filter((c) => c.category === "event").length}
               </p>
               <p className="text-sm text-muted-foreground">Events</p>
             </div>
             <div className="h-12 w-px bg-border hidden md:block" />
             <div className="text-center md:text-left">
               <p className="text-3xl font-bold text-date">
-                {content.filter((c) => c.category === "date_idea").length}
+                {completedContent.filter((c) => c.category === "date_idea").length}
               </p>
               <p className="text-sm text-muted-foreground">Date Ideas</p>
             </div>

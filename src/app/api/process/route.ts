@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTikTokVideoAsBase64, getTikTokVideoInfo } from "@/lib/tiktok";
-import { analyzeVideoWithGemini, analyzeWithThumbnail, analyzeWithDescription } from "@/lib/gemini";
-import { saveContent } from "@/lib/supabase";
+import {
+  analyzeVideoWithGemini,
+  analyzeWithThumbnail,
+  analyzeWithDescription,
+} from "@/lib/gemini";
+import { updateContent } from "@/lib/supabase";
 
 interface ProcessRequest {
+  contentId: string;
   tiktokUrl: string;
   userId: string;
   phoneNumber: string;
@@ -13,18 +18,21 @@ interface ProcessRequest {
 const MAX_VIDEO_SIZE_FOR_FULL_ANALYSIS = 20 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
+  let contentId: string | undefined;
+
   try {
     const body: ProcessRequest = await request.json();
+    contentId = body.contentId;
     const { tiktokUrl, userId } = body;
 
-    if (!tiktokUrl || !userId) {
+    if (!contentId || !tiktokUrl || !userId) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    console.log(`Processing TikTok URL for user ${userId}: ${tiktokUrl}`);
+    console.log(`Processing TikTok URL for content ${contentId}: ${tiktokUrl}`);
 
     // Step 1: Get video info from TikTok (with fallbacks)
     let videoInfo;
@@ -58,7 +66,9 @@ export async function POST(request: NextRequest) {
 
           if (videoSizeBytes > MAX_VIDEO_SIZE_FOR_FULL_ANALYSIS) {
             console.log(
-              `Video too large (${Math.round(videoSizeBytes / 1024 / 1024)}MB), using thumbnail analysis`
+              `Video too large (${Math.round(
+                videoSizeBytes / 1024 / 1024
+              )}MB), using thumbnail analysis`
             );
             if (videoInfo.thumbnailUrl) {
               analysisResult = await analyzeWithThumbnail(
@@ -105,24 +115,39 @@ export async function POST(request: NextRequest) {
       title: analysisResult.title,
     });
 
-    // Step 3: Save to database
-    const savedContent = await saveContent({
-      user_id: userId,
-      tiktok_url: tiktokUrl,
+    // Step 3: Update the content entry with results
+    const updatedContent = await updateContent(contentId, {
       category: analysisResult.category,
       title: analysisResult.title,
       data: analysisResult.data,
       thumbnail_url: videoInfo.thumbnailUrl,
+      status: "completed",
     });
 
-    console.log(`Content saved with ID: ${savedContent.id}`);
+    console.log(`Content updated: ${updatedContent.id}`);
 
     return NextResponse.json({
       success: true,
-      content: savedContent,
+      content: updatedContent,
     });
   } catch (error) {
     console.error("Error processing TikTok video:", error);
+
+    // Mark as failed if we have a contentId
+    if (contentId) {
+      try {
+        await updateContent(contentId, {
+          status: "failed",
+          title: "Failed to process",
+          data: {
+            error: error instanceof Error ? error.message : "Unknown error",
+          },
+        });
+      } catch (updateError) {
+        console.error("Failed to update content status:", updateError);
+      }
+    }
+
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

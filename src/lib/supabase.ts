@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 
 // Types for our database
 export type ContentCategory = "meal" | "event" | "date_idea" | "other";
+export type ContentStatus = "processing" | "completed" | "failed";
 
 export interface User {
   id: string;
@@ -10,26 +11,26 @@ export interface User {
 }
 
 export interface MealData {
-  recipe: string[];
-  ingredients: string[];
+  recipe?: string[];
+  ingredients?: string[];
   prep_time?: string;
   cook_time?: string;
   servings?: string;
 }
 
 export interface EventData {
-  location: string;
+  location?: string;
   date?: string;
   time?: string;
-  requires_reservation: boolean;
-  requires_ticket: boolean;
+  requires_reservation?: boolean;
+  requires_ticket?: boolean;
   ticket_link?: string;
   description?: string;
 }
 
 export interface DateIdeaData {
-  location: string;
-  type: "dinner" | "activity" | "entertainment" | "outdoors" | "other";
+  location?: string;
+  type?: "dinner" | "activity" | "entertainment" | "outdoors" | "other";
   price_range?: "$" | "$$" | "$$$" | "$$$$";
   description?: string;
 }
@@ -42,7 +43,9 @@ export interface Content {
   title: string;
   data: MealData | EventData | DateIdeaData | Record<string, unknown>;
   thumbnail_url?: string;
+  status: ContentStatus;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface VerificationCode {
@@ -137,19 +140,95 @@ export async function getUserByPhone(
   return data as User;
 }
 
-export async function saveContent(
-  content: Omit<Content, "id" | "created_at">
+// Create content with processing status
+export async function createProcessingContent(
+  userId: string,
+  tiktokUrl: string
 ): Promise<Content> {
   const supabase = createServerClient();
 
   const { data, error } = await supabase
     .from("content")
-    .insert(content)
+    .insert({
+      user_id: userId,
+      tiktok_url: tiktokUrl,
+      category: "other",
+      title: "Processing...",
+      data: {},
+      status: "processing",
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to create content: ${error.message}`);
+  }
+
+  return data as Content;
+}
+
+// Update content after processing
+export async function updateContent(
+  contentId: string,
+  updates: Partial<Omit<Content, "id" | "created_at" | "user_id">>
+): Promise<Content> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("content")
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", contentId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to update content: ${error.message}`);
+  }
+
+  return data as Content;
+}
+
+// Legacy save function (for backwards compatibility)
+export async function saveContent(
+  content: Omit<Content, "id" | "created_at" | "status" | "updated_at">
+): Promise<Content> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("content")
+    .insert({
+      ...content,
+      status: "completed",
+    })
     .select()
     .single();
 
   if (error) {
     throw new Error(`Failed to save content: ${error.message}`);
+  }
+
+  return data as Content;
+}
+
+export async function getContentById(
+  contentId: string
+): Promise<Content | null> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("content")
+    .select("*")
+    .eq("id", contentId)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") {
+      return null;
+    }
+    throw new Error(`Failed to get content: ${error.message}`);
   }
 
   return data as Content;
@@ -189,6 +268,23 @@ export async function getContentByCategory(
   }
 
   return data as Content[];
+}
+
+export async function deleteContent(
+  contentId: string,
+  userId: string
+): Promise<void> {
+  const supabase = createServerClient();
+
+  const { error } = await supabase
+    .from("content")
+    .delete()
+    .eq("id", contentId)
+    .eq("user_id", userId);
+
+  if (error) {
+    throw new Error(`Failed to delete content: ${error.message}`);
+  }
 }
 
 // Verification code helpers

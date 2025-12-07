@@ -16,7 +16,8 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "TikTok Helper - Save & Organize Your Discoveries",
-  description: "Text TikTok links to save meals, events, and date ideas. Access your organized collection anytime.",
+  description:
+    "Text TikTok links to save meals, events, and date ideas. Access your organized collection anytime.",
   keywords: ["tiktok", "recipes", "meal planning", "date ideas", "events"],
 };
 

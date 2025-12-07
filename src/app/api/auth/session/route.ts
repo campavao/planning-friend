@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
 interface SessionData {
   userId: string;
@@ -10,14 +10,14 @@ interface SessionData {
 export async function GET() {
   try {
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('session');
+    const sessionCookie = cookieStore.get("session");
 
     if (!sessionCookie) {
       return NextResponse.json({ authenticated: false });
     }
 
     const decoded = JSON.parse(
-      Buffer.from(sessionCookie.value, 'base64').toString()
+      Buffer.from(sessionCookie.value, "base64").toString()
     ) as SessionData;
 
     // Check if session is expired
@@ -36,4 +36,3 @@ export async function GET() {
     return NextResponse.json({ authenticated: false });
   }
 }
-

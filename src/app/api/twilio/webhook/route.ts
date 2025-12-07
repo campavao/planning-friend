@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractTikTokUrl, normalizePhoneNumber } from "@/lib/twilio";
-import { getOrCreateUser } from "@/lib/supabase";
+import { getOrCreateUser, createProcessingContent } from "@/lib/supabase";
 
 // Get the base URL dynamically
 function getBaseUrl(request: NextRequest): string {
@@ -60,6 +60,10 @@ export async function POST(request: NextRequest) {
     const user = await getOrCreateUser(phoneNumber);
     console.log(`User ID: ${user.id}`);
 
+    // Create a processing entry immediately so it shows up in the UI
+    const processingContent = await createProcessingContent(user.id, tiktokUrl);
+    console.log(`Created processing entry: ${processingContent.id}`);
+
     // Trigger async processing using the correct base URL
     const appUrl = getBaseUrl(request);
     console.log(`Processing URL: ${appUrl}/api/process`);
@@ -71,6 +75,7 @@ export async function POST(request: NextRequest) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        contentId: processingContent.id,
         tiktokUrl,
         userId: user.id,
         phoneNumber,

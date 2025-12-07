@@ -1,6 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getContentByUser, getContentByCategory, type ContentCategory } from '@/lib/supabase';
-import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from "next/server";
+import {
+  getContentByUser,
+  getContentByCategory,
+  type ContentCategory,
+} from "@/lib/supabase";
+import { cookies } from "next/headers";
 
 interface SessionData {
   userId: string;
@@ -10,7 +14,7 @@ interface SessionData {
 
 async function getSessionUser(): Promise<SessionData | null> {
   const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get('session');
+  const sessionCookie = cookieStore.get("session");
 
   if (!sessionCookie) {
     return null;
@@ -18,7 +22,7 @@ async function getSessionUser(): Promise<SessionData | null> {
 
   try {
     const decoded = JSON.parse(
-      Buffer.from(sessionCookie.value, 'base64').toString()
+      Buffer.from(sessionCookie.value, "base64").toString()
     ) as SessionData;
 
     // Check if session is expired
@@ -38,19 +42,19 @@ export async function GET(request: NextRequest) {
     const session = await getSessionUser();
 
     if (!session) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Get category filter from query params
     const { searchParams } = new URL(request.url);
-    const category = searchParams.get('category') as ContentCategory | null;
+    const category = searchParams.get("category") as ContentCategory | null;
 
     // Fetch content
     let content;
-    if (category && ['meal', 'event', 'date_idea', 'other'].includes(category)) {
+    if (
+      category &&
+      ["meal", "event", "date_idea", "other"].includes(category)
+    ) {
       content = await getContentByCategory(session.userId, category);
     } else {
       content = await getContentByUser(session.userId);
@@ -61,11 +65,10 @@ export async function GET(request: NextRequest) {
       content,
     });
   } catch (error) {
-    console.error('Error fetching content:', error);
+    console.error("Error fetching content:", error);
     return NextResponse.json(
-      { error: 'Failed to fetch content' },
+      { error: "Failed to fetch content" },
       { status: 500 }
     );
   }
 }
-
