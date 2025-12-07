@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createVerificationCode } from "@/lib/supabase";
-import { sendVerificationCode, normalizePhoneNumber } from "@/lib/twilio";
+import { sendPhoneOtp, normalizePhoneNumber } from "@/lib/supabase";
 
 interface SendCodeRequest {
   phoneNumber: string;
@@ -35,50 +34,26 @@ export async function POST(request: NextRequest) {
     }
 
     // Check environment variables
-    const hasTwilioSid = !!process.env.TWILIO_ACCOUNT_SID;
-    const hasTwilioToken = !!process.env.TWILIO_AUTH_TOKEN;
-    const hasTwilioPhone = !!process.env.TWILIO_PHONE_NUMBER;
     const hasSupabaseUrl = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const hasSupabaseKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const hasSupabaseAnonKey = !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     console.log("Environment check:", {
-      hasTwilioSid,
-      hasTwilioToken,
-      hasTwilioPhone,
       hasSupabaseUrl,
-      hasSupabaseKey,
+      hasSupabaseAnonKey,
     });
 
-    if (!hasTwilioSid || !hasTwilioToken || !hasTwilioPhone) {
-      console.error("Missing Twilio environment variables");
-      return NextResponse.json(
-        { error: "Server configuration error (Twilio)" },
-        { status: 500 }
-      );
-    }
-
-    if (!hasSupabaseUrl || !hasSupabaseKey) {
+    if (!hasSupabaseUrl || !hasSupabaseAnonKey) {
       console.error("Missing Supabase environment variables");
       return NextResponse.json(
-        { error: "Server configuration error (Database)" },
+        { error: "Server configuration error (Supabase)" },
         { status: 500 }
       );
     }
 
-    // Generate and store verification code
-    console.log("Creating verification code in database...");
-    const code = await createVerificationCode(normalizedPhone);
-    console.log("Verification code created successfully");
-
-    // Send the code via SMS
-    console.log("Sending SMS via Twilio...");
-    await sendVerificationCode(normalizedPhone, code);
-    console.log(
-      "SMS sent successfully to:",
-      normalizedPhone,
-      "with code:",
-      code
-    );
+    // Send OTP via Supabase's built-in phone auth
+    console.log("Sending OTP via Supabase...");
+    await sendPhoneOtp(normalizedPhone);
+    console.log("OTP sent successfully to:", normalizedPhone);
 
     return NextResponse.json({
       success: true,
