@@ -1,52 +1,26 @@
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
+import { sendVerifyOtp, checkVerifyOtp } from "./twilio";
 
-// ==================== Phone Auth (OTP) ====================
+// ==================== Phone Auth (OTP via Twilio Verify) ====================
+// Using Twilio Verify instead of Supabase's built-in phone auth to avoid
+// A2P 10DLC registration requirements. Twilio Verify uses pre-registered
+// phone pools that don't require individual number registration.
 
-// Get a Supabase client for auth operations
-function getAuthClient(): SupabaseClient {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error("Missing Supabase environment variables");
-  }
-
-  return createClient(supabaseUrl, supabaseAnonKey);
-}
-
-// Send OTP verification code via Supabase (uses Supabase's built-in SMS)
+// Send OTP verification code via Twilio Verify
 export async function sendPhoneOtp(phoneNumber: string): Promise<void> {
-  const supabase = getAuthClient();
-
-  const { error } = await supabase.auth.signInWithOtp({
-    phone: phoneNumber,
-  });
-
-  if (error) {
-    throw new Error(`Failed to send verification code: ${error.message}`);
-  }
+  await sendVerifyOtp(phoneNumber);
 }
 
-// Verify phone OTP code via Supabase
+// Verify phone OTP code via Twilio Verify
 export async function verifyPhoneOtp(
   phoneNumber: string,
   code: string
 ): Promise<{ success: boolean; userId?: string }> {
-  const supabase = getAuthClient();
-
-  const { data, error } = await supabase.auth.verifyOtp({
-    phone: phoneNumber,
-    token: code,
-    type: "sms",
-  });
-
-  if (error) {
-    return { success: false };
-  }
-
+  const result = await checkVerifyOtp(phoneNumber, code);
   return {
-    success: true,
-    userId: data.user?.id,
+    success: result.success,
+    // Note: We don't get a Supabase user ID since we're not using Supabase Auth
+    // The app uses its own users table based on phone number
   };
 }
 
