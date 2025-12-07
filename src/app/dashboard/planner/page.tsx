@@ -5,13 +5,25 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { Content, PlanItem, WeeklyPlanWithItems, ContentCategory } from "@/lib/supabase";
+import type {
+  Content,
+  PlanItem,
+  WeeklyPlanWithItems,
+  ContentCategory,
+} from "@/lib/supabase";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const DAYS_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-const DAY_EMOJIS = ["🌅", "🌤️", "🌥️", "⛅", "🌙", "🎉", "☀️"];
+const DAYS_FULL = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
 
 const CATEGORY_EMOJI: Record<string, string> = {
   meal: "🍽️",
@@ -32,7 +44,9 @@ export default function PlannerPage() {
   const [weekStart, setWeekStart] = useState<string>("");
   const [addingToDay, setAddingToDay] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<ContentCategory | "all">("all");
+  const [categoryFilter, setCategoryFilter] = useState<ContentCategory | "all">(
+    "all"
+  );
   const router = useRouter();
 
   const getCurrentWeekStart = () => {
@@ -44,28 +58,31 @@ export default function PlannerPage() {
     return monday.toISOString().split("T")[0];
   };
 
-  const fetchPlanner = useCallback(async (week?: string) => {
-    try {
-      const targetWeek = week || weekStart || getCurrentWeekStart();
-      const res = await fetch(`/api/planner?week=${targetWeek}`);
-      const result = await res.json();
+  const fetchPlanner = useCallback(
+    async (week?: string) => {
+      try {
+        const targetWeek = week || weekStart || getCurrentWeekStart();
+        const res = await fetch(`/api/planner?week=${targetWeek}`);
+        const result = await res.json();
 
-      if (!res.ok) {
-        if (res.status === 401) {
-          router.push("/");
-          return;
+        if (!res.ok) {
+          if (res.status === 401) {
+            router.push("/");
+            return;
+          }
+          throw new Error(result.error);
         }
-        throw new Error(result.error);
-      }
 
-      setData(result);
-      setWeekStart(targetWeek);
-    } catch (error) {
-      console.error("Failed to fetch planner:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [router, weekStart]);
+        setData(result);
+        setWeekStart(targetWeek);
+      } catch (error) {
+        console.error("Failed to fetch planner:", error);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [router, weekStart]
+  );
 
   useEffect(() => {
     const week = getCurrentWeekStart();
@@ -103,7 +120,9 @@ export default function PlannerPage() {
 
   const removeFromDay = async (itemId: string) => {
     try {
-      const res = await fetch(`/api/planner/item?id=${itemId}`, { method: "DELETE" });
+      const res = await fetch(`/api/planner/item?id=${itemId}`, {
+        method: "DELETE",
+      });
       if (res.ok) {
         fetchPlanner(weekStart);
       }
@@ -116,7 +135,8 @@ export default function PlannerPage() {
     const start = new Date(weekStart);
     const end = new Date(start);
     end.setDate(end.getDate() + 6);
-    const formatDate = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const formatDate = (d: Date) =>
+      d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
     return `${formatDate(start)} - ${formatDate(end)}`;
   };
 
@@ -135,15 +155,17 @@ export default function PlannerPage() {
     return today.toDateString() === dayDate.toDateString();
   };
 
-  // Filter content for the picker
+  // Filter content for the picker (exclude gift_idea from planner)
   const getFilteredContent = () => {
     if (!data?.availableContent) return [];
-    
+
     const usedIds = new Set(data.plan?.items.map((i) => i.content_id) || []);
-    
+
     return data.availableContent.filter((c) => {
       if (usedIds.has(c.id)) return false;
-      if (categoryFilter !== "all" && c.category !== categoryFilter) return false;
+      if (c.category === "gift_idea") return false; // Exclude gifts from planner
+      if (categoryFilter !== "all" && c.category !== categoryFilter)
+        return false;
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         return c.title.toLowerCase().includes(query);
@@ -162,7 +184,8 @@ export default function PlannerPage() {
 
   const itemsByDay: Record<number, PlanItem[]> = {};
   for (let i = 0; i <= 6; i++) {
-    itemsByDay[i] = data?.plan?.items.filter((item) => item.day_of_week === i) || [];
+    itemsByDay[i] =
+      data?.plan?.items.filter((item) => item.day_of_week === i) || [];
   }
 
   return (
@@ -178,152 +201,227 @@ export default function PlannerPage() {
           <div className="text-center flex-1">
             <h1 className="font-semibold text-sm md:text-lg">Weekly Planner</h1>
           </div>
-          <div className="w-16" /> {/* Spacer for centering */}
+          <div className="w-16" />
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-3 md:px-4 py-4 md:py-6">
         {/* Week Navigation */}
         <div className="glass rounded-xl md:rounded-2xl p-3 md:p-4 mb-4 md:mb-6 flex items-center justify-between">
-          <Button variant="ghost" size="sm" onClick={() => navigateWeek(-1)} className="px-2 md:px-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigateWeek(-1)}
+            className="px-2 md:px-3"
+          >
             ← <span className="hidden sm:inline ml-1">Prev</span>
           </Button>
           <div className="text-center">
-            <h2 className="text-base md:text-xl font-semibold">{formatWeekRange()}</h2>
-            {isCurrentWeek() && <Badge className="mt-1 text-xs">This Week</Badge>}
+            <h2 className="text-base md:text-xl font-semibold">
+              {formatWeekRange()}
+            </h2>
+            {isCurrentWeek() && (
+              <Badge className="mt-1 text-xs">This Week</Badge>
+            )}
           </div>
-          <Button variant="ghost" size="sm" onClick={() => navigateWeek(1)} className="px-2 md:px-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigateWeek(1)}
+            className="px-2 md:px-3"
+          >
             <span className="hidden sm:inline mr-1">Next</span> →
           </Button>
         </div>
 
         {/* Week Grid - Vertical on mobile, horizontal on desktop */}
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-3 md:gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
           {DAYS.map((day, dayIndex) => (
             <Card
               key={day}
-              className={`glass ${
-                isToday(dayIndex) ? "border-primary/50 ring-2 ring-primary/20" : ""
+              className={`glass overflow-hidden ${
+                isToday(dayIndex)
+                  ? "border-primary/50 ring-2 ring-primary/20"
+                  : ""
               }`}
             >
-              {/* Mobile: Horizontal layout */}
+              {/* Mobile Layout - Horizontal with prominent item */}
               <div className="md:hidden">
-                <div className="flex items-center gap-3 p-3">
-                  {/* Day Info */}
-                  <div className="flex items-center gap-2 min-w-[100px]">
-                    <span className="text-2xl">{DAY_EMOJIS[dayIndex]}</span>
-                    <div>
-                      <p className="font-medium text-sm">{DAYS_FULL[dayIndex]}</p>
-                      <p className="text-2xl font-bold text-primary leading-none">
+                <div className="p-3">
+                  {/* Compact Day Header */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-bold text-primary">
                         {getDateForDay(dayIndex)}
-                      </p>
-                    </div>
-                    {isToday(dayIndex) && (
-                      <Badge className="text-xs">Today</Badge>
-                    )}
-                  </div>
-
-                  {/* Items */}
-                  <div className="flex-1 flex flex-wrap gap-2">
-                    {itemsByDay[dayIndex].map((item) => (
-                      <div
-                        key={item.id}
-                        className="group relative glass rounded-lg px-2 py-1 flex items-center gap-1"
-                      >
-                        <span className="text-sm">
-                          {CATEGORY_EMOJI[item.content?.category || "other"]}
-                        </span>
-                        <span className="text-xs line-clamp-1 max-w-[120px]">
-                          {item.content?.title}
-                        </span>
-                        <button
-                          onClick={() => removeFromDay(item.id)}
-                          className="ml-1 text-destructive hover:bg-destructive/20 rounded p-0.5 text-xs"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-
-                    {/* Suggestion chip */}
-                    {itemsByDay[dayIndex].length === 0 &&
-                      data?.suggestions?.[dayIndex]?.[0] && (
-                        <button
-                          onClick={() => addToDay(data.suggestions[dayIndex][0].id, dayIndex)}
-                          className="glass rounded-lg px-2 py-1 flex items-center gap-1 border border-dashed border-primary/30 hover:bg-primary/10"
-                        >
-                          <span className="text-sm">
-                            {CATEGORY_EMOJI[data.suggestions[dayIndex][0].category]}
-                          </span>
-                          <span className="text-xs text-muted-foreground line-clamp-1 max-w-[100px]">
-                            {data.suggestions[dayIndex][0].title}
-                          </span>
-                        </button>
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {DAYS_FULL[dayIndex]}
+                      </span>
+                      {isToday(dayIndex) && (
+                        <Badge variant="secondary" className="text-xs">
+                          Today
+                        </Badge>
                       )}
-
-                    {/* Add Button */}
+                    </div>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 px-3 text-xs border border-dashed"
+                      className="h-7 px-2 text-xs"
                       onClick={() => setAddingToDay(dayIndex)}
                     >
                       + Add
                     </Button>
                   </div>
+
+                  {/* Prominent Items */}
+                  {itemsByDay[dayIndex].length > 0 ? (
+                    <div className="space-y-2">
+                      {itemsByDay[dayIndex].map((item) => (
+                        <div
+                          key={item.id}
+                          className="group relative glass rounded-xl overflow-hidden"
+                        >
+                          <div className="flex gap-3">
+                            {item.content?.thumbnail_url && (
+                              <img
+                                src={item.content.thumbnail_url}
+                                alt=""
+                                className="w-20 h-20 object-cover shrink-0"
+                              />
+                            )}
+                            <div className="flex-1 py-2 pr-8 min-w-0">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <span className="text-sm">
+                                  {CATEGORY_EMOJI[item.content?.category || "other"]}
+                                </span>
+                                <span className="text-xs text-muted-foreground capitalize">
+                                  {item.content?.category?.replace("_", " ")}
+                                </span>
+                              </div>
+                              <p className="font-medium text-sm line-clamp-2">
+                                {item.content?.title}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => removeFromDay(item.id)}
+                            className="absolute top-2 right-2 bg-destructive/90 text-destructive-foreground rounded-full w-6 h-6 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : data?.suggestions?.[dayIndex]?.[0] ? (
+                    <button
+                      onClick={() =>
+                        addToDay(data.suggestions[dayIndex][0].id, dayIndex)
+                      }
+                      className="w-full glass rounded-xl overflow-hidden border border-dashed border-primary/30 hover:bg-primary/5 transition-colors"
+                    >
+                      <div className="flex gap-3">
+                        {data.suggestions[dayIndex][0].thumbnail_url && (
+                          <img
+                            src={data.suggestions[dayIndex][0].thumbnail_url}
+                            alt=""
+                            className="w-16 h-16 object-cover shrink-0 opacity-60"
+                          />
+                        )}
+                        <div className="flex-1 py-2 pr-3 min-w-0">
+                          <p className="text-xs text-muted-foreground mb-0.5">
+                            Suggested
+                          </p>
+                          <p className="text-sm line-clamp-2 text-muted-foreground">
+                            {data.suggestions[dayIndex][0].title}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  ) : (
+                    <div className="text-center py-4 text-muted-foreground text-sm">
+                      No plans yet
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Desktop: Vertical card layout */}
+              {/* Desktop Layout - Vertical card with prominent item */}
               <div className="hidden md:block">
-                <CardHeader className="pb-2 text-center">
-                  <div className="text-2xl">{DAY_EMOJIS[dayIndex]}</div>
-                  <CardTitle className="text-sm font-medium">
-                    {DAYS_FULL[dayIndex]}
-                    <span className="block text-2xl font-bold text-primary">
-                      {getDateForDay(dayIndex)}
-                    </span>
-                  </CardTitle>
-                  {isToday(dayIndex) && <Badge className="mx-auto">Today</Badge>}
-                </CardHeader>
-                <CardContent className="p-3 pt-0 space-y-2 min-h-[120px]">
-                  {/* Items */}
+                {/* Compact Day Header */}
+                <div className="px-3 pt-3 pb-2 border-b border-border/50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xl font-bold text-primary">
+                        {getDateForDay(dayIndex)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {DAYS[dayIndex]}
+                      </span>
+                    </div>
+                    {isToday(dayIndex) && (
+                      <Badge variant="secondary" className="text-[10px] px-1.5">
+                        Today
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+
+                <CardContent className="p-2 space-y-2 min-h-[180px]">
+                  {/* Prominent Items */}
                   {itemsByDay[dayIndex].map((item) => (
                     <div
                       key={item.id}
-                      className="group relative glass rounded p-2 hover:bg-secondary/50 transition-colors"
+                      className="group relative glass rounded-lg overflow-hidden"
                     >
-                      <div className="flex items-center gap-1">
-                        <span className="text-sm">
-                          {CATEGORY_EMOJI[item.content?.category || "other"]}
-                        </span>
-                        <span className="text-xs line-clamp-1 flex-1">
+                      {item.content?.thumbnail_url && (
+                        <img
+                          src={item.content.thumbnail_url}
+                          alt=""
+                          className="w-full h-24 object-cover"
+                        />
+                      )}
+                      <div className="p-2">
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <span className="text-xs">
+                            {CATEGORY_EMOJI[item.content?.category || "other"]}
+                          </span>
+                        </div>
+                        <p className="text-xs font-medium line-clamp-2">
                           {item.content?.title}
-                        </span>
+                        </p>
                       </div>
                       <button
                         onClick={() => removeFromDay(item.id)}
-                        className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 bg-destructive text-destructive-foreground rounded-full w-5 h-5 text-xs flex items-center justify-center transition-opacity"
+                        className="absolute top-1 right-1 bg-destructive/90 text-destructive-foreground rounded-full w-5 h-5 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         ✕
                       </button>
                     </div>
                   ))}
 
-                  {/* Suggestions on empty days */}
+                  {/* Suggestion */}
                   {itemsByDay[dayIndex].length === 0 &&
                     data?.suggestions?.[dayIndex]?.[0] && (
                       <button
-                        onClick={() => addToDay(data.suggestions[dayIndex][0].id, dayIndex)}
-                        className="w-full glass rounded p-2 text-left hover:bg-primary/10 transition-colors border border-dashed border-primary/30"
+                        onClick={() =>
+                          addToDay(data.suggestions[dayIndex][0].id, dayIndex)
+                        }
+                        className="w-full glass rounded-lg overflow-hidden border border-dashed border-primary/30 hover:bg-primary/5 transition-colors"
                       >
-                        <div className="flex items-center gap-1">
-                          <span className="text-sm">
-                            {CATEGORY_EMOJI[data.suggestions[dayIndex][0].category]}
-                          </span>
-                          <span className="text-xs line-clamp-1 text-muted-foreground">
+                        {data.suggestions[dayIndex][0].thumbnail_url && (
+                          <img
+                            src={data.suggestions[dayIndex][0].thumbnail_url}
+                            alt=""
+                            className="w-full h-16 object-cover opacity-50"
+                          />
+                        )}
+                        <div className="p-2">
+                          <p className="text-[10px] text-muted-foreground">
+                            Suggested
+                          </p>
+                          <p className="text-xs line-clamp-2 text-muted-foreground">
                             {data.suggestions[dayIndex][0].title}
-                          </span>
+                          </p>
                         </div>
                       </button>
                     )}
@@ -335,7 +433,7 @@ export default function PlannerPage() {
                     className="w-full h-8 text-xs border border-dashed"
                     onClick={() => setAddingToDay(dayIndex)}
                   >
-                    + Add
+                    +
                   </Button>
                 </CardContent>
               </div>
@@ -346,7 +444,7 @@ export default function PlannerPage() {
         {/* Empty State */}
         {data?.availableContent.length === 0 && (
           <div className="glass rounded-2xl p-6 md:p-8 mt-6 text-center">
-            <p className="text-lg md:text-xl mb-2">📱 No saved content yet!</p>
+            <p className="text-lg md:text-xl mb-2">No saved content yet!</p>
             <p className="text-sm text-muted-foreground mb-4">
               Text TikTok links to save meals, events, and date ideas.
             </p>
@@ -363,9 +461,7 @@ export default function PlannerPage() {
           <div className="glass w-full md:max-w-lg md:rounded-2xl rounded-t-2xl max-h-[80vh] flex flex-col">
             {/* Modal Header */}
             <div className="p-4 border-b border-border flex items-center justify-between">
-              <h3 className="font-semibold">
-                Add to {DAYS_FULL[addingToDay]}
-              </h3>
+              <h3 className="font-semibold">Add to {DAYS_FULL[addingToDay]}</h3>
               <button
                 onClick={() => {
                   setAddingToDay(null);
@@ -403,7 +499,7 @@ export default function PlannerPage() {
                   onClick={() => setCategoryFilter("meal")}
                   className="shrink-0"
                 >
-                  🍽️ Meals
+                  Meals
                 </Button>
                 <Button
                   variant={categoryFilter === "event" ? "default" : "ghost"}
@@ -411,7 +507,7 @@ export default function PlannerPage() {
                   onClick={() => setCategoryFilter("event")}
                   className="shrink-0"
                 >
-                  🎉 Events
+                  Events
                 </Button>
                 <Button
                   variant={categoryFilter === "date_idea" ? "default" : "ghost"}
@@ -419,7 +515,7 @@ export default function PlannerPage() {
                   onClick={() => setCategoryFilter("date_idea")}
                   className="shrink-0"
                 >
-                  💕 Dates
+                  Dates
                 </Button>
               </div>
             </div>
@@ -436,7 +532,7 @@ export default function PlannerPage() {
                     <img
                       src={content.thumbnail_url}
                       alt=""
-                      className="w-12 h-12 object-cover rounded-lg shrink-0"
+                      className="w-16 h-16 object-cover rounded-lg shrink-0"
                     />
                   )}
                   <div className="flex-1 min-w-0">

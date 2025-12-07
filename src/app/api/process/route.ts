@@ -4,8 +4,9 @@ import {
   analyzeVideoWithGemini,
   analyzeWithThumbnail,
   analyzeWithDescription,
+  MultiItemAnalysisResult,
 } from "@/lib/gemini";
-import { updateContent } from "@/lib/supabase";
+import { updateContent, saveContent, deleteContent, createServerClient } from "@/lib/supabase";
 
 interface ProcessRequest {
   contentId: string;
@@ -19,11 +20,13 @@ const MAX_VIDEO_SIZE_FOR_FULL_ANALYSIS = 20 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
   let contentId: string | undefined;
+  let userId: string | undefined;
 
   try {
     const body: ProcessRequest = await request.json();
     contentId = body.contentId;
-    const { tiktokUrl, userId } = body;
+    const { tiktokUrl } = body;
+    userId = body.userId;
 
     if (!contentId || !tiktokUrl || !userId) {
       return NextResponse.json(
@@ -53,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 2: Analyze the video using best available method
-    let analysisResult;
+    let analysisResult: MultiItemAnalysisResult | undefined;
 
     // Try full video analysis if we have a video URL
     if (videoInfo.videoUrl) {
@@ -111,25 +114,63 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("Analysis result:", {
-      category: analysisResult.category,
-      title: analysisResult.title,
+      isMultiItem: analysisResult.isMultiItem,
+      itemCount: analysisResult.items.length,
+      items: analysisResult.items.map((i) => ({
+        category: i.category,
+        title: i.title,
+      })),
     });
 
-    // Step 3: Update the content entry with results
-    const updatedContent = await updateContent(contentId, {
-      category: analysisResult.category,
-      title: analysisResult.title,
-      data: analysisResult.data,
-      thumbnail_url: videoInfo.thumbnailUrl,
-      status: "completed",
-    });
+    // Step 3: Handle single vs multi-item results
+    if (analysisResult.isMultiItem && analysisResult.items.length > 1) {
+      // Multi-item: Delete the placeholder and create individual entries
+      console.log(
+        `Creating ${analysisResult.items.length} separate content entries...`
+      );
 
-    console.log(`Content updated: ${updatedContent.id}`);
+      // Delete the original processing placeholder
+      const supabase = createServerClient();
+      await supabase.from("content").delete().eq("id", contentId);
 
-    return NextResponse.json({
-      success: true,
-      content: updatedContent,
-    });
+      // Create individual content entries for each item
+      const createdContents = [];
+      for (const item of analysisResult.items) {
+        const content = await saveContent({
+          user_id: userId,
+          tiktok_url: tiktokUrl,
+          category: item.category,
+          title: item.title,
+          data: item.data,
+          thumbnail_url: videoInfo.thumbnailUrl,
+        });
+        createdContents.push(content);
+        console.log(`Created content: ${content.id} - ${content.title}`);
+      }
+
+      return NextResponse.json({
+        success: true,
+        multiItem: true,
+        contents: createdContents,
+      });
+    } else {
+      // Single item: Update the existing entry
+      const item = analysisResult.items[0];
+      const updatedContent = await updateContent(contentId, {
+        category: item.category,
+        title: item.title,
+        data: item.data,
+        thumbnail_url: videoInfo.thumbnailUrl,
+        status: "completed",
+      });
+
+      console.log(`Content updated: ${updatedContent.id}`);
+
+      return NextResponse.json({
+        success: true,
+        content: updatedContent,
+      });
+    }
   } catch (error) {
     console.error("Error processing TikTok video:", error);
 

@@ -4,12 +4,23 @@ import type {
   MealData,
   EventData,
   DateIdeaData,
+  GiftIdeaData,
 } from "./supabase";
 
-interface AnalysisResult {
+export interface AnalysisResult {
   category: ContentCategory;
   title: string;
-  data: MealData | EventData | DateIdeaData | Record<string, unknown>;
+  data:
+    | MealData
+    | EventData
+    | DateIdeaData
+    | GiftIdeaData
+    | Record<string, unknown>;
+}
+
+export interface MultiItemAnalysisResult {
+  items: AnalysisResult[];
+  isMultiItem: boolean;
 }
 
 const ANALYSIS_PROMPT = `You are an AI assistant that analyzes TikTok videos to extract and categorize content.
@@ -19,7 +30,11 @@ Analyze this video and determine what category it belongs to:
 1. **meal** - A recipe, cooking tutorial, or food-related content
 2. **event** - An event, festival, concert, show, or time-limited happening
 3. **date_idea** - A date night idea, place to visit, restaurant recommendation, or activity suggestion
-4. **other** - Content that doesn't fit the above categories
+4. **gift_idea** - A product, item, or gift recommendation that could be purchased
+5. **other** - Content that doesn't fit the above categories
+
+**IMPORTANT - Multi-Item Detection:**
+If the video contains a LIST of items (e.g., "Top 5 restaurants", "3 best gifts", "My favorite spots in NYC"), extract EACH item separately and return them as an array.
 
 Based on the category, extract the relevant information:
 
@@ -40,6 +55,8 @@ For **event**:
 - requires_ticket: true/false
 - ticket_link: URL to buy tickets if mentioned
 - description: Brief description of the event
+- website: Official website URL (use your knowledge to find the likely URL based on the event/venue name)
+- reservation_link: URL to make reservations (OpenTable, Resy, etc.) if applicable
 
 For **date_idea**:
 - title: Name of the place or activity
@@ -47,19 +64,45 @@ For **date_idea**:
 - type: One of "dinner", "activity", "entertainment", "outdoors", "other"
 - price_range: One of "$", "$$", "$$$", "$$$$" if you can estimate
 - description: Brief description of why it's a good date idea
+- website: Official website URL (use your knowledge to find the likely URL based on the venue name)
+- menu_link: Link to the menu if it's a restaurant (often /menu on the website)
+- reservation_link: URL to make reservations (OpenTable, Resy, etc.) if applicable
+
+For **gift_idea**:
+- title: Name of the product/item
+- name: Full product name
+- cost: Price or price range if mentioned (e.g., "$29.99" or "$20-50")
+- purchase_link: Direct link to purchase if mentioned
+- amazon_link: Amazon search URL for the product (construct as: https://www.amazon.com/s?k=PRODUCT+NAME)
+- description: Brief description of the product and why it makes a good gift
 
 For **other**:
 - title: Brief description of the content
 - description: Summary of what the video is about
 
-Respond ONLY with valid JSON in this exact format:
+**Response Format:**
+
+For a SINGLE item, respond with:
 {
-  "category": "meal" | "event" | "date_idea" | "other",
-  "title": "string",
-  "data": { ... category-specific fields ... }
+  "isMultiItem": false,
+  "items": [{
+    "category": "meal" | "event" | "date_idea" | "gift_idea" | "other",
+    "title": "string",
+    "data": { ... category-specific fields ... }
+  }]
 }
 
-If you cannot determine the content or the video is unclear, use category "other" and provide your best guess.`;
+For MULTIPLE items (lists, top 5s, etc.), respond with:
+{
+  "isMultiItem": true,
+  "items": [
+    { "category": "...", "title": "Item 1", "data": { ... } },
+    { "category": "...", "title": "Item 2", "data": { ... } },
+    ...
+  ]
+}
+
+Respond ONLY with valid JSON. If you cannot determine the content, use category "other".`;
 
 function getGeminiClient() {
   const apiKey = process.env.GOOGLE_AI_API_KEY;
@@ -71,10 +114,65 @@ function getGeminiClient() {
   return new GoogleGenerativeAI(apiKey);
 }
 
+function parseAnalysisResponse(text: string): MultiItemAnalysisResult {
+  // Try to extract JSON from the response
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error("No JSON found in response");
+  }
+
+  const parsed = JSON.parse(jsonMatch[0]);
+
+  // Handle new multi-item format
+  if (parsed.items && Array.isArray(parsed.items)) {
+    const validCategories: ContentCategory[] = [
+      "meal",
+      "event",
+      "date_idea",
+      "gift_idea",
+      "other",
+    ];
+
+    const validatedItems = parsed.items.map((item: AnalysisResult) => {
+      if (!validCategories.includes(item.category)) {
+        item.category = "other";
+      }
+      return item;
+    });
+
+    return {
+      isMultiItem: parsed.isMultiItem || validatedItems.length > 1,
+      items: validatedItems,
+    };
+  }
+
+  // Handle legacy single-item format
+  if (parsed.category && parsed.title) {
+    const validCategories: ContentCategory[] = [
+      "meal",
+      "event",
+      "date_idea",
+      "gift_idea",
+      "other",
+    ];
+
+    if (!validCategories.includes(parsed.category)) {
+      parsed.category = "other";
+    }
+
+    return {
+      isMultiItem: false,
+      items: [parsed as AnalysisResult],
+    };
+  }
+
+  throw new Error("Invalid response structure");
+}
+
 export async function analyzeVideoWithGemini(
   videoBase64: string,
   videoDescription?: string
-): Promise<AnalysisResult> {
+): Promise<MultiItemAnalysisResult> {
   const genAI = getGeminiClient();
 
   // Use Gemini 2.5 Flash for video analysis
@@ -100,41 +198,22 @@ export async function analyzeVideoWithGemini(
     const response = result.response;
     const text = response.text();
 
-    // Extract JSON from the response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("No JSON found in response");
-    }
-
-    const parsed = JSON.parse(jsonMatch[0]) as AnalysisResult;
-
-    // Validate the response
-    if (!parsed.category || !parsed.title || !parsed.data) {
-      throw new Error("Invalid response structure");
-    }
-
-    // Ensure category is valid
-    const validCategories: ContentCategory[] = [
-      "meal",
-      "event",
-      "date_idea",
-      "other",
-    ];
-    if (!validCategories.includes(parsed.category)) {
-      parsed.category = "other";
-    }
-
-    return parsed;
+    return parseAnalysisResponse(text);
   } catch (error) {
     console.error("Error analyzing video with Gemini:", error);
 
     // Return a fallback result
     return {
-      category: "other",
-      title: "Unable to analyze video",
-      data: {
-        description: videoDescription || "Video analysis failed",
-      },
+      isMultiItem: false,
+      items: [
+        {
+          category: "other",
+          title: "Unable to analyze video",
+          data: {
+            description: videoDescription || "Video analysis failed",
+          },
+        },
+      ],
     };
   }
 }
@@ -143,7 +222,7 @@ export async function analyzeVideoWithGemini(
 export async function analyzeWithThumbnail(
   thumbnailUrl: string,
   description: string
-): Promise<AnalysisResult> {
+): Promise<MultiItemAnalysisResult> {
   const genAI = getGeminiClient();
 
   // Use Gemini 2.5 Flash for image analysis
@@ -178,40 +257,21 @@ Based on the thumbnail and description, analyze what this content is about.`;
     const response = result.response;
     const text = response.text();
 
-    // Extract JSON from the response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("No JSON found in response");
-    }
-
-    const parsed = JSON.parse(jsonMatch[0]) as AnalysisResult;
-
-    // Validate the response
-    if (!parsed.category || !parsed.title || !parsed.data) {
-      throw new Error("Invalid response structure");
-    }
-
-    // Ensure category is valid
-    const validCategories: ContentCategory[] = [
-      "meal",
-      "event",
-      "date_idea",
-      "other",
-    ];
-    if (!validCategories.includes(parsed.category)) {
-      parsed.category = "other";
-    }
-
-    return parsed;
+    return parseAnalysisResponse(text);
   } catch (error) {
     console.error("Error analyzing with thumbnail:", error);
 
     return {
-      category: "other",
-      title: "Unable to analyze content",
-      data: {
-        description: description || "Analysis failed",
-      },
+      isMultiItem: false,
+      items: [
+        {
+          category: "other",
+          title: "Unable to analyze content",
+          data: {
+            description: description || "Analysis failed",
+          },
+        },
+      ],
     };
   }
 }
@@ -220,7 +280,7 @@ Based on the thumbnail and description, analyze what this content is about.`;
 export async function analyzeWithDescription(
   description: string,
   tiktokUrl: string
-): Promise<AnalysisResult> {
+): Promise<MultiItemAnalysisResult> {
   const genAI = getGeminiClient();
 
   // Use Gemini 2.5 Flash for text-only analysis
@@ -241,40 +301,30 @@ Based on this information, determine what category this content belongs to and e
     const response = result.response;
     const text = response.text();
 
-    // Extract JSON from the response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("No JSON found in response");
-    }
-
-    const parsed = JSON.parse(jsonMatch[0]) as AnalysisResult;
-
-    // Validate the response
-    if (!parsed.category || !parsed.title || !parsed.data) {
-      throw new Error("Invalid response structure");
-    }
-
-    // Ensure category is valid
-    const validCategories: ContentCategory[] = [
-      "meal",
-      "event",
-      "date_idea",
-      "other",
-    ];
-    if (!validCategories.includes(parsed.category)) {
-      parsed.category = "other";
-    }
-
-    return parsed;
+    return parseAnalysisResponse(text);
   } catch (error) {
     console.error("Error analyzing with description:", error);
 
     return {
-      category: "other",
-      title: description.slice(0, 50) || "Saved TikTok",
-      data: {
-        description: description || "Content from TikTok",
-      },
+      isMultiItem: false,
+      items: [
+        {
+          category: "other",
+          title: description.slice(0, 50) || "Saved TikTok",
+          data: {
+            description: description || "Content from TikTok",
+          },
+        },
+      ],
     };
   }
+}
+
+// Legacy function for backwards compatibility - returns first item only
+export async function analyzeSingleItem(
+  videoBase64: string,
+  videoDescription?: string
+): Promise<AnalysisResult> {
+  const result = await analyzeVideoWithGemini(videoBase64, videoDescription);
+  return result.items[0];
 }

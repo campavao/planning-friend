@@ -134,10 +134,15 @@ export default function Dashboard() {
             </div>
 
             {/* Desktop Actions */}
-            <div className="hidden md:flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-2">
               <Link href="/dashboard/planner">
                 <Button variant="default" size="sm">
                   📅 Plan Week
+                </Button>
+              </Link>
+              <Link href="/dashboard/gifts">
+                <Button variant="outline" size="sm">
+                  🎁 Gifts
                 </Button>
               </Link>
               <Button
@@ -158,6 +163,11 @@ export default function Dashboard() {
               <Link href="/dashboard/planner">
                 <Button variant="default" size="sm" className="px-2">
                   📅
+                </Button>
+              </Link>
+              <Link href="/dashboard/gifts">
+                <Button variant="outline" size="sm" className="px-2">
+                  🎁
                 </Button>
               </Link>
               <Button
@@ -205,33 +215,36 @@ export default function Dashboard() {
 
         {/* Stats Banner */}
         <div className="glass rounded-2xl p-4 md:p-6 mb-6 md:mb-8 animate-fade-in-up opacity-0">
-          <div className="grid grid-cols-4 gap-2 md:flex md:flex-wrap md:gap-6 md:justify-start">
+          <div className="grid grid-cols-5 gap-1 md:flex md:flex-wrap md:gap-6 md:justify-start">
             <div className="text-center">
-              <p className="text-2xl md:text-3xl font-bold text-primary">
+              <p className="text-xl md:text-3xl font-bold text-primary">
                 {completedContent.length}
               </p>
-              <p className="text-xs md:text-sm text-muted-foreground">Saves</p>
+              <p className="text-[10px] md:text-sm text-muted-foreground">Saves</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl md:text-3xl font-bold text-meal">
+              <p className="text-xl md:text-3xl font-bold text-meal">
                 {completedContent.filter((c) => c.category === "meal").length}
               </p>
-              <p className="text-xs md:text-sm text-muted-foreground">Meals</p>
+              <p className="text-[10px] md:text-sm text-muted-foreground">Meals</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl md:text-3xl font-bold text-event">
+              <p className="text-xl md:text-3xl font-bold text-event">
                 {completedContent.filter((c) => c.category === "event").length}
               </p>
-              <p className="text-xs md:text-sm text-muted-foreground">Events</p>
+              <p className="text-[10px] md:text-sm text-muted-foreground">Events</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl md:text-3xl font-bold text-date">
-                {
-                  completedContent.filter((c) => c.category === "date_idea")
-                    .length
-                }
+              <p className="text-xl md:text-3xl font-bold text-date">
+                {completedContent.filter((c) => c.category === "date_idea").length}
               </p>
-              <p className="text-xs md:text-sm text-muted-foreground">Dates</p>
+              <p className="text-[10px] md:text-sm text-muted-foreground">Dates</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xl md:text-3xl font-bold text-gift">
+                {completedContent.filter((c) => c.category === "gift_idea").length}
+              </p>
+              <p className="text-[10px] md:text-sm text-muted-foreground">Gifts</p>
             </div>
           </div>
         </div>

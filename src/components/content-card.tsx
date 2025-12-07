@@ -8,6 +8,7 @@ import type {
   MealData,
   EventData,
   DateIdeaData,
+  GiftIdeaData,
 } from "@/lib/supabase";
 
 // Generate Google Maps URL from location string
@@ -245,6 +246,81 @@ function DateIdeaCard({
   );
 }
 
+function GiftIdeaCard({
+  content,
+  data,
+}: {
+  content: Content;
+  data: GiftIdeaData;
+}) {
+  return (
+    <Link href={`/dashboard/${content.id}`}>
+      <Card className="glass overflow-hidden group hover:border-gift/50 transition-all duration-300 cursor-pointer h-full">
+        <div className="relative">
+          {content.thumbnail_url && (
+            <div className="relative h-40 overflow-hidden">
+              <img
+                src={content.thumbnail_url}
+                alt={content.title}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
+            </div>
+          )}
+          <Badge className="absolute top-3 right-3 badge-gift_idea border">
+            🎁 Gift Idea
+          </Badge>
+        </div>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg font-semibold line-clamp-2">
+            {content.title}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {data.cost && (
+            <div className="flex items-center gap-2 text-sm">
+              <span>💰</span>
+              <span className="font-medium text-gift">{data.cost}</span>
+            </div>
+          )}
+          {data.description && (
+            <p className="text-sm text-muted-foreground line-clamp-2">
+              {data.description}
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {data.amazon_link && (
+              <a
+                href={data.amazon_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="text-xs text-orange-500 hover:underline"
+              >
+                View on Amazon →
+              </a>
+            )}
+            {data.purchase_link && !data.amazon_link && (
+              <a
+                href={data.purchase_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="text-xs text-primary hover:underline"
+              >
+                Buy Now →
+              </a>
+            )}
+          </div>
+          <p className="text-sm text-primary group-hover:underline">
+            View details →
+          </p>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
+
 function OtherCard({ content }: { content: Content }) {
   const data = content.data as { description?: string };
 
@@ -316,6 +392,9 @@ export function ContentCard({ content, index = 0 }: ContentCardProps) {
       )}
       {content.category === "date_idea" && (
         <DateIdeaCard content={content} data={content.data as DateIdeaData} />
+      )}
+      {content.category === "gift_idea" && (
+        <GiftIdeaCard content={content} data={content.data as GiftIdeaData} />
       )}
       {content.category === "other" && <OtherCard content={content} />}
     </div>

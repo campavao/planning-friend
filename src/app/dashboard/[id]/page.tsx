@@ -11,6 +11,7 @@ import type {
   MealData,
   EventData,
   DateIdeaData,
+  GiftIdeaData,
 } from "@/lib/supabase";
 
 // Generate Google Maps URL from location string
@@ -120,10 +121,11 @@ export default function ContentDetailPage() {
     );
   }
 
-  const categoryConfig = {
+  const categoryConfig: Record<string, { emoji: string; label: string; color: string }> = {
     meal: { emoji: "🍽️", label: "Meal", color: "badge-meal" },
     event: { emoji: "🎉", label: "Event", color: "badge-event" },
     date_idea: { emoji: "💕", label: "Date Idea", color: "badge-date_idea" },
+    gift_idea: { emoji: "🎁", label: "Gift Idea", color: "badge-gift_idea" },
     other: { emoji: "📌", label: "Saved", color: "badge-other" },
   };
 
@@ -233,6 +235,9 @@ export default function ContentDetailPage() {
             )}
             {content.category === "date_idea" && (
               <DateIdeaContent data={content.data as DateIdeaData} />
+            )}
+            {content.category === "gift_idea" && (
+              <GiftIdeaContent data={content.data as GiftIdeaData} />
             )}
             {content.category === "other" && (
               <OtherContent data={content.data as { description?: string }} />
@@ -372,6 +377,40 @@ function EventContent({ data }: { data: EventData }) {
           <Badge variant="outline">🎟️ Ticket Required</Badge>
         )}
       </div>
+
+      {/* Links */}
+      <div className="flex flex-wrap gap-3 pt-2">
+        {data.website && (
+          <a
+            href={data.website}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+          >
+            🌐 Website
+          </a>
+        )}
+        {data.reservation_link && (
+          <a
+            href={data.reservation_link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+          >
+            🎫 Make Reservation
+          </a>
+        )}
+        {data.ticket_link && (
+          <a
+            href={data.ticket_link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+          >
+            🎟️ Get Tickets
+          </a>
+        )}
+      </div>
     </div>
   );
 }
@@ -425,6 +464,87 @@ function DateIdeaContent({ data }: { data: DateIdeaData }) {
           <p className="text-muted-foreground">{data.description}</p>
         </div>
       )}
+
+      {/* Links */}
+      <div className="flex flex-wrap gap-3 pt-2">
+        {data.website && (
+          <a
+            href={data.website}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+          >
+            🌐 Website
+          </a>
+        )}
+        {data.menu_link && (
+          <a
+            href={data.menu_link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+          >
+            📋 Menu
+          </a>
+        )}
+        {data.reservation_link && (
+          <a
+            href={data.reservation_link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+          >
+            🎫 Make Reservation
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function GiftIdeaContent({ data }: { data: GiftIdeaData }) {
+  return (
+    <div className="space-y-4">
+      {data.cost && (
+        <div className="flex items-start gap-3">
+          <span className="text-2xl">💰</span>
+          <div>
+            <p className="text-sm text-muted-foreground">Price</p>
+            <p className="font-medium text-xl text-gift">{data.cost}</p>
+          </div>
+        </div>
+      )}
+
+      {data.description && (
+        <div>
+          <h3 className="text-lg font-semibold mb-2">About this gift</h3>
+          <p className="text-muted-foreground">{data.description}</p>
+        </div>
+      )}
+
+      {/* Purchase Links */}
+      <div className="flex flex-wrap gap-3 pt-4">
+        {data.amazon_link && (
+          <a
+            href={data.amazon_link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 transition-colors"
+          >
+            🛒 View on Amazon
+          </a>
+        )}
+        {data.purchase_link && (
+          <a
+            href={data.purchase_link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/20 text-primary hover:bg-primary/30 transition-colors"
+          >
+            🛍️ Buy Now
+          </a>
+        )}
+      </div>
     </div>
   );
 }

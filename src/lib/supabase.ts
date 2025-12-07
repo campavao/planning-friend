@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
 // Types for our database
-export type ContentCategory = "meal" | "event" | "date_idea" | "other";
+export type ContentCategory = "meal" | "event" | "date_idea" | "gift_idea" | "other";
 export type ContentStatus = "processing" | "completed" | "failed";
 
 export interface User {
@@ -26,12 +26,25 @@ export interface EventData {
   requires_ticket?: boolean;
   ticket_link?: string;
   description?: string;
+  website?: string;
+  reservation_link?: string;
 }
 
 export interface DateIdeaData {
   location?: string;
   type?: "dinner" | "activity" | "entertainment" | "outdoors" | "other";
   price_range?: "$" | "$$" | "$$$" | "$$$$";
+  description?: string;
+  website?: string;
+  menu_link?: string;
+  reservation_link?: string;
+}
+
+export interface GiftIdeaData {
+  name?: string;
+  cost?: string;
+  purchase_link?: string;
+  amazon_link?: string;
   description?: string;
 }
 
@@ -41,7 +54,7 @@ export interface Content {
   tiktok_url: string;
   category: ContentCategory;
   title: string;
-  data: MealData | EventData | DateIdeaData | Record<string, unknown>;
+  data: MealData | EventData | DateIdeaData | GiftIdeaData | Record<string, unknown>;
   thumbnail_url?: string;
   status: ContentStatus;
   created_at: string;
@@ -580,4 +593,204 @@ export async function getPastWeeklyPlans(
   }
 
   return data as WeeklyPlan[];
+}
+
+// ==================== Gift Planner ====================
+
+export interface GiftRecipient {
+  id: string;
+  user_id: string;
+  name: string;
+  created_at: string;
+}
+
+export interface GiftAssignment {
+  id: string;
+  recipient_id: string;
+  content_id: string;
+  created_at: string;
+  content?: Content; // Joined content
+}
+
+export interface GiftRecipientWithAssignments extends GiftRecipient {
+  assignments: GiftAssignment[];
+}
+
+// Get all gift recipients for a user
+export async function getGiftRecipients(
+  userId: string
+): Promise<GiftRecipient[]> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("gift_recipients")
+    .select("*")
+    .eq("user_id", userId)
+    .order("name");
+
+  if (error) {
+    throw new Error(`Failed to get gift recipients: ${error.message}`);
+  }
+
+  return data as GiftRecipient[];
+}
+
+// Get recipients with their assigned gifts
+export async function getRecipientsWithAssignments(
+  userId: string
+): Promise<GiftRecipientWithAssignments[]> {
+  const supabase = createServerClient();
+
+  const { data: recipients, error: recipientsError } = await supabase
+    .from("gift_recipients")
+    .select("*")
+    .eq("user_id", userId)
+    .order("name");
+
+  if (recipientsError) {
+    throw new Error(`Failed to get recipients: ${recipientsError.message}`);
+  }
+
+  // Get all assignments with content for these recipients
+  const recipientIds = recipients.map((r: GiftRecipient) => r.id);
+  
+  if (recipientIds.length === 0) {
+    return [];
+  }
+
+  const { data: assignments, error: assignmentsError } = await supabase
+    .from("gift_assignments")
+    .select(`
+      *,
+      content:content_id (*)
+    `)
+    .in("recipient_id", recipientIds);
+
+  if (assignmentsError) {
+    throw new Error(`Failed to get assignments: ${assignmentsError.message}`);
+  }
+
+  // Group assignments by recipient
+  const assignmentsByRecipient = new Map<string, GiftAssignment[]>();
+  for (const assignment of assignments || []) {
+    const existing = assignmentsByRecipient.get(assignment.recipient_id) || [];
+    existing.push(assignment as GiftAssignment);
+    assignmentsByRecipient.set(assignment.recipient_id, existing);
+  }
+
+  return recipients.map((recipient: GiftRecipient) => ({
+    ...recipient,
+    assignments: assignmentsByRecipient.get(recipient.id) || [],
+  })) as GiftRecipientWithAssignments[];
+}
+
+// Create a gift recipient
+export async function createGiftRecipient(
+  userId: string,
+  name: string
+): Promise<GiftRecipient> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("gift_recipients")
+    .insert({ user_id: userId, name })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to create recipient: ${error.message}`);
+  }
+
+  return data as GiftRecipient;
+}
+
+// Update a gift recipient
+export async function updateGiftRecipient(
+  recipientId: string,
+  name: string
+): Promise<GiftRecipient> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("gift_recipients")
+    .update({ name })
+    .eq("id", recipientId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to update recipient: ${error.message}`);
+  }
+
+  return data as GiftRecipient;
+}
+
+// Delete a gift recipient
+export async function deleteGiftRecipient(recipientId: string): Promise<void> {
+  const supabase = createServerClient();
+
+  const { error } = await supabase
+    .from("gift_recipients")
+    .delete()
+    .eq("id", recipientId);
+
+  if (error) {
+    throw new Error(`Failed to delete recipient: ${error.message}`);
+  }
+}
+
+// Assign a gift to a recipient
+export async function assignGiftToRecipient(
+  recipientId: string,
+  contentId: string
+): Promise<GiftAssignment> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("gift_assignments")
+    .insert({ recipient_id: recipientId, content_id: contentId })
+    .select(`
+      *,
+      content:content_id (*)
+    `)
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to assign gift: ${error.message}`);
+  }
+
+  return data as GiftAssignment;
+}
+
+// Remove a gift assignment
+export async function removeGiftAssignment(assignmentId: string): Promise<void> {
+  const supabase = createServerClient();
+
+  const { error } = await supabase
+    .from("gift_assignments")
+    .delete()
+    .eq("id", assignmentId);
+
+  if (error) {
+    throw new Error(`Failed to remove assignment: ${error.message}`);
+  }
+}
+
+// Get all gift ideas for a user (for the picker)
+export async function getGiftIdeas(userId: string): Promise<Content[]> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("content")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("category", "gift_idea")
+    .eq("status", "completed")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to get gift ideas: ${error.message}`);
+  }
+
+  return data as Content[];
 }

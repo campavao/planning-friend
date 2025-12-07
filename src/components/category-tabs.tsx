@@ -12,6 +12,7 @@ export function CategoryTabs({ content }: CategoryTabsProps) {
   const meals = content.filter((c) => c.category === "meal");
   const events = content.filter((c) => c.category === "event");
   const dateIdeas = content.filter((c) => c.category === "date_idea");
+  const giftIdeas = content.filter((c) => c.category === "gift_idea");
   const other = content.filter((c) => c.category === "other");
 
   const EmptyState = ({ category }: { category: string }) => (
@@ -20,6 +21,7 @@ export function CategoryTabs({ content }: CategoryTabsProps) {
         {category === "meals" && "🍳"}
         {category === "events" && "🎉"}
         {category === "dates" && "💕"}
+        {category === "gifts" && "🎁"}
         {category === "other" && "📌"}
         {category === "all" && "📱"}
       </div>
@@ -33,7 +35,7 @@ export function CategoryTabs({ content }: CategoryTabsProps) {
 
   return (
     <Tabs defaultValue="all" className="w-full">
-      <TabsList className="glass w-full justify-start gap-1 p-1 mb-8 overflow-x-auto">
+      <TabsList className="glass w-full justify-start gap-1 p-1 mb-8 overflow-x-auto flex-wrap h-auto">
         <TabsTrigger
           value="all"
           className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
@@ -56,7 +58,13 @@ export function CategoryTabs({ content }: CategoryTabsProps) {
           value="dates"
           className="data-[state=active]:bg-date/20 data-[state=active]:text-date"
         >
-          💕 Date Ideas ({dateIdeas.length})
+          💕 Dates ({dateIdeas.length})
+        </TabsTrigger>
+        <TabsTrigger
+          value="gifts"
+          className="data-[state=active]:bg-gift/20 data-[state=active]:text-gift"
+        >
+          🎁 Gifts ({giftIdeas.length})
         </TabsTrigger>
         <TabsTrigger
           value="other"
@@ -108,6 +116,18 @@ export function CategoryTabs({ content }: CategoryTabsProps) {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {dateIdeas.map((item, index) => (
+              <ContentCard key={item.id} content={item} index={index} />
+            ))}
+          </div>
+        )}
+      </TabsContent>
+
+      <TabsContent value="gifts" className="mt-0">
+        {giftIdeas.length === 0 ? (
+          <EmptyState category="gifts" />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {giftIdeas.map((item, index) => (
               <ContentCard key={item.id} content={item} index={index} />
             ))}
           </div>
