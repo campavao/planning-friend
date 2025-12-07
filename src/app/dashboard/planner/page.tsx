@@ -4,21 +4,21 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { Content, PlanItem, WeeklyPlanWithItems } from "@/lib/supabase";
+import type { Content, PlanItem, WeeklyPlanWithItems, ContentCategory } from "@/lib/supabase";
 
-const DAYS = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-];
-
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAYS_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const DAY_EMOJIS = ["🌅", "🌤️", "🌥️", "⛅", "🌙", "🎉", "☀️"];
+
+const CATEGORY_EMOJI: Record<string, string> = {
+  meal: "🍽️",
+  event: "🎉",
+  date_idea: "💕",
+  other: "📌",
+};
 
 interface PlannerData {
   plan: WeeklyPlanWithItems | null;
@@ -30,10 +30,11 @@ export default function PlannerPage() {
   const [data, setData] = useState<PlannerData | null>(null);
   const [loading, setLoading] = useState(true);
   const [weekStart, setWeekStart] = useState<string>("");
-  const [addingTo, setAddingTo] = useState<number | null>(null);
+  const [addingToDay, setAddingToDay] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<ContentCategory | "all">("all");
   const router = useRouter();
 
-  // Get current week's Monday
   const getCurrentWeekStart = () => {
     const now = new Date();
     const day = now.getDay();
@@ -86,11 +87,7 @@ export default function PlannerPage() {
       const res = await fetch("/api/planner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          weekStart,
-          contentId,
-          dayOfWeek,
-        }),
+        body: JSON.stringify({ weekStart, contentId, dayOfWeek }),
       });
 
       if (res.ok) {
@@ -99,15 +96,14 @@ export default function PlannerPage() {
     } catch (error) {
       console.error("Failed to add item:", error);
     }
-    setAddingTo(null);
+    setAddingToDay(null);
+    setSearchQuery("");
+    setCategoryFilter("all");
   };
 
   const removeFromDay = async (itemId: string) => {
     try {
-      const res = await fetch(`/api/planner/item?id=${itemId}`, {
-        method: "DELETE",
-      });
-
+      const res = await fetch(`/api/planner/item?id=${itemId}`, { method: "DELETE" });
       if (res.ok) {
         fetchPlanner(weekStart);
       }
@@ -120,21 +116,40 @@ export default function PlannerPage() {
     const start = new Date(weekStart);
     const end = new Date(start);
     end.setDate(end.getDate() + 6);
-    
-    const formatDate = (d: Date) => 
-      d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    
+    const formatDate = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
     return `${formatDate(start)} - ${formatDate(end)}`;
   };
 
-  const isCurrentWeek = () => {
-    return weekStart === getCurrentWeekStart();
-  };
+  const isCurrentWeek = () => weekStart === getCurrentWeekStart();
 
   const getDateForDay = (dayIndex: number) => {
     const date = new Date(weekStart);
     date.setDate(date.getDate() + dayIndex);
     return date.getDate();
+  };
+
+  const isToday = (dayIndex: number) => {
+    const today = new Date();
+    const dayDate = new Date(weekStart);
+    dayDate.setDate(dayDate.getDate() + dayIndex);
+    return today.toDateString() === dayDate.toDateString();
+  };
+
+  // Filter content for the picker
+  const getFilteredContent = () => {
+    if (!data?.availableContent) return [];
+    
+    const usedIds = new Set(data.plan?.items.map((i) => i.content_id) || []);
+    
+    return data.availableContent.filter((c) => {
+      if (usedIds.has(c.id)) return false;
+      if (categoryFilter !== "all" && c.category !== categoryFilter) return false;
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return c.title.toLowerCase().includes(query);
+      }
+      return true;
+    });
   };
 
   if (loading) {
@@ -151,76 +166,121 @@ export default function PlannerPage() {
   }
 
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen pb-20 md:pb-8">
       {/* Header */}
       <header className="glass sticky top-0 z-50 border-b border-border/50">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/dashboard">
-              <Button variant="ghost" size="sm">
-                ← Back
-              </Button>
-            </Link>
-            <div>
-              <h1 className="font-semibold text-lg">Weekly Planner</h1>
-              <p className="text-xs text-muted-foreground">
-                Plan your week ahead
-              </p>
-            </div>
+        <div className="max-w-7xl mx-auto px-3 md:px-4 py-3 md:py-4 flex items-center justify-between">
+          <Link href="/dashboard">
+            <Button variant="ghost" size="sm" className="px-2 md:px-3">
+              ← <span className="hidden sm:inline ml-1">Back</span>
+            </Button>
+          </Link>
+          <div className="text-center flex-1">
+            <h1 className="font-semibold text-sm md:text-lg">Weekly Planner</h1>
           </div>
+          <div className="w-16" /> {/* Spacer for centering */}
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-3 md:px-4 py-4 md:py-6">
         {/* Week Navigation */}
-        <div className="glass rounded-2xl p-4 mb-6 flex items-center justify-between">
-          <Button
-            variant="ghost"
-            onClick={() => navigateWeek(-1)}
-          >
-            ← Previous
+        <div className="glass rounded-xl md:rounded-2xl p-3 md:p-4 mb-4 md:mb-6 flex items-center justify-between">
+          <Button variant="ghost" size="sm" onClick={() => navigateWeek(-1)} className="px-2 md:px-3">
+            ← <span className="hidden sm:inline ml-1">Prev</span>
           </Button>
           <div className="text-center">
-            <h2 className="text-xl font-semibold">{formatWeekRange()}</h2>
-            {isCurrentWeek() && (
-              <Badge className="mt-1">This Week</Badge>
-            )}
+            <h2 className="text-base md:text-xl font-semibold">{formatWeekRange()}</h2>
+            {isCurrentWeek() && <Badge className="mt-1 text-xs">This Week</Badge>}
           </div>
-          <Button
-            variant="ghost"
-            onClick={() => navigateWeek(1)}
-          >
-            Next →
+          <Button variant="ghost" size="sm" onClick={() => navigateWeek(1)} className="px-2 md:px-3">
+            <span className="hidden sm:inline mr-1">Next</span> →
           </Button>
         </div>
 
         {/* Week Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
+        <div className="grid grid-cols-7 gap-1 md:gap-3">
           {DAYS.map((day, dayIndex) => (
-            <DayColumn
+            <Card
               key={day}
-              day={day}
-              dayIndex={dayIndex}
-              dateNumber={getDateForDay(dayIndex)}
-              emoji={DAY_EMOJIS[dayIndex]}
-              items={itemsByDay[dayIndex]}
-              suggestions={data?.suggestions[dayIndex] || []}
-              availableContent={data?.availableContent || []}
-              isAddingTo={addingTo === dayIndex}
-              onAddClick={() => setAddingTo(addingTo === dayIndex ? null : dayIndex)}
-              onAdd={(contentId) => addToDay(contentId, dayIndex)}
-              onRemove={removeFromDay}
-            />
+              className={`glass min-h-[120px] md:min-h-[200px] ${
+                isToday(dayIndex) ? "border-primary/50 ring-1 md:ring-2 ring-primary/20" : ""
+              }`}
+            >
+              <CardHeader className="p-2 md:pb-2 text-center">
+                <div className="text-lg md:text-2xl">{DAY_EMOJIS[dayIndex]}</div>
+                <CardTitle className="text-xs md:text-sm font-medium">
+                  <span className="md:hidden">{day}</span>
+                  <span className="hidden md:inline">{DAYS_FULL[dayIndex]}</span>
+                  <span className="block text-lg md:text-2xl font-bold text-primary">
+                    {getDateForDay(dayIndex)}
+                  </span>
+                </CardTitle>
+                {isToday(dayIndex) && (
+                  <Badge className="mx-auto text-[10px] md:text-xs px-1 md:px-2">Today</Badge>
+                )}
+              </CardHeader>
+              <CardContent className="p-1 md:p-3 pt-0 space-y-1 md:space-y-2">
+                {/* Items */}
+                {itemsByDay[dayIndex].map((item) => (
+                  <div
+                    key={item.id}
+                    className="group relative glass rounded p-1 md:p-2 hover:bg-secondary/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs md:text-sm">
+                        {CATEGORY_EMOJI[item.content?.category || "other"]}
+                      </span>
+                      <span className="text-[10px] md:text-xs line-clamp-1 flex-1">
+                        {item.content?.title}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => removeFromDay(item.id)}
+                      className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 bg-destructive text-destructive-foreground rounded-full w-4 h-4 md:w-5 md:h-5 text-[10px] md:text-xs flex items-center justify-center transition-opacity"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+
+                {/* Suggestions on empty days */}
+                {itemsByDay[dayIndex].length === 0 &&
+                  data?.suggestions?.[dayIndex]?.[0] && (
+                    <button
+                      onClick={() => addToDay(data.suggestions[dayIndex][0].id, dayIndex)}
+                      className="w-full glass rounded p-1 md:p-2 text-left hover:bg-primary/10 transition-colors border border-dashed border-primary/30"
+                    >
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs md:text-sm">
+                          {CATEGORY_EMOJI[data.suggestions[dayIndex][0].category]}
+                        </span>
+                        <span className="text-[10px] md:text-xs line-clamp-1 text-muted-foreground">
+                          {data.suggestions[dayIndex][0].title}
+                        </span>
+                      </div>
+                    </button>
+                  )}
+
+                {/* Add Button */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full h-6 md:h-8 text-[10px] md:text-xs border border-dashed"
+                  onClick={() => setAddingToDay(dayIndex)}
+                >
+                  +
+                </Button>
+              </CardContent>
+            </Card>
           ))}
         </div>
 
-        {/* Help Text */}
+        {/* Empty State */}
         {data?.availableContent.length === 0 && (
-          <div className="glass rounded-2xl p-8 mt-6 text-center">
-            <p className="text-xl mb-2">📱 No saved content yet!</p>
-            <p className="text-muted-foreground mb-4">
-              Text TikTok links to your number to save meals, events, and date ideas.
-              Then come back here to plan your week!
+          <div className="glass rounded-2xl p-6 md:p-8 mt-6 text-center">
+            <p className="text-lg md:text-xl mb-2">📱 No saved content yet!</p>
+            <p className="text-sm text-muted-foreground mb-4">
+              Text TikTok links to save meals, events, and date ideas.
             </p>
             <Link href="/dashboard">
               <Button>Go to Dashboard</Button>
@@ -228,155 +288,122 @@ export default function PlannerPage() {
           </div>
         )}
       </div>
+
+      {/* Add Item Modal */}
+      {addingToDay !== null && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+          <div className="glass w-full md:max-w-lg md:rounded-2xl rounded-t-2xl max-h-[80vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="p-4 border-b border-border flex items-center justify-between">
+              <h3 className="font-semibold">
+                Add to {DAYS_FULL[addingToDay]}
+              </h3>
+              <button
+                onClick={() => {
+                  setAddingToDay(null);
+                  setSearchQuery("");
+                  setCategoryFilter("all");
+                }}
+                className="text-muted-foreground hover:text-foreground p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Search & Filters */}
+            <div className="p-4 border-b border-border space-y-3">
+              <Input
+                type="text"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full"
+                autoFocus
+              />
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                <Button
+                  variant={categoryFilter === "all" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setCategoryFilter("all")}
+                  className="shrink-0"
+                >
+                  All
+                </Button>
+                <Button
+                  variant={categoryFilter === "meal" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setCategoryFilter("meal")}
+                  className="shrink-0"
+                >
+                  🍽️ Meals
+                </Button>
+                <Button
+                  variant={categoryFilter === "event" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setCategoryFilter("event")}
+                  className="shrink-0"
+                >
+                  🎉 Events
+                </Button>
+                <Button
+                  variant={categoryFilter === "date_idea" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setCategoryFilter("date_idea")}
+                  className="shrink-0"
+                >
+                  💕 Dates
+                </Button>
+              </div>
+            </div>
+
+            {/* Content List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {getFilteredContent().map((content) => (
+                <button
+                  key={content.id}
+                  onClick={() => addToDay(content.id, addingToDay)}
+                  className="w-full glass rounded-xl p-3 text-left hover:bg-secondary/50 transition-colors flex items-center gap-3"
+                >
+                  {content.thumbnail_url && (
+                    <img
+                      src={content.thumbnail_url}
+                      alt=""
+                      className="w-12 h-12 object-cover rounded-lg shrink-0"
+                    />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span>{CATEGORY_EMOJI[content.category]}</span>
+                      <span className="text-sm font-medium line-clamp-1">
+                        {content.title}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground capitalize">
+                      {content.category.replace("_", " ")}
+                    </p>
+                  </div>
+                </button>
+              ))}
+
+              {getFilteredContent().length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No items found</p>
+                  {searchQuery && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSearchQuery("")}
+                      className="mt-2"
+                    >
+                      Clear search
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
-
-interface DayColumnProps {
-  day: string;
-  dayIndex: number;
-  dateNumber: number;
-  emoji: string;
-  items: PlanItem[];
-  suggestions: Content[];
-  availableContent: Content[];
-  isAddingTo: boolean;
-  onAddClick: () => void;
-  onAdd: (contentId: string) => void;
-  onRemove: (itemId: string) => void;
-}
-
-function DayColumn({
-  day,
-  dayIndex,
-  dateNumber,
-  emoji,
-  items,
-  suggestions,
-  availableContent,
-  isAddingTo,
-  onAddClick,
-  onAdd,
-  onRemove,
-}: DayColumnProps) {
-  const categoryEmoji: Record<string, string> = {
-    meal: "🍽️",
-    event: "🎉",
-    date_idea: "💕",
-    other: "📌",
-  };
-
-  const isToday = () => {
-    const today = new Date();
-    const dayDate = new Date();
-    dayDate.setDate(dayDate.getDate() - dayDate.getDay() + (dayDate.getDay() === 0 ? -6 : 1) + dayIndex);
-    return today.toDateString() === dayDate.toDateString();
-  };
-
-  // Filter available content to only show items not already in the plan this day
-  const usedIds = new Set(items.map((i) => i.content_id));
-  const filteredAvailable = availableContent.filter((c) => !usedIds.has(c.id));
-
-  return (
-    <Card className={`glass ${isToday() ? "border-primary/50 ring-2 ring-primary/20" : ""}`}>
-      <CardHeader className="pb-2 text-center">
-        <div className="text-2xl">{emoji}</div>
-        <CardTitle className="text-sm font-medium">
-          {day}
-          <span className="block text-2xl font-bold text-primary">{dateNumber}</span>
-        </CardTitle>
-        {isToday() && <Badge className="mx-auto">Today</Badge>}
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {/* Existing Items */}
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="group relative glass rounded-lg p-2 hover:bg-secondary/50 transition-colors"
-          >
-            {item.content?.thumbnail_url && (
-              <img
-                src={item.content.thumbnail_url}
-                alt=""
-                className="w-full h-16 object-cover rounded mb-2"
-              />
-            )}
-            <div className="flex items-start gap-2">
-              <span>{categoryEmoji[item.content?.category || "other"]}</span>
-              <span className="text-xs line-clamp-2 flex-1">
-                {item.content?.title}
-              </span>
-            </div>
-            <button
-              onClick={() => onRemove(item.id)}
-              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-destructive hover:bg-destructive/20 rounded p-1 text-xs transition-opacity"
-            >
-              ✕
-            </button>
-          </div>
-        ))}
-
-        {/* Suggestions */}
-        {items.length === 0 && suggestions.length > 0 && !isAddingTo && (
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground text-center">Suggestions:</p>
-            {suggestions.slice(0, 2).map((suggestion) => (
-              <button
-                key={suggestion.id}
-                onClick={() => onAdd(suggestion.id)}
-                className="w-full glass rounded-lg p-2 text-left hover:bg-primary/10 transition-colors border border-dashed border-primary/30"
-              >
-                <div className="flex items-start gap-2">
-                  <span className="text-sm">{categoryEmoji[suggestion.category]}</span>
-                  <span className="text-xs line-clamp-2">{suggestion.title}</span>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Add Button / Picker */}
-        {isAddingTo ? (
-          <div className="space-y-2 max-h-48 overflow-y-auto">
-            <p className="text-xs text-muted-foreground">Select item:</p>
-            {filteredAvailable.map((content) => (
-              <button
-                key={content.id}
-                onClick={() => onAdd(content.id)}
-                className="w-full glass rounded-lg p-2 text-left hover:bg-secondary/50 transition-colors"
-              >
-                <div className="flex items-start gap-2">
-                  <span>{categoryEmoji[content.category]}</span>
-                  <span className="text-xs line-clamp-1">{content.title}</span>
-                </div>
-              </button>
-            ))}
-            {filteredAvailable.length === 0 && (
-              <p className="text-xs text-muted-foreground text-center py-2">
-                No more items to add
-              </p>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full"
-              onClick={onAddClick}
-            >
-              Cancel
-            </Button>
-          </div>
-        ) : (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full border border-dashed"
-            onClick={onAddClick}
-          >
-            + Add
-          </Button>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-

@@ -15,7 +15,9 @@ import type {
 
 // Generate Google Maps URL from location string
 function getGoogleMapsUrl(location: string): string {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+    location
+  )}`;
 }
 
 export default function ContentDetailPage() {

@@ -17,7 +17,19 @@ export default function Dashboard() {
   const [content, setContent] = useState<Content[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showTip, setShowTip] = useState(true);
   const router = useRouter();
+
+  // Check if tip was dismissed
+  useEffect(() => {
+    const dismissed = localStorage.getItem("tipDismissed");
+    if (dismissed) setShowTip(false);
+  }, []);
+
+  const dismissTip = () => {
+    setShowTip(false);
+    localStorage.setItem("tipDismissed", "true");
+  };
 
   const fetchContent = useCallback(async () => {
     try {
@@ -103,42 +115,68 @@ export default function Dashboard() {
   }
 
   return (
-    <main className="min-h-screen">
-      {/* Header */}
+    <main className="min-h-screen pb-20 md:pb-8">
+      {/* Header - Mobile Optimized */}
       <header className="glass sticky top-0 z-50 border-b border-border/50">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">📱</span>
-            <div>
-              <h1 className="font-semibold text-lg">TikTok Helper</h1>
-              <p className="text-xs text-muted-foreground">
-                {user?.phoneNumber}
-              </p>
+        <div className="max-w-7xl mx-auto px-3 md:px-4 py-3 md:py-4">
+          {/* Top Row */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 md:gap-3">
+              <span className="text-xl md:text-2xl">📱</span>
+              <div>
+                <h1 className="font-semibold text-base md:text-lg">TikTok Helper</h1>
+                <p className="text-xs text-muted-foreground hidden sm:block">
+                  {user?.phoneNumber}
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link href="/dashboard/planner">
-              <Button variant="default" size="sm">
-                📅 Plan Week
+            
+            {/* Desktop Actions */}
+            <div className="hidden md:flex items-center gap-3">
+              <Link href="/dashboard/planner">
+                <Button variant="default" size="sm">
+                  📅 Plan Week
+                </Button>
+              </Link>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={loading}
+              >
+                🔄 Refresh
               </Button>
-            </Link>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={loading}
-            >
-              🔄 Refresh
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleLogout}>
-              Sign Out
-            </Button>
+              <Button variant="ghost" size="sm" onClick={handleLogout}>
+                Sign Out
+              </Button>
+            </div>
+
+            {/* Mobile Actions */}
+            <div className="flex md:hidden items-center gap-1">
+              <Link href="/dashboard/planner">
+                <Button variant="default" size="sm" className="px-2">
+                  📅
+                </Button>
+              </Link>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="px-2"
+                onClick={handleRefresh}
+                disabled={loading}
+              >
+                🔄
+              </Button>
+              <Button variant="ghost" size="sm" className="px-2" onClick={handleLogout}>
+                👋
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-3 md:px-4 py-6 md:py-8">
         {/* Processing Banner */}
         {processingCount > 0 && (
           <div className="glass rounded-2xl p-4 mb-6 border-primary/30 animate-pulse">
@@ -159,37 +197,34 @@ export default function Dashboard() {
         )}
 
         {/* Stats Banner */}
-        <div className="glass rounded-2xl p-6 mb-8 animate-fade-in-up opacity-0">
-          <div className="flex flex-wrap gap-6 justify-center md:justify-start">
-            <div className="text-center md:text-left">
-              <p className="text-3xl font-bold text-primary">
+        <div className="glass rounded-2xl p-4 md:p-6 mb-6 md:mb-8 animate-fade-in-up opacity-0">
+          <div className="grid grid-cols-4 gap-2 md:flex md:flex-wrap md:gap-6 md:justify-start">
+            <div className="text-center">
+              <p className="text-2xl md:text-3xl font-bold text-primary">
                 {completedContent.length}
               </p>
-              <p className="text-sm text-muted-foreground">Total Saves</p>
+              <p className="text-xs md:text-sm text-muted-foreground">Saves</p>
             </div>
-            <div className="h-12 w-px bg-border hidden md:block" />
-            <div className="text-center md:text-left">
-              <p className="text-3xl font-bold text-meal">
+            <div className="text-center">
+              <p className="text-2xl md:text-3xl font-bold text-meal">
                 {completedContent.filter((c) => c.category === "meal").length}
               </p>
-              <p className="text-sm text-muted-foreground">Meals</p>
+              <p className="text-xs md:text-sm text-muted-foreground">Meals</p>
             </div>
-            <div className="h-12 w-px bg-border hidden md:block" />
-            <div className="text-center md:text-left">
-              <p className="text-3xl font-bold text-event">
+            <div className="text-center">
+              <p className="text-2xl md:text-3xl font-bold text-event">
                 {completedContent.filter((c) => c.category === "event").length}
               </p>
-              <p className="text-sm text-muted-foreground">Events</p>
+              <p className="text-xs md:text-sm text-muted-foreground">Events</p>
             </div>
-            <div className="h-12 w-px bg-border hidden md:block" />
-            <div className="text-center md:text-left">
-              <p className="text-3xl font-bold text-date">
+            <div className="text-center">
+              <p className="text-2xl md:text-3xl font-bold text-date">
                 {
                   completedContent.filter((c) => c.category === "date_idea")
                     .length
                 }
               </p>
-              <p className="text-sm text-muted-foreground">Date Ideas</p>
+              <p className="text-xs md:text-sm text-muted-foreground">Dates</p>
             </div>
           </div>
         </div>
@@ -206,14 +241,22 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Floating Help */}
-      <div className="fixed bottom-6 right-6 glass rounded-2xl p-4 max-w-xs shadow-xl animate-fade-in-up opacity-0 stagger-3">
-        <p className="text-sm font-medium mb-1">💡 Quick Tip</p>
-        <p className="text-xs text-muted-foreground">
-          Text any TikTok link to your number to add it here. We&apos;ll
-          automatically categorize it!
-        </p>
-      </div>
+      {/* Dismissible Quick Tip */}
+      {showTip && (
+        <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:bottom-6 md:max-w-xs glass rounded-2xl p-4 shadow-xl animate-fade-in-up z-40">
+          <button
+            onClick={dismissTip}
+            className="absolute top-2 right-2 text-muted-foreground hover:text-foreground p-1"
+          >
+            ✕
+          </button>
+          <p className="text-sm font-medium mb-1 pr-6">💡 Quick Tip</p>
+          <p className="text-xs text-muted-foreground">
+            Text any TikTok link to your number to add it here. We&apos;ll
+            automatically categorize it!
+          </p>
+        </div>
+      )}
     </main>
   );
 }
