@@ -24,14 +24,14 @@ const caveat = Caveat({
 export const metadata: Metadata = {
   title: "Planning Friend - Text it. Save it. Plan it.",
   description:
-    "Your planning friend! Text links to save meals, events, and date ideas. Access your organized scrapbook anytime.",
+    "Your planning friend! Text links to save meals, events, and date ideas. Access your organized collection anytime.",
   keywords: [
     "planning",
     "recipes",
     "meal planning",
     "date ideas",
     "events",
-    "scrapbook",
+    "collection",
     "tiktok downloader",
     "tiktok",
     "tiktok planner",

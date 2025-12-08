@@ -17,8 +17,17 @@ export function BottomNav() {
   if (pathname === "/") return null;
 
   return (
-    <nav className="md:hidden fixed bottom-4 left-0 right-0 z-50 px-4">
-      <div className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-lg shadow-black/10 border border-border/50 mx-auto max-w-sm safe-area-bottom">
+    <nav
+      className="md:hidden fixed left-0 right-0 z-50 px-4 ios-fixed-bottom"
+      style={{
+        bottom: "max(16px, env(safe-area-inset-bottom, 16px))",
+        WebkitTransform: "translate3d(0,0,0)",
+        transform: "translate3d(0,0,0)",
+        WebkitBackfaceVisibility: "hidden",
+        backfaceVisibility: "hidden",
+      }}
+    >
+      <div className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-lg shadow-black/10 border border-border/50 mx-auto max-w-sm">
         <div className="flex justify-around items-center py-2 px-2">
           {NAV_ITEMS.map((item) => {
             const isActive =

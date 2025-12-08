@@ -138,7 +138,7 @@ export default function Home() {
 
           <div className="p-6 pt-8">
             <h2 className="font-handwritten text-2xl text-center mb-2">
-              {step === "phone" ? "Open Your Scrapbook" : "Enter Your Code"}
+              {step === "phone" ? "Sign In" : "Enter Your Code"}
             </h2>
             <p className="text-sm text-muted-foreground text-center mb-6">
               {step === "phone"
@@ -202,7 +202,7 @@ export default function Home() {
                   className="w-full h-12 text-lg font-medium bg-primary hover:bg-primary/90"
                   disabled={loading || verificationCode.length < 6}
                 >
-                  {loading ? "Checking..." : "Open Scrapbook 📒"}
+                  {loading ? "Checking..." : "Let's Go! 📒"}
                 </Button>
                 <Button
                   type="button"

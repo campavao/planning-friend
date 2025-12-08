@@ -99,7 +99,7 @@ export default function SettingsPage() {
             <div className="absolute -bottom-1 left-0 right-0 h-2 bg-washi-lavender/60 transform rotate-0.5 -z-10" />
           </div>
           <p className="text-muted-foreground text-sm mt-2">
-            ⚙️ Customize your scrapbook experience
+            ⚙️ Customize your experience
           </p>
         </div>
       </div>
@@ -196,7 +196,7 @@ export default function SettingsPage() {
           </div>
 
           <p className="text-sm text-muted-foreground mb-4">
-            Planning Friend is your personal scrapbook for collecting and
+            Planning Friend is your personal assistant for collecting and
             organizing ideas from social media. Text links to save meals,
             events, date ideas, and more!
           </p>
@@ -222,7 +222,7 @@ export default function SettingsPage() {
             <div>
               <h2 className="font-handwritten text-2xl">Sign Out</h2>
               <p className="text-sm text-muted-foreground">
-                Close your scrapbook and sign out of this device
+                Sign out of this device
               </p>
             </div>
           </div>

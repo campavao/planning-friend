@@ -292,7 +292,7 @@ export default function ContentDetailPage() {
             <div className="text-6xl mb-4 animate-wiggle pt-2">✂️</div>
             <h2 className="font-handwritten text-2xl mb-2">Clipping...</h2>
             <p className="text-muted-foreground">
-              Cutting this out and pasting into your scrapbook. Almost done!
+              Processing this for you. Almost done!
             </p>
           </div>
         )}

@@ -457,3 +457,31 @@
   transform: translateY(-4px) rotate(0deg);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
+
+/* iOS Safari fixed positioning fix */
+@supports (-webkit-touch-callout: none) {
+  .ios-fixed-bottom {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+}
+
+/* Prevent iOS Safari viewport issues */
+@supports (-webkit-touch-callout: none) {
+  html, body {
+    height: 100%;
+    height: -webkit-fill-available;
+  }
+  
+  body {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    -webkit-overflow-scrolling: touch;
+  }
+}
