@@ -51,6 +51,8 @@ interface ShareState {
   success: string;
 }
 
+type ViewMode = "my-plan" | { type: "shared"; planId: string; weekStart: string; ownerPhone: string };
+
 export default function PlannerPage() {
   const [data, setData] = useState<PlannerData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,6 +71,8 @@ export default function PlannerPage() {
     error: "",
     success: "",
   });
+  const [showListPicker, setShowListPicker] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("my-plan");
   const router = useRouter();
 
   const getCurrentWeekStart = () => {
@@ -311,22 +315,162 @@ export default function PlannerPage() {
           >
             ← <span className="hidden sm:inline ml-1">Prev</span>
           </Button>
-          <div className="text-center">
+          <div className="text-center relative">
             <h2 className="text-base md:text-xl font-semibold font-handwritten">
               {formatWeekRange()}
             </h2>
-            <div className="flex items-center justify-center gap-2 mt-1">
+            <div className="flex items-center justify-center gap-2 mt-1 flex-wrap">
               {isCurrentWeek() && (
                 <span className="sticker sticker-event text-[10px]">
                   This Week
                 </span>
               )}
-              {data?.shareInfo?.isShared && (
-                <span className="sticker sticker-meal text-[10px]">
-                  🤝 Shared ({data.shareInfo.sharedWith.length})
+              {/* Viewing indicator */}
+              {viewMode !== "my-plan" && (
+                <span className="sticker sticker-date_idea text-[10px]">
+                  👀 Viewing shared
                 </span>
               )}
+              {/* Clickable chip to show list picker */}
+              {((data?.shareInfo?.isShared && data.shareInfo.sharedWith.length > 0) || 
+                (data?.sharedWithMe && data.sharedWithMe.length > 0)) && (
+                <button
+                  onClick={() => setShowListPicker(!showListPicker)}
+                  className="sticker sticker-meal text-[10px] cursor-pointer hover:scale-105 transition-transform"
+                >
+                  🤝 {viewMode === "my-plan" ? "My Plan" : "Shared"} 
+                  {data?.sharedWithMe && data.sharedWithMe.length > 0 && ` (+${data.sharedWithMe.length})`}
+                  {" ▼"}
+                </button>
+              )}
             </div>
+            
+            {/* List Picker Dropdown */}
+            {showListPicker && (
+              <>
+                {/* Click-outside overlay */}
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setShowListPicker(false)}
+                />
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 w-72 glass rounded-xl shadow-xl border border-border/50 overflow-hidden">
+                <div className="p-2 border-b border-border/50 bg-secondary/30">
+                  <p className="text-xs font-medium text-muted-foreground">Choose a list to view:</p>
+                </div>
+                <div className="max-h-64 overflow-y-auto">
+                  {/* My Plan Option */}
+                  <button
+                    onClick={() => {
+                      setViewMode("my-plan");
+                      setShowListPicker(false);
+                      fetchPlanner(weekStart);
+                    }}
+                    className={`w-full p-3 text-left hover:bg-secondary/50 transition-colors flex items-center gap-3 ${
+                      viewMode === "my-plan" ? "bg-primary/10 border-l-2 border-primary" : ""
+                    }`}
+                  >
+                    <div className="w-8 h-8 rounded-full bg-washi-yellow/30 flex items-center justify-center text-sm">
+                      📋
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">My Plan</p>
+                      <p className="text-xs text-muted-foreground">Your personal weekly plan</p>
+                    </div>
+                    {viewMode === "my-plan" && (
+                      <span className="text-primary text-xs">✓</span>
+                    )}
+                  </button>
+                  
+                  {/* Shared With Me Plans */}
+                  {data?.sharedWithMe && data.sharedWithMe.length > 0 && (
+                    <>
+                      <div className="px-3 py-2 bg-secondary/20">
+                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                          Shared with me
+                        </p>
+                      </div>
+                      {data.sharedWithMe.map((sharedPlan) => {
+                        const maskedPhone = sharedPlan.owner_phone.replace(
+                          /(\+\d{1})(\d{3})(\d{3})(\d{4})/,
+                          "$1 ••• ••• $4"
+                        );
+                        const isSelected = viewMode !== "my-plan" && 
+                          viewMode.planId === sharedPlan.id;
+                        const sharedWeekStart = new Date(sharedPlan.week_start);
+                        const formatDate = (d: Date) =>
+                          d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                        
+                        return (
+                          <button
+                            key={sharedPlan.id}
+                            onClick={() => {
+                              setViewMode({
+                                type: "shared",
+                                planId: sharedPlan.id,
+                                weekStart: sharedPlan.week_start,
+                                ownerPhone: sharedPlan.owner_phone,
+                              });
+                              setWeekStart(sharedPlan.week_start);
+                              setShowListPicker(false);
+                              setLoading(true);
+                              fetchPlanner(sharedPlan.week_start);
+                            }}
+                            className={`w-full p-3 text-left hover:bg-secondary/50 transition-colors flex items-center gap-3 ${
+                              isSelected ? "bg-primary/10 border-l-2 border-primary" : ""
+                            }`}
+                          >
+                            <div className="w-8 h-8 rounded-full bg-washi-pink/30 flex items-center justify-center text-sm">
+                              👤
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm truncate">{maskedPhone}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Week of {formatDate(sharedWeekStart)}
+                              </p>
+                            </div>
+                            {isSelected && (
+                              <span className="text-primary text-xs">✓</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </>
+                  )}
+                  
+                  {/* Show who you've shared with */}
+                  {data?.shareInfo?.isShared && data.shareInfo.sharedWith.length > 0 && (
+                    <>
+                      <div className="px-3 py-2 bg-secondary/20">
+                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                          I&apos;ve shared with
+                        </p>
+                      </div>
+                      {data.shareInfo.sharedWith.map((phone, i) => {
+                        const maskedPhone = phone.replace(
+                          /(\+\d{1})(\d{3})(\d{3})(\d{4})/,
+                          "$1 ••• ••• $4"
+                        );
+                        return (
+                          <div
+                            key={i}
+                            className="w-full p-3 text-left flex items-center gap-3 opacity-60"
+                          >
+                            <div className="w-8 h-8 rounded-full bg-washi-mint/30 flex items-center justify-center text-sm">
+                              👤
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm">{maskedPhone}</p>
+                              <p className="text-xs text-muted-foreground">Can view your plan</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
+                </div>
+              </div>
+              </>
+            )}
           </div>
           <Button
             variant="ghost"
@@ -337,6 +481,37 @@ export default function PlannerPage() {
             <span className="hidden sm:inline mr-1">Next</span> →
           </Button>
         </div>
+
+        {/* Viewing Shared Plan Banner */}
+        {viewMode !== "my-plan" && (
+          <div className="glass rounded-xl p-3 mb-4 flex items-center justify-between bg-washi-pink/10 border border-washi-pink/30">
+            <div className="flex items-center gap-3">
+              <span className="text-lg">👀</span>
+              <div>
+                <p className="text-sm font-medium">
+                  Viewing shared plan from {viewMode.ownerPhone.replace(/(\+\d{1})(\d{3})(\d{3})(\d{4})/, "$1 ••• ••• $4")}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  You&apos;re viewing someone else&apos;s weekly plan
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                setViewMode("my-plan");
+                const currentWeek = getCurrentWeekStart();
+                setWeekStart(currentWeek);
+                setLoading(true);
+                fetchPlanner(currentWeek);
+              }}
+              className="shrink-0"
+            >
+              📋 Back to My Plan
+            </Button>
+          </div>
+        )}
 
         {/* Week Grid - Vertical on mobile, horizontal on desktop */}
         <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
@@ -605,16 +780,25 @@ export default function PlannerPage() {
                 const weekRange = `${formatDate(sharedWeekStart)} - ${formatDate(sharedWeekEnd)}`;
                 const isThisWeek = sharedPlan.week_start === getCurrentWeekStart();
                 const maskedPhone = sharedPlan.owner_phone.replace(/(\+\d{1})(\d{3})(\d{3})(\d{4})/, "$1 ••• ••• $4");
+                const isSelected = viewMode !== "my-plan" && viewMode.planId === sharedPlan.id;
                 
                 return (
                   <button
                     key={sharedPlan.id}
                     onClick={() => {
+                      setViewMode({
+                        type: "shared",
+                        planId: sharedPlan.id,
+                        weekStart: sharedPlan.week_start,
+                        ownerPhone: sharedPlan.owner_phone,
+                      });
                       setWeekStart(sharedPlan.week_start);
                       setLoading(true);
                       fetchPlanner(sharedPlan.week_start);
                     }}
-                    className="w-full glass rounded-xl p-4 text-left hover:bg-secondary/50 transition-colors flex items-center justify-between group"
+                    className={`w-full glass rounded-xl p-4 text-left hover:bg-secondary/50 transition-colors flex items-center justify-between group ${
+                      isSelected ? "ring-2 ring-primary/50 bg-primary/5" : ""
+                    }`}
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-washi-pink/30 flex items-center justify-center text-lg">
@@ -628,7 +812,12 @@ export default function PlannerPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {isThisWeek && (
+                      {isSelected && (
+                        <Badge variant="default" className="text-[10px]">
+                          Viewing
+                        </Badge>
+                      )}
+                      {isThisWeek && !isSelected && (
                         <Badge variant="secondary" className="text-[10px]">
                           This Week
                         </Badge>
