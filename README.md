@@ -1,8 +1,8 @@
-# PlanPal 📒✨
+# Planning Friend 📒✨
 
 **Text it. Save it. Plan it.**
 
-Your planning pal! Text links from TikTok, Instagram, and more to save and organize meals, events, and date ideas in your personal scrapbook.
+Your planning friend! Text links from TikTok, Instagram, and more to save and organize meals, events, and date ideas in your personal scrapbook.
 
 ## Features
 
@@ -35,7 +35,7 @@ Your planning pal! Text links from TikTok, Instagram, and more to save and organ
 
 ```bash
 git clone <your-repo>
-cd planpal
+cd planning-friend
 npm install
 ```
 
@@ -57,7 +57,7 @@ npm install
 3. Copy your Account SID and Auth Token
 4. **Create a Verify Service** for sending verification codes:
    - Go to [Twilio Verify Services](https://console.twilio.com/us1/develop/verify/services)
-   - Click "Create new" and name it "PlanPal"
+   - Click "Create new" and name it "Planning Friend"
    - Copy the Service SID (starts with `VA...`)
 
 ### 4. Set Up Google AI (Gemini)
@@ -119,7 +119,7 @@ npm run dev
 
 ## Usage
 
-1. **Text a link** to your PlanPal phone number
+1. **Text a link** to your Planning Friend phone number
 2. Wait a few seconds for processing
 3. **Visit the website** and verify with your phone number
 4. **Browse your scrapbook** in the dashboard

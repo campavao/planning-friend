@@ -22,9 +22,9 @@ const caveat = Caveat({
 });
 
 export const metadata: Metadata = {
-  title: "PlanPal - Text it. Save it. Plan it.",
+  title: "Planning Friend - Text it. Save it. Plan it.",
   description:
-    "Your planning pal! Text links to save meals, events, and date ideas. Access your organized scrapbook anytime.",
+    "Your planning friend! Text links to save meals, events, and date ideas. Access your organized scrapbook anytime.",
   keywords: [
     "planning",
     "recipes",
