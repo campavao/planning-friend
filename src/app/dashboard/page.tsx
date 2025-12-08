@@ -158,18 +158,8 @@ export default function Dashboard() {
               </Button>
             </div>
 
-            {/* Mobile Actions */}
+            {/* Mobile Actions - simplified since we have bottom nav */}
             <div className="flex md:hidden items-center gap-1">
-              <Link href="/dashboard/planner">
-                <Button variant="default" size="sm" className="px-2">
-                  📅
-                </Button>
-              </Link>
-              <Link href="/dashboard/gifts">
-                <Button variant="outline" size="sm" className="px-2">
-                  🎁
-                </Button>
-              </Link>
               <Button
                 variant="ghost"
                 size="sm"
@@ -288,8 +278,11 @@ export default function Dashboard() {
           </button>
           <p className="text-sm font-medium mb-1 pr-6">💡 Quick Tip</p>
           <p className="text-xs text-muted-foreground">
-            Text any TikTok link to your number to add it here. We&apos;ll
-            automatically categorize it!
+            Text any TikTok link to{" "}
+            <a href="tel:+18047016243" className="text-primary">
+              +1 804 701 6243
+            </a>{" "}
+            to add it here. We&apos;ll automatically categorize it!
           </p>
         </div>
       )}

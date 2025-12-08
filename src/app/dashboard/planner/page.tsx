@@ -38,6 +38,16 @@ interface PlannerData {
   suggestions: Record<number, Content[]>;
 }
 
+interface ShareState {
+  isOpen: boolean;
+  mode: "share" | "claim";
+  shareCode: string;
+  inputCode: string;
+  loading: boolean;
+  error: string;
+  success: string;
+}
+
 export default function PlannerPage() {
   const [data, setData] = useState<PlannerData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,6 +57,15 @@ export default function PlannerPage() {
   const [categoryFilter, setCategoryFilter] = useState<ContentCategory | "all">(
     "all"
   );
+  const [share, setShare] = useState<ShareState>({
+    isOpen: false,
+    mode: "share",
+    shareCode: "",
+    inputCode: "",
+    loading: false,
+    error: "",
+    success: "",
+  });
   const router = useRouter();
 
   const getCurrentWeekStart = () => {
@@ -131,6 +150,58 @@ export default function PlannerPage() {
     }
   };
 
+  const generateShareCode = async () => {
+    setShare((s) => ({ ...s, loading: true, error: "", success: "" }));
+    try {
+      const res = await fetch("/api/planner/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create", weekStart }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error);
+      setShare((s) => ({
+        ...s,
+        loading: false,
+        shareCode: result.shareCode,
+        success: "Share code generated! It expires in 7 days.",
+      }));
+    } catch (error) {
+      setShare((s) => ({
+        ...s,
+        loading: false,
+        error: error instanceof Error ? error.message : "Failed to generate code",
+      }));
+    }
+  };
+
+  const claimShareCode = async () => {
+    if (!share.inputCode.trim()) return;
+    setShare((s) => ({ ...s, loading: true, error: "", success: "" }));
+    try {
+      const res = await fetch("/api/planner/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "claim", shareCode: share.inputCode.trim().toUpperCase() }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error);
+      setShare((s) => ({
+        ...s,
+        loading: false,
+        inputCode: "",
+        success: "Successfully joined! Refresh to see shared content.",
+      }));
+      fetchPlanner(weekStart);
+    } catch (error) {
+      setShare((s) => ({
+        ...s,
+        loading: false,
+        error: error instanceof Error ? error.message : "Failed to claim code",
+      }));
+    }
+  };
+
   const formatWeekRange = () => {
     const start = new Date(weekStart);
     const end = new Date(start);
@@ -201,7 +272,14 @@ export default function PlannerPage() {
           <div className="text-center flex-1">
             <h1 className="font-semibold text-sm md:text-lg">Weekly Planner</h1>
           </div>
-          <div className="w-16" />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="px-2 md:px-3"
+            onClick={() => setShare((s) => ({ ...s, isOpen: true, mode: "share" }))}
+          >
+            🤝 <span className="hidden sm:inline ml-1">Share</span>
+          </Button>
         </div>
       </header>
 
@@ -567,6 +645,125 @@ export default function PlannerPage() {
                     </Button>
                   )}
                 </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Share Modal */}
+      {share.isOpen && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="glass rounded-2xl w-full max-w-md">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-border/50">
+              <h2 className="text-lg font-semibold">
+                {share.mode === "share" ? "Share Planner" : "Join Planner"}
+              </h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  setShare({
+                    isOpen: false,
+                    mode: "share",
+                    shareCode: "",
+                    inputCode: "",
+                    loading: false,
+                    error: "",
+                    success: "",
+                  })
+                }
+              >
+                ×
+              </Button>
+            </div>
+
+            {/* Mode Toggle */}
+            <div className="flex p-2 gap-2 border-b border-border/50">
+              <Button
+                variant={share.mode === "share" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setShare((s) => ({ ...s, mode: "share", error: "", success: "" }))}
+                className="flex-1"
+              >
+                Share My Plan
+              </Button>
+              <Button
+                variant={share.mode === "claim" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setShare((s) => ({ ...s, mode: "claim", error: "", success: "" }))}
+                className="flex-1"
+              >
+                Join with Code
+              </Button>
+            </div>
+
+            {/* Content */}
+            <div className="p-4 space-y-4">
+              {share.mode === "share" ? (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Generate a share code to let others view and edit your weekly planner.
+                  </p>
+                  {share.shareCode ? (
+                    <div className="text-center space-y-3">
+                      <p className="text-xs text-muted-foreground">Share this code:</p>
+                      <div className="text-3xl font-mono font-bold tracking-widest bg-secondary/50 rounded-xl py-4">
+                        {share.shareCode}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          navigator.clipboard.writeText(share.shareCode);
+                          setShare((s) => ({ ...s, success: "Copied to clipboard!" }));
+                        }}
+                      >
+                        📋 Copy Code
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      onClick={generateShareCode}
+                      disabled={share.loading}
+                      className="w-full"
+                    >
+                      {share.loading ? "Generating..." : "Generate Share Code"}
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Enter a share code to join someone else&apos;s weekly planner.
+                  </p>
+                  <div className="space-y-3">
+                    <Input
+                      value={share.inputCode}
+                      onChange={(e) =>
+                        setShare((s) => ({ ...s, inputCode: e.target.value.toUpperCase() }))
+                      }
+                      placeholder="Enter share code"
+                      className="text-center font-mono text-lg tracking-widest"
+                      maxLength={8}
+                    />
+                    <Button
+                      onClick={claimShareCode}
+                      disabled={share.loading || !share.inputCode.trim()}
+                      className="w-full"
+                    >
+                      {share.loading ? "Joining..." : "Join Planner"}
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              {share.error && (
+                <p className="text-sm text-destructive text-center">{share.error}</p>
+              )}
+              {share.success && (
+                <p className="text-sm text-primary text-center">{share.success}</p>
               )}
             </div>
           </div>

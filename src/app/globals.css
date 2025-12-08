@@ -47,6 +47,8 @@
   --color-event: var(--event);
   --color-date: var(--date);
   --color-gift: var(--gift);
+  --color-travel: var(--travel);
+  --color-drink: var(--drink);
   --color-other: var(--other);
 }
 
@@ -78,6 +80,8 @@
   --event: oklch(0.7 0.18 280);
   --date: oklch(0.75 0.18 350);
   --gift: oklch(0.7 0.18 30);
+  --travel: oklch(0.7 0.18 200);
+  --drink: oklch(0.7 0.18 180);
   --other: oklch(0.7 0.12 60);
   
   /* Chart colors */
@@ -213,8 +217,34 @@
   border-color: oklch(0.7 0.18 30 / 0.3);
 }
 
+.badge-travel {
+  background: oklch(0.7 0.18 200 / 0.2);
+  color: oklch(0.8 0.15 200);
+  border-color: oklch(0.7 0.18 200 / 0.3);
+}
+
+.badge-drink {
+  background: oklch(0.7 0.18 180 / 0.2);
+  color: oklch(0.8 0.15 180);
+  border-color: oklch(0.7 0.18 180 / 0.3);
+}
+
 .badge-other {
   background: oklch(0.7 0.12 60 / 0.2);
   color: oklch(0.8 0.1 60);
   border-color: oklch(0.7 0.12 60 / 0.3);
+}
+
+/* Safe area for notched phones */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* Hide scrollbar but keep functionality */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }

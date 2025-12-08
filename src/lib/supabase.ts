@@ -48,6 +48,8 @@ export type ContentCategory =
   | "event"
   | "date_idea"
   | "gift_idea"
+  | "travel"
+  | "drink"
   | "other";
 export type ContentStatus = "processing" | "completed" | "failed";
 
@@ -95,6 +97,62 @@ export interface GiftIdeaData {
   description?: string;
 }
 
+export interface TravelData {
+  location?: string;
+  type?: "restaurant" | "attraction" | "hotel" | "activity" | "other";
+  description?: string;
+  website?: string;
+  booking_link?: string;
+  price_range?: "$" | "$$" | "$$$" | "$$$$";
+  destination_city?: string;
+  destination_country?: string;
+}
+
+export interface DrinkData {
+  recipe?: string[];
+  ingredients?: string[];
+  type?:
+    | "cocktail"
+    | "mocktail"
+    | "coffee"
+    | "smoothie"
+    | "wine"
+    | "beer"
+    | "other";
+  prep_time?: string;
+  description?: string;
+  difficulty?: "easy" | "medium" | "hard";
+}
+
+export interface UserSettings {
+  id: string;
+  user_id: string;
+  home_region?: string;
+  home_country?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+// Tag types
+export interface Tag {
+  id: string;
+  user_id: string;
+  name: string;
+  created_at: string;
+}
+
+export interface ContentTag {
+  id: string;
+  content_id: string;
+  tag_id: string;
+  created_at: string;
+  tag?: Tag; // Joined tag
+}
+
+export interface ContentWithTags extends Content {
+  tags: Tag[];
+}
+
 export interface Content {
   id: string;
   user_id: string;
@@ -106,6 +164,8 @@ export interface Content {
     | EventData
     | DateIdeaData
     | GiftIdeaData
+    | TravelData
+    | DrinkData
     | Record<string, unknown>;
   thumbnail_url?: string;
   status: ContentStatus;
@@ -851,4 +911,432 @@ export async function getGiftIdeas(userId: string): Promise<Content[]> {
   }
 
   return data as Content[];
+}
+
+// ==================== Tags ====================
+
+// Default tags that can be suggested to users
+export const DEFAULT_TAGS = [
+  "quick",
+  "slow-cooker",
+  "breakfast",
+  "lunch",
+  "dinner",
+  "appetizer",
+  "dessert",
+  "snack",
+  "party",
+  "date-night",
+  "budget",
+  "splurge",
+  "vegetarian",
+  "vegan",
+  "gluten-free",
+  "healthy",
+  "comfort-food",
+  "seasonal",
+  "holiday",
+  "weeknight",
+  "meal-prep",
+  "one-pot",
+  "grilling",
+  "baking",
+  "no-cook",
+];
+
+// Get all tags for a user
+export async function getUserTags(userId: string): Promise<Tag[]> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("tags")
+    .select("*")
+    .eq("user_id", userId)
+    .order("name");
+
+  if (error) {
+    throw new Error(`Failed to get tags: ${error.message}`);
+  }
+
+  return data as Tag[];
+}
+
+// Create a new tag
+export async function createTag(userId: string, name: string): Promise<Tag> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("tags")
+    .insert({ user_id: userId, name: name.toLowerCase().trim() })
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      // Unique violation - tag already exists
+      const existing = await supabase
+        .from("tags")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("name", name.toLowerCase().trim())
+        .single();
+      if (existing.data) return existing.data as Tag;
+    }
+    throw new Error(`Failed to create tag: ${error.message}`);
+  }
+
+  return data as Tag;
+}
+
+// Delete a tag
+export async function deleteTag(tagId: string): Promise<void> {
+  const supabase = createServerClient();
+
+  const { error } = await supabase.from("tags").delete().eq("id", tagId);
+
+  if (error) {
+    throw new Error(`Failed to delete tag: ${error.message}`);
+  }
+}
+
+// Get tags for a specific content item
+export async function getContentTags(contentId: string): Promise<Tag[]> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("content_tags")
+    .select(
+      `
+      tag:tag_id (*)
+    `
+    )
+    .eq("content_id", contentId);
+
+  if (error) {
+    throw new Error(`Failed to get content tags: ${error.message}`);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data || []).map((ct: any) => ct.tag as Tag);
+}
+
+// Add a tag to content
+export async function addTagToContent(
+  contentId: string,
+  tagId: string
+): Promise<void> {
+  const supabase = createServerClient();
+
+  const { error } = await supabase
+    .from("content_tags")
+    .insert({ content_id: contentId, tag_id: tagId });
+
+  if (error && error.code !== "23505") {
+    // Ignore duplicate
+    throw new Error(`Failed to add tag: ${error.message}`);
+  }
+}
+
+// Remove a tag from content
+export async function removeTagFromContent(
+  contentId: string,
+  tagId: string
+): Promise<void> {
+  const supabase = createServerClient();
+
+  const { error } = await supabase
+    .from("content_tags")
+    .delete()
+    .eq("content_id", contentId)
+    .eq("tag_id", tagId);
+
+  if (error) {
+    throw new Error(`Failed to remove tag: ${error.message}`);
+  }
+}
+
+// Get or create multiple tags by name (for AI-suggested tags)
+export async function getOrCreateTags(
+  userId: string,
+  tagNames: string[]
+): Promise<Tag[]> {
+  const tags: Tag[] = [];
+  for (const name of tagNames) {
+    const tag = await createTag(userId, name);
+    tags.push(tag);
+  }
+  return tags;
+}
+
+// Add multiple tags to content
+export async function addTagsToContent(
+  contentId: string,
+  tagIds: string[]
+): Promise<void> {
+  for (const tagId of tagIds) {
+    await addTagToContent(contentId, tagId);
+  }
+}
+
+// Get content with tags
+export async function getContentWithTags(
+  userId: string
+): Promise<ContentWithTags[]> {
+  const supabase = createServerClient();
+
+  // Get all content
+  const { data: contentData, error: contentError } = await supabase
+    .from("content")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (contentError) {
+    throw new Error(`Failed to get content: ${contentError.message}`);
+  }
+
+  // Get all content_tags with tag info
+  const contentIds = contentData.map((c: Content) => c.id);
+  if (contentIds.length === 0) return [];
+
+  const { data: tagsData, error: tagsError } = await supabase
+    .from("content_tags")
+    .select(
+      `
+      content_id,
+      tag:tag_id (*)
+    `
+    )
+    .in("content_id", contentIds);
+
+  if (tagsError) {
+    throw new Error(`Failed to get content tags: ${tagsError.message}`);
+  }
+
+  // Group tags by content_id
+  const tagsByContent = new Map<string, Tag[]>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const ct of (tagsData || []) as any[]) {
+    const existing = tagsByContent.get(ct.content_id) || [];
+    existing.push(ct.tag as Tag);
+    tagsByContent.set(ct.content_id, existing);
+  }
+
+  // Combine content with tags
+  return contentData.map((content: Content) => ({
+    ...content,
+    tags: tagsByContent.get(content.id) || [],
+  })) as ContentWithTags[];
+}
+
+// ==================== User Settings ====================
+
+// Get user settings
+export async function getUserSettings(
+  userId: string
+): Promise<UserSettings | null> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("user_settings")
+    .select("*")
+    .eq("user_id", userId)
+    .single();
+
+  if (error && error.code !== "PGRST116") {
+    // PGRST116 is "no rows returned"
+    throw new Error(`Failed to get user settings: ${error.message}`);
+  }
+
+  return data as UserSettings | null;
+}
+
+// Create or update user settings
+export async function upsertUserSettings(
+  userId: string,
+  settings: { home_region?: string; home_country?: string }
+): Promise<UserSettings> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("user_settings")
+    .upsert({
+      user_id: userId,
+      ...settings,
+      updated_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to update user settings: ${error.message}`);
+  }
+
+  return data as UserSettings;
+}
+
+// ==================== Plan Sharing ====================
+
+export interface ShareInvite {
+  id: string;
+  plan_id: string;
+  owner_user_id: string;
+  share_code: string;
+  expires_at: string;
+  claimed_by_user_id?: string;
+  created_at: string;
+}
+
+export interface PlanShare {
+  id: string;
+  plan_id: string;
+  shared_with_user_id: string;
+  share_code?: string;
+  created_at: string;
+}
+
+// Generate a unique share code
+function generateShareCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let result = "";
+  for (let i = 0; i < 8; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+// Create a share invite for a plan
+export async function createShareInvite(
+  planId: string,
+  ownerUserId: string
+): Promise<ShareInvite> {
+  const supabase = createServerClient();
+
+  const shareCode = generateShareCode();
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+  const { data, error } = await supabase
+    .from("share_invites")
+    .insert({
+      plan_id: planId,
+      owner_user_id: ownerUserId,
+      share_code: shareCode,
+      expires_at: expiresAt.toISOString(),
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to create share invite: ${error.message}`);
+  }
+
+  return data as ShareInvite;
+}
+
+// Get share invite by code
+export async function getShareInvite(
+  shareCode: string
+): Promise<ShareInvite | null> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("share_invites")
+    .select("*")
+    .eq("share_code", shareCode)
+    .single();
+
+  if (error && error.code !== "PGRST116") {
+    throw new Error(`Failed to get share invite: ${error.message}`);
+  }
+
+  return data as ShareInvite | null;
+}
+
+// Claim a share invite (accept sharing)
+export async function claimShareInvite(
+  shareCode: string,
+  userId: string
+): Promise<PlanShare> {
+  const supabase = createServerClient();
+
+  // Get the invite
+  const invite = await getShareInvite(shareCode);
+  if (!invite) {
+    throw new Error("Invalid share code");
+  }
+
+  // Check if expired
+  if (new Date(invite.expires_at) < new Date()) {
+    throw new Error("Share code has expired");
+  }
+
+  // Check if already claimed
+  if (invite.claimed_by_user_id) {
+    throw new Error("Share code has already been used");
+  }
+
+  // Can't share with yourself
+  if (invite.owner_user_id === userId) {
+    throw new Error("You cannot accept your own share invite");
+  }
+
+  // Create the plan share
+  const { data: shareData, error: shareError } = await supabase
+    .from("plan_shares")
+    .insert({
+      plan_id: invite.plan_id,
+      shared_with_user_id: userId,
+      share_code: shareCode,
+    })
+    .select()
+    .single();
+
+  if (shareError) {
+    if (shareError.code === "23505") {
+      throw new Error("You already have access to this plan");
+    }
+    throw new Error(`Failed to claim share invite: ${shareError.message}`);
+  }
+
+  // Mark invite as claimed
+  await supabase
+    .from("share_invites")
+    .update({ claimed_by_user_id: userId })
+    .eq("id", invite.id);
+
+  return shareData as PlanShare;
+}
+
+// Get plans shared with user
+export async function getSharedPlans(userId: string): Promise<PlanShare[]> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("plan_shares")
+    .select("*")
+    .eq("shared_with_user_id", userId);
+
+  if (error) {
+    throw new Error(`Failed to get shared plans: ${error.message}`);
+  }
+
+  return data as PlanShare[];
+}
+
+// Remove plan share
+export async function removePlanShare(
+  planId: string,
+  sharedWithUserId: string
+): Promise<void> {
+  const supabase = createServerClient();
+
+  const { error } = await supabase
+    .from("plan_shares")
+    .delete()
+    .eq("plan_id", planId)
+    .eq("shared_with_user_id", sharedWithUserId);
+
+  if (error) {
+    throw new Error(`Failed to remove plan share: ${error.message}`);
+  }
 }

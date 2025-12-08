@@ -6,7 +6,13 @@ import {
   analyzeWithDescription,
   MultiItemAnalysisResult,
 } from "@/lib/gemini";
-import { updateContent, saveContent, deleteContent } from "@/lib/supabase";
+import {
+  updateContent,
+  saveContent,
+  deleteContent,
+  getOrCreateTags,
+  addTagsToContent,
+} from "@/lib/supabase";
 
 interface ProcessRequest {
   contentId: string;
@@ -159,6 +165,23 @@ export async function POST(request: NextRequest) {
         });
         createdContents.push(content);
         console.log(`Created content: ${content.id} - ${content.title}`);
+
+        // Apply suggested tags
+        if (item.suggested_tags && item.suggested_tags.length > 0) {
+          try {
+            const tags = await getOrCreateTags(userId, item.suggested_tags);
+            await addTagsToContent(
+              content.id,
+              tags.map((t) => t.id)
+            );
+            console.log(
+              `Applied ${tags.length} tags to content: ${content.id}`
+            );
+          } catch (tagError) {
+            console.error("Failed to apply tags:", tagError);
+            // Don't fail the whole process for tag errors
+          }
+        }
       }
 
       return NextResponse.json({
@@ -178,6 +201,23 @@ export async function POST(request: NextRequest) {
       });
 
       console.log(`Content updated: ${updatedContent.id}`);
+
+      // Apply suggested tags
+      if (item.suggested_tags && item.suggested_tags.length > 0) {
+        try {
+          const tags = await getOrCreateTags(userId, item.suggested_tags);
+          await addTagsToContent(
+            updatedContent.id,
+            tags.map((t) => t.id)
+          );
+          console.log(
+            `Applied ${tags.length} tags to content: ${updatedContent.id}`
+          );
+        } catch (tagError) {
+          console.error("Failed to apply tags:", tagError);
+          // Don't fail the whole process for tag errors
+        }
+      }
 
       return NextResponse.json({
         success: true,

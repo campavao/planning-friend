@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { BottomNav } from "@/components/bottom-nav";
 
 const dmSans = DM_Sans({
   variable: "--font-geist-sans",
@@ -32,6 +33,7 @@ export default function RootLayout({
         className={`${dmSans.variable} ${jetbrainsMono.variable} font-sans antialiased min-h-screen bg-gradient-mesh`}
       >
         {children}
+        <BottomNav />
       </body>
     </html>
   );

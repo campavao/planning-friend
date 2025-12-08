@@ -5,6 +5,8 @@ import type {
   EventData,
   DateIdeaData,
   GiftIdeaData,
+  TravelData,
+  DrinkData,
 } from "./supabase";
 
 export interface AnalysisResult {
@@ -15,7 +17,10 @@ export interface AnalysisResult {
     | EventData
     | DateIdeaData
     | GiftIdeaData
+    | TravelData
+    | DrinkData
     | Record<string, unknown>;
+  suggested_tags?: string[];
 }
 
 export interface MultiItemAnalysisResult {
@@ -27,11 +32,17 @@ const ANALYSIS_PROMPT = `You are an AI assistant that analyzes TikTok videos to 
 
 Analyze this video and determine what category it belongs to:
 
-1. **meal** - A recipe, cooking tutorial, or food-related content
-2. **event** - An event, festival, concert, show, or time-limited happening
-3. **date_idea** - A date night idea, place to visit, restaurant recommendation, or activity suggestion
-4. **gift_idea** - A product, item, or gift recommendation that could be purchased
-5. **other** - Content that doesn't fit the above categories
+1. **meal** - A recipe, cooking tutorial, or FOOD-related content (not drinks/beverages)
+2. **drink** - A cocktail, mocktail, smoothie, coffee drink, or any BEVERAGE recipe
+3. **event** - An event, festival, concert, show, or time-limited happening
+4. **date_idea** - A date night idea, place to visit, restaurant recommendation, or activity suggestion
+5. **gift_idea** - A product, item, or gift recommendation that could be purchased
+6. **travel** - Content about a place/destination that appears to be travel/tourism related (famous landmarks, tourist attractions, vacation spots, international destinations)
+7. **other** - Content that doesn't fit the above categories
+
+**IMPORTANT - drink vs meal distinction:**
+- If the content is primarily about making a BEVERAGE (cocktail, smoothie, coffee, tea, etc.), categorize it as **drink**
+- If the content is primarily about FOOD (even if drinks are mentioned), categorize it as **meal**
 
 **IMPORTANT - Multi-Item Detection:**
 If the video contains a LIST of items (e.g., "Top 5 restaurants", "3 best gifts", "My favorite spots in NYC"), extract EACH item separately and return them as an array.
@@ -76,9 +87,37 @@ For **gift_idea**:
 - amazon_link: Amazon search URL for the product (construct as: https://www.amazon.com/s?k=PRODUCT+NAME)
 - description: Brief description of the product and why it makes a good gift
 
+For **drink**:
+- title: Name of the drink/cocktail
+- recipe: Step-by-step instructions to make the drink (array of strings)
+- ingredients: List of ingredients with quantities (array of strings)
+- type: One of "cocktail", "mocktail", "coffee", "smoothie", "wine", "beer", "other"
+- prep_time: How long it takes to make
+- description: Brief description of the drink
+- difficulty: One of "easy", "medium", "hard"
+
+For **travel**:
+- title: Name of the place/attraction
+- location: Where it is located (city, country)
+- type: One of "restaurant", "attraction", "hotel", "activity", "other"
+- description: Brief description of why it's worth visiting
+- website: Official website URL if known
+- booking_link: Link to book/reserve if applicable
+- price_range: One of "$", "$$", "$$$", "$$$$" if you can estimate
+- destination_city: The city name
+- destination_country: The country name
+
 For **other**:
 - title: Brief description of the content
 - description: Summary of what the video is about
+
+**Tags (for ALL categories):**
+Also suggest 2-5 relevant tags for each item. Choose from these common tags or suggest similar ones:
+- Meal tags: quick, slow-cooker, breakfast, lunch, dinner, appetizer, dessert, snack, healthy, comfort-food, vegetarian, vegan, gluten-free, meal-prep, one-pot, grilling, baking, no-cook
+- Event tags: free, outdoor, indoor, family-friendly, 21+, music, art, sports, seasonal, holiday, weekend
+- Date/Activity tags: romantic, adventurous, budget, splurge, outdoor, indoor, foodie, cultural, active, relaxing
+- Gift tags: budget, splurge, tech, fashion, home, personalized, experience, practical
+- General tags: seasonal, party, date-night, weeknight, special-occasion, trending
 
 **Response Format:**
 
@@ -88,7 +127,8 @@ For a SINGLE item, respond with:
   "items": [{
     "category": "meal" | "event" | "date_idea" | "gift_idea" | "other",
     "title": "string",
-    "data": { ... category-specific fields ... }
+    "data": { ... category-specific fields ... },
+    "suggested_tags": ["tag1", "tag2", "tag3"]
   }]
 }
 
@@ -96,8 +136,8 @@ For MULTIPLE items (lists, top 5s, etc.), respond with:
 {
   "isMultiItem": true,
   "items": [
-    { "category": "...", "title": "Item 1", "data": { ... } },
-    { "category": "...", "title": "Item 2", "data": { ... } },
+    { "category": "...", "title": "Item 1", "data": { ... }, "suggested_tags": ["tag1", "tag2"] },
+    { "category": "...", "title": "Item 2", "data": { ... }, "suggested_tags": ["tag1", "tag2"] },
     ...
   ]
 }
@@ -127,9 +167,11 @@ function parseAnalysisResponse(text: string): MultiItemAnalysisResult {
   if (parsed.items && Array.isArray(parsed.items)) {
     const validCategories: ContentCategory[] = [
       "meal",
+      "drink",
       "event",
       "date_idea",
       "gift_idea",
+      "travel",
       "other",
     ];
 
@@ -150,9 +192,11 @@ function parseAnalysisResponse(text: string): MultiItemAnalysisResult {
   if (parsed.category && parsed.title) {
     const validCategories: ContentCategory[] = [
       "meal",
+      "drink",
       "event",
       "date_idea",
       "gift_idea",
+      "travel",
       "other",
     ];
 

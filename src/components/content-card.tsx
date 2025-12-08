@@ -9,6 +9,10 @@ import type {
   EventData,
   DateIdeaData,
   GiftIdeaData,
+  TravelData,
+  DrinkData,
+  Tag,
+  ContentWithTags,
 } from "@/lib/supabase";
 
 // Generate Google Maps URL from location string
@@ -37,8 +41,32 @@ function LocationLink({ location }: { location: string }) {
 }
 
 interface ContentCardProps {
-  content: Content;
+  content: Content | ContentWithTags;
   index?: number;
+  tags?: Tag[];
+}
+
+// Tag display component for cards
+function CardTags({ tags }: { tags?: Tag[] }) {
+  if (!tags || tags.length === 0) return null;
+  
+  return (
+    <div className="flex flex-wrap gap-1 mt-2">
+      {tags.slice(0, 3).map((tag) => (
+        <span
+          key={tag.id}
+          className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary/50 text-muted-foreground"
+        >
+          {tag.name}
+        </span>
+      ))}
+      {tags.length > 3 && (
+        <span className="text-[10px] text-muted-foreground">
+          +{tags.length - 3}
+        </span>
+      )}
+    </div>
+  );
 }
 
 function ProcessingCard({ content }: { content: Content }) {
@@ -91,7 +119,7 @@ function FailedCard({ content }: { content: Content }) {
   );
 }
 
-function MealCard({ content, data }: { content: Content; data: MealData }) {
+function MealCard({ content, data, tags }: { content: Content; data: MealData; tags?: Tag[] }) {
   return (
     <Link href={`/dashboard/${content.id}`}>
       <Card className="glass overflow-hidden group hover:border-meal/50 transition-all duration-300 cursor-pointer h-full">
@@ -114,6 +142,7 @@ function MealCard({ content, data }: { content: Content; data: MealData }) {
           <CardTitle className="text-lg font-semibold line-clamp-2">
             {content.title}
           </CardTitle>
+          <CardTags tags={tags} />
         </CardHeader>
         <CardContent className="space-y-3">
           {data.ingredients && data.ingredients.length > 0 && (
@@ -139,7 +168,7 @@ function MealCard({ content, data }: { content: Content; data: MealData }) {
   );
 }
 
-function EventCard({ content, data }: { content: Content; data: EventData }) {
+function EventCard({ content, data, tags }: { content: Content; data: EventData; tags?: Tag[] }) {
   return (
     <Link href={`/dashboard/${content.id}`}>
       <Card className="glass overflow-hidden group hover:border-event/50 transition-all duration-300 cursor-pointer h-full">
@@ -162,6 +191,7 @@ function EventCard({ content, data }: { content: Content; data: EventData }) {
           <CardTitle className="text-lg font-semibold line-clamp-2">
             {content.title}
           </CardTitle>
+          <CardTags tags={tags} />
         </CardHeader>
         <CardContent className="space-y-3">
           {data.location && <LocationLink location={data.location} />}
@@ -187,9 +217,11 @@ function EventCard({ content, data }: { content: Content; data: EventData }) {
 function DateIdeaCard({
   content,
   data,
+  tags,
 }: {
   content: Content;
   data: DateIdeaData;
+  tags?: Tag[];
 }) {
   const typeEmoji: Record<string, string> = {
     dinner: "🍷",
@@ -221,6 +253,7 @@ function DateIdeaCard({
           <CardTitle className="text-lg font-semibold line-clamp-2">
             {content.title}
           </CardTitle>
+          <CardTags tags={tags} />
         </CardHeader>
         <CardContent className="space-y-3">
           {data.location && <LocationLink location={data.location} />}
@@ -249,9 +282,11 @@ function DateIdeaCard({
 function GiftIdeaCard({
   content,
   data,
+  tags,
 }: {
   content: Content;
   data: GiftIdeaData;
+  tags?: Tag[];
 }) {
   return (
     <Link href={`/dashboard/${content.id}`}>
@@ -275,6 +310,7 @@ function GiftIdeaCard({
           <CardTitle className="text-lg font-semibold line-clamp-2">
             {content.title}
           </CardTitle>
+          <CardTags tags={tags} />
         </CardHeader>
         <CardContent className="space-y-3">
           {data.cost && (
@@ -321,7 +357,143 @@ function GiftIdeaCard({
   );
 }
 
-function OtherCard({ content }: { content: Content }) {
+function TravelCard({
+  content,
+  data,
+  tags,
+}: {
+  content: Content;
+  data: TravelData;
+  tags?: Tag[];
+}) {
+  const typeEmoji: Record<string, string> = {
+    restaurant: "🍽️",
+    attraction: "🏛️",
+    hotel: "🏨",
+    activity: "🎯",
+    other: "📍",
+  };
+
+  return (
+    <Link href={`/dashboard/${content.id}`}>
+      <Card className="glass overflow-hidden group hover:border-travel/50 transition-all duration-300 cursor-pointer h-full">
+        <div className="relative">
+          {content.thumbnail_url && (
+            <div className="relative h-40 overflow-hidden">
+              <img
+                src={content.thumbnail_url}
+                alt={content.title}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
+            </div>
+          )}
+          <Badge className="absolute top-3 right-3 badge-travel border">
+            ✈️ Travel
+          </Badge>
+        </div>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg font-semibold line-clamp-2">
+            {content.title}
+          </CardTitle>
+          <CardTags tags={tags} />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {data.location && <LocationLink location={data.location} />}
+          <div className="flex flex-wrap gap-2">
+            {data.type && (
+              <Badge variant="outline" className="text-xs">
+                {typeEmoji[data.type] || "📍"}{" "}
+                {data.type.charAt(0).toUpperCase() + data.type.slice(1)}
+              </Badge>
+            )}
+            {data.price_range && (
+              <Badge variant="outline" className="text-xs">
+                {data.price_range}
+              </Badge>
+            )}
+          </div>
+          <p className="text-sm text-primary group-hover:underline">
+            View details →
+          </p>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
+
+function DrinkCard({
+  content,
+  data,
+  tags,
+}: {
+  content: Content;
+  data: DrinkData;
+  tags?: Tag[];
+}) {
+  const typeEmoji: Record<string, string> = {
+    cocktail: "🍸",
+    mocktail: "🍹",
+    coffee: "☕",
+    smoothie: "🥤",
+    wine: "🍷",
+    beer: "🍺",
+    other: "🥃",
+  };
+
+  return (
+    <Link href={`/dashboard/${content.id}`}>
+      <Card className="glass overflow-hidden group hover:border-drink/50 transition-all duration-300 cursor-pointer h-full">
+        <div className="relative">
+          {content.thumbnail_url && (
+            <div className="relative h-40 overflow-hidden">
+              <img
+                src={content.thumbnail_url}
+                alt={content.title}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
+            </div>
+          )}
+          <Badge className="absolute top-3 right-3 badge-drink border">
+            🍹 Drink
+          </Badge>
+        </div>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg font-semibold line-clamp-2">
+            {content.title}
+          </CardTitle>
+          <CardTags tags={tags} />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {data.ingredients && data.ingredients.length > 0 && (
+            <p className="text-sm text-muted-foreground">
+              {data.ingredients.length} ingredients
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {data.type && (
+              <Badge variant="outline" className="text-xs">
+                {typeEmoji[data.type] || "🥃"}{" "}
+                {data.type.charAt(0).toUpperCase() + data.type.slice(1)}
+              </Badge>
+            )}
+            {data.difficulty && (
+              <Badge variant="outline" className="text-xs">
+                {data.difficulty}
+              </Badge>
+            )}
+          </div>
+          <p className="text-sm text-primary group-hover:underline">
+            View details →
+          </p>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
+
+function OtherCard({ content, tags }: { content: Content; tags?: Tag[] }) {
   const data = content.data as { description?: string };
 
   return (
@@ -346,6 +518,7 @@ function OtherCard({ content }: { content: Content }) {
           <CardTitle className="text-lg font-semibold line-clamp-2">
             {content.title}
           </CardTitle>
+          <CardTags tags={tags} />
         </CardHeader>
         <CardContent className="space-y-3">
           {data.description && (
@@ -362,8 +535,11 @@ function OtherCard({ content }: { content: Content }) {
   );
 }
 
-export function ContentCard({ content, index = 0 }: ContentCardProps) {
+export function ContentCard({ content, index = 0, tags }: ContentCardProps) {
   const delayClass = `stagger-${Math.min(index + 1, 5)}`;
+  
+  // Get tags from content if it's ContentWithTags, or use provided tags
+  const contentTags = tags || ('tags' in content ? content.tags : undefined);
 
   // Handle processing and failed states
   if (content.status === "processing") {
@@ -385,18 +561,24 @@ export function ContentCard({ content, index = 0 }: ContentCardProps) {
   return (
     <div className={`animate-fade-in-up opacity-0 ${delayClass}`}>
       {content.category === "meal" && (
-        <MealCard content={content} data={content.data as MealData} />
+        <MealCard content={content} data={content.data as MealData} tags={contentTags} />
+      )}
+      {content.category === "drink" && (
+        <DrinkCard content={content} data={content.data as DrinkData} tags={contentTags} />
       )}
       {content.category === "event" && (
-        <EventCard content={content} data={content.data as EventData} />
+        <EventCard content={content} data={content.data as EventData} tags={contentTags} />
       )}
       {content.category === "date_idea" && (
-        <DateIdeaCard content={content} data={content.data as DateIdeaData} />
+        <DateIdeaCard content={content} data={content.data as DateIdeaData} tags={contentTags} />
       )}
       {content.category === "gift_idea" && (
-        <GiftIdeaCard content={content} data={content.data as GiftIdeaData} />
+        <GiftIdeaCard content={content} data={content.data as GiftIdeaData} tags={contentTags} />
       )}
-      {content.category === "other" && <OtherCard content={content} />}
+      {content.category === "travel" && (
+        <TravelCard content={content} data={content.data as TravelData} tags={contentTags} />
+      )}
+      {content.category === "other" && <OtherCard content={content} tags={contentTags} />}
     </div>
   );
 }

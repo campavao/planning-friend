@@ -12,6 +12,8 @@ import type {
   EventData,
   DateIdeaData,
   GiftIdeaData,
+  TravelData,
+  DrinkData,
 } from "@/lib/supabase";
 
 // Generate Google Maps URL from location string
@@ -126,9 +128,11 @@ export default function ContentDetailPage() {
     { emoji: string; label: string; color: string }
   > = {
     meal: { emoji: "🍽️", label: "Meal", color: "badge-meal" },
+    drink: { emoji: "🍹", label: "Drink", color: "badge-drink" },
     event: { emoji: "🎉", label: "Event", color: "badge-event" },
     date_idea: { emoji: "💕", label: "Date Idea", color: "badge-date_idea" },
     gift_idea: { emoji: "🎁", label: "Gift Idea", color: "badge-gift_idea" },
+    travel: { emoji: "✈️", label: "Travel", color: "badge-travel" },
     other: { emoji: "📌", label: "Saved", color: "badge-other" },
   };
 
@@ -241,6 +245,12 @@ export default function ContentDetailPage() {
             )}
             {content.category === "gift_idea" && (
               <GiftIdeaContent data={content.data as GiftIdeaData} />
+            )}
+            {content.category === "drink" && (
+              <DrinkContent data={content.data as DrinkData} />
+            )}
+            {content.category === "travel" && (
+              <TravelContent data={content.data as TravelData} />
             )}
             {content.category === "other" && (
               <OtherContent data={content.data as { description?: string }} />
@@ -545,6 +555,170 @@ function GiftIdeaContent({ data }: { data: GiftIdeaData }) {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/20 text-primary hover:bg-primary/30 transition-colors"
           >
             🛍️ Buy Now
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DrinkContent({ data }: { data: DrinkData }) {
+  const typeEmoji: Record<string, string> = {
+    cocktail: "🍸",
+    mocktail: "🍹",
+    coffee: "☕",
+    smoothie: "🥤",
+    wine: "🍷",
+    beer: "🍺",
+    other: "🥃",
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap gap-2">
+        {data.type && (
+          <Badge variant="outline">
+            {typeEmoji[data.type] || "🥃"}{" "}
+            {data.type.charAt(0).toUpperCase() + data.type.slice(1)}
+          </Badge>
+        )}
+        {data.difficulty && (
+          <Badge variant="outline">
+            {data.difficulty === "easy" && "✅"}
+            {data.difficulty === "medium" && "⚡"}
+            {data.difficulty === "hard" && "🔥"}{" "}
+            {data.difficulty.charAt(0).toUpperCase() + data.difficulty.slice(1)}
+          </Badge>
+        )}
+        {data.prep_time && (
+          <Badge variant="outline">⏱️ {data.prep_time}</Badge>
+        )}
+      </div>
+
+      {data.ingredients && data.ingredients.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold mb-3">Ingredients</h3>
+          <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {data.ingredients.map((ingredient, i) => (
+              <li key={i} className="flex items-start gap-2">
+                <span className="text-primary">•</span>
+                <span>{ingredient}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {data.recipe && data.recipe.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold mb-3">Instructions</h3>
+          <ol className="space-y-3">
+            {data.recipe.map((step, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-mono text-sm">
+                  {i + 1}
+                </span>
+                <span className="pt-1">{step}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      {data.description && (
+        <div>
+          <h3 className="text-lg font-semibold mb-2">About</h3>
+          <p className="text-muted-foreground">{data.description}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TravelContent({ data }: { data: TravelData }) {
+  const typeEmoji: Record<string, string> = {
+    restaurant: "🍽️",
+    attraction: "🏛️",
+    hotel: "🏨",
+    activity: "🎯",
+    other: "📍",
+  };
+
+  return (
+    <div className="space-y-4">
+      {data.location && (
+        <a
+          href={getGoogleMapsUrl(data.location)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-start gap-3 group hover:bg-secondary/50 -mx-2 px-2 py-2 rounded-lg transition-colors"
+        >
+          <span className="text-2xl">📍</span>
+          <div>
+            <p className="text-sm text-muted-foreground">Location</p>
+            <p className="font-medium group-hover:text-primary underline decoration-dotted underline-offset-2">
+              {data.location}
+            </p>
+          </div>
+          <span className="text-muted-foreground ml-auto text-sm group-hover:text-primary">
+            Open in Maps →
+          </span>
+        </a>
+      )}
+
+      {(data.destination_city || data.destination_country) && (
+        <div className="flex items-start gap-3">
+          <span className="text-2xl">🌍</span>
+          <div>
+            <p className="text-sm text-muted-foreground">Destination</p>
+            <p className="font-medium">
+              {data.destination_city}
+              {data.destination_city && data.destination_country && ", "}
+              {data.destination_country}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-2">
+        {data.type && (
+          <Badge variant="outline">
+            {typeEmoji[data.type] || "📍"}{" "}
+            {data.type.charAt(0).toUpperCase() + data.type.slice(1)}
+          </Badge>
+        )}
+        {data.price_range && (
+          <Badge variant="outline">{data.price_range}</Badge>
+        )}
+      </div>
+
+      {data.description && (
+        <div>
+          <h3 className="text-lg font-semibold mb-2">About</h3>
+          <p className="text-muted-foreground">{data.description}</p>
+        </div>
+      )}
+
+      {/* Links */}
+      <div className="flex flex-wrap gap-3 pt-2">
+        {data.website && (
+          <a
+            href={data.website}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+          >
+            🌐 Website
+          </a>
+        )}
+        {data.booking_link && (
+          <a
+            href={data.booking_link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+          >
+            📅 Book Now
           </a>
         )}
       </div>
