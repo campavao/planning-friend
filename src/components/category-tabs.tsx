@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ContentCard } from "@/components/content-card";
 import { TagFilter } from "@/components/tag-filter";
+import { AddContactButton } from "@/components/add-contact-button";
 import type { ContentWithTags, Tag } from "@/lib/supabase";
-import { formatPhoneNumber } from "@/lib/utils";
 
 interface CategoryTabsProps {
   content: ContentWithTags[];
@@ -59,13 +59,12 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
           ? `No ${category} match selected tags`
           : `No ${category} saved yet`}
       </h3>
-      <p className="text-muted-foreground max-w-md">
+      <p className="text-muted-foreground max-w-md mb-4">
         {selectedTags.length > 0
           ? "Try removing some tag filters."
-          : `Text a TikTok link to ${formatPhoneNumber(
-              process.env.NEXT_PUBLIC_TWILIO_PHONE_NUMBER || ""
-            )} and we'll automatically categorize and save it here.`}
+          : "Text a TikTok link and we'll automatically categorize and save it here."}
       </p>
+      {selectedTags.length === 0 && <AddContactButton variant="button" />}
     </div>
   );
 

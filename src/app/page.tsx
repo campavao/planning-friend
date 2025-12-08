@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AddContactButton } from "@/components/add-contact-button";
 import { formatPhoneNumber } from "@/lib/utils";
 
 export default function Home() {
@@ -123,8 +124,9 @@ export default function Home() {
             <div className="absolute -bottom-1 left-0 right-0 h-2 bg-washi-coral/50 transform rotate-0.5 -z-10" />
           </div>
           <p className="text-sm text-muted-foreground max-w-md mx-auto mt-4">
-            Your personal scrapbook for social media discoveries. Text links to
-            save meals, events, date ideas, and more!
+            Your personal scrapbook for social media discoveries. Text links to{" "}
+            <AddContactButton variant="link" /> to save meals, events, date
+            ideas, and more!
           </p>
         </div>
 

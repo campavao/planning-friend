@@ -17,7 +17,7 @@ export function BottomNav() {
   if (pathname === "/") return null;
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-4 safe-area-bottom pointer-events-none">
+    <div className="md:hidden fixed bottom-4 left-0 right-0 z-50 px-4 pb-4 safe-area-bottom pointer-events-none">
       <nav className="pointer-events-auto bg-white/95 backdrop-blur-lg rounded-2xl shadow-lg shadow-black/10 border border-border/50 mx-auto max-w-sm">
         <div className="flex justify-around items-center py-2 px-2">
           {NAV_ITEMS.map((item) => {
@@ -36,10 +36,18 @@ export function BottomNav() {
                     : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
                 }`}
               >
-                <span className={`text-2xl mb-0.5 ${isActive ? "animate-float" : ""}`}>
+                <span
+                  className={`text-2xl mb-0.5 ${
+                    isActive ? "animate-float" : ""
+                  }`}
+                >
                   {item.icon}
                 </span>
-                <span className={`text-[10px] font-semibold ${isActive ? "text-primary" : ""}`}>
+                <span
+                  className={`text-[10px] font-semibold ${
+                    isActive ? "text-primary" : ""
+                  }`}
+                >
                   {item.label}
                 </span>
                 {isActive && (

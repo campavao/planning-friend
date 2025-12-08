@@ -69,7 +69,13 @@ function CardTags({ tags }: { tags?: Tag[] }) {
 
 // Get rotation class for organic feel
 function getRotation(index: number): string {
-  const rotations = ["rotate-1", "rotate-neg-1", "rotate-2", "rotate-neg-2", ""];
+  const rotations = [
+    "rotate-1",
+    "rotate-neg-1",
+    "rotate-2",
+    "rotate-neg-2",
+    "",
+  ];
   return rotations[index % rotations.length];
 }
 
@@ -87,17 +93,29 @@ function getWashiColor(category: string): string {
   return colors[category] || "bg-washi-yellow/80";
 }
 
-function ProcessingCard({ content, index = 0 }: { content: Content; index?: number }) {
+function ProcessingCard({
+  content,
+  index = 0,
+}: {
+  content: Content;
+  index?: number;
+}) {
   return (
     <Link href={`/dashboard/${content.id}`}>
-      <div className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(index)} relative`}>
+      <div
+        className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(
+          index
+        )} relative`}
+      >
         {/* Washi tape */}
         <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-5 bg-washi-yellow/80 transform -rotate-2 z-10" />
-        
+
         <div className="relative h-36 bg-secondary/30 flex items-center justify-center">
           <div className="text-center">
             <div className="text-4xl mb-2 animate-wiggle">✂️</div>
-            <p className="text-sm text-muted-foreground font-handwritten">Cutting & pasting...</p>
+            <p className="text-sm text-muted-foreground font-handwritten">
+              Cutting & pasting...
+            </p>
           </div>
         </div>
         <div className="p-3 pt-2">
@@ -113,22 +131,32 @@ function ProcessingCard({ content, index = 0 }: { content: Content; index?: numb
   );
 }
 
-function FailedCard({ content, index = 0 }: { content: Content; index?: number }) {
+function FailedCard({
+  content,
+  index = 0,
+}: {
+  content: Content;
+  index?: number;
+}) {
   return (
     <Link href={`/dashboard/${content.id}`}>
-      <div className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(index)} border-destructive/20 relative`}>
+      <div
+        className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(
+          index
+        )} border-destructive/20 relative`}
+      >
         <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-5 bg-washi-coral/80 transform rotate-1 z-10" />
-        
+
         <div className="relative h-36 bg-destructive/5 flex items-center justify-center">
           <div className="text-center">
             <div className="text-4xl mb-2">😕</div>
-            <p className="text-sm text-muted-foreground">Couldn&apos;t add this one</p>
+            <p className="text-sm text-muted-foreground">
+              Couldn&apos;t add this one
+            </p>
           </div>
         </div>
         <div className="p-3 pt-2">
-          <p className="font-medium text-sm">
-            Something went wrong
-          </p>
+          <p className="font-medium text-sm">Something went wrong</p>
           <p className="text-xs text-muted-foreground mt-1">
             Tap to try again or delete
           </p>
@@ -151,10 +179,18 @@ function MealCard({
 }) {
   return (
     <Link href={`/dashboard/${content.id}`}>
-      <div className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(index)} relative`}>
+      <div
+        className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(
+          index
+        )} relative`}
+      >
         {/* Washi tape decoration */}
-        <div className={`absolute -top-2 left-6 w-14 h-5 ${getWashiColor("meal")} transform -rotate-2 z-10`} />
-        
+        <div
+          className={`absolute -top-2 left-6 w-14 h-5 ${getWashiColor(
+            "meal"
+          )} transform -rotate-2 z-10`}
+        />
+
         {/* Polaroid-style image */}
         <div className="p-2 pb-0">
           {content.thumbnail_url ? (
@@ -171,27 +207,27 @@ function MealCard({
             </div>
           )}
         </div>
-        
+
         {/* Content */}
         <div className="p-3 pt-2">
           {/* Sticker badge */}
           <span className="sticker sticker-meal text-[10px] mb-2 inline-block">
             🍽️ Recipe
           </span>
-          
+
           <h3 className="font-semibold text-sm line-clamp-2 mb-1">
             {content.title}
           </h3>
-          
+
           <CardTags tags={tags} />
-          
+
           <div className="flex flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
             {data.ingredients && data.ingredients.length > 0 && (
               <span>{data.ingredients.length} ingredients</span>
             )}
             {data.prep_time && <span>⏱️ {data.prep_time}</span>}
           </div>
-          
+
           <p className="text-xs text-primary mt-2 group-hover:underline">
             View recipe →
           </p>
@@ -214,9 +250,17 @@ function DrinkCard({
 }) {
   return (
     <Link href={`/dashboard/${content.id}`}>
-      <div className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(index)} relative`}>
-        <div className={`absolute -top-2 right-6 w-12 h-5 ${getWashiColor("drink")} transform rotate-1 z-10`} />
-        
+      <div
+        className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(
+          index
+        )} relative`}
+      >
+        <div
+          className={`absolute -top-2 right-6 w-12 h-5 ${getWashiColor(
+            "drink"
+          )} transform rotate-1 z-10`}
+        />
+
         <div className="p-2 pb-0">
           {content.thumbnail_url ? (
             <div className="relative h-32 overflow-hidden rounded bg-muted">
@@ -232,25 +276,25 @@ function DrinkCard({
             </div>
           )}
         </div>
-        
+
         <div className="p-3 pt-2">
           <span className="sticker sticker-drink text-[10px] mb-2 inline-block">
             🍹 Drink
           </span>
-          
+
           <h3 className="font-semibold text-sm line-clamp-2 mb-1">
             {content.title}
           </h3>
-          
+
           <CardTags tags={tags} />
-          
+
           <div className="flex flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
             {data.ingredients && data.ingredients.length > 0 && (
               <span>{data.ingredients.length} ingredients</span>
             )}
             {data.type && <span className="capitalize">{data.type}</span>}
           </div>
-          
+
           <p className="text-xs text-primary mt-2 group-hover:underline">
             View recipe →
           </p>
@@ -273,9 +317,17 @@ function EventCard({
 }) {
   return (
     <Link href={`/dashboard/${content.id}`}>
-      <div className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(index)} relative`}>
-        <div className={`absolute -top-2 left-8 w-16 h-5 ${getWashiColor("event")} transform -rotate-1 z-10`} />
-        
+      <div
+        className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(
+          index
+        )} relative`}
+      >
+        <div
+          className={`absolute -top-2 left-8 w-16 h-5 ${getWashiColor(
+            "event"
+          )} transform -rotate-1 z-10`}
+        />
+
         <div className="p-2 pb-0">
           {content.thumbnail_url ? (
             <div className="relative h-32 overflow-hidden rounded bg-muted">
@@ -291,18 +343,18 @@ function EventCard({
             </div>
           )}
         </div>
-        
+
         <div className="p-3 pt-2">
           <span className="sticker sticker-event text-[10px] mb-2 inline-block">
             🎉 Event
           </span>
-          
+
           <h3 className="font-semibold text-sm line-clamp-2 mb-1">
             {content.title}
           </h3>
-          
+
           <CardTags tags={tags} />
-          
+
           <div className="space-y-1 mt-2">
             {data.location && <LocationLink location={data.location} />}
             {data.date && (
@@ -311,7 +363,7 @@ function EventCard({
               </p>
             )}
           </div>
-          
+
           <p className="text-xs text-primary mt-2 group-hover:underline">
             View details →
           </p>
@@ -334,9 +386,17 @@ function DateIdeaCard({
 }) {
   return (
     <Link href={`/dashboard/${content.id}`}>
-      <div className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(index)} relative`}>
-        <div className={`absolute -top-2 right-8 w-14 h-5 ${getWashiColor("date_idea")} transform rotate-2 z-10`} />
-        
+      <div
+        className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(
+          index
+        )} relative`}
+      >
+        <div
+          className={`absolute -top-2 right-8 w-14 h-5 ${getWashiColor(
+            "date_idea"
+          )} transform rotate-2 z-10`}
+        />
+
         <div className="p-2 pb-0">
           {content.thumbnail_url ? (
             <div className="relative h-32 overflow-hidden rounded bg-muted">
@@ -352,25 +412,27 @@ function DateIdeaCard({
             </div>
           )}
         </div>
-        
+
         <div className="p-3 pt-2">
           <span className="sticker sticker-date_idea text-[10px] mb-2 inline-block">
             💕 Date Idea
           </span>
-          
+
           <h3 className="font-semibold text-sm line-clamp-2 mb-1">
             {content.title}
           </h3>
-          
+
           <CardTags tags={tags} />
-          
+
           <div className="space-y-1 mt-2">
             {data.location && <LocationLink location={data.location} />}
             {data.price_range && (
-              <p className="text-xs text-muted-foreground">{data.price_range}</p>
+              <p className="text-xs text-muted-foreground">
+                {data.price_range}
+              </p>
             )}
           </div>
-          
+
           <p className="text-xs text-primary mt-2 group-hover:underline">
             View details →
           </p>
@@ -393,9 +455,17 @@ function GiftIdeaCard({
 }) {
   return (
     <Link href={`/dashboard/${content.id}`}>
-      <div className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(index)} relative`}>
-        <div className={`absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-5 ${getWashiColor("gift_idea")} transform -rotate-1 z-10`} />
-        
+      <div
+        className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(
+          index
+        )} relative`}
+      >
+        <div
+          className={`absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-5 ${getWashiColor(
+            "gift_idea"
+          )} transform -rotate-1 z-10`}
+        />
+
         <div className="p-2 pb-0">
           {content.thumbnail_url ? (
             <div className="relative h-32 overflow-hidden rounded bg-muted">
@@ -411,24 +481,22 @@ function GiftIdeaCard({
             </div>
           )}
         </div>
-        
+
         <div className="p-3 pt-2">
           <span className="sticker sticker-gift_idea text-[10px] mb-2 inline-block">
             🎁 Gift Idea
           </span>
-          
+
           <h3 className="font-semibold text-sm line-clamp-2 mb-1">
             {content.title}
           </h3>
-          
+
           <CardTags tags={tags} />
-          
+
           {data.cost && (
-            <p className="text-sm font-semibold text-gift mt-2">
-              {data.cost}
-            </p>
+            <p className="text-sm font-semibold text-gift mt-2">{data.cost}</p>
           )}
-          
+
           <p className="text-xs text-primary mt-2 group-hover:underline">
             View details →
           </p>
@@ -451,9 +519,17 @@ function TravelCard({
 }) {
   return (
     <Link href={`/dashboard/${content.id}`}>
-      <div className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(index)} relative`}>
-        <div className={`absolute -top-2 left-6 w-16 h-5 ${getWashiColor("travel")} transform rotate-1 z-10`} />
-        
+      <div
+        className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(
+          index
+        )} relative`}
+      >
+        <div
+          className={`absolute -top-2 left-6 w-16 h-5 ${getWashiColor(
+            "travel"
+          )} transform rotate-1 z-10`}
+        />
+
         <div className="p-2 pb-0">
           {content.thumbnail_url ? (
             <div className="relative h-32 overflow-hidden rounded bg-muted">
@@ -469,27 +545,28 @@ function TravelCard({
             </div>
           )}
         </div>
-        
+
         <div className="p-3 pt-2">
           <span className="sticker sticker-travel text-[10px] mb-2 inline-block">
             ✈️ Travel
           </span>
-          
+
           <h3 className="font-semibold text-sm line-clamp-2 mb-1">
             {content.title}
           </h3>
-          
+
           <CardTags tags={tags} />
-          
+
           <div className="space-y-1 mt-2">
             {data.location && <LocationLink location={data.location} />}
             {data.destination_country && (
               <p className="text-xs text-muted-foreground">
-                🌍 {data.destination_city && `${data.destination_city}, `}{data.destination_country}
+                🌍 {data.destination_city && `${data.destination_city}, `}
+                {data.destination_country}
               </p>
             )}
           </div>
-          
+
           <p className="text-xs text-primary mt-2 group-hover:underline">
             View details →
           </p>
@@ -499,14 +576,30 @@ function TravelCard({
   );
 }
 
-function OtherCard({ content, tags, index = 0 }: { content: Content; tags?: Tag[]; index?: number }) {
+function OtherCard({
+  content,
+  tags,
+  index = 0,
+}: {
+  content: Content;
+  tags?: Tag[];
+  index?: number;
+}) {
   const data = content.data as { description?: string };
 
   return (
     <Link href={`/dashboard/${content.id}`}>
-      <div className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(index)} relative`}>
-        <div className={`absolute -top-2 right-6 w-14 h-5 ${getWashiColor("other")} transform -rotate-2 z-10`} />
-        
+      <div
+        className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(
+          index
+        )} relative`}
+      >
+        <div
+          className={`absolute -top-2 right-6 w-14 h-5 ${getWashiColor(
+            "other"
+          )} transform -rotate-2 z-10`}
+        />
+
         <div className="p-2 pb-0">
           {content.thumbnail_url ? (
             <div className="relative h-32 overflow-hidden rounded bg-muted">
@@ -522,24 +615,24 @@ function OtherCard({ content, tags, index = 0 }: { content: Content; tags?: Tag[
             </div>
           )}
         </div>
-        
+
         <div className="p-3 pt-2">
           <span className="sticker sticker-other text-[10px] mb-2 inline-block">
             📌 Saved
           </span>
-          
+
           <h3 className="font-semibold text-sm line-clamp-2 mb-1">
             {content.title}
           </h3>
-          
+
           <CardTags tags={tags} />
-          
+
           {data.description && (
             <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
               {data.description}
             </p>
           )}
-          
+
           <p className="text-xs text-primary mt-2 group-hover:underline">
             View details →
           </p>

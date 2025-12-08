@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { CategoryTabs } from "@/components/category-tabs";
+import { AddContactButton } from "@/components/add-contact-button";
 import type { ContentWithTags, Tag } from "@/lib/supabase";
-import { formatPhoneNumber } from "@/lib/utils";
 
 interface SessionUser {
   id: string;
@@ -265,19 +265,11 @@ export default function Dashboard() {
               ×
             </button>
             <p className="font-handwritten text-lg mb-2 pr-6">💡 Quick Tip!</p>
-            <p className="text-sm text-muted-foreground">
-              Text any TikTok link to{" "}
-              <a
-                href={`tel:${process.env.NEXT_PUBLIC_TWILIO_PHONE_NUMBER}`}
-                className="text-primary font-medium hover:underline"
-              >
-                {formatPhoneNumber(
-                  process.env.NEXT_PUBLIC_TWILIO_PHONE_NUMBER || ""
-                )}
-              </a>{" "}
-              to add it here. We&apos;ll cut it out and paste it in your
-              scrapbook!
+            <p className="text-sm text-muted-foreground mb-3">
+              Text any TikTok link to <AddContactButton variant="link" /> to add
+              it here. We&apos;ll cut it out and paste it in your scrapbook!
             </p>
+            <AddContactButton variant="button" className="w-full text-sm h-8" />
           </div>
         </div>
       )}

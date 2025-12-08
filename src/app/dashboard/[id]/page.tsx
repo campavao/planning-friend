@@ -18,6 +18,7 @@ import type {
 } from "@/lib/supabase";
 import { TagPills } from "@/components/tag-pills";
 import { DEFAULT_TAGS } from "@/lib/constants";
+import { ChevronDownIcon } from "lucide-react";
 
 // Generate Google Maps URL from location string
 function getGoogleMapsUrl(location: string): string {
@@ -33,6 +34,7 @@ export default function ContentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
+  const [editCategory, setEditCategory] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const router = useRouter();
@@ -54,6 +56,7 @@ export default function ContentDetailPage() {
 
       setContent(data.content);
       setEditTitle(data.content.title);
+      setEditCategory(data.content.category);
       if (data.tags) {
         setTags(data.tags);
       }
@@ -145,12 +148,13 @@ export default function ContentDetailPage() {
       const res = await fetch(`/api/content/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: editTitle }),
+        body: JSON.stringify({ title: editTitle, category: editCategory }),
       });
 
       if (res.ok) {
         const data = await res.json();
         setContent(data.content);
+        setEditCategory(data.content.category);
         setEditing(false);
       }
     } catch (error) {
@@ -323,11 +327,34 @@ export default function ContentDetailPage() {
             </div>
           )}
 
-          {/* Sticker badge */}
+          {/* Sticker badge / Category selector */}
           <div className="px-4 pt-3">
-            <span className={`sticker ${config.sticker} text-xs inline-block`}>
-              {config.emoji} {config.label}
-            </span>
+            {editing ? (
+              <div className="relative inline-block">
+                <select
+                  value={editCategory}
+                  onChange={(e) => setEditCategory(e.target.value)}
+                  className="text-sm pl-4 pr-10 py-2 rounded-full bg-white border border-border font-medium cursor-pointer appearance-none"
+                >
+                  <option value="meal">🍽️ Recipe</option>
+                  <option value="drink">🍹 Drink</option>
+                  <option value="event">🎉 Event</option>
+                  <option value="date_idea">💕 Date Idea</option>
+                  <option value="gift_idea">🎁 Gift Idea</option>
+                  <option value="travel">✈️ Travel</option>
+                  <option value="other">📌 Other</option>
+                </select>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground text-xs">
+                  <ChevronDownIcon className="w-4 h-4" />
+                </span>
+              </div>
+            ) : (
+              <span
+                className={`sticker ${config.sticker} text-xs inline-block`}
+              >
+                {config.emoji} {config.label}
+              </span>
+            )}
           </div>
 
           <div className="px-4 pt-3 pb-2">
@@ -337,6 +364,7 @@ export default function ContentDetailPage() {
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
                   className="text-xl font-bold bg-white border-border"
+                  placeholder="Title"
                 />
                 <Button
                   onClick={handleSave}

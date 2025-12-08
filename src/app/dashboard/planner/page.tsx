@@ -269,7 +269,11 @@ export default function PlannerPage() {
       <div className="pt-6 pb-4 px-4 md:px-6">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/dashboard">
-            <Button variant="ghost" size="sm" className="hover:bg-washi-mint/20">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hover:bg-washi-mint/20"
+            >
               ← Back
             </Button>
           </Link>
@@ -309,7 +313,9 @@ export default function PlannerPage() {
               {formatWeekRange()}
             </h2>
             {isCurrentWeek() && (
-              <span className="sticker sticker-event text-[10px] mt-1">This Week</span>
+              <span className="sticker sticker-event text-[10px] mt-1">
+                This Week
+              </span>
             )}
           </div>
           <Button
@@ -369,7 +375,10 @@ export default function PlannerPage() {
                           key={item.id}
                           className="group relative glass rounded-xl overflow-hidden"
                         >
-                          <div className="flex gap-3">
+                          <Link
+                            href={`/dashboard/${item.content_id}`}
+                            className="flex gap-3"
+                          >
                             {item.content?.thumbnail_url && (
                               <img
                                 src={item.content.thumbnail_url}
@@ -377,7 +386,7 @@ export default function PlannerPage() {
                                 className="w-20 h-20 object-cover shrink-0"
                               />
                             )}
-                            <div className="flex-1 py-2 pr-8 min-w-0">
+                            <div className="flex-1 py-2 pr-10 min-w-0">
                               <div className="flex items-center gap-1.5 mb-1">
                                 <span className="text-sm">
                                   {
@@ -394,10 +403,14 @@ export default function PlannerPage() {
                                 {item.content?.title}
                               </p>
                             </div>
-                          </div>
+                          </Link>
                           <button
-                            onClick={() => removeFromDay(item.id)}
-                            className="absolute top-2 right-2 bg-destructive/90 text-destructive-foreground rounded-full w-6 h-6 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              removeFromDay(item.id);
+                            }}
+                            className="absolute top-2 right-2 bg-destructive/90 text-destructive-foreground rounded-full w-7 h-7 text-sm flex items-center justify-center shadow-md"
                           >
                             ✕
                           </button>
@@ -465,25 +478,38 @@ export default function PlannerPage() {
                       key={item.id}
                       className="group relative glass rounded-lg overflow-hidden"
                     >
-                      {item.content?.thumbnail_url && (
-                        <img
-                          src={item.content.thumbnail_url}
-                          alt=""
-                          className="w-full h-24 object-cover"
-                        />
-                      )}
-                      <div className="p-2">
-                        <div className="flex items-center gap-1 mb-0.5">
-                          <span className="text-xs">
-                            {CATEGORY_EMOJI[item.content?.category || "other"]}
-                          </span>
+                      <Link
+                        href={`/dashboard/${item.content_id}`}
+                        className="block"
+                      >
+                        {item.content?.thumbnail_url && (
+                          <img
+                            src={item.content.thumbnail_url}
+                            alt=""
+                            className="w-full h-24 object-cover"
+                          />
+                        )}
+                        <div className="p-2">
+                          <div className="flex items-center gap-1 mb-0.5">
+                            <span className="text-xs">
+                              {
+                                CATEGORY_EMOJI[
+                                  item.content?.category || "other"
+                                ]
+                              }
+                            </span>
+                          </div>
+                          <p className="text-xs font-medium line-clamp-2">
+                            {item.content?.title}
+                          </p>
                         </div>
-                        <p className="text-xs font-medium line-clamp-2">
-                          {item.content?.title}
-                        </p>
-                      </div>
+                      </Link>
                       <button
-                        onClick={() => removeFromDay(item.id)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          removeFromDay(item.id);
+                        }}
                         className="absolute top-1 right-1 bg-destructive/90 text-destructive-foreground rounded-full w-5 h-5 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         ✕

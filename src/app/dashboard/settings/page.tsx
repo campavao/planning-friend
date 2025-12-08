@@ -4,7 +4,10 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatPhoneNumber } from "@/lib/utils";
+import {
+  AddContactButton,
+  PhoneNumberDisplay,
+} from "@/components/add-contact-button";
 
 interface UserSettings {
   home_region?: string;
@@ -186,23 +189,24 @@ export default function SettingsPage() {
           <div className="flex items-center gap-3 mb-4 pt-2">
             <span className="text-2xl">📒</span>
             <div>
-              <h2 className="font-handwritten text-2xl">About Planning Friend</h2>
+              <h2 className="font-handwritten text-2xl">
+                About Planning Friend
+              </h2>
             </div>
           </div>
 
           <p className="text-sm text-muted-foreground mb-4">
-            Planning Friend is your personal scrapbook for collecting and organizing
-            ideas from social media. Text links to{" "}
-            <a
-              href={`tel:${process.env.NEXT_PUBLIC_TWILIO_PHONE_NUMBER}`}
-              className="text-primary font-medium hover:underline"
-            >
-              {formatPhoneNumber(
-                process.env.NEXT_PUBLIC_TWILIO_PHONE_NUMBER || ""
-              )}
-            </a>{" "}
-            to save meals, events, date ideas, and more!
+            Planning Friend is your personal scrapbook for collecting and
+            organizing ideas from social media. Text links to save meals,
+            events, date ideas, and more!
           </p>
+
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <AddContactButton variant="button" />
+            <span className="text-sm text-muted-foreground">
+              <PhoneNumberDisplay />
+            </span>
+          </div>
 
           <p className="text-xs text-muted-foreground">
             Version 1.0 • Made with 💕
