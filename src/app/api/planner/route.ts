@@ -5,6 +5,8 @@ import {
   addPlanItem,
   getWeekStart,
   getContentByUser,
+  getSharedPlansWithDetails,
+  getPlanShareInfo,
   type Content,
   type ContentCategory,
 } from "@/lib/supabase";
@@ -65,11 +67,19 @@ export async function GET(request: NextRequest) {
     // Generate suggestions based on patterns
     const suggestions = generateSuggestions(plan?.items || [], availableContent);
 
+    // Get shared plans information
+    const sharedWithMe = await getSharedPlansWithDetails(session.userId);
+    
+    // Get share info for current plan (if user owns it)
+    const shareInfo = plan ? await getPlanShareInfo(plan.id, session.userId) : { isShared: false, sharedWith: [] };
+
     return NextResponse.json({
       success: true,
       plan,
       availableContent,
       suggestions,
+      sharedWithMe,
+      shareInfo,
     });
   } catch (error) {
     console.error("Error getting planner:", error);

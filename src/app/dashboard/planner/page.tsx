@@ -12,6 +12,7 @@ import type {
   PlanItem,
   WeeklyPlanWithItems,
   ContentCategory,
+  SharedPlanDetails,
 } from "@/lib/supabase";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -36,6 +37,8 @@ interface PlannerData {
   plan: WeeklyPlanWithItems | null;
   availableContent: Content[];
   suggestions: Record<number, Content[]>;
+  sharedWithMe: SharedPlanDetails[];
+  shareInfo: { isShared: boolean; sharedWith: string[] };
 }
 
 interface ShareState {
@@ -194,7 +197,7 @@ export default function PlannerPage() {
         ...s,
         loading: false,
         inputCode: "",
-        success: "Successfully joined! Refresh to see shared content.",
+        success: "🎉 You've joined! The shared plan now appears in \"Shared With Me\" below.",
       }));
       fetchPlanner(weekStart);
     } catch (error) {
@@ -312,11 +315,18 @@ export default function PlannerPage() {
             <h2 className="text-base md:text-xl font-semibold font-handwritten">
               {formatWeekRange()}
             </h2>
-            {isCurrentWeek() && (
-              <span className="sticker sticker-event text-[10px] mt-1">
-                This Week
-              </span>
-            )}
+            <div className="flex items-center justify-center gap-2 mt-1">
+              {isCurrentWeek() && (
+                <span className="sticker sticker-event text-[10px]">
+                  This Week
+                </span>
+              )}
+              {data?.shareInfo?.isShared && (
+                <span className="sticker sticker-meal text-[10px]">
+                  🤝 Shared ({data.shareInfo.sharedWith.length})
+                </span>
+              )}
+            </div>
           </div>
           <Button
             variant="ghost"
@@ -569,6 +579,68 @@ export default function PlannerPage() {
             <Link href="/dashboard">
               <Button>Go to Dashboard</Button>
             </Link>
+          </div>
+        )}
+
+        {/* Shared With Me Section */}
+        {data?.sharedWithMe && data.sharedWithMe.length > 0 && (
+          <div className="scrapbook-card p-4 md:p-5 mt-6 relative">
+            <div className="absolute -top-2 left-8 w-16 h-5 bg-washi-mint/80 transform rotate-1" />
+            <div className="flex items-center justify-between mb-4 pt-2">
+              <h2 className="font-handwritten text-xl">🤝 Shared With Me</h2>
+              <Badge variant="secondary" className="text-xs">
+                {data.sharedWithMe.length} plan{data.sharedWithMe.length !== 1 ? "s" : ""}
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Plans that others have shared with you. Click to view them.
+            </p>
+            <div className="space-y-2">
+              {data.sharedWithMe.map((sharedPlan) => {
+                const sharedWeekStart = new Date(sharedPlan.week_start);
+                const sharedWeekEnd = new Date(sharedWeekStart);
+                sharedWeekEnd.setDate(sharedWeekEnd.getDate() + 6);
+                const formatDate = (d: Date) =>
+                  d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                const weekRange = `${formatDate(sharedWeekStart)} - ${formatDate(sharedWeekEnd)}`;
+                const isThisWeek = sharedPlan.week_start === getCurrentWeekStart();
+                const maskedPhone = sharedPlan.owner_phone.replace(/(\+\d{1})(\d{3})(\d{3})(\d{4})/, "$1 ••• ••• $4");
+                
+                return (
+                  <button
+                    key={sharedPlan.id}
+                    onClick={() => {
+                      setWeekStart(sharedPlan.week_start);
+                      setLoading(true);
+                      fetchPlanner(sharedPlan.week_start);
+                    }}
+                    className="w-full glass rounded-xl p-4 text-left hover:bg-secondary/50 transition-colors flex items-center justify-between group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-washi-pink/30 flex items-center justify-center text-lg">
+                        📅
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm md:text-base">{weekRange}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Shared by {maskedPhone}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {isThisWeek && (
+                        <Badge variant="secondary" className="text-[10px]">
+                          This Week
+                        </Badge>
+                      )}
+                      <span className="text-muted-foreground group-hover:text-primary transition-colors">
+                        →
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
