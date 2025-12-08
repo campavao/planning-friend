@@ -176,6 +176,8 @@ export default function Home() {
                 <div className="space-y-2">
                   <Input
                     type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
                     placeholder="123456"
                     value={verificationCode}
                     onChange={(e) => {
