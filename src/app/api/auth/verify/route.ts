@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyPhoneOtp, getUserByPhone, normalizePhoneNumber } from "@/lib/supabase";
+import {
+  verifyPhoneOtp,
+  getOrCreateUser,
+  normalizePhoneNumber,
+} from "@/lib/supabase";
 import { cookies } from "next/headers";
 
 interface VerifyRequest {
@@ -32,18 +36,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get the user from our users table
-    const user = await getUserByPhone(normalizedPhone);
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          error:
-            "No content found for this phone number. Text a TikTok link first!",
-        },
-        { status: 404 }
-      );
-    }
+    // Get or create the user in our users table
+    const user = await getOrCreateUser(normalizedPhone);
 
     // Create a simple session token (in production, use a proper JWT)
     const sessionToken = Buffer.from(
