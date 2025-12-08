@@ -109,7 +109,7 @@ export default function Dashboard() {
         <div className="text-center">
           <div className="animate-shimmer w-16 h-16 rounded-full mx-auto mb-4" />
           <p className="text-muted-foreground font-handwritten text-xl">
-            Opening your scrapbook...
+            Loading your saves...
           </p>
         </div>
       </div>
@@ -118,14 +118,14 @@ export default function Dashboard() {
 
   return (
     <main className="min-h-screen pb-28 md:pb-8 bg-paper">
-      {/* Scrapbook Header */}
+      {/* Header */}
       <div className="pt-6 pb-4 px-4 md:px-6">
         <div className="max-w-7xl mx-auto">
           {/* Title with decoration */}
           <div className="flex items-center justify-between mb-2">
             <div className="relative">
               <h1 className="font-handwritten text-4xl md:text-5xl text-foreground transform -rotate-1">
-                My Scrapbook
+                My Saves
               </h1>
               <div className="absolute -bottom-1 left-0 right-0 h-2 bg-washi-yellow/60 transform rotate-0.5 -z-10" />
             </div>
@@ -174,7 +174,7 @@ export default function Dashboard() {
                   {processingCount > 1 ? "s" : ""}...
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Cutting and pasting into your scrapbook
+                  Processing your content
                 </p>
               </div>
             </div>
@@ -267,7 +267,7 @@ export default function Dashboard() {
             <p className="font-handwritten text-lg mb-2 pr-6">💡 Quick Tip!</p>
             <p className="text-sm text-muted-foreground mb-3">
               Text any TikTok link to <AddContactButton variant="link" /> to add
-              it here. We&apos;ll cut it out and paste it in your scrapbook!
+              it here. Your Planning Friend will save it for you!
             </p>
             <AddContactButton variant="button" className="w-full text-sm h-8" />
           </div>

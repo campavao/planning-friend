@@ -17,8 +17,8 @@ export function BottomNav() {
   if (pathname === "/") return null;
 
   return (
-    <div className="md:hidden fixed bottom-4 left-0 right-0 z-50 px-4 pb-4 safe-area-bottom pointer-events-none">
-      <nav className="pointer-events-auto bg-white/95 backdrop-blur-lg rounded-2xl shadow-lg shadow-black/10 border border-border/50 mx-auto max-w-sm">
+    <nav className="md:hidden fixed bottom-4 left-0 right-0 z-50 px-4">
+      <div className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-lg shadow-black/10 border border-border/50 mx-auto max-w-sm safe-area-bottom">
         <div className="flex justify-around items-center py-2 px-2">
           {NAV_ITEMS.map((item) => {
             const isActive =
@@ -57,7 +57,7 @@ export function BottomNav() {
             );
           })}
         </div>
-      </nav>
-    </div>
+      </div>
+    </nav>
   );
 }
