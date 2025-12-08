@@ -1297,6 +1297,130 @@ export async function getSharedPlans(userId: string): Promise<PlanShare[]> {
   return data as PlanShare[];
 }
 
+// Extended type for shared plans with more details
+export interface SharedPlanDetails {
+  id: string;
+  plan_id: string;
+  shared_with_user_id: string;
+  share_code?: string;
+  created_at: string;
+  owner_phone: string;
+  week_start: string;
+}
+
+// Get plans shared with user with full details (including owner and week info)
+export async function getSharedPlansWithDetails(
+  userId: string
+): Promise<SharedPlanDetails[]> {
+  const supabase = createServerClient();
+
+  // Get plan shares where user is the recipient
+  const { data: planShares, error: sharesError } = await supabase
+    .from("plan_shares")
+    .select("*")
+    .eq("shared_with_user_id", userId);
+
+  if (sharesError) {
+    throw new Error(`Failed to get shared plans: ${sharesError.message}`);
+  }
+
+  if (!planShares || planShares.length === 0) {
+    return [];
+  }
+
+  // Get the plan details for each share
+  const planIds = planShares.map((ps: PlanShare) => ps.plan_id);
+
+  const { data: plans, error: plansError } = await supabase
+    .from("weekly_plans")
+    .select("id, user_id, week_start")
+    .in("id", planIds);
+
+  if (plansError) {
+    throw new Error(`Failed to get plan details: ${plansError.message}`);
+  }
+
+  // Get owner details
+  const ownerIds = [...new Set(plans.map((p: { user_id: string }) => p.user_id))];
+  const { data: owners, error: ownersError } = await supabase
+    .from("users")
+    .select("id, phone_number")
+    .in("id", ownerIds);
+
+  if (ownersError) {
+    throw new Error(`Failed to get owner details: ${ownersError.message}`);
+  }
+
+  // Create lookup maps
+  const planMap = new Map(plans.map((p: { id: string; user_id: string; week_start: string }) => [p.id, p]));
+  const ownerMap = new Map(owners.map((o: { id: string; phone_number: string }) => [o.id, o.phone_number]));
+
+  // Combine all the data
+  return planShares.map((share: PlanShare) => {
+    const plan = planMap.get(share.plan_id);
+    const ownerPhone = plan ? ownerMap.get(plan.user_id) : undefined;
+    return {
+      ...share,
+      owner_phone: ownerPhone || "Unknown",
+      week_start: plan?.week_start || "",
+    };
+  }) as SharedPlanDetails[];
+}
+
+// Check if a specific plan is shared with anyone
+export async function getPlanShareInfo(
+  planId: string,
+  userId: string
+): Promise<{ isShared: boolean; sharedWith: string[] }> {
+  const supabase = createServerClient();
+
+  // Get the plan to check ownership
+  const { data: plan, error: planError } = await supabase
+    .from("weekly_plans")
+    .select("user_id")
+    .eq("id", planId)
+    .single();
+
+  if (planError) {
+    return { isShared: false, sharedWith: [] };
+  }
+
+  // Only the owner can see who they shared with
+  if (plan.user_id !== userId) {
+    return { isShared: false, sharedWith: [] };
+  }
+
+  // Get all shares for this plan
+  const { data: shares, error: sharesError } = await supabase
+    .from("plan_shares")
+    .select("shared_with_user_id")
+    .eq("plan_id", planId);
+
+  if (sharesError || !shares) {
+    return { isShared: false, sharedWith: [] };
+  }
+
+  if (shares.length === 0) {
+    return { isShared: false, sharedWith: [] };
+  }
+
+  // Get phone numbers for shared users
+  const sharedUserIds = shares.map((s: { shared_with_user_id: string }) => s.shared_with_user_id);
+  const { data: users, error: usersError } = await supabase
+    .from("users")
+    .select("phone_number")
+    .in("id", sharedUserIds);
+
+  if (usersError) {
+    return { isShared: true, sharedWith: [] };
+  }
+
+  return {
+    isShared: true,
+    sharedWith: users.map((u: { phone_number: string }) => u.phone_number),
+  };
+}
+
 // Remove plan share
 export async function removePlanShare(
   planId: string,
