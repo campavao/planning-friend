@@ -114,7 +114,7 @@ export default function Home() {
 
           {/* Title with handwritten font */}
           <h1 className="font-handwritten text-5xl md:text-7xl mb-4 text-foreground transform -rotate-1">
-            PlanPal
+            Planning Friend
           </h1>
           <div className="inline-block relative mb-4">
             <p className="text-lg md:text-xl text-muted-foreground">
