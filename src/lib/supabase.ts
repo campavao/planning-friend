@@ -915,34 +915,8 @@ export async function getGiftIdeas(userId: string): Promise<Content[]> {
 
 // ==================== Tags ====================
 
-// Default tags that can be suggested to users
-export const DEFAULT_TAGS = [
-  "quick",
-  "slow-cooker",
-  "breakfast",
-  "lunch",
-  "dinner",
-  "appetizer",
-  "dessert",
-  "snack",
-  "party",
-  "date-night",
-  "budget",
-  "splurge",
-  "vegetarian",
-  "vegan",
-  "gluten-free",
-  "healthy",
-  "comfort-food",
-  "seasonal",
-  "holiday",
-  "weeknight",
-  "meal-prep",
-  "one-pot",
-  "grilling",
-  "baking",
-  "no-cook",
-];
+// Re-export DEFAULT_TAGS from constants (safe for client-side imports)
+export { DEFAULT_TAGS } from "./constants";
 
 // Get all tags for a user
 export async function getUserTags(userId: string): Promise<Tag[]> {

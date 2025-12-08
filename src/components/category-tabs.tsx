@@ -1,21 +1,45 @@
 "use client";
 
+import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ContentCard } from "@/components/content-card";
-import type { Content } from "@/lib/supabase";
+import { TagFilter } from "@/components/tag-filter";
+import type { ContentWithTags, Tag } from "@/lib/supabase";
 
 interface CategoryTabsProps {
-  content: Content[];
+  content: ContentWithTags[];
+  allTags?: Tag[];
 }
 
-export function CategoryTabs({ content }: CategoryTabsProps) {
-  const meals = content.filter((c) => c.category === "meal");
-  const drinks = content.filter((c) => c.category === "drink");
-  const events = content.filter((c) => c.category === "event");
-  const dateIdeas = content.filter((c) => c.category === "date_idea");
-  const giftIdeas = content.filter((c) => c.category === "gift_idea");
-  const travel = content.filter((c) => c.category === "travel");
-  const other = content.filter((c) => c.category === "other");
+export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+  // Filter content by selected tags
+  const filterByTags = (items: ContentWithTags[]) => {
+    if (selectedTags.length === 0) return items;
+    return items.filter((item) =>
+      selectedTags.some((tagId) => item.tags?.some((t) => t.id === tagId))
+    );
+  };
+
+  const filteredContent = filterByTags(content);
+  const meals = filterByTags(content.filter((c) => c.category === "meal"));
+  const drinks = filterByTags(content.filter((c) => c.category === "drink"));
+  const events = filterByTags(content.filter((c) => c.category === "event"));
+  const dateIdeas = filterByTags(
+    content.filter((c) => c.category === "date_idea")
+  );
+  const giftIdeas = filterByTags(
+    content.filter((c) => c.category === "gift_idea")
+  );
+  const travel = filterByTags(content.filter((c) => c.category === "travel"));
+  const other = filterByTags(content.filter((c) => c.category === "other"));
+
+  const toggleTag = (tagId: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tagId) ? prev.filter((t) => t !== tagId) : [...prev, tagId]
+    );
+  };
 
   const EmptyState = ({ category }: { category: string }) => (
     <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
@@ -29,22 +53,35 @@ export function CategoryTabs({ content }: CategoryTabsProps) {
         {category === "other" && "📌"}
         {category === "all" && "📱"}
       </div>
-      <h3 className="text-xl font-semibold mb-2">No {category} saved yet</h3>
+      <h3 className="text-xl font-semibold mb-2">
+        {selectedTags.length > 0
+          ? `No ${category} match selected tags`
+          : `No ${category} saved yet`}
+      </h3>
       <p className="text-muted-foreground max-w-md">
-        Text a TikTok link to your number and we&apos;ll automatically
-        categorize and save it here.
+        {selectedTags.length > 0
+          ? "Try removing some tag filters."
+          : "Text a TikTok link to your number and we'll automatically categorize and save it here."}
       </p>
+    </div>
+  );
+
+  const ContentGrid = ({ items }: { items: ContentWithTags[] }) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {items.map((item, index) => (
+        <ContentCard key={item.id} content={item} index={index} />
+      ))}
     </div>
   );
 
   return (
     <Tabs defaultValue="all" className="w-full">
-      <TabsList className="glass w-full justify-start gap-1 p-1 mb-8 overflow-x-auto flex-wrap h-auto">
+      <TabsList className="glass w-full justify-start gap-1 p-1 mb-4 overflow-x-auto flex-wrap h-auto">
         <TabsTrigger
           value="all"
           className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
         >
-          All ({content.length})
+          All ({filteredContent.length})
         </TabsTrigger>
         <TabsTrigger
           value="meals"
@@ -90,15 +127,23 @@ export function CategoryTabs({ content }: CategoryTabsProps) {
         </TabsTrigger>
       </TabsList>
 
+      {/* Tag Filter */}
+      {allTags.length > 0 && (
+        <div className="mb-6">
+          <TagFilter
+            tags={allTags}
+            selectedTags={selectedTags}
+            onToggle={toggleTag}
+            onClear={() => setSelectedTags([])}
+          />
+        </div>
+      )}
+
       <TabsContent value="all" className="mt-0">
-        {content.length === 0 ? (
+        {filteredContent.length === 0 ? (
           <EmptyState category="all" />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {content.map((item, index) => (
-              <ContentCard key={item.id} content={item} index={index} />
-            ))}
-          </div>
+          <ContentGrid items={filteredContent} />
         )}
       </TabsContent>
 
@@ -106,11 +151,7 @@ export function CategoryTabs({ content }: CategoryTabsProps) {
         {meals.length === 0 ? (
           <EmptyState category="meals" />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {meals.map((item, index) => (
-              <ContentCard key={item.id} content={item} index={index} />
-            ))}
-          </div>
+          <ContentGrid items={meals} />
         )}
       </TabsContent>
 
@@ -118,11 +159,7 @@ export function CategoryTabs({ content }: CategoryTabsProps) {
         {drinks.length === 0 ? (
           <EmptyState category="drinks" />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {drinks.map((item, index) => (
-              <ContentCard key={item.id} content={item} index={index} />
-            ))}
-          </div>
+          <ContentGrid items={drinks} />
         )}
       </TabsContent>
 
@@ -130,11 +167,7 @@ export function CategoryTabs({ content }: CategoryTabsProps) {
         {events.length === 0 ? (
           <EmptyState category="events" />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {events.map((item, index) => (
-              <ContentCard key={item.id} content={item} index={index} />
-            ))}
-          </div>
+          <ContentGrid items={events} />
         )}
       </TabsContent>
 
@@ -142,11 +175,7 @@ export function CategoryTabs({ content }: CategoryTabsProps) {
         {dateIdeas.length === 0 ? (
           <EmptyState category="dates" />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {dateIdeas.map((item, index) => (
-              <ContentCard key={item.id} content={item} index={index} />
-            ))}
-          </div>
+          <ContentGrid items={dateIdeas} />
         )}
       </TabsContent>
 
@@ -154,11 +183,7 @@ export function CategoryTabs({ content }: CategoryTabsProps) {
         {giftIdeas.length === 0 ? (
           <EmptyState category="gifts" />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {giftIdeas.map((item, index) => (
-              <ContentCard key={item.id} content={item} index={index} />
-            ))}
-          </div>
+          <ContentGrid items={giftIdeas} />
         )}
       </TabsContent>
 
@@ -166,11 +191,7 @@ export function CategoryTabs({ content }: CategoryTabsProps) {
         {travel.length === 0 ? (
           <EmptyState category="travel" />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {travel.map((item, index) => (
-              <ContentCard key={item.id} content={item} index={index} />
-            ))}
-          </div>
+          <ContentGrid items={travel} />
         )}
       </TabsContent>
 
@@ -178,11 +199,7 @@ export function CategoryTabs({ content }: CategoryTabsProps) {
         {other.length === 0 ? (
           <EmptyState category="other" />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {other.map((item, index) => (
-              <ContentCard key={item.id} content={item} index={index} />
-            ))}
-          </div>
+          <ContentGrid items={other} />
         )}
       </TabsContent>
     </Tabs>

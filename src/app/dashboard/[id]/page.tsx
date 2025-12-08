@@ -14,7 +14,10 @@ import type {
   GiftIdeaData,
   TravelData,
   DrinkData,
+  Tag,
 } from "@/lib/supabase";
+import { TagPills } from "@/components/tag-pills";
+import { DEFAULT_TAGS } from "@/lib/constants";
 
 // Generate Google Maps URL from location string
 function getGoogleMapsUrl(location: string): string {
@@ -25,6 +28,8 @@ function getGoogleMapsUrl(location: string): string {
 
 export default function ContentDetailPage() {
   const [content, setContent] = useState<Content | null>(null);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [allTags, setAllTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
@@ -49,6 +54,9 @@ export default function ContentDetailPage() {
 
       setContent(data.content);
       setEditTitle(data.content.title);
+      if (data.tags) {
+        setTags(data.tags);
+      }
     } catch (error) {
       console.error("Failed to fetch content:", error);
       router.push("/dashboard");
@@ -57,8 +65,69 @@ export default function ContentDetailPage() {
     }
   }, [id, router]);
 
+  const fetchAllTags = useCallback(async () => {
+    try {
+      const res = await fetch("/api/tags");
+      if (res.ok) {
+        const data = await res.json();
+        setAllTags(data.tags || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch tags:", error);
+    }
+  }, []);
+
+  const handleAddTag = async (name: string) => {
+    try {
+      const res = await fetch("/api/tags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, contentId: id }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTags((prev) => [...prev, data.tag]);
+        fetchAllTags();
+      }
+    } catch (error) {
+      console.error("Failed to add tag:", error);
+    }
+  };
+
+  const handleAddExistingTag = async (tagId: string) => {
+    try {
+      const res = await fetch("/api/tags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tagId, contentId: id }),
+      });
+      if (res.ok) {
+        const tag = allTags.find((t) => t.id === tagId);
+        if (tag) {
+          setTags((prev) => [...prev, tag]);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to add tag:", error);
+    }
+  };
+
+  const handleRemoveTag = async (tagId: string) => {
+    try {
+      const res = await fetch(`/api/tags?tagId=${tagId}&contentId=${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setTags((prev) => prev.filter((t) => t.id !== tagId));
+      }
+    } catch (error) {
+      console.error("Failed to remove tag:", error);
+    }
+  };
+
   useEffect(() => {
     fetchContent();
+    fetchAllTags();
 
     // Poll for updates if processing
     const interval = setInterval(() => {
@@ -68,7 +137,7 @@ export default function ContentDetailPage() {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [fetchContent, content?.status]);
+  }, [fetchContent, fetchAllTags, content?.status]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -230,6 +299,20 @@ export default function ContentDetailPage() {
                 {content.title}
               </CardTitle>
             )}
+
+            {/* Tags Section */}
+            <div className="mt-4">
+              <p className="text-sm text-muted-foreground mb-2">Tags</p>
+              <TagPills
+                tags={tags}
+                editable={true}
+                allTags={allTags}
+                suggestions={DEFAULT_TAGS}
+                onAdd={handleAddTag}
+                onRemove={handleRemoveTag}
+                onAddExisting={handleAddExistingTag}
+              />
+            </div>
           </CardHeader>
 
           <CardContent className="space-y-6">
@@ -590,9 +673,7 @@ function DrinkContent({ data }: { data: DrinkData }) {
             {data.difficulty.charAt(0).toUpperCase() + data.difficulty.slice(1)}
           </Badge>
         )}
-        {data.prep_time && (
-          <Badge variant="outline">⏱️ {data.prep_time}</Badge>
-        )}
+        {data.prep_time && <Badge variant="outline">⏱️ {data.prep_time}</Badge>}
       </div>
 
       {data.ingredients && data.ingredients.length > 0 && (

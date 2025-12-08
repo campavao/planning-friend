@@ -170,7 +170,8 @@ export default function PlannerPage() {
       setShare((s) => ({
         ...s,
         loading: false,
-        error: error instanceof Error ? error.message : "Failed to generate code",
+        error:
+          error instanceof Error ? error.message : "Failed to generate code",
       }));
     }
   };
@@ -182,7 +183,10 @@ export default function PlannerPage() {
       const res = await fetch("/api/planner/share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "claim", shareCode: share.inputCode.trim().toUpperCase() }),
+        body: JSON.stringify({
+          action: "claim",
+          shareCode: share.inputCode.trim().toUpperCase(),
+        }),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
@@ -276,7 +280,9 @@ export default function PlannerPage() {
             variant="ghost"
             size="sm"
             className="px-2 md:px-3"
-            onClick={() => setShare((s) => ({ ...s, isOpen: true, mode: "share" }))}
+            onClick={() =>
+              setShare((s) => ({ ...s, isOpen: true, mode: "share" }))
+            }
           >
             🤝 <span className="hidden sm:inline ml-1">Share</span>
           </Button>
@@ -684,7 +690,14 @@ export default function PlannerPage() {
               <Button
                 variant={share.mode === "share" ? "default" : "ghost"}
                 size="sm"
-                onClick={() => setShare((s) => ({ ...s, mode: "share", error: "", success: "" }))}
+                onClick={() =>
+                  setShare((s) => ({
+                    ...s,
+                    mode: "share",
+                    error: "",
+                    success: "",
+                  }))
+                }
                 className="flex-1"
               >
                 Share My Plan
@@ -692,7 +705,14 @@ export default function PlannerPage() {
               <Button
                 variant={share.mode === "claim" ? "default" : "ghost"}
                 size="sm"
-                onClick={() => setShare((s) => ({ ...s, mode: "claim", error: "", success: "" }))}
+                onClick={() =>
+                  setShare((s) => ({
+                    ...s,
+                    mode: "claim",
+                    error: "",
+                    success: "",
+                  }))
+                }
                 className="flex-1"
               >
                 Join with Code
@@ -704,11 +724,14 @@ export default function PlannerPage() {
               {share.mode === "share" ? (
                 <>
                   <p className="text-sm text-muted-foreground">
-                    Generate a share code to let others view and edit your weekly planner.
+                    Generate a share code to let others view and edit your
+                    weekly planner.
                   </p>
                   {share.shareCode ? (
                     <div className="text-center space-y-3">
-                      <p className="text-xs text-muted-foreground">Share this code:</p>
+                      <p className="text-xs text-muted-foreground">
+                        Share this code:
+                      </p>
                       <div className="text-3xl font-mono font-bold tracking-widest bg-secondary/50 rounded-xl py-4">
                         {share.shareCode}
                       </div>
@@ -717,7 +740,10 @@ export default function PlannerPage() {
                         variant="secondary"
                         onClick={() => {
                           navigator.clipboard.writeText(share.shareCode);
-                          setShare((s) => ({ ...s, success: "Copied to clipboard!" }));
+                          setShare((s) => ({
+                            ...s,
+                            success: "Copied to clipboard!",
+                          }));
                         }}
                       >
                         📋 Copy Code
@@ -736,13 +762,17 @@ export default function PlannerPage() {
               ) : (
                 <>
                   <p className="text-sm text-muted-foreground">
-                    Enter a share code to join someone else&apos;s weekly planner.
+                    Enter a share code to join someone else&apos;s weekly
+                    planner.
                   </p>
                   <div className="space-y-3">
                     <Input
                       value={share.inputCode}
                       onChange={(e) =>
-                        setShare((s) => ({ ...s, inputCode: e.target.value.toUpperCase() }))
+                        setShare((s) => ({
+                          ...s,
+                          inputCode: e.target.value.toUpperCase(),
+                        }))
                       }
                       placeholder="Enter share code"
                       className="text-center font-mono text-lg tracking-widest"
@@ -760,10 +790,14 @@ export default function PlannerPage() {
               )}
 
               {share.error && (
-                <p className="text-sm text-destructive text-center">{share.error}</p>
+                <p className="text-sm text-destructive text-center">
+                  {share.error}
+                </p>
               )}
               {share.success && (
-                <p className="text-sm text-primary text-center">{share.success}</p>
+                <p className="text-sm text-primary text-center">
+                  {share.success}
+                </p>
               )}
             </div>
           </div>

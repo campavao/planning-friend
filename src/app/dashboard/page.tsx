@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { CategoryTabs } from "@/components/category-tabs";
-import type { Content } from "@/lib/supabase";
+import type { ContentWithTags, Tag } from "@/lib/supabase";
 
 interface SessionUser {
   id: string;
@@ -14,7 +14,8 @@ interface SessionUser {
 
 export default function Dashboard() {
   const [user, setUser] = useState<SessionUser | null>(null);
-  const [content, setContent] = useState<Content[]>([]);
+  const [content, setContent] = useState<ContentWithTags[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showTip, setShowTip] = useState(true);
@@ -33,7 +34,7 @@ export default function Dashboard() {
 
   const fetchContent = useCallback(async () => {
     try {
-      const res = await fetch("/api/content");
+      const res = await fetch("/api/content?includeTags=true");
       const data = await res.json();
 
       if (!res.ok) {
@@ -45,6 +46,9 @@ export default function Dashboard() {
       }
 
       setContent(data.content);
+      if (data.tags) {
+        setTags(data.tags);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load content");
     }
@@ -262,7 +266,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="animate-fade-in-up opacity-0 stagger-2">
-            <CategoryTabs content={content} />
+            <CategoryTabs content={content} allTags={tags} />
           </div>
         )}
       </div>

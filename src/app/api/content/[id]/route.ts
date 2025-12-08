@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getContentById, updateContent, deleteContent } from "@/lib/supabase";
+import { getContentById, updateContent, deleteContent, getContentTags } from "@/lib/supabase";
 import { cookies } from "next/headers";
 
 interface SessionData {
@@ -54,7 +54,15 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    return NextResponse.json({ success: true, content });
+    // Fetch tags for this content
+    let tags: Awaited<ReturnType<typeof getContentTags>> = [];
+    try {
+      tags = await getContentTags(id);
+    } catch {
+      // Tags table might not exist yet, continue without tags
+    }
+
+    return NextResponse.json({ success: true, content, tags });
   } catch (error) {
     console.error("Error fetching content:", error);
     return NextResponse.json(

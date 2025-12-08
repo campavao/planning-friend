@@ -49,7 +49,7 @@ interface ContentCardProps {
 // Tag display component for cards
 function CardTags({ tags }: { tags?: Tag[] }) {
   if (!tags || tags.length === 0) return null;
-  
+
   return (
     <div className="flex flex-wrap gap-1 mt-2">
       {tags.slice(0, 3).map((tag) => (
@@ -119,7 +119,15 @@ function FailedCard({ content }: { content: Content }) {
   );
 }
 
-function MealCard({ content, data, tags }: { content: Content; data: MealData; tags?: Tag[] }) {
+function MealCard({
+  content,
+  data,
+  tags,
+}: {
+  content: Content;
+  data: MealData;
+  tags?: Tag[];
+}) {
   return (
     <Link href={`/dashboard/${content.id}`}>
       <Card className="glass overflow-hidden group hover:border-meal/50 transition-all duration-300 cursor-pointer h-full">
@@ -168,7 +176,15 @@ function MealCard({ content, data, tags }: { content: Content; data: MealData; t
   );
 }
 
-function EventCard({ content, data, tags }: { content: Content; data: EventData; tags?: Tag[] }) {
+function EventCard({
+  content,
+  data,
+  tags,
+}: {
+  content: Content;
+  data: EventData;
+  tags?: Tag[];
+}) {
   return (
     <Link href={`/dashboard/${content.id}`}>
       <Card className="glass overflow-hidden group hover:border-event/50 transition-all duration-300 cursor-pointer h-full">
@@ -537,9 +553,9 @@ function OtherCard({ content, tags }: { content: Content; tags?: Tag[] }) {
 
 export function ContentCard({ content, index = 0, tags }: ContentCardProps) {
   const delayClass = `stagger-${Math.min(index + 1, 5)}`;
-  
+
   // Get tags from content if it's ContentWithTags, or use provided tags
-  const contentTags = tags || ('tags' in content ? content.tags : undefined);
+  const contentTags = tags || ("tags" in content ? content.tags : undefined);
 
   // Handle processing and failed states
   if (content.status === "processing") {
@@ -561,24 +577,50 @@ export function ContentCard({ content, index = 0, tags }: ContentCardProps) {
   return (
     <div className={`animate-fade-in-up opacity-0 ${delayClass}`}>
       {content.category === "meal" && (
-        <MealCard content={content} data={content.data as MealData} tags={contentTags} />
+        <MealCard
+          content={content}
+          data={content.data as MealData}
+          tags={contentTags}
+        />
       )}
       {content.category === "drink" && (
-        <DrinkCard content={content} data={content.data as DrinkData} tags={contentTags} />
+        <DrinkCard
+          content={content}
+          data={content.data as DrinkData}
+          tags={contentTags}
+        />
       )}
       {content.category === "event" && (
-        <EventCard content={content} data={content.data as EventData} tags={contentTags} />
+        <EventCard
+          content={content}
+          data={content.data as EventData}
+          tags={contentTags}
+        />
       )}
       {content.category === "date_idea" && (
-        <DateIdeaCard content={content} data={content.data as DateIdeaData} tags={contentTags} />
+        <DateIdeaCard
+          content={content}
+          data={content.data as DateIdeaData}
+          tags={contentTags}
+        />
       )}
       {content.category === "gift_idea" && (
-        <GiftIdeaCard content={content} data={content.data as GiftIdeaData} tags={contentTags} />
+        <GiftIdeaCard
+          content={content}
+          data={content.data as GiftIdeaData}
+          tags={contentTags}
+        />
       )}
       {content.category === "travel" && (
-        <TravelCard content={content} data={content.data as TravelData} tags={contentTags} />
+        <TravelCard
+          content={content}
+          data={content.data as TravelData}
+          tags={contentTags}
+        />
       )}
-      {content.category === "other" && <OtherCard content={content} tags={contentTags} />}
+      {content.category === "other" && (
+        <OtherCard content={content} tags={contentTags} />
+      )}
     </div>
   );
 }
