@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatPhoneNumber } from "@/lib/utils";
 
 interface UserSettings {
   home_region?: string;
@@ -60,7 +60,7 @@ export default function SettingsPage() {
       if (res.ok) {
         const data = await res.json();
         setSettings(data.settings);
-        setMessage("Settings saved!");
+        setMessage("Saved! ✨");
         setTimeout(() => setMessage(""), 3000);
       }
     } catch (error) {
@@ -71,41 +71,53 @@ export default function SettingsPage() {
     }
   };
 
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/");
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-paper">
+        <div className="animate-shimmer w-16 h-16 rounded-full mx-auto" />
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen pb-24 md:pb-8">
-      {/* Header */}
-      <header className="glass sticky top-0 z-50 border-b border-border/50">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Button variant="ghost" onClick={() => router.push("/dashboard")}>
-            ← Back
-          </Button>
-          <h1 className="text-lg font-semibold">Settings</h1>
-          <div className="w-20" /> {/* Spacer */}
+    <main className="min-h-screen pb-28 md:pb-8 bg-paper">
+      {/* Scrapbook Header */}
+      <div className="pt-6 pb-4 px-4 md:px-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="relative inline-block">
+            <h1 className="font-handwritten text-4xl md:text-5xl text-foreground transform -rotate-1">
+              Settings
+            </h1>
+            <div className="absolute -bottom-1 left-0 right-0 h-2 bg-washi-lavender/60 transform rotate-0.5 -z-10" />
+          </div>
+          <p className="text-muted-foreground text-sm mt-2">
+            ⚙️ Customize your scrapbook experience
+          </p>
         </div>
-      </header>
+      </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+      <div className="max-w-4xl mx-auto px-4 space-y-6">
         {/* Home Location */}
-        <Card className="glass border">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <span className="text-2xl">🏠</span>
-              Home Location
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Set your home location to help categorize travel content. Places
-              outside your home region will be marked as Travel.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <div className="scrapbook-card p-5 relative">
+          {/* Tape decoration */}
+          <div className="absolute -top-2 left-6 w-14 h-5 bg-washi-mint/80 transform -rotate-2" />
+
+          <div className="flex items-center gap-3 mb-4 pt-2">
+            <span className="text-2xl">🏠</span>
+            <div>
+              <h2 className="font-handwritten text-2xl">Home Location</h2>
+              <p className="text-sm text-muted-foreground">
+                Places outside your home region will be marked as Travel
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
             <div>
               <label className="text-sm font-medium mb-2 block">
                 City / Region
@@ -114,6 +126,7 @@ export default function SettingsPage() {
                 value={homeRegion}
                 onChange={(e) => setHomeRegion(e.target.value)}
                 placeholder="e.g., Chicago, IL or San Francisco Bay Area"
+                className="bg-white border-border"
               />
             </div>
             <div>
@@ -122,55 +135,103 @@ export default function SettingsPage() {
                 value={homeCountry}
                 onChange={(e) => setHomeCountry(e.target.value)}
                 placeholder="e.g., United States"
+                className="bg-white border-border"
               />
             </div>
             <div className="flex items-center gap-4">
-              <Button onClick={handleSave} disabled={saving}>
+              <Button
+                onClick={handleSave}
+                disabled={saving}
+                className="bg-primary hover:bg-primary/90"
+              >
                 {saving ? "Saving..." : "Save Location"}
               </Button>
               {message && (
-                <span className="text-sm text-primary">{message}</span>
+                <span className="text-sm text-primary font-medium">
+                  {message}
+                </span>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        {/* Account Info */}
-        <Card className="glass border">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <span className="text-2xl">👤</span>
-              Account
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Your account is linked to your phone number. To log out, clear
-              your browser cookies or use the logout button on the dashboard.
-            </p>
-          </CardContent>
-        </Card>
+        {/* Planner Sharing */}
+        <div className="scrapbook-card p-5 relative">
+          <div className="absolute -top-2 right-8 w-12 h-5 bg-washi-pink/80 transform rotate-1" />
 
-        {/* Sharing Info */}
-        <Card className="glass border">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <span className="text-2xl">🤝</span>
-              Planner Sharing
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Share your weekly planner with others using share codes. Generate
-              a code from the planner page and share it with friends or family.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" onClick={() => router.push("/dashboard/planner")}>
-              Go to Planner →
-            </Button>
-          </CardContent>
-        </Card>
+          <div className="flex items-center gap-3 mb-4 pt-2">
+            <span className="text-2xl">🤝</span>
+            <div>
+              <h2 className="font-handwritten text-2xl">Planner Sharing</h2>
+              <p className="text-sm text-muted-foreground">
+                Share your weekly planner with friends or family using share
+                codes
+              </p>
+            </div>
+          </div>
+
+          <Button
+            variant="outline"
+            onClick={() => router.push("/dashboard/planner")}
+            className="hover:bg-washi-blue/20"
+          >
+            📅 Go to Planner →
+          </Button>
+        </div>
+
+        {/* About */}
+        <div className="scrapbook-card p-5 relative">
+          <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-washi-yellow/80 transform -rotate-1" />
+
+          <div className="flex items-center gap-3 mb-4 pt-2">
+            <span className="text-2xl">📒</span>
+            <div>
+              <h2 className="font-handwritten text-2xl">About PlanPal</h2>
+            </div>
+          </div>
+
+          <p className="text-sm text-muted-foreground mb-4">
+            PlanPal is your personal scrapbook for collecting and organizing
+            ideas from social media. Text links to{" "}
+            <a
+              href={`tel:${process.env.NEXT_PUBLIC_TWILIO_PHONE_NUMBER}`}
+              className="text-primary font-medium hover:underline"
+            >
+              {formatPhoneNumber(
+                process.env.NEXT_PUBLIC_TWILIO_PHONE_NUMBER || ""
+              )}
+            </a>{" "}
+            to save meals, events, date ideas, and more!
+          </p>
+
+          <p className="text-xs text-muted-foreground">
+            Version 1.0 • Made with 💕
+          </p>
+        </div>
+
+        {/* Sign Out */}
+        <div className="scrapbook-card p-5 relative border-destructive/20">
+          <div className="absolute -top-2 right-6 w-10 h-5 bg-washi-coral/80 transform rotate-2" />
+
+          <div className="flex items-center gap-3 mb-4 pt-2">
+            <span className="text-2xl">👋</span>
+            <div>
+              <h2 className="font-handwritten text-2xl">Sign Out</h2>
+              <p className="text-sm text-muted-foreground">
+                Close your scrapbook and sign out of this device
+              </p>
+            </div>
+          </div>
+
+          <Button
+            variant="outline"
+            onClick={handleLogout}
+            className="text-destructive border-destructive/30 hover:bg-destructive/10"
+          >
+            Sign Out
+          </Button>
+        </div>
       </div>
     </main>
   );
 }
-

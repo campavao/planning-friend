@@ -251,7 +251,7 @@ export default function PlannerPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-paper">
         <div className="animate-shimmer w-16 h-16 rounded-full" />
       </div>
     );
@@ -264,34 +264,38 @@ export default function PlannerPage() {
   }
 
   return (
-    <main className="min-h-screen pb-20 md:pb-8">
-      {/* Header */}
-      <header className="glass sticky top-0 z-50 border-b border-border/50">
-        <div className="max-w-7xl mx-auto px-3 md:px-4 py-3 md:py-4 flex items-center justify-between">
+    <main className="min-h-screen pb-28 md:pb-8 bg-paper">
+      {/* Scrapbook Header */}
+      <div className="pt-6 pb-4 px-4 md:px-6">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/dashboard">
-            <Button variant="ghost" size="sm" className="px-2 md:px-3">
-              ← <span className="hidden sm:inline ml-1">Back</span>
+            <Button variant="ghost" size="sm" className="hover:bg-washi-mint/20">
+              ← Back
             </Button>
           </Link>
-          <div className="text-center flex-1">
-            <h1 className="font-semibold text-sm md:text-lg">Weekly Planner</h1>
+          <div className="relative">
+            <h1 className="font-handwritten text-3xl md:text-4xl text-foreground transform -rotate-1">
+              Weekly Plan
+            </h1>
+            <div className="absolute -bottom-1 left-0 right-0 h-2 bg-washi-blue/60 transform rotate-0.5 -z-10" />
           </div>
           <Button
             variant="ghost"
             size="sm"
-            className="px-2 md:px-3"
+            className="hover:bg-washi-pink/20"
             onClick={() =>
               setShare((s) => ({ ...s, isOpen: true, mode: "share" }))
             }
           >
-            🤝 <span className="hidden sm:inline ml-1">Share</span>
+            🤝 Share
           </Button>
         </div>
-      </header>
+      </div>
 
-      <div className="max-w-7xl mx-auto px-3 md:px-4 py-4 md:py-6">
+      <div className="max-w-7xl mx-auto px-3 md:px-4">
         {/* Week Navigation */}
-        <div className="glass rounded-xl md:rounded-2xl p-3 md:p-4 mb-4 md:mb-6 flex items-center justify-between">
+        <div className="scrapbook-card p-3 md:p-4 mb-4 md:mb-6 flex items-center justify-between relative">
+          <div className="absolute -top-2 left-8 w-14 h-5 bg-washi-yellow/80 transform -rotate-1" />
           <Button
             variant="ghost"
             size="sm"
@@ -301,11 +305,11 @@ export default function PlannerPage() {
             ← <span className="hidden sm:inline ml-1">Prev</span>
           </Button>
           <div className="text-center">
-            <h2 className="text-base md:text-xl font-semibold">
+            <h2 className="text-base md:text-xl font-semibold font-handwritten">
               {formatWeekRange()}
             </h2>
             {isCurrentWeek() && (
-              <Badge className="mt-1 text-xs">This Week</Badge>
+              <span className="sticker sticker-event text-[10px] mt-1">This Week</span>
             )}
           </div>
           <Button

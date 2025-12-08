@@ -178,7 +178,7 @@ export default function ContentDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-paper">
         <div className="animate-shimmer w-16 h-16 rounded-full" />
       </div>
     );
@@ -186,33 +186,72 @@ export default function ContentDetailPage() {
 
   if (!content) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Content not found</p>
+      <div className="min-h-screen flex items-center justify-center bg-paper">
+        <p className="font-handwritten text-xl">Content not found</p>
       </div>
     );
   }
 
   const categoryConfig: Record<
     string,
-    { emoji: string; label: string; color: string }
+    { emoji: string; label: string; color: string; sticker: string }
   > = {
-    meal: { emoji: "🍽️", label: "Meal", color: "badge-meal" },
-    drink: { emoji: "🍹", label: "Drink", color: "badge-drink" },
-    event: { emoji: "🎉", label: "Event", color: "badge-event" },
-    date_idea: { emoji: "💕", label: "Date Idea", color: "badge-date_idea" },
-    gift_idea: { emoji: "🎁", label: "Gift Idea", color: "badge-gift_idea" },
-    travel: { emoji: "✈️", label: "Travel", color: "badge-travel" },
-    other: { emoji: "📌", label: "Saved", color: "badge-other" },
+    meal: {
+      emoji: "🍽️",
+      label: "Recipe",
+      color: "badge-meal",
+      sticker: "sticker-meal",
+    },
+    drink: {
+      emoji: "🍹",
+      label: "Drink",
+      color: "badge-drink",
+      sticker: "sticker-drink",
+    },
+    event: {
+      emoji: "🎉",
+      label: "Event",
+      color: "badge-event",
+      sticker: "sticker-event",
+    },
+    date_idea: {
+      emoji: "💕",
+      label: "Date Idea",
+      color: "badge-date_idea",
+      sticker: "sticker-date_idea",
+    },
+    gift_idea: {
+      emoji: "🎁",
+      label: "Gift Idea",
+      color: "badge-gift_idea",
+      sticker: "sticker-gift_idea",
+    },
+    travel: {
+      emoji: "✈️",
+      label: "Travel",
+      color: "badge-travel",
+      sticker: "sticker-travel",
+    },
+    other: {
+      emoji: "📌",
+      label: "Saved",
+      color: "badge-other",
+      sticker: "sticker-other",
+    },
   };
 
   const config = categoryConfig[content.category] || categoryConfig.other;
 
   return (
-    <main className="min-h-screen">
-      {/* Header */}
-      <header className="glass sticky top-0 z-50 border-b border-border/50">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Button variant="ghost" onClick={() => router.push("/dashboard")}>
+    <main className="min-h-screen pb-28 md:pb-8 bg-paper">
+      {/* Scrapbook Header */}
+      <div className="pt-6 pb-4 px-4 md:px-6">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <Button
+            variant="ghost"
+            onClick={() => router.push("/dashboard")}
+            className="hover:bg-washi-mint/20"
+          >
             ← Back
           </Button>
           <div className="flex gap-2">
@@ -222,87 +261,102 @@ export default function ContentDetailPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setEditing(!editing)}
+                  className="hover:bg-washi-blue/20"
                 >
-                  {editing ? "Cancel" : "Edit"}
+                  {editing ? "Cancel" : "✏️ Edit"}
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="text-destructive hover:text-destructive"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
                 >
-                  {deleting ? "Deleting..." : "Delete"}
+                  {deleting ? "..." : "🗑️"}
                 </Button>
               </>
             )}
           </div>
         </div>
-      </header>
+      </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto px-4">
         {/* Processing State */}
         {content.status === "processing" && (
-          <div className="glass rounded-2xl p-8 text-center mb-8 animate-pulse">
-            <div className="text-6xl mb-4">⏳</div>
-            <h2 className="text-2xl font-semibold mb-2">Processing...</h2>
+          <div className="scrapbook-card p-8 text-center mb-8 animate-pulse relative">
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-20 h-5 bg-washi-yellow/80 transform -rotate-1" />
+            <div className="text-6xl mb-4 animate-wiggle pt-2">✂️</div>
+            <h2 className="font-handwritten text-2xl mb-2">Clipping...</h2>
             <p className="text-muted-foreground">
-              Analyzing your TikTok video. This usually takes 10-30 seconds.
+              Cutting this out and pasting into your scrapbook. Almost done!
             </p>
           </div>
         )}
 
         {/* Failed State */}
         {content.status === "failed" && (
-          <div className="glass rounded-2xl p-8 text-center mb-8 border-destructive/50">
-            <div className="text-6xl mb-4">❌</div>
-            <h2 className="text-2xl font-semibold mb-2">Processing Failed</h2>
+          <div className="scrapbook-card p-8 text-center mb-8 border-destructive/20 relative">
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-washi-coral/80 transform rotate-1" />
+            <div className="text-6xl mb-4 pt-2">😕</div>
+            <h2 className="font-handwritten text-2xl mb-2">Oops!</h2>
             <p className="text-muted-foreground mb-4">
-              We couldn&apos;t analyze this video. You can delete it and try
-              again.
+              We couldn&apos;t add this one. You can delete it and try again.
             </p>
           </div>
         )}
 
-        {/* Main Content Card */}
-        <Card className="glass overflow-hidden">
+        {/* Main Content Card - Polaroid style */}
+        <div className="scrapbook-card overflow-hidden relative">
+          {/* Washi tape decorations */}
+          <div className="absolute -top-2 left-8 w-16 h-5 bg-washi-mint/80 transform -rotate-2 z-10" />
+          <div className="absolute -top-2 right-12 w-14 h-5 bg-washi-pink/80 transform rotate-1 z-10" />
+
           {content.thumbnail_url && (
-            <div className="relative h-64 md:h-80">
-              <img
-                src={content.thumbnail_url}
-                alt={content.title}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
-              <Badge
-                className={`absolute top-4 right-4 ${config.color} border`}
-              >
-                {config.emoji} {config.label}
-              </Badge>
+            <div className="p-3 pt-6 pb-0">
+              <div className="relative h-56 md:h-72 overflow-hidden rounded bg-muted">
+                <img
+                  src={content.thumbnail_url}
+                  alt={content.title}
+                  className="w-full h-full object-cover"
+                />
+              </div>
             </div>
           )}
 
-          <CardHeader>
+          {/* Sticker badge */}
+          <div className="px-4 pt-3">
+            <span className={`sticker ${config.sticker} text-xs inline-block`}>
+              {config.emoji} {config.label}
+            </span>
+          </div>
+
+          <div className="px-4 pt-3 pb-2">
             {editing ? (
               <div className="flex gap-2">
                 <Input
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
-                  className="text-2xl font-bold"
+                  className="text-xl font-bold bg-white border-border"
                 />
-                <Button onClick={handleSave} disabled={saving}>
-                  {saving ? "Saving..." : "Save"}
+                <Button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  {saving ? "..." : "Save"}
                 </Button>
               </div>
             ) : (
-              <CardTitle className="text-2xl md:text-3xl">
+              <h1 className="text-xl md:text-2xl font-semibold">
                 {content.title}
-              </CardTitle>
+              </h1>
             )}
 
             {/* Tags Section */}
             <div className="mt-4">
-              <p className="text-sm text-muted-foreground mb-2">Tags</p>
+              <p className="text-sm text-muted-foreground mb-2 font-handwritten">
+                Tags
+              </p>
               <TagPills
                 tags={tags}
                 editable={true}
@@ -313,9 +367,9 @@ export default function ContentDetailPage() {
                 onAddExisting={handleAddExistingTag}
               />
             </div>
-          </CardHeader>
+          </div>
 
-          <CardContent className="space-y-6">
+          <div className="px-4 pb-4 space-y-6">
             {/* Category-specific content */}
             {content.category === "meal" && (
               <MealContent data={content.data as MealData} />
@@ -355,8 +409,8 @@ export default function ContentDetailPage() {
             <p className="text-sm text-muted-foreground">
               Saved on {new Date(content.created_at).toLocaleDateString()}
             </p>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </main>
   );

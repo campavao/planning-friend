@@ -1,8 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import type {
   Content,
   MealData,
@@ -30,7 +28,7 @@ function LocationLink({ location }: { location: string }) {
       target="_blank"
       rel="noopener noreferrer"
       onClick={(e) => e.stopPropagation()}
-      className="flex items-start gap-2 text-sm hover:text-primary transition-colors"
+      className="flex items-start gap-1.5 text-sm hover:text-primary transition-colors"
     >
       <span>📍</span>
       <span className="line-clamp-1 underline decoration-dotted underline-offset-2">
@@ -55,7 +53,7 @@ function CardTags({ tags }: { tags?: Tag[] }) {
       {tags.slice(0, 3).map((tag) => (
         <span
           key={tag.id}
-          className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary/50 text-muted-foreground"
+          className="text-[10px] px-2 py-0.5 rounded-full bg-washi-yellow/40 text-foreground/70 font-medium"
         >
           {tag.name}
         </span>
@@ -69,52 +67,73 @@ function CardTags({ tags }: { tags?: Tag[] }) {
   );
 }
 
-function ProcessingCard({ content }: { content: Content }) {
+// Get rotation class for organic feel
+function getRotation(index: number): string {
+  const rotations = ["rotate-1", "rotate-neg-1", "rotate-2", "rotate-neg-2", ""];
+  return rotations[index % rotations.length];
+}
+
+// Get washi tape color class
+function getWashiColor(category: string): string {
+  const colors: Record<string, string> = {
+    meal: "bg-washi-mint/80",
+    drink: "bg-washi-blue/80",
+    event: "bg-washi-lavender/80",
+    date_idea: "bg-washi-pink/80",
+    gift_idea: "bg-washi-coral/80",
+    travel: "bg-washi-blue/80",
+    other: "bg-washi-yellow/80",
+  };
+  return colors[category] || "bg-washi-yellow/80";
+}
+
+function ProcessingCard({ content, index = 0 }: { content: Content; index?: number }) {
   return (
     <Link href={`/dashboard/${content.id}`}>
-      <Card className="glass overflow-hidden group hover:border-primary/50 transition-all duration-300 cursor-pointer animate-pulse">
-        <div className="relative h-40 bg-secondary/50 flex items-center justify-center">
+      <div className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(index)} relative`}>
+        {/* Washi tape */}
+        <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-5 bg-washi-yellow/80 transform -rotate-2 z-10" />
+        
+        <div className="relative h-36 bg-secondary/30 flex items-center justify-center">
           <div className="text-center">
-            <div className="text-4xl mb-2">⏳</div>
-            <p className="text-sm text-muted-foreground">Processing...</p>
+            <div className="text-4xl mb-2 animate-wiggle">✂️</div>
+            <p className="text-sm text-muted-foreground font-handwritten">Cutting & pasting...</p>
           </div>
         </div>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-semibold line-clamp-2">
-            Analyzing TikTok...
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground line-clamp-2">
+        <div className="p-3 pt-2">
+          <p className="font-medium text-sm line-clamp-2">
+            Adding to scrapbook...
+          </p>
+          <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
             {content.tiktok_url}
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </Link>
   );
 }
 
-function FailedCard({ content }: { content: Content }) {
+function FailedCard({ content, index = 0 }: { content: Content; index?: number }) {
   return (
     <Link href={`/dashboard/${content.id}`}>
-      <Card className="glass overflow-hidden group hover:border-destructive/50 transition-all duration-300 cursor-pointer border-destructive/30">
-        <div className="relative h-40 bg-destructive/10 flex items-center justify-center">
+      <div className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(index)} border-destructive/20 relative`}>
+        <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-5 bg-washi-coral/80 transform rotate-1 z-10" />
+        
+        <div className="relative h-36 bg-destructive/5 flex items-center justify-center">
           <div className="text-center">
-            <div className="text-4xl mb-2">❌</div>
-            <p className="text-sm text-muted-foreground">Failed</p>
+            <div className="text-4xl mb-2">😕</div>
+            <p className="text-sm text-muted-foreground">Couldn&apos;t add this one</p>
           </div>
         </div>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-semibold line-clamp-2">
-            Processing Failed
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Click to view details or delete
+        <div className="p-3 pt-2">
+          <p className="font-medium text-sm">
+            Something went wrong
           </p>
-        </CardContent>
-      </Card>
+          <p className="text-xs text-muted-foreground mt-1">
+            Tap to try again or delete
+          </p>
+        </div>
+      </div>
     </Link>
   );
 }
@@ -123,317 +142,61 @@ function MealCard({
   content,
   data,
   tags,
+  index = 0,
 }: {
   content: Content;
   data: MealData;
   tags?: Tag[];
+  index?: number;
 }) {
   return (
     <Link href={`/dashboard/${content.id}`}>
-      <Card className="glass overflow-hidden group hover:border-meal/50 transition-all duration-300 cursor-pointer h-full">
-        <div className="relative">
-          {content.thumbnail_url && (
-            <div className="relative h-40 overflow-hidden">
+      <div className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(index)} relative`}>
+        {/* Washi tape decoration */}
+        <div className={`absolute -top-2 left-6 w-14 h-5 ${getWashiColor("meal")} transform -rotate-2 z-10`} />
+        
+        {/* Polaroid-style image */}
+        <div className="p-2 pb-0">
+          {content.thumbnail_url ? (
+            <div className="relative h-32 overflow-hidden rounded bg-muted">
               <img
                 src={content.thumbnail_url}
                 alt={content.title}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
+            </div>
+          ) : (
+            <div className="h-32 bg-muted/50 rounded flex items-center justify-center">
+              <span className="text-4xl">🍽️</span>
             </div>
           )}
-          <Badge className="absolute top-3 right-3 badge-meal border">
-            🍽️ Meal
-          </Badge>
         </div>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-semibold line-clamp-2">
+        
+        {/* Content */}
+        <div className="p-3 pt-2">
+          {/* Sticker badge */}
+          <span className="sticker sticker-meal text-[10px] mb-2 inline-block">
+            🍽️ Recipe
+          </span>
+          
+          <h3 className="font-semibold text-sm line-clamp-2 mb-1">
             {content.title}
-          </CardTitle>
+          </h3>
+          
           <CardTags tags={tags} />
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {data.ingredients && data.ingredients.length > 0 && (
-            <p className="text-sm text-muted-foreground">
-              {data.ingredients.length} ingredients
-            </p>
-          )}
-          {data.recipe && data.recipe.length > 0 && (
-            <p className="text-sm text-muted-foreground">
-              {data.recipe.length} steps
-            </p>
-          )}
-          <div className="flex gap-3 text-xs text-muted-foreground">
+          
+          <div className="flex flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
+            {data.ingredients && data.ingredients.length > 0 && (
+              <span>{data.ingredients.length} ingredients</span>
+            )}
             {data.prep_time && <span>⏱️ {data.prep_time}</span>}
-            {data.cook_time && <span>🔥 {data.cook_time}</span>}
           </div>
-          <p className="text-sm text-primary group-hover:underline">
-            View full recipe →
+          
+          <p className="text-xs text-primary mt-2 group-hover:underline">
+            View recipe →
           </p>
-        </CardContent>
-      </Card>
-    </Link>
-  );
-}
-
-function EventCard({
-  content,
-  data,
-  tags,
-}: {
-  content: Content;
-  data: EventData;
-  tags?: Tag[];
-}) {
-  return (
-    <Link href={`/dashboard/${content.id}`}>
-      <Card className="glass overflow-hidden group hover:border-event/50 transition-all duration-300 cursor-pointer h-full">
-        <div className="relative">
-          {content.thumbnail_url && (
-            <div className="relative h-40 overflow-hidden">
-              <img
-                src={content.thumbnail_url}
-                alt={content.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
-            </div>
-          )}
-          <Badge className="absolute top-3 right-3 badge-event border">
-            🎉 Event
-          </Badge>
         </div>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-semibold line-clamp-2">
-            {content.title}
-          </CardTitle>
-          <CardTags tags={tags} />
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {data.location && <LocationLink location={data.location} />}
-          {(data.date || data.time) && (
-            <div className="flex items-start gap-2 text-sm">
-              <span>📅</span>
-              <span>
-                {data.date}
-                {data.date && data.time && " at "}
-                {data.time}
-              </span>
-            </div>
-          )}
-          <p className="text-sm text-primary group-hover:underline">
-            View details →
-          </p>
-        </CardContent>
-      </Card>
-    </Link>
-  );
-}
-
-function DateIdeaCard({
-  content,
-  data,
-  tags,
-}: {
-  content: Content;
-  data: DateIdeaData;
-  tags?: Tag[];
-}) {
-  const typeEmoji: Record<string, string> = {
-    dinner: "🍷",
-    activity: "🎯",
-    entertainment: "🎭",
-    outdoors: "🌲",
-    other: "💡",
-  };
-
-  return (
-    <Link href={`/dashboard/${content.id}`}>
-      <Card className="glass overflow-hidden group hover:border-date/50 transition-all duration-300 cursor-pointer h-full">
-        <div className="relative">
-          {content.thumbnail_url && (
-            <div className="relative h-40 overflow-hidden">
-              <img
-                src={content.thumbnail_url}
-                alt={content.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
-            </div>
-          )}
-          <Badge className="absolute top-3 right-3 badge-date_idea border">
-            💕 Date Idea
-          </Badge>
-        </div>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-semibold line-clamp-2">
-            {content.title}
-          </CardTitle>
-          <CardTags tags={tags} />
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {data.location && <LocationLink location={data.location} />}
-          <div className="flex flex-wrap gap-2">
-            {data.type && (
-              <Badge variant="outline" className="text-xs">
-                {typeEmoji[data.type] || "💡"}{" "}
-                {data.type.charAt(0).toUpperCase() + data.type.slice(1)}
-              </Badge>
-            )}
-            {data.price_range && (
-              <Badge variant="outline" className="text-xs">
-                {data.price_range}
-              </Badge>
-            )}
-          </div>
-          <p className="text-sm text-primary group-hover:underline">
-            View details →
-          </p>
-        </CardContent>
-      </Card>
-    </Link>
-  );
-}
-
-function GiftIdeaCard({
-  content,
-  data,
-  tags,
-}: {
-  content: Content;
-  data: GiftIdeaData;
-  tags?: Tag[];
-}) {
-  return (
-    <Link href={`/dashboard/${content.id}`}>
-      <Card className="glass overflow-hidden group hover:border-gift/50 transition-all duration-300 cursor-pointer h-full">
-        <div className="relative">
-          {content.thumbnail_url && (
-            <div className="relative h-40 overflow-hidden">
-              <img
-                src={content.thumbnail_url}
-                alt={content.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
-            </div>
-          )}
-          <Badge className="absolute top-3 right-3 badge-gift_idea border">
-            🎁 Gift Idea
-          </Badge>
-        </div>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-semibold line-clamp-2">
-            {content.title}
-          </CardTitle>
-          <CardTags tags={tags} />
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {data.cost && (
-            <div className="flex items-center gap-2 text-sm">
-              <span>💰</span>
-              <span className="font-medium text-gift">{data.cost}</span>
-            </div>
-          )}
-          {data.description && (
-            <p className="text-sm text-muted-foreground line-clamp-2">
-              {data.description}
-            </p>
-          )}
-          <div className="flex flex-wrap gap-2">
-            {data.amazon_link && (
-              <a
-                href={data.amazon_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="text-xs text-orange-500 hover:underline"
-              >
-                View on Amazon →
-              </a>
-            )}
-            {data.purchase_link && !data.amazon_link && (
-              <a
-                href={data.purchase_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="text-xs text-primary hover:underline"
-              >
-                Buy Now →
-              </a>
-            )}
-          </div>
-          <p className="text-sm text-primary group-hover:underline">
-            View details →
-          </p>
-        </CardContent>
-      </Card>
-    </Link>
-  );
-}
-
-function TravelCard({
-  content,
-  data,
-  tags,
-}: {
-  content: Content;
-  data: TravelData;
-  tags?: Tag[];
-}) {
-  const typeEmoji: Record<string, string> = {
-    restaurant: "🍽️",
-    attraction: "🏛️",
-    hotel: "🏨",
-    activity: "🎯",
-    other: "📍",
-  };
-
-  return (
-    <Link href={`/dashboard/${content.id}`}>
-      <Card className="glass overflow-hidden group hover:border-travel/50 transition-all duration-300 cursor-pointer h-full">
-        <div className="relative">
-          {content.thumbnail_url && (
-            <div className="relative h-40 overflow-hidden">
-              <img
-                src={content.thumbnail_url}
-                alt={content.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
-            </div>
-          )}
-          <Badge className="absolute top-3 right-3 badge-travel border">
-            ✈️ Travel
-          </Badge>
-        </div>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-semibold line-clamp-2">
-            {content.title}
-          </CardTitle>
-          <CardTags tags={tags} />
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {data.location && <LocationLink location={data.location} />}
-          <div className="flex flex-wrap gap-2">
-            {data.type && (
-              <Badge variant="outline" className="text-xs">
-                {typeEmoji[data.type] || "📍"}{" "}
-                {data.type.charAt(0).toUpperCase() + data.type.slice(1)}
-              </Badge>
-            )}
-            {data.price_range && (
-              <Badge variant="outline" className="text-xs">
-                {data.price_range}
-              </Badge>
-            )}
-          </div>
-          <p className="text-sm text-primary group-hover:underline">
-            View details →
-          </p>
-        </CardContent>
-      </Card>
+      </div>
     </Link>
   );
 }
@@ -442,111 +205,346 @@ function DrinkCard({
   content,
   data,
   tags,
+  index = 0,
 }: {
   content: Content;
   data: DrinkData;
   tags?: Tag[];
+  index?: number;
 }) {
-  const typeEmoji: Record<string, string> = {
-    cocktail: "🍸",
-    mocktail: "🍹",
-    coffee: "☕",
-    smoothie: "🥤",
-    wine: "🍷",
-    beer: "🍺",
-    other: "🥃",
-  };
-
   return (
     <Link href={`/dashboard/${content.id}`}>
-      <Card className="glass overflow-hidden group hover:border-drink/50 transition-all duration-300 cursor-pointer h-full">
-        <div className="relative">
-          {content.thumbnail_url && (
-            <div className="relative h-40 overflow-hidden">
+      <div className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(index)} relative`}>
+        <div className={`absolute -top-2 right-6 w-12 h-5 ${getWashiColor("drink")} transform rotate-1 z-10`} />
+        
+        <div className="p-2 pb-0">
+          {content.thumbnail_url ? (
+            <div className="relative h-32 overflow-hidden rounded bg-muted">
               <img
                 src={content.thumbnail_url}
                 alt={content.title}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
+            </div>
+          ) : (
+            <div className="h-32 bg-muted/50 rounded flex items-center justify-center">
+              <span className="text-4xl">🍹</span>
             </div>
           )}
-          <Badge className="absolute top-3 right-3 badge-drink border">
-            🍹 Drink
-          </Badge>
         </div>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-semibold line-clamp-2">
+        
+        <div className="p-3 pt-2">
+          <span className="sticker sticker-drink text-[10px] mb-2 inline-block">
+            🍹 Drink
+          </span>
+          
+          <h3 className="font-semibold text-sm line-clamp-2 mb-1">
             {content.title}
-          </CardTitle>
+          </h3>
+          
           <CardTags tags={tags} />
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {data.ingredients && data.ingredients.length > 0 && (
-            <p className="text-sm text-muted-foreground">
-              {data.ingredients.length} ingredients
-            </p>
-          )}
-          <div className="flex flex-wrap gap-2">
-            {data.type && (
-              <Badge variant="outline" className="text-xs">
-                {typeEmoji[data.type] || "🥃"}{" "}
-                {data.type.charAt(0).toUpperCase() + data.type.slice(1)}
-              </Badge>
+          
+          <div className="flex flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
+            {data.ingredients && data.ingredients.length > 0 && (
+              <span>{data.ingredients.length} ingredients</span>
             )}
-            {data.difficulty && (
-              <Badge variant="outline" className="text-xs">
-                {data.difficulty}
-              </Badge>
-            )}
+            {data.type && <span className="capitalize">{data.type}</span>}
           </div>
-          <p className="text-sm text-primary group-hover:underline">
-            View details →
+          
+          <p className="text-xs text-primary mt-2 group-hover:underline">
+            View recipe →
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </Link>
   );
 }
 
-function OtherCard({ content, tags }: { content: Content; tags?: Tag[] }) {
-  const data = content.data as { description?: string };
-
+function EventCard({
+  content,
+  data,
+  tags,
+  index = 0,
+}: {
+  content: Content;
+  data: EventData;
+  tags?: Tag[];
+  index?: number;
+}) {
   return (
     <Link href={`/dashboard/${content.id}`}>
-      <Card className="glass overflow-hidden group hover:border-other/50 transition-all duration-300 cursor-pointer h-full">
-        <div className="relative">
-          {content.thumbnail_url && (
-            <div className="relative h-40 overflow-hidden">
+      <div className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(index)} relative`}>
+        <div className={`absolute -top-2 left-8 w-16 h-5 ${getWashiColor("event")} transform -rotate-1 z-10`} />
+        
+        <div className="p-2 pb-0">
+          {content.thumbnail_url ? (
+            <div className="relative h-32 overflow-hidden rounded bg-muted">
               <img
                 src={content.thumbnail_url}
                 alt={content.title}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
+            </div>
+          ) : (
+            <div className="h-32 bg-muted/50 rounded flex items-center justify-center">
+              <span className="text-4xl">🎉</span>
             </div>
           )}
-          <Badge className="absolute top-3 right-3 badge-other border">
-            📌 Saved
-          </Badge>
         </div>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-semibold line-clamp-2">
+        
+        <div className="p-3 pt-2">
+          <span className="sticker sticker-event text-[10px] mb-2 inline-block">
+            🎉 Event
+          </span>
+          
+          <h3 className="font-semibold text-sm line-clamp-2 mb-1">
             {content.title}
-          </CardTitle>
+          </h3>
+          
           <CardTags tags={tags} />
-        </CardHeader>
-        <CardContent className="space-y-3">
+          
+          <div className="space-y-1 mt-2">
+            {data.location && <LocationLink location={data.location} />}
+            {data.date && (
+              <p className="text-xs text-muted-foreground">
+                📅 {data.date} {data.time && `at ${data.time}`}
+              </p>
+            )}
+          </div>
+          
+          <p className="text-xs text-primary mt-2 group-hover:underline">
+            View details →
+          </p>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function DateIdeaCard({
+  content,
+  data,
+  tags,
+  index = 0,
+}: {
+  content: Content;
+  data: DateIdeaData;
+  tags?: Tag[];
+  index?: number;
+}) {
+  return (
+    <Link href={`/dashboard/${content.id}`}>
+      <div className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(index)} relative`}>
+        <div className={`absolute -top-2 right-8 w-14 h-5 ${getWashiColor("date_idea")} transform rotate-2 z-10`} />
+        
+        <div className="p-2 pb-0">
+          {content.thumbnail_url ? (
+            <div className="relative h-32 overflow-hidden rounded bg-muted">
+              <img
+                src={content.thumbnail_url}
+                alt={content.title}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+            </div>
+          ) : (
+            <div className="h-32 bg-muted/50 rounded flex items-center justify-center">
+              <span className="text-4xl">💕</span>
+            </div>
+          )}
+        </div>
+        
+        <div className="p-3 pt-2">
+          <span className="sticker sticker-date_idea text-[10px] mb-2 inline-block">
+            💕 Date Idea
+          </span>
+          
+          <h3 className="font-semibold text-sm line-clamp-2 mb-1">
+            {content.title}
+          </h3>
+          
+          <CardTags tags={tags} />
+          
+          <div className="space-y-1 mt-2">
+            {data.location && <LocationLink location={data.location} />}
+            {data.price_range && (
+              <p className="text-xs text-muted-foreground">{data.price_range}</p>
+            )}
+          </div>
+          
+          <p className="text-xs text-primary mt-2 group-hover:underline">
+            View details →
+          </p>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function GiftIdeaCard({
+  content,
+  data,
+  tags,
+  index = 0,
+}: {
+  content: Content;
+  data: GiftIdeaData;
+  tags?: Tag[];
+  index?: number;
+}) {
+  return (
+    <Link href={`/dashboard/${content.id}`}>
+      <div className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(index)} relative`}>
+        <div className={`absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-5 ${getWashiColor("gift_idea")} transform -rotate-1 z-10`} />
+        
+        <div className="p-2 pb-0">
+          {content.thumbnail_url ? (
+            <div className="relative h-32 overflow-hidden rounded bg-muted">
+              <img
+                src={content.thumbnail_url}
+                alt={content.title}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+            </div>
+          ) : (
+            <div className="h-32 bg-muted/50 rounded flex items-center justify-center">
+              <span className="text-4xl">🎁</span>
+            </div>
+          )}
+        </div>
+        
+        <div className="p-3 pt-2">
+          <span className="sticker sticker-gift_idea text-[10px] mb-2 inline-block">
+            🎁 Gift Idea
+          </span>
+          
+          <h3 className="font-semibold text-sm line-clamp-2 mb-1">
+            {content.title}
+          </h3>
+          
+          <CardTags tags={tags} />
+          
+          {data.cost && (
+            <p className="text-sm font-semibold text-gift mt-2">
+              {data.cost}
+            </p>
+          )}
+          
+          <p className="text-xs text-primary mt-2 group-hover:underline">
+            View details →
+          </p>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function TravelCard({
+  content,
+  data,
+  tags,
+  index = 0,
+}: {
+  content: Content;
+  data: TravelData;
+  tags?: Tag[];
+  index?: number;
+}) {
+  return (
+    <Link href={`/dashboard/${content.id}`}>
+      <div className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(index)} relative`}>
+        <div className={`absolute -top-2 left-6 w-16 h-5 ${getWashiColor("travel")} transform rotate-1 z-10`} />
+        
+        <div className="p-2 pb-0">
+          {content.thumbnail_url ? (
+            <div className="relative h-32 overflow-hidden rounded bg-muted">
+              <img
+                src={content.thumbnail_url}
+                alt={content.title}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+            </div>
+          ) : (
+            <div className="h-32 bg-muted/50 rounded flex items-center justify-center">
+              <span className="text-4xl">✈️</span>
+            </div>
+          )}
+        </div>
+        
+        <div className="p-3 pt-2">
+          <span className="sticker sticker-travel text-[10px] mb-2 inline-block">
+            ✈️ Travel
+          </span>
+          
+          <h3 className="font-semibold text-sm line-clamp-2 mb-1">
+            {content.title}
+          </h3>
+          
+          <CardTags tags={tags} />
+          
+          <div className="space-y-1 mt-2">
+            {data.location && <LocationLink location={data.location} />}
+            {data.destination_country && (
+              <p className="text-xs text-muted-foreground">
+                🌍 {data.destination_city && `${data.destination_city}, `}{data.destination_country}
+              </p>
+            )}
+          </div>
+          
+          <p className="text-xs text-primary mt-2 group-hover:underline">
+            View details →
+          </p>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function OtherCard({ content, tags, index = 0 }: { content: Content; tags?: Tag[]; index?: number }) {
+  const data = content.data as { description?: string };
+
+  return (
+    <Link href={`/dashboard/${content.id}`}>
+      <div className={`scrapbook-card overflow-hidden group hover-lift cursor-pointer h-full ${getRotation(index)} relative`}>
+        <div className={`absolute -top-2 right-6 w-14 h-5 ${getWashiColor("other")} transform -rotate-2 z-10`} />
+        
+        <div className="p-2 pb-0">
+          {content.thumbnail_url ? (
+            <div className="relative h-32 overflow-hidden rounded bg-muted">
+              <img
+                src={content.thumbnail_url}
+                alt={content.title}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+            </div>
+          ) : (
+            <div className="h-32 bg-muted/50 rounded flex items-center justify-center">
+              <span className="text-4xl">📌</span>
+            </div>
+          )}
+        </div>
+        
+        <div className="p-3 pt-2">
+          <span className="sticker sticker-other text-[10px] mb-2 inline-block">
+            📌 Saved
+          </span>
+          
+          <h3 className="font-semibold text-sm line-clamp-2 mb-1">
+            {content.title}
+          </h3>
+          
+          <CardTags tags={tags} />
+          
           {data.description && (
-            <p className="text-sm text-muted-foreground line-clamp-3">
+            <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
               {data.description}
             </p>
           )}
-          <p className="text-sm text-primary group-hover:underline">
+          
+          <p className="text-xs text-primary mt-2 group-hover:underline">
             View details →
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </Link>
   );
 }
@@ -561,7 +559,7 @@ export function ContentCard({ content, index = 0, tags }: ContentCardProps) {
   if (content.status === "processing") {
     return (
       <div className={`animate-fade-in-up opacity-0 ${delayClass}`}>
-        <ProcessingCard content={content} />
+        <ProcessingCard content={content} index={index} />
       </div>
     );
   }
@@ -569,7 +567,7 @@ export function ContentCard({ content, index = 0, tags }: ContentCardProps) {
   if (content.status === "failed") {
     return (
       <div className={`animate-fade-in-up opacity-0 ${delayClass}`}>
-        <FailedCard content={content} />
+        <FailedCard content={content} index={index} />
       </div>
     );
   }
@@ -581,6 +579,7 @@ export function ContentCard({ content, index = 0, tags }: ContentCardProps) {
           content={content}
           data={content.data as MealData}
           tags={contentTags}
+          index={index}
         />
       )}
       {content.category === "drink" && (
@@ -588,6 +587,7 @@ export function ContentCard({ content, index = 0, tags }: ContentCardProps) {
           content={content}
           data={content.data as DrinkData}
           tags={contentTags}
+          index={index}
         />
       )}
       {content.category === "event" && (
@@ -595,6 +595,7 @@ export function ContentCard({ content, index = 0, tags }: ContentCardProps) {
           content={content}
           data={content.data as EventData}
           tags={contentTags}
+          index={index}
         />
       )}
       {content.category === "date_idea" && (
@@ -602,6 +603,7 @@ export function ContentCard({ content, index = 0, tags }: ContentCardProps) {
           content={content}
           data={content.data as DateIdeaData}
           tags={contentTags}
+          index={index}
         />
       )}
       {content.category === "gift_idea" && (
@@ -609,6 +611,7 @@ export function ContentCard({ content, index = 0, tags }: ContentCardProps) {
           content={content}
           data={content.data as GiftIdeaData}
           tags={contentTags}
+          index={index}
         />
       )}
       {content.category === "travel" && (
@@ -616,10 +619,11 @@ export function ContentCard({ content, index = 0, tags }: ContentCardProps) {
           content={content}
           data={content.data as TravelData}
           tags={contentTags}
+          index={index}
         />
       )}
       {content.category === "other" && (
-        <OtherCard content={content} tags={contentTags} />
+        <OtherCard content={content} tags={contentTags} index={index} />
       )}
     </div>
   );

@@ -4,13 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { formatPhoneNumber } from "@/lib/utils";
 
 export default function Home() {
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -38,23 +32,6 @@ export default function Home() {
     }
     checkSession();
   }, [router]);
-
-  const formatPhoneNumber = (value: string) => {
-    // Remove all non-digits
-    const digits = value.replace(/\D/g, "");
-
-    // Format as (XXX) XXX-XXXX
-    if (digits.length <= 3) {
-      return digits;
-    } else if (digits.length <= 6) {
-      return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-    } else {
-      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(
-        6,
-        10
-      )}`;
-    }
-  };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhoneNumber(e.target.value);
@@ -116,48 +93,57 @@ export default function Home() {
 
   if (checkingSession) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-paper">
         <div className="animate-shimmer w-12 h-12 rounded-full" />
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen flex flex-col">
+    <main className="min-h-screen flex flex-col bg-paper">
       {/* Hero Section */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">
-        <div className="text-center mb-12 animate-fade-in-up opacity-0">
-          <div className="inline-block mb-6">
-            <div className="text-7xl animate-pulse-glow rounded-full p-4">
-              📱
+        <div className="text-center mb-10 animate-fade-in-up opacity-0">
+          {/* Scrapbook-style logo */}
+          <div className="inline-block mb-6 relative">
+            <div className="text-7xl p-4 relative">
+              📒
+              <span className="absolute -top-1 -right-1 text-2xl">✨</span>
             </div>
           </div>
-          <h1 className="text-4xl md:text-6xl font-bold mb-4 tracking-tight">
-            <span className="bg-gradient-to-r from-primary via-accent to-date bg-clip-text text-transparent">
-              TikTok Helper
-            </span>
+
+          {/* Title with handwritten font */}
+          <h1 className="font-handwritten text-5xl md:text-7xl mb-4 text-foreground transform -rotate-1">
+            PlanPal
           </h1>
-          <p className="text-xl text-muted-foreground max-w-lg mx-auto">
-            Text TikTok links, we&apos;ll save and organize your meals, events,
-            and date ideas automagically.
+          <div className="inline-block relative mb-4">
+            <p className="text-lg md:text-xl text-muted-foreground">
+              Text it. Save it. Plan it.
+            </p>
+            <div className="absolute -bottom-1 left-0 right-0 h-2 bg-washi-coral/50 transform rotate-0.5 -z-10" />
+          </div>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto mt-4">
+            Your personal scrapbook for social media discoveries. Text links to
+            save meals, events, date ideas, and more!
           </p>
         </div>
 
-        {/* Login Card */}
-        <Card className="glass w-full max-w-md animate-fade-in-up opacity-0 stagger-2">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">
+        {/* Login Card - Scrapbook style */}
+        <div className="scrapbook-card w-full max-w-md animate-fade-in-up opacity-0 stagger-2 relative overflow-visible">
+          {/* Washi tape decoration */}
+          <div className="absolute -top-3 left-8 w-20 h-6 bg-washi-mint/80 transform -rotate-2 z-10" />
+          <div className="absolute -top-3 right-12 w-16 h-6 bg-washi-pink/80 transform rotate-1 z-10" />
+
+          <div className="p-6 pt-8">
+            <h2 className="font-handwritten text-2xl text-center mb-2">
+              {step === "phone" ? "Open Your Scrapbook" : "Enter Your Code"}
+            </h2>
+            <p className="text-sm text-muted-foreground text-center mb-6">
               {step === "phone"
-                ? "Access Your Saves"
-                : "Enter Verification Code"}
-            </CardTitle>
-            <CardDescription>
-              {step === "phone"
-                ? "Enter the phone number you use to text TikTok links"
+                ? "Enter the phone number you use to text links"
                 : `We sent a code to ${phoneNumber}`}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+            </p>
+
             {step === "phone" ? (
               <form onSubmit={handleSendCode} className="space-y-4">
                 <div className="space-y-2">
@@ -166,7 +152,7 @@ export default function Home() {
                     placeholder="(555) 123-4567"
                     value={phoneNumber}
                     onChange={handlePhoneChange}
-                    className="text-center text-lg h-14 bg-secondary/50 border-border"
+                    className="text-center text-lg h-14 bg-white border-border"
                     maxLength={14}
                   />
                 </div>
@@ -177,12 +163,12 @@ export default function Home() {
                 )}
                 <Button
                   type="submit"
-                  className="w-full h-12 text-lg font-medium"
+                  className="w-full h-12 text-lg font-medium bg-primary hover:bg-primary/90"
                   disabled={
                     loading || phoneNumber.replace(/\D/g, "").length < 10
                   }
                 >
-                  {loading ? "Sending..." : "Send Verification Code"}
+                  {loading ? "Sending..." : "Send Code ✨"}
                 </Button>
               </form>
             ) : (
@@ -198,7 +184,7 @@ export default function Home() {
                       );
                       setError("");
                     }}
-                    className="text-center text-2xl tracking-[0.5em] h-14 bg-secondary/50 border-border font-mono"
+                    className="text-center text-2xl tracking-[0.5em] h-14 bg-white border-border font-mono"
                     maxLength={6}
                   />
                 </div>
@@ -209,10 +195,10 @@ export default function Home() {
                 )}
                 <Button
                   type="submit"
-                  className="w-full h-12 text-lg font-medium"
+                  className="w-full h-12 text-lg font-medium bg-primary hover:bg-primary/90"
                   disabled={loading || verificationCode.length < 6}
                 >
-                  {loading ? "Verifying..." : "Verify & Access"}
+                  {loading ? "Checking..." : "Open Scrapbook 📒"}
                 </Button>
                 <Button
                   type="button"
@@ -224,38 +210,41 @@ export default function Home() {
                     setError("");
                   }}
                 >
-                  ← Use Different Number
+                  ← Different Number
                 </Button>
               </form>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        {/* How it works */}
-        <div className="mt-16 w-full max-w-3xl animate-fade-in-up opacity-0 stagger-3">
-          <h2 className="text-2xl font-semibold text-center mb-8">
+        {/* How it works - Scrapbook style */}
+        <div className="mt-16 w-full max-w-3xl animate-fade-in-up opacity-0 stagger-3 px-4">
+          <h2 className="font-handwritten text-3xl text-center mb-8 transform -rotate-1">
             How It Works
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="glass rounded-xl p-6 text-center">
-              <div className="text-4xl mb-4">💬</div>
+            <div className="scrapbook-card p-5 text-center relative">
+              <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-5 bg-washi-yellow/80 transform -rotate-1" />
+              <div className="text-4xl mb-3 pt-2">💬</div>
               <h3 className="font-semibold mb-2">1. Text a Link</h3>
               <p className="text-sm text-muted-foreground">
-                Send any TikTok link to your personal number
+                Send any TikTok, Instagram, or YouTube link
               </p>
             </div>
-            <div className="glass rounded-xl p-6 text-center">
-              <div className="text-4xl mb-4">🤖</div>
-              <h3 className="font-semibold mb-2">2. AI Analyzes</h3>
+            <div className="scrapbook-card p-5 text-center relative">
+              <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-5 bg-washi-mint/80 transform rotate-1" />
+              <div className="text-4xl mb-3 pt-2">✂️</div>
+              <h3 className="font-semibold mb-2">2. We Clip It</h3>
               <p className="text-sm text-muted-foreground">
-                We extract recipes, events, and date ideas automatically
+                AI extracts recipes, places, and ideas automatically
               </p>
             </div>
-            <div className="glass rounded-xl p-6 text-center">
-              <div className="text-4xl mb-4">📚</div>
-              <h3 className="font-semibold mb-2">3. Browse Later</h3>
+            <div className="scrapbook-card p-5 text-center relative">
+              <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-5 bg-washi-pink/80 transform -rotate-2" />
+              <div className="text-4xl mb-3 pt-2">📒</div>
+              <h3 className="font-semibold mb-2">3. Plan Later</h3>
               <p className="text-sm text-muted-foreground">
-                Access your organized collection anytime
+                Browse and plan with your organized collection
               </p>
             </div>
           </div>
@@ -264,7 +253,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="text-center py-6 text-sm text-muted-foreground">
-        <p>Your TikTok discoveries, organized.</p>
+        <p>Made with 💕 for collectors & planners</p>
       </footer>
     </main>
   );

@@ -1,22 +1,29 @@
-# TikTok Helper
+# PlanPal 📒✨
 
-Text TikTok links to save and organize meals, events, and date ideas automatically.
+**Text it. Save it. Plan it.**
+
+Your planning pal! Text links from TikTok, Instagram, and more to save and organize meals, events, and date ideas in your personal scrapbook.
 
 ## Features
 
-- 📱 **SMS Integration** - Text TikTok links to your personal phone number
+- 📱 **SMS Integration** - Text links to your personal phone number
 - 🤖 **AI-Powered Analysis** - Automatically extracts and categorizes content using Google Gemini
 - 🍽️ **Meal Recipes** - Saves ingredients, steps, and cooking times
+- 🍹 **Drink Recipes** - Cocktails, smoothies, and beverage creations
 - 🎉 **Events** - Captures location, date/time, and ticket requirements
 - 💕 **Date Ideas** - Organizes places and activities for date nights
-- 🔐 **Phone Verification** - Secure access to your personal collection
-- 📊 **Beautiful Dashboard** - Browse your saves in a modern, organized interface
+- ✈️ **Travel** - Saves destinations and travel recommendations
+- 🎁 **Gift Ideas** - Track gift ideas with prices and purchase links
+- 📅 **Weekly Planner** - Drag and drop your saves into a weekly schedule
+- 🏷️ **Tags** - AI-suggested and custom tags for easy filtering
+- 🤝 **Sharing** - Share your planner with friends via share codes
+- 📒 **Scrapbook Design** - Beautiful, playful interface
 
 ## Tech Stack
 
 - **Framework**: Next.js 14 (App Router)
 - **Database**: Supabase (PostgreSQL)
-- **AI**: Google Gemini 1.5 Pro (video analysis)
+- **AI**: Google Gemini 2.5 Flash (video/image analysis)
 - **SMS**: Twilio
 - **Video Download**: RapidAPI TikTok Scraper
 - **Styling**: Tailwind CSS + shadcn/ui
@@ -28,28 +35,30 @@ Text TikTok links to save and organize meals, events, and date ideas automatical
 
 ```bash
 git clone <your-repo>
-cd tiktok-helper
+cd planpal
 npm install
 ```
 
 ### 2. Set Up Supabase
 
 1. Create a new project at [supabase.com](https://supabase.com)
-2. Go to SQL Editor and run the contents of `supabase/schema.sql`
+2. Go to SQL Editor and run these schema files in order:
+   - `supabase/schema.sql` - Core tables
+   - `supabase/schema-planner.sql` - Planner tables
+   - `supabase/schema-gifts.sql` - Gift planner tables
+   - `supabase/schema-tags.sql` - Tags system
+   - `supabase/schema-v2.sql` - Travel, drinks, settings, sharing
 3. Copy your project URL and keys from Settings > API
 
 ### 3. Set Up Twilio
 
 1. Sign up at [twilio.com](https://twilio.com)
-2. Buy a phone number with SMS capability (for receiving texts)
-3. Copy your Account SID and Auth Token from the dashboard
-4. **Create a Verify Service** (required for sending verification codes):
+2. Buy a phone number with SMS capability
+3. Copy your Account SID and Auth Token
+4. **Create a Verify Service** for sending verification codes:
    - Go to [Twilio Verify Services](https://console.twilio.com/us1/develop/verify/services)
-   - Click "Create new"
-   - Name it something like "TikTok Helper"
+   - Click "Create new" and name it "PlanPal"
    - Copy the Service SID (starts with `VA...`)
-
-> **Why Twilio Verify?** Sending SMS from a regular Twilio phone number to US recipients requires [A2P 10DLC registration](https://www.twilio.com/docs/messaging/compliance/a2p-10dlc), which involves a lengthy approval process. Twilio Verify uses pre-registered phone pools that bypass this requirement, making setup instant.
 
 ### 4. Set Up Google AI (Gemini)
 
@@ -72,7 +81,7 @@ Create a `.env.local` file:
 TWILIO_ACCOUNT_SID=your_account_sid
 TWILIO_AUTH_TOKEN=your_auth_token
 TWILIO_PHONE_NUMBER=+1234567890
-TWILIO_VERIFY_SERVICE_SID=VA...  # From Twilio Verify Services
+TWILIO_VERIFY_SERVICE_SID=VA...
 
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
@@ -99,69 +108,32 @@ npm run dev
 
 1. Push your code to GitHub
 2. Import the project in [Vercel](https://vercel.com)
-3. Add all environment variables (update `NEXT_PUBLIC_APP_URL` to your production URL)
+3. Add all environment variables
 4. Deploy
 
 ### 9. Configure Twilio Webhook
 
-1. Go to your Twilio Console
-2. Navigate to Phone Numbers > Manage > Active Numbers
-3. Select your number
-4. Under "Messaging", set the webhook URL:
-   - **When a message comes in**: `https://your-app.vercel.app/api/twilio/webhook`
-   - **HTTP Method**: POST
+1. Go to your Twilio Console > Phone Numbers
+2. Select your number
+3. Set the webhook URL: `https://your-app.vercel.app/api/twilio/webhook` (POST)
 
 ## Usage
 
-1. **Text a TikTok link** to your Twilio phone number
+1. **Text a link** to your PlanPal phone number
 2. Wait a few seconds for processing
-3. **Visit the website** and enter your phone number
-4. **Verify with the SMS code** sent to your phone
-5. **Browse your organized content** in the dashboard
-
-## API Routes
-
-| Route                 | Method | Description                          |
-| --------------------- | ------ | ------------------------------------ |
-| `/api/twilio/webhook` | POST   | Receives SMS from Twilio             |
-| `/api/process`        | POST   | Downloads and analyzes TikTok videos |
-| `/api/auth/send-code` | POST   | Sends verification code              |
-| `/api/auth/verify`    | POST   | Verifies code and creates session    |
-| `/api/auth/session`   | GET    | Checks current session               |
-| `/api/auth/logout`    | POST   | Ends session                         |
-| `/api/content`        | GET    | Fetches user's saved content         |
-
-## Project Structure
-
-```
-src/
-├── app/
-│   ├── api/
-│   │   ├── twilio/webhook/     # SMS receiver
-│   │   ├── process/            # Video processing
-│   │   ├── auth/               # Authentication
-│   │   └── content/            # Content API
-│   ├── dashboard/              # Dashboard page
-│   ├── page.tsx                # Login page
-│   ├── layout.tsx
-│   └── globals.css
-├── components/
-│   ├── ui/                     # shadcn components
-│   ├── content-card.tsx        # Content display cards
-│   └── category-tabs.tsx       # Category navigation
-└── lib/
-    ├── supabase.ts             # Database client
-    ├── twilio.ts               # SMS client
-    ├── tiktok.ts               # Video downloader
-    └── gemini.ts               # AI analysis
-```
+3. **Visit the website** and verify with your phone number
+4. **Browse your scrapbook** in the dashboard
+5. **Plan your week** with the weekly planner
 
 ## Content Categories
 
-- **Meal** 🍽️ - Recipes with ingredients and cooking steps
-- **Event** 🎉 - Events with location, date, and ticket info
-- **Date Idea** 💕 - Places and activities for dates
-- **Other** 📌 - Everything else
+- 🍽️ **Meal** - Recipes with ingredients and steps
+- 🍹 **Drink** - Cocktails, smoothies, coffee drinks
+- 🎉 **Event** - Events with location and dates
+- 💕 **Date Idea** - Places and activities for dates
+- 🎁 **Gift Idea** - Products and gift recommendations
+- ✈️ **Travel** - Destinations outside your home region
+- 📌 **Other** - Everything else
 
 ## License
 

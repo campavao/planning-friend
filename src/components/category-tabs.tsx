@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ContentCard } from "@/components/content-card";
 import { TagFilter } from "@/components/tag-filter";
 import type { ContentWithTags, Tag } from "@/lib/supabase";
+import { formatPhoneNumber } from "@/lib/utils";
 
 interface CategoryTabsProps {
   content: ContentWithTags[];
@@ -61,7 +62,9 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
       <p className="text-muted-foreground max-w-md">
         {selectedTags.length > 0
           ? "Try removing some tag filters."
-          : "Text a TikTok link to your number and we'll automatically categorize and save it here."}
+          : `Text a TikTok link to ${formatPhoneNumber(
+              process.env.NEXT_PUBLIC_TWILIO_PHONE_NUMBER || ""
+            )} and we'll automatically categorize and save it here.`}
       </p>
     </div>
   );

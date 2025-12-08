@@ -171,55 +171,56 @@ export default function GiftPlannerPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-paper">
         <div className="animate-shimmer w-16 h-16 rounded-full" />
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen pb-20 md:pb-8">
-      {/* Header */}
-      <header className="glass sticky top-0 z-50 border-b border-border/50">
-        <div className="max-w-4xl mx-auto px-3 md:px-4 py-3 md:py-4 flex items-center justify-between">
+    <main className="min-h-screen pb-28 md:pb-8 bg-paper">
+      {/* Scrapbook Header */}
+      <div className="pt-6 pb-4 px-4 md:px-6">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
           <Link href="/dashboard">
-            <Button variant="ghost" size="sm" className="px-2 md:px-3">
-              ← <span className="hidden sm:inline ml-1">Back</span>
+            <Button variant="ghost" size="sm" className="hover:bg-washi-mint/20">
+              ← Back
             </Button>
           </Link>
-          <div className="text-center flex-1">
-            <h1 className="font-semibold text-sm md:text-lg">Gift Planner</h1>
+          <div className="relative">
+            <h1 className="font-handwritten text-3xl md:text-4xl text-foreground transform -rotate-1">
+              Gift Ideas
+            </h1>
+            <div className="absolute -bottom-1 left-0 right-0 h-2 bg-washi-coral/60 transform rotate-0.5 -z-10" />
           </div>
           <div className="w-16" />
         </div>
-      </header>
+      </div>
 
-      <div className="max-w-4xl mx-auto px-3 md:px-4 py-4 md:py-6">
+      <div className="max-w-4xl mx-auto px-3 md:px-4">
         {/* Add New Person */}
-        <Card className="glass mb-6">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Add a Person</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Enter name (e.g., Mom, Dad, Best Friend)"
-                value={newRecipientName}
-                onChange={(e) => setNewRecipientName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && addRecipient()}
-                className="flex-1"
-              />
-              <Button onClick={addRecipient}>Add</Button>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="scrapbook-card p-5 mb-6 relative">
+          <div className="absolute -top-2 left-8 w-16 h-5 bg-washi-pink/80 transform -rotate-2" />
+          <h2 className="font-handwritten text-xl mb-3 pt-2">Add a Person</h2>
+          <div className="flex gap-2">
+            <Input
+              placeholder="Enter name (e.g., Mom, Dad, Best Friend)"
+              value={newRecipientName}
+              onChange={(e) => setNewRecipientName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addRecipient()}
+              className="flex-1 bg-white border-border"
+            />
+            <Button onClick={addRecipient} className="bg-primary hover:bg-primary/90">Add 🎁</Button>
+          </div>
+        </div>
 
         {/* Recipients List */}
         {recipients.length === 0 ? (
-          <div className="glass rounded-2xl p-8 text-center">
-            <div className="text-6xl mb-4">🎁</div>
-            <h3 className="text-xl font-semibold mb-2">No people added yet</h3>
-            <p className="text-muted-foreground mb-4">
+          <div className="scrapbook-card p-8 text-center relative">
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-20 h-5 bg-washi-yellow/80 transform -rotate-1" />
+            <div className="text-6xl mb-4 pt-2">🎁</div>
+            <h3 className="font-handwritten text-2xl mb-2">No people added yet</h3>
+            <p className="text-muted-foreground">
               Add people you want to give gifts to, then assign gift ideas to them.
             </p>
           </div>

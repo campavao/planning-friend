@@ -63,7 +63,7 @@ export async function checkVerifyOtp(
 // Send SMS message (keeping for potential future use, but note A2P requirements)
 export async function sendSMS(to: string, body: string): Promise<void> {
   const client = getTwilioClient();
-  const from = process.env.TWILIO_PHONE_NUMBER;
+  const from = process.env.NEXT_PUBLIC_TWILIO_PHONE_NUMBER;
 
   if (!from) {
     throw new Error("Missing Twilio phone number");

@@ -1,25 +1,41 @@
 import type { Metadata } from "next";
-import { DM_Sans, JetBrains_Mono } from "next/font/google";
+import { DM_Sans, JetBrains_Mono, Caveat } from "next/font/google";
 import "./globals.css";
 import { BottomNav } from "@/components/bottom-nav";
 
 const dmSans = DM_Sans({
-  variable: "--font-geist-sans",
+  variable: "--font-sans",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
 });
 
 const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-geist-mono",
+  variable: "--font-mono",
   subsets: ["latin"],
   weight: ["400", "500"],
 });
 
+const caveat = Caveat({
+  variable: "--font-handwritten",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
 export const metadata: Metadata = {
-  title: "TikTok Helper - Save & Organize Your Discoveries",
+  title: "PlanPal - Text it. Save it. Plan it.",
   description:
-    "Text TikTok links to save meals, events, and date ideas. Access your organized collection anytime.",
-  keywords: ["tiktok", "recipes", "meal planning", "date ideas", "events"],
+    "Your planning pal! Text links to save meals, events, and date ideas. Access your organized scrapbook anytime.",
+  keywords: [
+    "planning",
+    "recipes",
+    "meal planning",
+    "date ideas",
+    "events",
+    "scrapbook",
+    "tiktok downloader",
+    "tiktok",
+    "tiktok planner",
+  ],
 };
 
 export default function RootLayout({
@@ -28,9 +44,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <body
-        className={`${dmSans.variable} ${jetbrainsMono.variable} font-sans antialiased min-h-screen bg-gradient-mesh`}
+        className={`${dmSans.variable} ${jetbrainsMono.variable} ${caveat.variable} font-sans antialiased min-h-screen bg-paper`}
       >
         {children}
         <BottomNav />
