@@ -108,22 +108,19 @@ function ProcessingCard({
         )} relative`}
       >
         {/* Washi tape */}
-        <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-5 bg-washi-yellow/80 transform -rotate-2 z-10" />
+        <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-10 md:w-14 h-4 md:h-5 bg-washi-yellow/80 transform -rotate-2 z-10" />
 
-        <div className="relative h-36 bg-secondary/30 flex items-center justify-center">
+        <div className="relative aspect-square bg-secondary/30 flex items-center justify-center">
           <div className="text-center">
-            <div className="text-4xl mb-2 animate-wiggle">✂️</div>
-            <p className="text-sm text-muted-foreground font-handwritten">
-              Cutting & pasting...
+            <div className="text-3xl md:text-4xl mb-2 animate-wiggle">✂️</div>
+            <p className="text-xs md:text-sm text-muted-foreground font-handwritten">
+              Clipping...
             </p>
           </div>
         </div>
-        <div className="p-3 pt-2">
-          <p className="font-medium text-sm line-clamp-2">
-            Adding to scrapbook...
-          </p>
-          <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-            {content.tiktok_url}
+        <div className="p-2 md:p-3 pt-1.5 md:pt-2">
+          <p className="font-medium text-xs md:text-sm line-clamp-2">
+            Adding...
           </p>
         </div>
       </div>
@@ -145,20 +142,18 @@ function FailedCard({
           index
         )} border-destructive/20 relative`}
       >
-        <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-5 bg-washi-coral/80 transform rotate-1 z-10" />
+        <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-10 md:w-14 h-4 md:h-5 bg-washi-coral/80 transform rotate-1 z-10" />
 
-        <div className="relative h-36 bg-destructive/5 flex items-center justify-center">
+        <div className="relative aspect-square bg-destructive/5 flex items-center justify-center">
           <div className="text-center">
-            <div className="text-4xl mb-2">😕</div>
-            <p className="text-sm text-muted-foreground">
-              Couldn&apos;t add this one
-            </p>
+            <div className="text-3xl md:text-4xl mb-2">😕</div>
+            <p className="text-xs md:text-sm text-muted-foreground">Failed</p>
           </div>
         </div>
-        <div className="p-3 pt-2">
-          <p className="font-medium text-sm">Something went wrong</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Tap to try again or delete
+        <div className="p-2 md:p-3 pt-1.5 md:pt-2">
+          <p className="font-medium text-xs md:text-sm">Oops</p>
+          <p className="text-[10px] md:text-xs text-muted-foreground mt-1">
+            Tap to retry
           </p>
         </div>
       </div>
@@ -192,9 +187,9 @@ function MealCard({
         />
 
         {/* Polaroid-style image */}
-        <div className="p-2 pb-0">
+        <div className="p-1.5 md:p-2 pb-0">
           {content.thumbnail_url ? (
-            <div className="relative h-32 overflow-hidden rounded bg-muted">
+            <div className="relative aspect-square overflow-hidden rounded bg-muted">
               <img
                 src={content.thumbnail_url}
                 alt={content.title}
@@ -202,34 +197,34 @@ function MealCard({
               />
             </div>
           ) : (
-            <div className="h-32 bg-muted/50 rounded flex items-center justify-center">
-              <span className="text-4xl">🍽️</span>
+            <div className="aspect-square bg-muted/50 rounded flex items-center justify-center">
+              <span className="text-3xl md:text-4xl">🍽️</span>
             </div>
           )}
         </div>
 
         {/* Content */}
-        <div className="p-3 pt-2">
+        <div className="p-2 md:p-3 pt-1.5 md:pt-2">
           {/* Sticker badge */}
-          <span className="sticker sticker-meal text-[10px] mb-2 inline-block">
+          <span className="sticker sticker-meal text-[8px] md:text-[10px] mb-1.5 md:mb-2 inline-block">
             🍽️ Recipe
           </span>
 
-          <h3 className="font-semibold text-sm line-clamp-2 mb-1">
+          <h3 className="font-semibold text-xs md:text-sm line-clamp-2 mb-1">
             {content.title}
           </h3>
 
           <CardTags tags={tags} />
 
-          <div className="flex flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
+          <div className="hidden md:flex flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
             {data.ingredients && data.ingredients.length > 0 && (
               <span>{data.ingredients.length} ingredients</span>
             )}
             {data.prep_time && <span>⏱️ {data.prep_time}</span>}
           </div>
 
-          <p className="text-xs text-primary mt-2 group-hover:underline">
-            View recipe →
+          <p className="text-[10px] md:text-xs text-primary mt-1.5 md:mt-2 group-hover:underline">
+            View →
           </p>
         </div>
       </div>
@@ -261,9 +256,9 @@ function DrinkCard({
           )} transform rotate-1 z-10`}
         />
 
-        <div className="p-2 pb-0">
+        <div className="p-1.5 md:p-2 pb-0">
           {content.thumbnail_url ? (
-            <div className="relative h-32 overflow-hidden rounded bg-muted">
+            <div className="relative aspect-square overflow-hidden rounded bg-muted">
               <img
                 src={content.thumbnail_url}
                 alt={content.title}
@@ -271,32 +266,32 @@ function DrinkCard({
               />
             </div>
           ) : (
-            <div className="h-32 bg-muted/50 rounded flex items-center justify-center">
-              <span className="text-4xl">🍹</span>
+            <div className="aspect-square bg-muted/50 rounded flex items-center justify-center">
+              <span className="text-3xl md:text-4xl">🍹</span>
             </div>
           )}
         </div>
 
-        <div className="p-3 pt-2">
-          <span className="sticker sticker-drink text-[10px] mb-2 inline-block">
+        <div className="p-2 md:p-3 pt-1.5 md:pt-2">
+          <span className="sticker sticker-drink text-[8px] md:text-[10px] mb-1.5 md:mb-2 inline-block">
             🍹 Drink
           </span>
 
-          <h3 className="font-semibold text-sm line-clamp-2 mb-1">
+          <h3 className="font-semibold text-xs md:text-sm line-clamp-2 mb-1">
             {content.title}
           </h3>
 
           <CardTags tags={tags} />
 
-          <div className="flex flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
+          <div className="hidden md:flex flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
             {data.ingredients && data.ingredients.length > 0 && (
               <span>{data.ingredients.length} ingredients</span>
             )}
             {data.type && <span className="capitalize">{data.type}</span>}
           </div>
 
-          <p className="text-xs text-primary mt-2 group-hover:underline">
-            View recipe →
+          <p className="text-[10px] md:text-xs text-primary mt-1.5 md:mt-2 group-hover:underline">
+            View →
           </p>
         </div>
       </div>
@@ -328,9 +323,9 @@ function EventCard({
           )} transform -rotate-1 z-10`}
         />
 
-        <div className="p-2 pb-0">
+        <div className="p-1.5 md:p-2 pb-0">
           {content.thumbnail_url ? (
-            <div className="relative h-32 overflow-hidden rounded bg-muted">
+            <div className="relative aspect-square overflow-hidden rounded bg-muted">
               <img
                 src={content.thumbnail_url}
                 alt={content.title}
@@ -338,24 +333,24 @@ function EventCard({
               />
             </div>
           ) : (
-            <div className="h-32 bg-muted/50 rounded flex items-center justify-center">
-              <span className="text-4xl">🎉</span>
+            <div className="aspect-square bg-muted/50 rounded flex items-center justify-center">
+              <span className="text-3xl md:text-4xl">🎉</span>
             </div>
           )}
         </div>
 
-        <div className="p-3 pt-2">
-          <span className="sticker sticker-event text-[10px] mb-2 inline-block">
+        <div className="p-2 md:p-3 pt-1.5 md:pt-2">
+          <span className="sticker sticker-event text-[8px] md:text-[10px] mb-1.5 md:mb-2 inline-block">
             🎉 Event
           </span>
 
-          <h3 className="font-semibold text-sm line-clamp-2 mb-1">
+          <h3 className="font-semibold text-xs md:text-sm line-clamp-2 mb-1">
             {content.title}
           </h3>
 
           <CardTags tags={tags} />
 
-          <div className="space-y-1 mt-2">
+          <div className="hidden md:block space-y-1 mt-2">
             {data.location && <LocationLink location={data.location} />}
             {data.date && (
               <p className="text-xs text-muted-foreground">
@@ -364,8 +359,8 @@ function EventCard({
             )}
           </div>
 
-          <p className="text-xs text-primary mt-2 group-hover:underline">
-            View details →
+          <p className="text-[10px] md:text-xs text-primary mt-1.5 md:mt-2 group-hover:underline">
+            View →
           </p>
         </div>
       </div>
@@ -397,9 +392,9 @@ function DateIdeaCard({
           )} transform rotate-2 z-10`}
         />
 
-        <div className="p-2 pb-0">
+        <div className="p-1.5 md:p-2 pb-0">
           {content.thumbnail_url ? (
-            <div className="relative h-32 overflow-hidden rounded bg-muted">
+            <div className="relative aspect-square overflow-hidden rounded bg-muted">
               <img
                 src={content.thumbnail_url}
                 alt={content.title}
@@ -407,24 +402,24 @@ function DateIdeaCard({
               />
             </div>
           ) : (
-            <div className="h-32 bg-muted/50 rounded flex items-center justify-center">
-              <span className="text-4xl">💕</span>
+            <div className="aspect-square bg-muted/50 rounded flex items-center justify-center">
+              <span className="text-3xl md:text-4xl">💕</span>
             </div>
           )}
         </div>
 
-        <div className="p-3 pt-2">
-          <span className="sticker sticker-date_idea text-[10px] mb-2 inline-block">
-            💕 Date Idea
+        <div className="p-2 md:p-3 pt-1.5 md:pt-2">
+          <span className="sticker sticker-date_idea text-[8px] md:text-[10px] mb-1.5 md:mb-2 inline-block">
+            💕 Date
           </span>
 
-          <h3 className="font-semibold text-sm line-clamp-2 mb-1">
+          <h3 className="font-semibold text-xs md:text-sm line-clamp-2 mb-1">
             {content.title}
           </h3>
 
           <CardTags tags={tags} />
 
-          <div className="space-y-1 mt-2">
+          <div className="hidden md:block space-y-1 mt-2">
             {data.location && <LocationLink location={data.location} />}
             {data.price_range && (
               <p className="text-xs text-muted-foreground">
@@ -433,8 +428,8 @@ function DateIdeaCard({
             )}
           </div>
 
-          <p className="text-xs text-primary mt-2 group-hover:underline">
-            View details →
+          <p className="text-[10px] md:text-xs text-primary mt-1.5 md:mt-2 group-hover:underline">
+            View →
           </p>
         </div>
       </div>
@@ -466,9 +461,9 @@ function GiftIdeaCard({
           )} transform -rotate-1 z-10`}
         />
 
-        <div className="p-2 pb-0">
+        <div className="p-1.5 md:p-2 pb-0">
           {content.thumbnail_url ? (
-            <div className="relative h-32 overflow-hidden rounded bg-muted">
+            <div className="relative aspect-square overflow-hidden rounded bg-muted">
               <img
                 src={content.thumbnail_url}
                 alt={content.title}
@@ -476,29 +471,31 @@ function GiftIdeaCard({
               />
             </div>
           ) : (
-            <div className="h-32 bg-muted/50 rounded flex items-center justify-center">
-              <span className="text-4xl">🎁</span>
+            <div className="aspect-square bg-muted/50 rounded flex items-center justify-center">
+              <span className="text-3xl md:text-4xl">🎁</span>
             </div>
           )}
         </div>
 
-        <div className="p-3 pt-2">
-          <span className="sticker sticker-gift_idea text-[10px] mb-2 inline-block">
-            🎁 Gift Idea
+        <div className="p-2 md:p-3 pt-1.5 md:pt-2">
+          <span className="sticker sticker-gift_idea text-[8px] md:text-[10px] mb-1.5 md:mb-2 inline-block">
+            🎁 Gift
           </span>
 
-          <h3 className="font-semibold text-sm line-clamp-2 mb-1">
+          <h3 className="font-semibold text-xs md:text-sm line-clamp-2 mb-1">
             {content.title}
           </h3>
 
           <CardTags tags={tags} />
 
           {data.cost && (
-            <p className="text-sm font-semibold text-gift mt-2">{data.cost}</p>
+            <p className="text-xs md:text-sm font-semibold text-gift mt-1.5 md:mt-2">
+              {data.cost}
+            </p>
           )}
 
-          <p className="text-xs text-primary mt-2 group-hover:underline">
-            View details →
+          <p className="text-[10px] md:text-xs text-primary mt-1.5 md:mt-2 group-hover:underline">
+            View →
           </p>
         </div>
       </div>
@@ -530,9 +527,9 @@ function TravelCard({
           )} transform rotate-1 z-10`}
         />
 
-        <div className="p-2 pb-0">
+        <div className="p-1.5 md:p-2 pb-0">
           {content.thumbnail_url ? (
-            <div className="relative h-32 overflow-hidden rounded bg-muted">
+            <div className="relative aspect-square overflow-hidden rounded bg-muted">
               <img
                 src={content.thumbnail_url}
                 alt={content.title}
@@ -540,24 +537,24 @@ function TravelCard({
               />
             </div>
           ) : (
-            <div className="h-32 bg-muted/50 rounded flex items-center justify-center">
-              <span className="text-4xl">✈️</span>
+            <div className="aspect-square bg-muted/50 rounded flex items-center justify-center">
+              <span className="text-3xl md:text-4xl">✈️</span>
             </div>
           )}
         </div>
 
-        <div className="p-3 pt-2">
-          <span className="sticker sticker-travel text-[10px] mb-2 inline-block">
+        <div className="p-2 md:p-3 pt-1.5 md:pt-2">
+          <span className="sticker sticker-travel text-[8px] md:text-[10px] mb-1.5 md:mb-2 inline-block">
             ✈️ Travel
           </span>
 
-          <h3 className="font-semibold text-sm line-clamp-2 mb-1">
+          <h3 className="font-semibold text-xs md:text-sm line-clamp-2 mb-1">
             {content.title}
           </h3>
 
           <CardTags tags={tags} />
 
-          <div className="space-y-1 mt-2">
+          <div className="hidden md:block space-y-1 mt-2">
             {data.location && <LocationLink location={data.location} />}
             {data.destination_country && (
               <p className="text-xs text-muted-foreground">
@@ -567,8 +564,8 @@ function TravelCard({
             )}
           </div>
 
-          <p className="text-xs text-primary mt-2 group-hover:underline">
-            View details →
+          <p className="text-[10px] md:text-xs text-primary mt-1.5 md:mt-2 group-hover:underline">
+            View →
           </p>
         </div>
       </div>
@@ -600,9 +597,9 @@ function OtherCard({
           )} transform -rotate-2 z-10`}
         />
 
-        <div className="p-2 pb-0">
+        <div className="p-1.5 md:p-2 pb-0">
           {content.thumbnail_url ? (
-            <div className="relative h-32 overflow-hidden rounded bg-muted">
+            <div className="relative aspect-square overflow-hidden rounded bg-muted">
               <img
                 src={content.thumbnail_url}
                 alt={content.title}
@@ -610,31 +607,31 @@ function OtherCard({
               />
             </div>
           ) : (
-            <div className="h-32 bg-muted/50 rounded flex items-center justify-center">
-              <span className="text-4xl">📌</span>
+            <div className="aspect-square bg-muted/50 rounded flex items-center justify-center">
+              <span className="text-3xl md:text-4xl">📌</span>
             </div>
           )}
         </div>
 
-        <div className="p-3 pt-2">
-          <span className="sticker sticker-other text-[10px] mb-2 inline-block">
+        <div className="p-2 md:p-3 pt-1.5 md:pt-2">
+          <span className="sticker sticker-other text-[8px] md:text-[10px] mb-1.5 md:mb-2 inline-block">
             📌 Saved
           </span>
 
-          <h3 className="font-semibold text-sm line-clamp-2 mb-1">
+          <h3 className="font-semibold text-xs md:text-sm line-clamp-2 mb-1">
             {content.title}
           </h3>
 
           <CardTags tags={tags} />
 
           {data.description && (
-            <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+            <p className="hidden md:block text-xs text-muted-foreground mt-2 line-clamp-2">
               {data.description}
             </p>
           )}
 
-          <p className="text-xs text-primary mt-2 group-hover:underline">
-            View details →
+          <p className="text-[10px] md:text-xs text-primary mt-1.5 md:mt-2 group-hover:underline">
+            View →
           </p>
         </div>
       </div>
