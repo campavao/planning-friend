@@ -39,11 +39,17 @@ interface ProcessRequest {
 const MAX_VIDEO_SIZE_FOR_FULL_ANALYSIS = 20 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
+  console.log("Process API called");
+
   let contentId: string | undefined;
   let userId: string | undefined;
 
   try {
     const body: ProcessRequest = await request.json();
+    console.log(
+      "Process API received body:",
+      JSON.stringify(body).slice(0, 200)
+    );
     contentId = body.contentId;
     // Support both old 'tiktokUrl' and new 'socialUrl' for backwards compatibility
     const socialUrl = body.socialUrl || body.tiktokUrl;
@@ -65,7 +71,10 @@ export async function POST(request: NextRequest) {
 
     // Check if we have MMS media attachments (from "Share to" on mobile)
     if (mmsMedia && mmsMedia.urls.length > 0) {
-      console.log(`Found ${mmsMedia.urls.length} MMS attachments:`, mmsMedia.types);
+      console.log(
+        `Found ${mmsMedia.urls.length} MMS attachments:`,
+        mmsMedia.types
+      );
     }
 
     // Step 1: Get video/media info from the platform (with fallbacks)
@@ -98,7 +107,10 @@ export async function POST(request: NextRequest) {
         // Use MMS image as thumbnail if we don't have one
         if (!videoInfo.thumbnailUrl && (mmsImageUrl || mmsVideoUrl)) {
           const thumbnailSource = mmsImageUrl || mmsVideoUrl;
-          console.log("Using MMS attachment as thumbnail source:", thumbnailSource);
+          console.log(
+            "Using MMS attachment as thumbnail source:",
+            thumbnailSource
+          );
           videoInfo.thumbnailUrl = thumbnailSource;
         }
       }

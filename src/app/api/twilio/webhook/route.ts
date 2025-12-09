@@ -9,7 +9,8 @@ function getBaseUrl(request: NextRequest): string {
     process.env.NEXT_PUBLIC_APP_URL &&
     !process.env.NEXT_PUBLIC_APP_URL.includes("localhost")
   ) {
-    return process.env.NEXT_PUBLIC_APP_URL;
+    // Remove trailing slash if present
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
   }
 
   // Use Vercel's URL if available
@@ -92,8 +93,11 @@ export async function POST(request: NextRequest) {
     const appUrl = getBaseUrl(request);
     console.log(`Processing URL: ${appUrl}/api/process`);
 
-    // Fire and forget - don't await
-    fetch(`${appUrl}/api/process`, {
+    // Fire and forget - don't await, but log the result
+    const processUrl = `${appUrl}/api/process`;
+    console.log(`Triggering process API at: ${processUrl}`);
+
+    fetch(processUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -113,9 +117,16 @@ export async function POST(request: NextRequest) {
               }
             : undefined,
       }),
-    }).catch((error) => {
-      console.error("Failed to trigger processing:", error);
-    });
+    })
+      .then((res) => {
+        console.log(`Process API response: ${res.status} ${res.statusText}`);
+        if (!res.ok) {
+          res.text().then((text) => console.error("Process API error:", text.slice(0, 500)));
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to trigger processing:", error);
+      });
 
     // Return empty TwiML response (no reply SMS for now)
     return new NextResponse(
