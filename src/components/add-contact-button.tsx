@@ -8,19 +8,48 @@ interface AddContactButtonProps {
   className?: string;
 }
 
+// Fetch and convert image to base64 for vCard
+async function getIconBase64(): Promise<string | null> {
+  try {
+    const response = await fetch("/apple-touch-icon.png");
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        // Remove the data URL prefix to get just the base64 data
+        const base64Data = base64.split(",")[1];
+        resolve(base64Data);
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 export function AddContactButton({
   variant = "button",
   className = "",
 }: AddContactButtonProps) {
   const phoneNumber = process.env.NEXT_PUBLIC_TWILIO_PHONE_NUMBER || "";
 
-  const handleAddContact = () => {
-    // Create vCard content
+  const handleAddContact = async () => {
+    // Get the app icon as base64
+    const iconBase64 = await getIconBase64();
+
+    // Create vCard content with optional photo
+    const photoLine = iconBase64
+      ? `PHOTO;ENCODING=b;TYPE=PNG:${iconBase64}\n`
+      : "";
+
     const vCard = `BEGIN:VCARD
 VERSION:3.0
 FN:Planning Friend
 TEL;TYPE=CELL:${phoneNumber}
-NOTE:Your planning friend! Text links to save meals, events, and ideas.
+${photoLine}NOTE:Your planning friend! Text TikTok or Instagram links to save meals, events, and ideas.
 END:VCARD`;
 
     // Create blob and download

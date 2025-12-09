@@ -146,7 +146,7 @@ function HomeScreenModal({
         </div>
 
         {isIOS ? (
-          <div className='space-y-4'>
+          <div className='space-y-3'>
             <div className='flex items-start gap-3 p-3 bg-secondary/50 rounded-lg'>
               <span className='text-2xl'>1️⃣</span>
               <div>
@@ -165,7 +165,23 @@ function HomeScreenModal({
               <span className='text-2xl'>2️⃣</span>
               <div>
                 <p className='font-medium text-sm'>
-                  Scroll down and tap &quot;Add to Home Screen&quot;
+                  Scroll down and tap &quot;More&quot;
+                </p>
+                <p className='text-xs text-muted-foreground mt-0.5'>
+                  Look for{" "}
+                  <span className='inline-flex items-center justify-center px-2 py-0.5 bg-muted rounded text-[10px] font-medium'>
+                    ••• More
+                  </span>{" "}
+                  at the bottom of the share menu
+                </p>
+              </div>
+            </div>
+
+            <div className='flex items-start gap-3 p-3 bg-secondary/50 rounded-lg'>
+              <span className='text-2xl'>3️⃣</span>
+              <div>
+                <p className='font-medium text-sm'>
+                  Tap &quot;Add to Home Screen&quot;
                 </p>
                 <p className='text-xs text-muted-foreground mt-0.5'>
                   It has a{" "}
@@ -178,7 +194,7 @@ function HomeScreenModal({
             </div>
 
             <div className='flex items-start gap-3 p-3 bg-secondary/50 rounded-lg'>
-              <span className='text-2xl'>3️⃣</span>
+              <span className='text-2xl'>4️⃣</span>
               <div>
                 <p className='font-medium text-sm'>Tap &quot;Add&quot;</p>
                 <p className='text-xs text-muted-foreground mt-0.5'>
@@ -194,7 +210,7 @@ function HomeScreenModal({
               <div>
                 <p className='font-medium text-sm'>On iPhone Safari</p>
                 <p className='text-xs text-muted-foreground mt-0.5'>
-                  Tap Share → Add to Home Screen
+                  Tap Share → More → Add to Home Screen
                 </p>
               </div>
             </div>

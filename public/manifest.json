@@ -1,6 +1,6 @@
 {
   "name": "Planning Friend",
-  "short_name": "Planning",
+  "short_name": "Planning Friend",
   "description": "Your planning friend! Text links to save meals, events, and date ideas.",
   "start_url": "/dashboard",
   "display": "standalone",
