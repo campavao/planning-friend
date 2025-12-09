@@ -269,22 +269,29 @@ async function tryPageScrape(
 
   for (const userAgent of userAgents) {
     try {
-      console.log(`Trying Instagram page scrape with UA: ${userAgent.slice(0, 30)}...`);
+      console.log(
+        `Trying Instagram page scrape with UA: ${userAgent.slice(0, 30)}...`
+      );
 
       const response = await fetch(resolvedUrl, {
         headers: {
           "User-Agent": userAgent,
-          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+          Accept:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
           "Accept-Language": "en-US,en;q=0.9",
           "Accept-Encoding": "gzip, deflate, br",
           "Cache-Control": "no-cache",
-          "Pragma": "no-cache",
+          Pragma: "no-cache",
         },
         redirect: "follow",
       });
 
       if (!response.ok) {
-        console.log(`Instagram page scrape returned ${response.status} with UA: ${userAgent.slice(0, 20)}...`);
+        console.log(
+          `Instagram page scrape returned ${
+            response.status
+          } with UA: ${userAgent.slice(0, 20)}...`
+        );
         continue;
       }
 
@@ -299,13 +306,19 @@ async function tryPageScrape(
         html.match(/<meta[^>]*property="og:image"[^>]*content="([^"]*)"/) ||
         html.match(/<meta[^>]*content="([^"]*)"[^>]*property="og:image"/);
       const ogDescription =
-        html.match(/<meta[^>]*property="og:description"[^>]*content="([^"]*)"/) ||
+        html.match(
+          /<meta[^>]*property="og:description"[^>]*content="([^"]*)"/
+        ) ||
         html.match(/<meta[^>]*content="([^"]*)"[^>]*property="og:description"/);
       const ogVideo =
         html.match(/<meta[^>]*property="og:video"[^>]*content="([^"]*)"/) ||
         html.match(/<meta[^>]*content="([^"]*)"[^>]*property="og:video"/) ||
-        html.match(/<meta[^>]*property="og:video:secure_url"[^>]*content="([^"]*)"/) ||
-        html.match(/<meta[^>]*content="([^"]*)"[^>]*property="og:video:secure_url"/);
+        html.match(
+          /<meta[^>]*property="og:video:secure_url"[^>]*content="([^"]*)"/
+        ) ||
+        html.match(
+          /<meta[^>]*content="([^"]*)"[^>]*property="og:video:secure_url"/
+        );
 
       console.log("OG tags found:", {
         hasTitle: !!ogTitle,
@@ -314,16 +327,58 @@ async function tryPageScrape(
         hasVideo: !!ogVideo,
       });
 
+      // Log actual URLs for debugging
+      if (ogImage?.[1]) {
+        console.log("OG image URL:", ogImage[1].slice(0, 100) + "...");
+      }
+      if (ogVideo?.[1]) {
+        console.log("OG video URL:", ogVideo[1].slice(0, 100) + "...");
+      }
+
+      // Try to extract better quality URLs from Instagram's embedded JSON data
+      // Instagram embeds media data in script tags as JSON
+      let betterVideoUrl: string | undefined;
+      let betterThumbnailUrl: string | undefined;
+
+      // Look for video_url in the page's JSON data
+      const videoUrlMatch = html.match(/"video_url"\s*:\s*"([^"]+)"/);
+      if (videoUrlMatch) {
+        // Unescape the URL (Instagram escapes forward slashes)
+        betterVideoUrl = videoUrlMatch[1]
+          .replace(/\\u0026/g, "&")
+          .replace(/\\\//g, "/");
+        console.log(
+          "Found video_url in JSON:",
+          betterVideoUrl.slice(0, 100) + "..."
+        );
+      }
+
+      // Look for display_url (high quality image)
+      const displayUrlMatch = html.match(/"display_url"\s*:\s*"([^"]+)"/);
+      if (displayUrlMatch) {
+        betterThumbnailUrl = displayUrlMatch[1]
+          .replace(/\\u0026/g, "&")
+          .replace(/\\\//g, "/");
+        console.log(
+          "Found display_url in JSON:",
+          betterThumbnailUrl.slice(0, 100) + "..."
+        );
+      }
+
       // Try to extract author from title (format: "Username on Instagram: ...")
       let author: string | undefined;
-      const authorMatch = ogTitle?.[1]?.match(/^([^@\s]+)\s+(?:on\s+)?Instagram/i);
+      const authorMatch = ogTitle?.[1]?.match(
+        /^([^@\s]+)\s+(?:on\s+)?Instagram/i
+      );
       if (authorMatch) {
         author = authorMatch[1];
       }
 
       // Also try to find author in description
       if (!author && ogDescription?.[1]) {
-        const descAuthorMatch = ogDescription[1].match(/^[\d,]+\s+likes?,\s+[\d,]+\s+comments?\s+-\s+([^@\s]+)\s+on/i);
+        const descAuthorMatch = ogDescription[1].match(
+          /^[\d,]+\s+likes?,\s+[\d,]+\s+comments?\s+-\s+([^@\s]+)\s+on/i
+        );
         if (descAuthorMatch) {
           author = descAuthorMatch[1];
         }
@@ -331,11 +386,18 @@ async function tryPageScrape(
 
       const description =
         ogDescription?.[1] || ogTitle?.[1] || "Instagram post";
-      const thumbnailUrl = ogImage?.[1] || undefined;
-      const videoUrl = ogVideo?.[1] || undefined;
+      // Prefer JSON-extracted URLs over OG tag URLs (they work better)
+      const thumbnailUrl = betterThumbnailUrl || ogImage?.[1] || undefined;
+      const videoUrl = betterVideoUrl || ogVideo?.[1] || undefined;
 
-      if (description && description !== "Instagram" && description !== "Instagram post") {
+      if (
+        description &&
+        description !== "Instagram" &&
+        description !== "Instagram post"
+      ) {
         console.log("Page scrape successful with meaningful content");
+        console.log("Using thumbnail URL:", thumbnailUrl?.slice(0, 80) + "...");
+        console.log("Using video URL:", videoUrl?.slice(0, 80) + "...");
         return {
           videoUrl,
           thumbnailUrl,
@@ -361,7 +423,10 @@ async function tryPageScrape(
 
       console.log("No useful data found with this UA, trying next...");
     } catch (error) {
-      console.log(`Page scrape failed with UA: ${userAgent.slice(0, 20)}...`, error);
+      console.log(
+        `Page scrape failed with UA: ${userAgent.slice(0, 20)}...`,
+        error
+      );
       continue;
     }
   }
@@ -422,25 +487,43 @@ export async function getInstagramMediaInfo(
 
 // Download media with Instagram-specific headers
 // Instagram CDN requires proper Referer and other headers to allow downloads
-export async function downloadWithInstagramHeaders(url: string): Promise<Buffer> {
+export async function downloadWithInstagramHeaders(
+  url: string
+): Promise<Buffer> {
+  console.log("Downloading Instagram media from:", url.slice(0, 100) + "...");
+
   const response = await fetch(url, {
     headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      "Referer": "https://www.instagram.com/",
-      "Accept": "image/webp,image/apng,image/*,video/*,*/*;q=0.8",
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      Referer: "https://www.instagram.com/",
+      Accept: "image/webp,image/apng,image/*,video/*,*/*;q=0.8",
       "Accept-Language": "en-US,en;q=0.9",
       "Sec-Fetch-Dest": "image",
       "Sec-Fetch-Mode": "no-cors",
       "Sec-Fetch-Site": "cross-site",
-      "Origin": "https://www.instagram.com",
+      Origin: "https://www.instagram.com",
     },
   });
 
+  console.log(
+    "Instagram media download response:",
+    response.status,
+    response.statusText
+  );
+
   if (!response.ok) {
-    throw new Error(`Failed to download media: ${response.status}`);
+    throw new Error(
+      `Failed to download media: ${response.status} ${response.statusText}`
+    );
   }
 
   const arrayBuffer = await response.arrayBuffer();
+  console.log(
+    "Downloaded Instagram media, size:",
+    arrayBuffer.byteLength,
+    "bytes"
+  );
   return Buffer.from(arrayBuffer);
 }
 

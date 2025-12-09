@@ -1469,6 +1469,9 @@ export async function uploadThumbnailFromUrl(
       imageUrl.includes("fbcdn") ||
       imageUrl.includes("cdninstagram");
 
+    console.log("Downloading thumbnail from:", imageUrl.slice(0, 100) + "...");
+    console.log("Is Instagram CDN:", isInstagramCdn);
+
     // Build headers - Instagram CDN requires Referer and other headers
     const headers: Record<string, string> = {
       "User-Agent":
@@ -1487,6 +1490,11 @@ export async function uploadThumbnailFromUrl(
 
     // Download the image
     const response = await fetch(imageUrl, { headers });
+    console.log(
+      "Thumbnail download response:",
+      response.status,
+      response.statusText
+    );
 
     if (!response.ok) {
       console.error(`Failed to download thumbnail: ${response.status}`);
