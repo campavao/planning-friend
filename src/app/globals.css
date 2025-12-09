@@ -127,7 +127,7 @@
 
 /* Handwritten font utility */
 .font-handwritten {
-  font-family: var(--font-handwritten), cursive;
+  font-family: var(--font-handwritten), serif;
 }
 
 /* Paper background with subtle texture */
@@ -420,7 +420,7 @@
 
 /* Handwritten title style */
 .title-handwritten {
-  font-family: var(--font-handwritten), cursive;
+  font-family: var(--font-handwritten), serif;
   font-size: 2.5rem;
   font-weight: 600;
   color: #2d2d2d;

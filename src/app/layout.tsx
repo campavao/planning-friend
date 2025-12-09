@@ -1,7 +1,7 @@
 import { BottomNav } from "@/components/bottom-nav";
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
-import { Caveat, DM_Sans, JetBrains_Mono } from "next/font/google";
+import { Crimson_Text, DM_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -16,10 +16,10 @@ const jetbrainsMono = JetBrains_Mono({
   weight: ["400", "500"],
 });
 
-const caveat = Caveat({
+const crimsonText = Crimson_Text({
   variable: "--font-handwritten",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -37,6 +37,25 @@ export const metadata: Metadata = {
     "tiktok",
     "tiktok planner",
   ],
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Planning Friend",
+  },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
 };
 
 export default function RootLayout({
@@ -47,7 +66,7 @@ export default function RootLayout({
   return (
     <html lang='en'>
       <body
-        className={`${dmSans.variable} ${jetbrainsMono.variable} ${caveat.variable} font-sans antialiased min-h-screen bg-paper`}
+        className={`${dmSans.variable} ${jetbrainsMono.variable} ${crimsonText.variable} font-sans antialiased min-h-screen bg-paper`}
       >
         {children}
         <BottomNav />

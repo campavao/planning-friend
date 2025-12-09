@@ -8,6 +8,7 @@ import {
   AddContactButton,
   PhoneNumberDisplay,
 } from "@/components/add-contact-button";
+import { AddToHomeScreenButton } from "@/components/add-to-homescreen-button";
 
 interface UserSettings {
   home_region?: string;
@@ -203,10 +204,11 @@ export default function SettingsPage() {
 
           <div className="flex flex-wrap items-center gap-3 mb-4">
             <AddContactButton variant="button" />
-            <span className="text-sm text-muted-foreground">
-              <PhoneNumberDisplay />
-            </span>
+            <AddToHomeScreenButton variant="button" />
           </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            Text links to <PhoneNumberDisplay /> to save content
+          </p>
 
           <p className="text-xs text-muted-foreground">
             Version 1.0 • Made with 💕
