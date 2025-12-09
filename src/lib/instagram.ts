@@ -54,201 +54,109 @@ function detectMediaType(url: string): "post" | "reel" | "story" | "unknown" {
   return "unknown";
 }
 
-// Method 1: Try RapidAPI Instagram Video Downloader
-// Using: https://rapidapi.com/kingmakerapi/api/instagram-video-downloader17
-async function tryRapidAPI(
+// Method 1: Try Apify Instagram Video Downloader
+// Using: https://apify.com/epctex/instagram-video-downloader
+async function tryApifyAPI(
   resolvedUrl: string
 ): Promise<InstagramMediaInfo | null> {
-  const rapidApiKey = process.env.RAPIDAPI_KEY;
-  const rapidApiHost =
-    process.env.INSTAGRAM_RAPIDAPI_HOST ||
-    "instagram-video-downloader17.p.rapidapi.com";
+  const apifyToken = process.env.APIFY_API_TOKEN;
 
-  if (!rapidApiKey) {
-    console.log("RAPIDAPI_KEY not set, skipping Instagram RapidAPI method");
+  if (!apifyToken) {
+    console.log("APIFY_API_TOKEN not set, skipping Apify method");
     return null;
   }
 
   try {
-    // instagram-video-downloader17 API format:
-    // POST /index.php with application/x-www-form-urlencoded
-    const apiUrl = `https://${rapidApiHost}/index.php`;
-    console.log(`Calling Instagram RapidAPI: POST ${apiUrl}`);
-    console.log(`With URL: ${resolvedUrl}`);
+    // Apify Actor API - run synchronously and get dataset items
+    const apiUrl = `https://api.apify.com/v2/acts/epctex~instagram-video-downloader/run-sync-get-dataset-items?token=${apifyToken}`;
+    console.log(`Calling Apify Instagram API for: ${resolvedUrl}`);
 
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
-        "x-rapidapi-key": rapidApiKey,
-        "x-rapidapi-host": rapidApiHost,
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/json",
       },
-      body: `url=${encodeURIComponent(resolvedUrl)}`,
+      body: JSON.stringify({
+        startUrls: [resolvedUrl],
+        quality: "highest",
+        compression: "none",
+        proxy: {
+          useApifyProxy: true,
+        },
+      }),
     });
 
-    console.log(`Instagram RapidAPI response status: ${response.status}`);
+    console.log(`Apify response status: ${response.status}`);
 
     if (!response.ok) {
       const errorText = await response.text();
       console.log(
-        `Instagram RapidAPI returned ${response.status}: ${response.statusText}`,
+        `Apify returned ${response.status}: ${response.statusText}`,
         errorText.slice(0, 500)
       );
       return null;
     }
 
     const data = await response.json();
+    console.log("Apify response:", JSON.stringify(data, null, 2).slice(0, 1500));
 
-    // Check if response has actual data
-    if (!data || (typeof data === 'object' && Object.keys(data).length === 0)) {
-      console.log("Empty response from Instagram RapidAPI");
+    // Apify returns an array of results
+    if (!Array.isArray(data) || data.length === 0) {
+      console.log("Empty response from Apify");
       return null;
     }
 
-    const result = parseInstagramResponse(data, resolvedUrl);
-    return result;
-  } catch (error) {
-    console.log(`Instagram RapidAPI failed:`, error);
-    return null;
-  }
-}
+    const item = data[0];
 
-// Parse RapidAPI response into our format
-function parseInstagramResponse(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  data: Record<string, any>,
-  resolvedUrl: string
-): InstagramMediaInfo | null {
-  console.log("Instagram RapidAPI raw response:", JSON.stringify(data, null, 2).slice(0, 2000));
+    // Extract video URL and thumbnail from Apify response
+    let videoUrl: string | undefined;
+    let thumbnailUrl: string | undefined;
 
-  // Check for error response first
-  if (data.error === true) {
-    console.log("Instagram RapidAPI error:", data.message);
-    return null;
-  }
-
-  // Parse the response - handle different API response formats
-  let videoUrl: string | undefined;
-  let thumbnailUrl: string | undefined;
-  let description = "";
-  let author: string | undefined;
-
-  // instagram-video-downloader17 format (preferred):
-  // { "error": false, "title": "...", "thumbnail": "...", "owner": {...}, "medias": { "videos": [...], "images": [...] } }
-  if (data.medias && typeof data.medias === "object" && (data.medias.videos || data.medias.images)) {
-    console.log("Parsing instagram-video-downloader17 format");
-
-    // Get video URL from medias.videos array
-    if (Array.isArray(data.medias.videos) && data.medias.videos.length > 0) {
-      videoUrl = data.medias.videos[0].url;
+    // Check for video URLs in the response
+    if (item.videoUrl) {
+      videoUrl = item.videoUrl;
+    } else if (item.video) {
+      videoUrl = item.video;
+    } else if (item.downloadUrl) {
+      videoUrl = item.downloadUrl;
     }
 
-    // Get image URL from medias.images array (for image posts)
-    if (Array.isArray(data.medias.images) && data.medias.images.length > 0) {
-      // If no video, use image as main content
-      if (!videoUrl) {
-        videoUrl = data.medias.images[0].url;
-      }
+    // Check for thumbnail
+    if (item.thumbnailUrl) {
+      thumbnailUrl = item.thumbnailUrl;
+    } else if (item.thumbnail) {
+      thumbnailUrl = item.thumbnail;
+    } else if (item.displayUrl) {
+      thumbnailUrl = item.displayUrl;
     }
 
-    // Get thumbnail directly from response
-    thumbnailUrl = data.thumbnail;
+    const description = item.caption || item.description || item.text || "Instagram post";
+    const author = item.ownerUsername || item.username || item.owner?.username;
 
-    // Get description from title field
-    description = data.title || "";
-
-    // Get author from owner object or author field
-    author = data.owner?.username || data.author;
-
-    console.log("Parsed instagram-video-downloader17:", {
-      hasVideo: !!videoUrl,
+    console.log("Parsed Apify response:", {
+      hasVideoUrl: !!videoUrl,
       hasThumbnail: !!thumbnailUrl,
       author,
-      descriptionPreview: description?.slice(0, 50)
+      descriptionPreview: description?.slice(0, 50),
     });
-  }
-  // instagram-video-downloader13 format:
-  // { "status": "success", "media": [{ "type": "video", "url": "..." }] }
-  else if (data.status === "success" && Array.isArray(data.media)) {
-    console.log("Parsing instagram-video-downloader13 format");
-    for (const item of data.media) {
-      if (item.type === "video" && item.url) {
-        videoUrl = item.url;
-      } else if (item.type === "image" && item.url) {
-        if (!thumbnailUrl) {
-          thumbnailUrl = item.url;
-        }
-      }
-      if (item.thumbnail) {
-        thumbnailUrl = item.thumbnail;
-      }
-    }
-    if (videoUrl && !thumbnailUrl) {
-      thumbnailUrl = videoUrl;
-    }
-    description = data.caption || data.title || "";
-    author = data.username || data.author;
-  }
-  // Alternative: result array format
-  else if (Array.isArray(data.result)) {
-    const firstItem = data.result[0];
-    if (firstItem) {
-      videoUrl = firstItem.url || firstItem.video_url;
-      thumbnailUrl = firstItem.thumbnail || firstItem.thumb;
-    }
-    description = data.title || data.caption || "";
-    author = data.username || data.author;
-  }
-  // Direct video URL in response
-  else if (data.video || (data.url && data.thumbnail)) {
-    videoUrl = (data.video || data.url) as string;
-    thumbnailUrl = (data.thumbnail || data.thumb || data.cover) as string;
-    description = ((data.title || data.caption) as string) || "";
-    author = (data.username || data.author || data.owner?.username) as string;
-  }
-  // Direct video_url/thumbnail in response
-  else if (data.video_url || data.thumbnail) {
-    videoUrl = data.video_url as string;
-    thumbnailUrl = data.thumbnail as string;
-    description = (data.caption as string) || "";
-    author = data.username as string;
-  }
-  // Data object wrapper
-  else if (data.data) {
-    videoUrl = data.data.video_url || data.data.media?.[0]?.video_url;
-    thumbnailUrl =
-      data.data.thumbnail_src ||
-      data.data.display_url ||
-      data.data.media?.[0]?.thumbnail_url ||
-      data.data.media?.[0]?.image_url;
-    description = data.data.caption || "";
-    author = data.data.owner?.username || data.data.owner?.full_name;
-  }
-  // GraphQL response (some APIs use this)
-  else if (data.graphql?.shortcode_media) {
-    const media = data.graphql.shortcode_media;
-    videoUrl = media.is_video ? media.video_url : undefined;
-    thumbnailUrl = media.display_url;
-    description =
-      media.edge_media_to_caption?.edges?.[0]?.node?.text || "";
-    author = media.owner?.username;
-  }
 
-  console.log("Parsed Instagram data:", { videoUrl: !!videoUrl, thumbnailUrl: !!thumbnailUrl, description: description?.slice(0, 50) });
+    if (!videoUrl && !thumbnailUrl) {
+      console.log("No usable media URLs from Apify");
+      return null;
+    }
 
-  if (!thumbnailUrl && !videoUrl && !description) {
-    console.log("Instagram RapidAPI returned no usable data from parsing");
+    return {
+      videoUrl,
+      thumbnailUrl,
+      description,
+      author,
+      originalUrl: resolvedUrl,
+      mediaType: detectMediaType(resolvedUrl),
+    };
+  } catch (error) {
+    console.log(`Apify API failed:`, error);
     return null;
   }
-
-  return {
-    videoUrl,
-    thumbnailUrl,
-    description: description || "Instagram post",
-    author,
-    originalUrl: resolvedUrl,
-    mediaType: detectMediaType(resolvedUrl),
-  };
 }
 
 // Extract metadata from Instagram page using Open Graph tags
@@ -459,12 +367,12 @@ export async function getInstagramMediaInfo(
   const resolvedUrl = await resolveShortUrl(instagramUrl);
   console.log(`Resolved Instagram URL: ${resolvedUrl}`);
 
-  // Try RapidAPI first (best quality, can get video URLs)
-  console.log("Trying Instagram RapidAPI method...");
-  const rapidApiResult = await tryRapidAPI(resolvedUrl);
-  if (rapidApiResult) {
-    console.log("Instagram RapidAPI method succeeded");
-    return rapidApiResult;
+  // Try Apify first (best quality, can get video URLs)
+  console.log("Trying Apify Instagram API...");
+  const apifyResult = await tryApifyAPI(resolvedUrl);
+  if (apifyResult) {
+    console.log("Apify Instagram API succeeded");
+    return apifyResult;
   }
 
   // Fall back to page scraping
@@ -486,45 +394,59 @@ export async function getInstagramMediaInfo(
 }
 
 // Download media with Instagram-specific headers
-// Instagram CDN requires proper Referer and other headers to allow downloads
+// Try multiple user agents since Instagram CDN is picky about who can download
 export async function downloadWithInstagramHeaders(
   url: string
 ): Promise<Buffer> {
   console.log("Downloading Instagram media from:", url.slice(0, 100) + "...");
 
-  const response = await fetch(url, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      Referer: "https://www.instagram.com/",
-      Accept: "image/webp,image/apng,image/*,video/*,*/*;q=0.8",
-      "Accept-Language": "en-US,en;q=0.9",
-      "Sec-Fetch-Dest": "image",
-      "Sec-Fetch-Mode": "no-cors",
-      "Sec-Fetch-Site": "cross-site",
-      Origin: "https://www.instagram.com",
-    },
-  });
+  // Try multiple user agents - Facebook crawler often works best
+  const userAgents = [
+    // Facebook crawler - same one that works for scraping
+    "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+    // Twitter bot
+    "Twitterbot/1.0",
+    // WhatsApp
+    "WhatsApp/2.23.20.0",
+    // Standard browser with Instagram referer
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  ];
 
-  console.log(
-    "Instagram media download response:",
-    response.status,
-    response.statusText
-  );
+  for (const userAgent of userAgents) {
+    try {
+      console.log(`Trying download with UA: ${userAgent.slice(0, 30)}...`);
 
-  if (!response.ok) {
-    throw new Error(
-      `Failed to download media: ${response.status} ${response.statusText}`
-    );
+      const response = await fetch(url, {
+        headers: {
+          "User-Agent": userAgent,
+          "Accept": "image/webp,image/apng,image/*,video/*,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+      });
+
+      console.log(
+        "Instagram media download response:",
+        response.status,
+        response.statusText
+      );
+
+      if (response.ok) {
+        const arrayBuffer = await response.arrayBuffer();
+        console.log(
+          "Downloaded Instagram media, size:",
+          arrayBuffer.byteLength,
+          "bytes"
+        );
+        return Buffer.from(arrayBuffer);
+      }
+
+      console.log(`UA ${userAgent.slice(0, 20)}... failed with ${response.status}`);
+    } catch (error) {
+      console.log(`UA ${userAgent.slice(0, 20)}... error:`, error);
+    }
   }
 
-  const arrayBuffer = await response.arrayBuffer();
-  console.log(
-    "Downloaded Instagram media, size:",
-    arrayBuffer.byteLength,
-    "bytes"
-  );
-  return Buffer.from(arrayBuffer);
+  throw new Error("Failed to download media with any user agent");
 }
 
 // Download Instagram video/image for AI processing

@@ -1463,7 +1463,7 @@ export async function uploadThumbnailFromUrl(
   contentId: string
 ): Promise<string | null> {
   try {
-    // Check if this is an Instagram/Facebook CDN URL (requires special headers)
+    // Check if this is an Instagram/Facebook CDN URL (requires special handling)
     const isInstagramCdn =
       imageUrl.includes("instagram") ||
       imageUrl.includes("fbcdn") ||
@@ -1472,33 +1472,61 @@ export async function uploadThumbnailFromUrl(
     console.log("Downloading thumbnail from:", imageUrl.slice(0, 100) + "...");
     console.log("Is Instagram CDN:", isInstagramCdn);
 
-    // Build headers - Instagram CDN requires Referer and other headers
-    const headers: Record<string, string> = {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    };
+    let response: Response | null = null;
 
     if (isInstagramCdn) {
-      headers["Referer"] = "https://www.instagram.com/";
-      headers["Accept"] = "image/webp,image/apng,image/*,*/*;q=0.8";
-      headers["Accept-Language"] = "en-US,en;q=0.9";
-      headers["Sec-Fetch-Dest"] = "image";
-      headers["Sec-Fetch-Mode"] = "no-cors";
-      headers["Sec-Fetch-Site"] = "cross-site";
-      headers["Origin"] = "https://www.instagram.com";
-    }
+      // Try multiple user agents for Instagram CDN
+      const userAgents = [
+        "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+        "Twitterbot/1.0",
+        "WhatsApp/2.23.20.0",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      ];
 
-    // Download the image
-    const response = await fetch(imageUrl, { headers });
-    console.log(
-      "Thumbnail download response:",
-      response.status,
-      response.statusText
-    );
+      for (const userAgent of userAgents) {
+        try {
+          console.log(
+            `Trying thumbnail download with UA: ${userAgent.slice(0, 30)}...`
+          );
+          const tryResponse = await fetch(imageUrl, {
+            headers: {
+              "User-Agent": userAgent,
+              Accept: "image/webp,image/apng,image/*,*/*;q=0.8",
+              "Accept-Language": "en-US,en;q=0.9",
+            },
+          });
+          console.log(`Thumbnail response: ${tryResponse.status}`);
+          if (tryResponse.ok) {
+            response = tryResponse;
+            break;
+          }
+        } catch (e) {
+          console.log(`UA ${userAgent.slice(0, 20)}... failed:`, e);
+        }
+      }
 
-    if (!response.ok) {
-      console.error(`Failed to download thumbnail: ${response.status}`);
-      return null;
+      if (!response) {
+        console.error("Failed to download Instagram thumbnail with any UA");
+        return null;
+      }
+    } else {
+      // Standard download for non-Instagram URLs
+      response = await fetch(imageUrl, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        },
+      });
+      console.log(
+        "Thumbnail download response:",
+        response.status,
+        response.statusText
+      );
+
+      if (!response.ok) {
+        console.error(`Failed to download thumbnail: ${response.status}`);
+        return null;
+      }
     }
 
     const contentType = response.headers.get("content-type") || "image/jpeg";
