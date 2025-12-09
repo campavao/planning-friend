@@ -1,6 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getContentById, updateContent, deleteContent, getContentTags } from "@/lib/supabase";
+import {
+  deleteContent,
+  deleteThumbnail,
+  getContentById,
+  getContentTags,
+  updateContent,
+} from "@/lib/supabase";
 import { cookies } from "next/headers";
+import { NextRequest, NextResponse } from "next/server";
 
 interface SessionData {
   userId: string;
@@ -140,6 +146,9 @@ export async function DELETE(
 
     await deleteContent(id, session.userId);
 
+    // Clean up the thumbnail from storage
+    await deleteThumbnail(id);
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting content:", error);
@@ -149,4 +158,3 @@ export async function DELETE(
     );
   }
 }
-

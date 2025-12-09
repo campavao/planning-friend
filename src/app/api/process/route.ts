@@ -12,6 +12,7 @@ import {
   deleteContent,
   getOrCreateTags,
   addTagsToContent,
+  uploadThumbnailFromUrl,
 } from "@/lib/supabase";
 
 interface ProcessRequest {
@@ -61,7 +62,24 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    // Step 2: Analyze the video using best available method
+    // Step 2: Upload thumbnail to Supabase Storage (so it doesn't expire)
+    let persistentThumbnailUrl: string | undefined;
+    if (videoInfo.thumbnailUrl) {
+      console.log("Uploading thumbnail to storage...");
+      const uploadedUrl = await uploadThumbnailFromUrl(
+        videoInfo.thumbnailUrl,
+        contentId
+      );
+      if (uploadedUrl) {
+        persistentThumbnailUrl = uploadedUrl;
+        console.log("Thumbnail uploaded successfully:", persistentThumbnailUrl);
+      } else {
+        console.log("Thumbnail upload failed, will use original URL as fallback");
+        persistentThumbnailUrl = videoInfo.thumbnailUrl;
+      }
+    }
+
+    // Step 3: Analyze the video using best available method
     let analysisResult: MultiItemAnalysisResult | undefined;
 
     // Try full video analysis if we have a video URL
@@ -97,7 +115,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Fall back to thumbnail analysis if we have a thumbnail
+    // Fall back to thumbnail analysis if we have a thumbnail (use original URL for analysis)
     if (!analysisResult && videoInfo.thumbnailUrl) {
       try {
         console.log("Using thumbnail analysis...");
@@ -128,7 +146,7 @@ export async function POST(request: NextRequest) {
       })),
     });
 
-    // Step 3: Handle single vs multi-item results
+    // Step 4: Handle single vs multi-item results
     // Validate that we have at least one item
     if (!analysisResult.items || analysisResult.items.length === 0) {
       console.error("No items returned from analysis");
@@ -153,6 +171,7 @@ export async function POST(request: NextRequest) {
       await deleteContent(contentId, userId);
 
       // Create individual content entries for each item
+      // For multi-item, we need to upload separate thumbnails for each
       const createdContents = [];
       for (const item of analysisResult.items) {
         const content = await saveContent({
@@ -161,8 +180,21 @@ export async function POST(request: NextRequest) {
           category: item.category,
           title: item.title,
           data: item.data,
-          thumbnail_url: videoInfo.thumbnailUrl,
+          thumbnail_url: persistentThumbnailUrl,
         });
+
+        // Upload thumbnail for this specific content item (since contentId changes)
+        if (videoInfo.thumbnailUrl && persistentThumbnailUrl) {
+          const itemThumbnailUrl = await uploadThumbnailFromUrl(
+            videoInfo.thumbnailUrl,
+            content.id
+          );
+          if (itemThumbnailUrl) {
+            // Update with the item-specific thumbnail URL
+            await updateContent(content.id, { thumbnail_url: itemThumbnailUrl });
+            content.thumbnail_url = itemThumbnailUrl;
+          }
+        }
         createdContents.push(content);
         console.log(`Created content: ${content.id} - ${content.title}`);
 
@@ -196,7 +228,7 @@ export async function POST(request: NextRequest) {
         category: item.category,
         title: item.title,
         data: item.data,
-        thumbnail_url: videoInfo.thumbnailUrl,
+        thumbnail_url: persistentThumbnailUrl,
         status: "completed",
       });
 

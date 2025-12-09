@@ -1438,3 +1438,86 @@ export async function removePlanShare(
     throw new Error(`Failed to remove plan share: ${error.message}`);
   }
 }
+
+// ==================== Storage ====================
+
+const THUMBNAILS_BUCKET = "thumbnails";
+
+// Download image from URL and upload to Supabase Storage
+export async function uploadThumbnailFromUrl(
+  imageUrl: string,
+  contentId: string
+): Promise<string | null> {
+  try {
+    // Download the image
+    const response = await fetch(imageUrl, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      },
+    });
+
+    if (!response.ok) {
+      console.error(`Failed to download thumbnail: ${response.status}`);
+      return null;
+    }
+
+    const contentType = response.headers.get("content-type") || "image/jpeg";
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // Determine file extension from content type
+    let extension = "jpg";
+    if (contentType.includes("png")) {
+      extension = "png";
+    } else if (contentType.includes("webp")) {
+      extension = "webp";
+    } else if (contentType.includes("gif")) {
+      extension = "gif";
+    }
+
+    // Upload to Supabase Storage
+    const supabase = createServerClient();
+    const fileName = `${contentId}.${extension}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(THUMBNAILS_BUCKET)
+      .upload(fileName, buffer, {
+        contentType,
+        upsert: true, // Overwrite if exists
+      });
+
+    if (uploadError) {
+      console.error("Failed to upload thumbnail:", uploadError);
+      return null;
+    }
+
+    // Get the public URL
+    const { data: urlData } = supabase.storage
+      .from(THUMBNAILS_BUCKET)
+      .getPublicUrl(fileName);
+
+    return urlData.publicUrl;
+  } catch (error) {
+    console.error("Error uploading thumbnail:", error);
+    return null;
+  }
+}
+
+// Delete thumbnail from storage
+export async function deleteThumbnail(contentId: string): Promise<void> {
+  const supabase = createServerClient();
+
+  // Try to delete all possible extensions
+  const extensions = ["jpg", "png", "webp", "gif"];
+  const filesToDelete = extensions.map((ext) => `${contentId}.${ext}`);
+
+  const { error } = await supabase.storage
+    .from(THUMBNAILS_BUCKET)
+    .remove(filesToDelete);
+
+  if (error) {
+    console.error("Failed to delete thumbnail:", error);
+    // Don't throw - this is a cleanup operation
+  }
+}
