@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { sendVerifyOtp, checkVerifyOtp } from "./twilio";
+import { checkVerifyOtp, sendVerifyOtp } from "./twilio";
 
 // ==================== Phone Auth (OTP via Twilio Verify) ====================
 // Using Twilio Verify instead of Supabase's built-in phone auth to avoid
@@ -1341,7 +1341,9 @@ export async function getSharedPlansWithDetails(
   }
 
   // Get owner details
-  const ownerIds = [...new Set(plans.map((p: { user_id: string }) => p.user_id))];
+  const ownerIds = [
+    ...new Set(plans.map((p: { user_id: string }) => p.user_id)),
+  ];
   const { data: owners, error: ownersError } = await supabase
     .from("users")
     .select("id, phone_number")
@@ -1352,8 +1354,18 @@ export async function getSharedPlansWithDetails(
   }
 
   // Create lookup maps
-  const planMap = new Map(plans.map((p: { id: string; user_id: string; week_start: string }) => [p.id, p]));
-  const ownerMap = new Map(owners.map((o: { id: string; phone_number: string }) => [o.id, o.phone_number]));
+  const planMap = new Map(
+    plans.map((p: { id: string; user_id: string; week_start: string }) => [
+      p.id,
+      p,
+    ])
+  );
+  const ownerMap = new Map(
+    owners.map((o: { id: string; phone_number: string }) => [
+      o.id,
+      o.phone_number,
+    ])
+  );
 
   // Combine all the data
   return planShares.map((share: PlanShare) => {
@@ -1405,7 +1417,9 @@ export async function getPlanShareInfo(
   }
 
   // Get phone numbers for shared users
-  const sharedUserIds = shares.map((s: { shared_with_user_id: string }) => s.shared_with_user_id);
+  const sharedUserIds = shares.map(
+    (s: { shared_with_user_id: string }) => s.shared_with_user_id
+  );
   const { data: users, error: usersError } = await supabase
     .from("users")
     .select("phone_number")
@@ -1449,13 +1463,30 @@ export async function uploadThumbnailFromUrl(
   contentId: string
 ): Promise<string | null> {
   try {
+    // Check if this is an Instagram/Facebook CDN URL (requires special headers)
+    const isInstagramCdn =
+      imageUrl.includes("instagram") ||
+      imageUrl.includes("fbcdn") ||
+      imageUrl.includes("cdninstagram");
+
+    // Build headers - Instagram CDN requires Referer and other headers
+    const headers: Record<string, string> = {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    };
+
+    if (isInstagramCdn) {
+      headers["Referer"] = "https://www.instagram.com/";
+      headers["Accept"] = "image/webp,image/apng,image/*,*/*;q=0.8";
+      headers["Accept-Language"] = "en-US,en;q=0.9";
+      headers["Sec-Fetch-Dest"] = "image";
+      headers["Sec-Fetch-Mode"] = "no-cors";
+      headers["Sec-Fetch-Site"] = "cross-site";
+      headers["Origin"] = "https://www.instagram.com";
+    }
+
     // Download the image
-    const response = await fetch(imageUrl, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      },
-    });
+    const response = await fetch(imageUrl, { headers });
 
     if (!response.ok) {
       console.error(`Failed to download thumbnail: ${response.status}`);

@@ -420,21 +420,33 @@ export async function getInstagramMediaInfo(
   };
 }
 
-// Download Instagram video/image for AI processing
-export async function downloadInstagramMedia(mediaUrl: string): Promise<Buffer> {
-  const response = await fetch(mediaUrl, {
+// Download media with Instagram-specific headers
+// Instagram CDN requires proper Referer and other headers to allow downloads
+export async function downloadWithInstagramHeaders(url: string): Promise<Buffer> {
+  const response = await fetch(url, {
     headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Referer": "https://www.instagram.com/",
+      "Accept": "image/webp,image/apng,image/*,video/*,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Sec-Fetch-Dest": "image",
+      "Sec-Fetch-Mode": "no-cors",
+      "Sec-Fetch-Site": "cross-site",
+      "Origin": "https://www.instagram.com",
     },
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to download Instagram media: ${response.status}`);
+    throw new Error(`Failed to download media: ${response.status}`);
   }
 
   const arrayBuffer = await response.arrayBuffer();
   return Buffer.from(arrayBuffer);
+}
+
+// Download Instagram video/image for AI processing
+export async function downloadInstagramMedia(mediaUrl: string): Promise<Buffer> {
+  return downloadWithInstagramHeaders(mediaUrl);
 }
 
 // Get Instagram video as base64 for AI processing
