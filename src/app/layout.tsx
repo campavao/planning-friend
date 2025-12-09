@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
-import { DM_Sans, JetBrains_Mono, Caveat } from "next/font/google";
-import "./globals.css";
 import { BottomNav } from "@/components/bottom-nav";
+import { Analytics } from "@vercel/analytics/next";
+import type { Metadata } from "next";
+import { Caveat, DM_Sans, JetBrains_Mono } from "next/font/google";
+import "./globals.css";
 
 const dmSans = DM_Sans({
   variable: "--font-sans",
@@ -44,12 +45,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang='en'>
       <body
         className={`${dmSans.variable} ${jetbrainsMono.variable} ${caveat.variable} font-sans antialiased min-h-screen bg-paper`}
       >
         {children}
         <BottomNav />
+        <Analytics />
       </body>
     </html>
   );
