@@ -55,14 +55,14 @@ function detectMediaType(url: string): "post" | "reel" | "story" | "unknown" {
 }
 
 // Method 1: Try RapidAPI Instagram Video Downloader
-// Using: https://rapidapi.com/skdeveloper/api/instagram-video-downloader13
+// Using: https://rapidapi.com/kingmakerapi/api/instagram-video-downloader17
 async function tryRapidAPI(
   resolvedUrl: string
 ): Promise<InstagramMediaInfo | null> {
   const rapidApiKey = process.env.RAPIDAPI_KEY;
   const rapidApiHost =
     process.env.INSTAGRAM_RAPIDAPI_HOST ||
-    "instagram-video-downloader13.p.rapidapi.com";
+    "instagram-video-downloader17.p.rapidapi.com";
 
   if (!rapidApiKey) {
     console.log("RAPIDAPI_KEY not set, skipping Instagram RapidAPI method");
@@ -70,24 +70,20 @@ async function tryRapidAPI(
   }
 
   try {
-    // Correct endpoint format per RapidAPI docs:
-    // POST /index.php with multipart/form-data
+    // instagram-video-downloader17 API format:
+    // POST /index.php with application/x-www-form-urlencoded
     const apiUrl = `https://${rapidApiHost}/index.php`;
     console.log(`Calling Instagram RapidAPI: POST ${apiUrl}`);
     console.log(`With URL: ${resolvedUrl}`);
-
-    // Create FormData for multipart/form-data
-    const formData = new FormData();
-    formData.append("url", resolvedUrl);
 
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
         "x-rapidapi-key": rapidApiKey,
         "x-rapidapi-host": rapidApiHost,
-        // Don't set Content-Type manually - fetch will set it with boundary for FormData
+        "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: formData,
+      body: `url=${encodeURIComponent(resolvedUrl)}`,
     });
 
     console.log(`Instagram RapidAPI response status: ${response.status}`);
@@ -123,7 +119,7 @@ function parseInstagramResponse(
   data: Record<string, any>,
   resolvedUrl: string
 ): InstagramMediaInfo | null {
-  console.log("Instagram RapidAPI raw response:", JSON.stringify(data, null, 2).slice(0, 1500));
+  console.log("Instagram RapidAPI raw response:", JSON.stringify(data, null, 2).slice(0, 2000));
 
   // Check for error response first
   if (data.error === true) {
@@ -137,25 +133,56 @@ function parseInstagramResponse(
   let description = "";
   let author: string | undefined;
 
-  // instagram-video-downloader13 exact format:
+  // instagram-video-downloader17 format (preferred):
+  // { "error": false, "title": "...", "thumbnail": "...", "owner": {...}, "medias": { "videos": [...], "images": [...] } }
+  if (data.medias && typeof data.medias === "object" && (data.medias.videos || data.medias.images)) {
+    console.log("Parsing instagram-video-downloader17 format");
+
+    // Get video URL from medias.videos array
+    if (Array.isArray(data.medias.videos) && data.medias.videos.length > 0) {
+      videoUrl = data.medias.videos[0].url;
+    }
+
+    // Get image URL from medias.images array (for image posts)
+    if (Array.isArray(data.medias.images) && data.medias.images.length > 0) {
+      // If no video, use image as main content
+      if (!videoUrl) {
+        videoUrl = data.medias.images[0].url;
+      }
+    }
+
+    // Get thumbnail directly from response
+    thumbnailUrl = data.thumbnail;
+
+    // Get description from title field
+    description = data.title || "";
+
+    // Get author from owner object or author field
+    author = data.owner?.username || data.author;
+
+    console.log("Parsed instagram-video-downloader17:", {
+      hasVideo: !!videoUrl,
+      hasThumbnail: !!thumbnailUrl,
+      author,
+      descriptionPreview: description?.slice(0, 50)
+    });
+  }
+  // instagram-video-downloader13 format:
   // { "status": "success", "media": [{ "type": "video", "url": "..." }] }
-  if (data.status === "success" && Array.isArray(data.media)) {
+  else if (data.status === "success" && Array.isArray(data.media)) {
     console.log("Parsing instagram-video-downloader13 format");
     for (const item of data.media) {
       if (item.type === "video" && item.url) {
         videoUrl = item.url;
       } else if (item.type === "image" && item.url) {
-        // Use image as thumbnail, or as main content if no video
         if (!thumbnailUrl) {
           thumbnailUrl = item.url;
         }
       }
-      // Some responses include thumbnail separately
       if (item.thumbnail) {
         thumbnailUrl = item.thumbnail;
       }
     }
-    // If we only have video, use it for thumbnail too (will be extracted as frame)
     if (videoUrl && !thumbnailUrl) {
       thumbnailUrl = videoUrl;
     }
@@ -173,21 +200,11 @@ function parseInstagramResponse(
     author = data.username || data.author;
   }
   // Direct video URL in response
-  else if (data.video || data.url) {
+  else if (data.video || (data.url && data.thumbnail)) {
     videoUrl = (data.video || data.url) as string;
     thumbnailUrl = (data.thumbnail || data.thumb || data.cover) as string;
     description = ((data.title || data.caption) as string) || "";
-    author = (data.username || data.author) as string;
-  }
-  // medias array format
-  else if (data.medias && Array.isArray(data.medias)) {
-    const firstMedia = data.medias[0];
-    if (firstMedia) {
-      videoUrl = firstMedia.url;
-      thumbnailUrl = firstMedia.thumbnail;
-    }
-    description = ((data.title || data.caption) as string) || "";
-    author = data.owner?.username;
+    author = (data.username || data.author || data.owner?.username) as string;
   }
   // Direct video_url/thumbnail in response
   else if (data.video_url || data.thumbnail) {
