@@ -255,66 +255,119 @@ function parseInstagramResponse(
 async function tryPageScrape(
   resolvedUrl: string
 ): Promise<InstagramMediaInfo | null> {
-  try {
-    const response = await fetch(resolvedUrl, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-      },
-    });
+  // Try multiple approaches since Instagram blocks scrapers
+  const userAgents = [
+    // Facebook crawler (Instagram allows this)
+    "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+    // Twitter/X crawler
+    "Twitterbot/1.0",
+    // Standard browser
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    // Mobile browser
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+  ];
 
-    if (!response.ok) {
-      console.log(`Instagram page scrape returned ${response.status}`);
-      return null;
+  for (const userAgent of userAgents) {
+    try {
+      console.log(`Trying Instagram page scrape with UA: ${userAgent.slice(0, 30)}...`);
+
+      const response = await fetch(resolvedUrl, {
+        headers: {
+          "User-Agent": userAgent,
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
+          "Accept-Encoding": "gzip, deflate, br",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+        },
+        redirect: "follow",
+      });
+
+      if (!response.ok) {
+        console.log(`Instagram page scrape returned ${response.status} with UA: ${userAgent.slice(0, 20)}...`);
+        continue;
+      }
+
+      const html = await response.text();
+      console.log(`Got HTML response, length: ${html.length}`);
+
+      // Extract Open Graph metadata
+      const ogTitle =
+        html.match(/<meta[^>]*property="og:title"[^>]*content="([^"]*)"/) ||
+        html.match(/<meta[^>]*content="([^"]*)"[^>]*property="og:title"/);
+      const ogImage =
+        html.match(/<meta[^>]*property="og:image"[^>]*content="([^"]*)"/) ||
+        html.match(/<meta[^>]*content="([^"]*)"[^>]*property="og:image"/);
+      const ogDescription =
+        html.match(/<meta[^>]*property="og:description"[^>]*content="([^"]*)"/) ||
+        html.match(/<meta[^>]*content="([^"]*)"[^>]*property="og:description"/);
+      const ogVideo =
+        html.match(/<meta[^>]*property="og:video"[^>]*content="([^"]*)"/) ||
+        html.match(/<meta[^>]*content="([^"]*)"[^>]*property="og:video"/) ||
+        html.match(/<meta[^>]*property="og:video:secure_url"[^>]*content="([^"]*)"/) ||
+        html.match(/<meta[^>]*content="([^"]*)"[^>]*property="og:video:secure_url"/);
+
+      console.log("OG tags found:", {
+        hasTitle: !!ogTitle,
+        hasImage: !!ogImage,
+        hasDescription: !!ogDescription,
+        hasVideo: !!ogVideo,
+      });
+
+      // Try to extract author from title (format: "Username on Instagram: ...")
+      let author: string | undefined;
+      const authorMatch = ogTitle?.[1]?.match(/^([^@\s]+)\s+(?:on\s+)?Instagram/i);
+      if (authorMatch) {
+        author = authorMatch[1];
+      }
+
+      // Also try to find author in description
+      if (!author && ogDescription?.[1]) {
+        const descAuthorMatch = ogDescription[1].match(/^[\d,]+\s+likes?,\s+[\d,]+\s+comments?\s+-\s+([^@\s]+)\s+on/i);
+        if (descAuthorMatch) {
+          author = descAuthorMatch[1];
+        }
+      }
+
+      const description =
+        ogDescription?.[1] || ogTitle?.[1] || "Instagram post";
+      const thumbnailUrl = ogImage?.[1] || undefined;
+      const videoUrl = ogVideo?.[1] || undefined;
+
+      if (description && description !== "Instagram" && description !== "Instagram post") {
+        console.log("Page scrape successful with meaningful content");
+        return {
+          videoUrl,
+          thumbnailUrl,
+          description: decodeHTMLEntities(description),
+          author,
+          originalUrl: resolvedUrl,
+          mediaType: detectMediaType(resolvedUrl),
+        };
+      }
+
+      // If we got a thumbnail at least, return that
+      if (thumbnailUrl) {
+        console.log("Page scrape got thumbnail only");
+        return {
+          videoUrl,
+          thumbnailUrl,
+          description: decodeHTMLEntities(description),
+          author,
+          originalUrl: resolvedUrl,
+          mediaType: detectMediaType(resolvedUrl),
+        };
+      }
+
+      console.log("No useful data found with this UA, trying next...");
+    } catch (error) {
+      console.log(`Page scrape failed with UA: ${userAgent.slice(0, 20)}...`, error);
+      continue;
     }
-
-    const html = await response.text();
-
-    // Extract Open Graph metadata
-    const ogTitle =
-      html.match(/<meta[^>]*property="og:title"[^>]*content="([^"]*)"/) ||
-      html.match(/<meta[^>]*content="([^"]*)"[^>]*property="og:title"/);
-    const ogImage =
-      html.match(/<meta[^>]*property="og:image"[^>]*content="([^"]*)"/) ||
-      html.match(/<meta[^>]*content="([^"]*)"[^>]*property="og:image"/);
-    const ogDescription =
-      html.match(/<meta[^>]*property="og:description"[^>]*content="([^"]*)"/) ||
-      html.match(/<meta[^>]*content="([^"]*)"[^>]*property="og:description"/);
-    const ogVideo =
-      html.match(/<meta[^>]*property="og:video"[^>]*content="([^"]*)"/) ||
-      html.match(/<meta[^>]*content="([^"]*)"[^>]*property="og:video"/);
-
-    // Try to extract author from title (format: "Username on Instagram: ...")
-    let author: string | undefined;
-    const authorMatch = ogTitle?.[1]?.match(/^([^@\s]+)\s+(?:on\s+)?Instagram/i);
-    if (authorMatch) {
-      author = authorMatch[1];
-    }
-
-    const description =
-      ogDescription?.[1] || ogTitle?.[1] || "Instagram post";
-    const thumbnailUrl = ogImage?.[1] || undefined;
-    const videoUrl = ogVideo?.[1] || undefined;
-
-    if (description || thumbnailUrl) {
-      return {
-        videoUrl,
-        thumbnailUrl,
-        description: decodeHTMLEntities(description),
-        author,
-        originalUrl: resolvedUrl,
-        mediaType: detectMediaType(resolvedUrl),
-      };
-    }
-
-    return null;
-  } catch (error) {
-    console.log("Instagram page scrape method failed:", error);
-    return null;
   }
+
+  console.log("All page scrape attempts failed");
+  return null;
 }
 
 // Helper to decode HTML entities

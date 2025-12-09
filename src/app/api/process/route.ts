@@ -28,6 +28,11 @@ interface ProcessRequest {
   platform?: SocialPlatform;
   userId: string;
   phoneNumber: string;
+  // MMS media attachments from Twilio (if user shared via "Share to")
+  mmsMedia?: {
+    urls: string[];
+    types: string[];
+  };
 }
 
 // Maximum video size to process with full video analysis (20MB)
@@ -44,6 +49,7 @@ export async function POST(request: NextRequest) {
     const socialUrl = body.socialUrl || body.tiktokUrl;
     const platform = body.platform || "tiktok";
     userId = body.userId;
+    const mmsMedia = body.mmsMedia;
 
     if (!contentId || !socialUrl || !userId) {
       return NextResponse.json(
@@ -57,6 +63,11 @@ export async function POST(request: NextRequest) {
       `Processing ${platformName} URL for content ${contentId}: ${socialUrl}`
     );
 
+    // Check if we have MMS media attachments (from "Share to" on mobile)
+    if (mmsMedia && mmsMedia.urls.length > 0) {
+      console.log(`Found ${mmsMedia.urls.length} MMS attachments:`, mmsMedia.types);
+    }
+
     // Step 1: Get video/media info from the platform (with fallbacks)
     let videoInfo;
     try {
@@ -67,14 +78,58 @@ export async function POST(request: NextRequest) {
         hasThumbnail: !!videoInfo.thumbnailUrl,
         description: videoInfo.description?.substring(0, 100),
       });
+
+      // If we have MMS media but no video/thumbnail from API, use MMS media
+      if (mmsMedia && mmsMedia.urls.length > 0) {
+        // Find video and image from MMS
+        const mmsVideoUrl = mmsMedia.urls.find((_, i) =>
+          mmsMedia.types[i]?.startsWith("video/")
+        );
+        const mmsImageUrl = mmsMedia.urls.find((_, i) =>
+          mmsMedia.types[i]?.startsWith("image/")
+        );
+
+        // Use MMS video if we don't have one from API
+        if (!videoInfo.videoUrl && mmsVideoUrl) {
+          console.log("Using MMS video attachment:", mmsVideoUrl);
+          videoInfo.videoUrl = mmsVideoUrl;
+        }
+
+        // Use MMS image as thumbnail if we don't have one
+        if (!videoInfo.thumbnailUrl && (mmsImageUrl || mmsVideoUrl)) {
+          const thumbnailSource = mmsImageUrl || mmsVideoUrl;
+          console.log("Using MMS attachment as thumbnail source:", thumbnailSource);
+          videoInfo.thumbnailUrl = thumbnailSource;
+        }
+      }
     } catch (error) {
       console.error("Failed to get media info:", error);
-      // Create minimal fallback
-      videoInfo = {
-        platform,
-        description: `${platformName} content`,
-        originalUrl: socialUrl,
-      };
+
+      // If API failed but we have MMS media, use that
+      if (mmsMedia && mmsMedia.urls.length > 0) {
+        const mmsVideoUrl = mmsMedia.urls.find((_, i) =>
+          mmsMedia.types[i]?.startsWith("video/")
+        );
+        const mmsImageUrl = mmsMedia.urls.find((_, i) =>
+          mmsMedia.types[i]?.startsWith("image/")
+        );
+
+        console.log("API failed, using MMS media directly");
+        videoInfo = {
+          platform,
+          description: `${platformName} content`,
+          originalUrl: socialUrl,
+          videoUrl: mmsVideoUrl,
+          thumbnailUrl: mmsImageUrl || mmsVideoUrl,
+        };
+      } else {
+        // Create minimal fallback
+        videoInfo = {
+          platform,
+          description: `${platformName} content`,
+          originalUrl: socialUrl,
+        };
+      }
     }
 
     // Step 2: Upload thumbnail to Supabase Storage (so it doesn't expire)

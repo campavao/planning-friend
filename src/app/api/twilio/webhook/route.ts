@@ -29,6 +29,25 @@ export async function POST(request: NextRequest) {
     const body = formData.get("Body") as string;
     const from = formData.get("From") as string;
 
+    // Check for MMS media attachments
+    const numMedia = parseInt(formData.get("NumMedia") as string) || 0;
+    const mediaUrls: string[] = [];
+    const mediaTypes: string[] = [];
+
+    for (let i = 0; i < numMedia; i++) {
+      const mediaUrl = formData.get(`MediaUrl${i}`) as string;
+      const mediaType = formData.get(`MediaContentType${i}`) as string;
+      if (mediaUrl) {
+        mediaUrls.push(mediaUrl);
+        mediaTypes.push(mediaType || "unknown");
+        console.log(`MMS attachment ${i}: ${mediaType} - ${mediaUrl}`);
+      }
+    }
+
+    if (numMedia > 0) {
+      console.log(`Received ${numMedia} MMS attachments from ${from}`);
+    }
+
     if (!body || !from) {
       console.error("Missing required fields from Twilio webhook");
       return new NextResponse("Missing required fields", { status: 400 });
@@ -85,6 +104,14 @@ export async function POST(request: NextRequest) {
         platform: socialMedia.platform,
         userId: user.id,
         phoneNumber,
+        // Include MMS media if available - can use directly instead of scraping!
+        mmsMedia:
+          mediaUrls.length > 0
+            ? {
+                urls: mediaUrls,
+                types: mediaTypes,
+              }
+            : undefined,
       }),
     }).catch((error) => {
       console.error("Failed to trigger processing:", error);
