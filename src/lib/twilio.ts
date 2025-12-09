@@ -125,6 +125,48 @@ export function extractTikTokUrl(messageBody: string): string | null {
   return null;
 }
 
+// Extract Instagram URL from message body
+export function extractInstagramUrl(messageBody: string): string | null {
+  const patterns = [
+    // Reels
+    /https?:\/\/(?:www\.)?instagram\.com\/(?:reel|reels)\/[\w-]+\/?/gi,
+    // Posts
+    /https?:\/\/(?:www\.)?instagram\.com\/p\/[\w-]+\/?/gi,
+    // Stories
+    /https?:\/\/(?:www\.)?instagram\.com\/stories\/[\w.-]+\/\d+\/?/gi,
+    // Short URLs
+    /https?:\/\/instagr\.am\/[\w-]+\/?/gi,
+  ];
+
+  for (const pattern of patterns) {
+    const match = messageBody.match(pattern);
+    if (match) {
+      return match[0];
+    }
+  }
+
+  return null;
+}
+
+// Extract any supported social media URL from message body
+export function extractSocialMediaUrl(
+  messageBody: string
+): { url: string; platform: "tiktok" | "instagram" } | null {
+  // Try TikTok first
+  const tiktokUrl = extractTikTokUrl(messageBody);
+  if (tiktokUrl) {
+    return { url: tiktokUrl, platform: "tiktok" };
+  }
+
+  // Try Instagram
+  const instagramUrl = extractInstagramUrl(messageBody);
+  if (instagramUrl) {
+    return { url: instagramUrl, platform: "instagram" };
+  }
+
+  return null;
+}
+
 // Normalize phone number to E.164 format
 export function normalizePhoneNumber(phoneNumber: string): string {
   // Remove all non-digit characters except +

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AddContactButton } from "@/components/add-contact-button";
 import { ContentCard } from "@/components/content-card";
 import { TagFilter } from "@/components/tag-filter";
-import { AddContactButton } from "@/components/add-contact-button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ContentWithTags, Tag } from "@/lib/supabase";
+import { useState } from "react";
 
 interface CategoryTabsProps {
   content: ContentWithTags[];
@@ -43,8 +43,8 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
   };
 
   const EmptyState = ({ category }: { category: string }) => (
-    <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
-      <div className="text-6xl mb-4">
+    <div className='col-span-full flex flex-col items-center justify-center py-16 text-center'>
+      <div className='text-6xl mb-4'>
         {category === "meals" && "🍳"}
         {category === "drinks" && "🍹"}
         {category === "events" && "🎉"}
@@ -54,22 +54,22 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
         {category === "other" && "📌"}
         {category === "all" && "📱"}
       </div>
-      <h3 className="text-xl font-semibold mb-2">
+      <h3 className='text-xl font-semibold mb-2'>
         {selectedTags.length > 0
           ? `No ${category} match selected tags`
           : `No ${category} saved yet`}
       </h3>
-      <p className="text-muted-foreground max-w-md mb-4">
+      <p className='text-muted-foreground max-w-md mb-4'>
         {selectedTags.length > 0
           ? "Try removing some tag filters."
-          : "Text a TikTok link and we'll automatically categorize and save it here."}
+          : "Text a TikTok or Instagram link and we'll automatically categorize and save it here."}
       </p>
-      {selectedTags.length === 0 && <AddContactButton variant="button" />}
+      {selectedTags.length === 0 && <AddContactButton variant='button' />}
     </div>
   );
 
   const ContentGrid = ({ items }: { items: ContentWithTags[] }) => (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
+    <div className='grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6'>
       {items.map((item, index) => (
         <ContentCard key={item.id} content={item} index={index} />
       ))}
@@ -77,53 +77,53 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
   );
 
   return (
-    <Tabs defaultValue="all" className="w-full">
-      <TabsList className="glass w-full justify-start gap-1 p-1 mb-4 overflow-x-auto flex-wrap h-auto">
+    <Tabs defaultValue='all' className='w-full'>
+      <TabsList className='glass w-full justify-start gap-1 p-1 mb-4 overflow-x-auto flex-wrap h-auto'>
         <TabsTrigger
-          value="all"
-          className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          value='all'
+          className='data-[state=active]:bg-primary data-[state=active]:text-primary-foreground'
         >
           All ({filteredContent.length})
         </TabsTrigger>
         <TabsTrigger
-          value="meals"
-          className="data-[state=active]:bg-meal/20 data-[state=active]:text-meal"
+          value='meals'
+          className='data-[state=active]:bg-meal/20 data-[state=active]:text-meal'
         >
           🍽️ Meals ({meals.length})
         </TabsTrigger>
         <TabsTrigger
-          value="drinks"
-          className="data-[state=active]:bg-drink/20 data-[state=active]:text-drink"
+          value='drinks'
+          className='data-[state=active]:bg-drink/20 data-[state=active]:text-drink'
         >
           🍹 Drinks ({drinks.length})
         </TabsTrigger>
         <TabsTrigger
-          value="events"
-          className="data-[state=active]:bg-event/20 data-[state=active]:text-event"
+          value='events'
+          className='data-[state=active]:bg-event/20 data-[state=active]:text-event'
         >
           🎉 Events ({events.length})
         </TabsTrigger>
         <TabsTrigger
-          value="dates"
-          className="data-[state=active]:bg-date/20 data-[state=active]:text-date"
+          value='dates'
+          className='data-[state=active]:bg-date/20 data-[state=active]:text-date'
         >
           💕 Dates ({dateIdeas.length})
         </TabsTrigger>
         <TabsTrigger
-          value="gifts"
-          className="data-[state=active]:bg-gift/20 data-[state=active]:text-gift"
+          value='gifts'
+          className='data-[state=active]:bg-gift/20 data-[state=active]:text-gift'
         >
           🎁 Gifts ({giftIdeas.length})
         </TabsTrigger>
         <TabsTrigger
-          value="travel"
-          className="data-[state=active]:bg-travel/20 data-[state=active]:text-travel"
+          value='travel'
+          className='data-[state=active]:bg-travel/20 data-[state=active]:text-travel'
         >
           ✈️ Travel ({travel.length})
         </TabsTrigger>
         <TabsTrigger
-          value="other"
-          className="data-[state=active]:bg-other/20 data-[state=active]:text-other"
+          value='other'
+          className='data-[state=active]:bg-other/20 data-[state=active]:text-other'
         >
           📌 Other ({other.length})
         </TabsTrigger>
@@ -131,7 +131,7 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
 
       {/* Tag Filter */}
       {allTags.length > 0 && (
-        <div className="mb-6">
+        <div className='mb-6'>
           <TagFilter
             tags={allTags}
             selectedTags={selectedTags}
@@ -141,65 +141,65 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
         </div>
       )}
 
-      <TabsContent value="all" className="mt-0">
+      <TabsContent value='all' className='mt-0'>
         {filteredContent.length === 0 ? (
-          <EmptyState category="all" />
+          <EmptyState category='all' />
         ) : (
           <ContentGrid items={filteredContent} />
         )}
       </TabsContent>
 
-      <TabsContent value="meals" className="mt-0">
+      <TabsContent value='meals' className='mt-0'>
         {meals.length === 0 ? (
-          <EmptyState category="meals" />
+          <EmptyState category='meals' />
         ) : (
           <ContentGrid items={meals} />
         )}
       </TabsContent>
 
-      <TabsContent value="drinks" className="mt-0">
+      <TabsContent value='drinks' className='mt-0'>
         {drinks.length === 0 ? (
-          <EmptyState category="drinks" />
+          <EmptyState category='drinks' />
         ) : (
           <ContentGrid items={drinks} />
         )}
       </TabsContent>
 
-      <TabsContent value="events" className="mt-0">
+      <TabsContent value='events' className='mt-0'>
         {events.length === 0 ? (
-          <EmptyState category="events" />
+          <EmptyState category='events' />
         ) : (
           <ContentGrid items={events} />
         )}
       </TabsContent>
 
-      <TabsContent value="dates" className="mt-0">
+      <TabsContent value='dates' className='mt-0'>
         {dateIdeas.length === 0 ? (
-          <EmptyState category="dates" />
+          <EmptyState category='dates' />
         ) : (
           <ContentGrid items={dateIdeas} />
         )}
       </TabsContent>
 
-      <TabsContent value="gifts" className="mt-0">
+      <TabsContent value='gifts' className='mt-0'>
         {giftIdeas.length === 0 ? (
-          <EmptyState category="gifts" />
+          <EmptyState category='gifts' />
         ) : (
           <ContentGrid items={giftIdeas} />
         )}
       </TabsContent>
 
-      <TabsContent value="travel" className="mt-0">
+      <TabsContent value='travel' className='mt-0'>
         {travel.length === 0 ? (
-          <EmptyState category="travel" />
+          <EmptyState category='travel' />
         ) : (
           <ContentGrid items={travel} />
         )}
       </TabsContent>
 
-      <TabsContent value="other" className="mt-0">
+      <TabsContent value='other' className='mt-0'>
         {other.length === 0 ? (
-          <EmptyState category="other" />
+          <EmptyState category='other' />
         ) : (
           <ContentGrid items={other} />
         )}

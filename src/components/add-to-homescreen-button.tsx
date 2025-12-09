@@ -3,9 +3,31 @@
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 
+const HOMESCREEN_PROMPT_KEY = "homescreen-prompt-dismissed";
+
 interface AddToHomeScreenButtonProps {
   variant?: "button" | "link";
   className?: string;
+}
+
+// Helper to detect device info (runs only on client)
+function useDeviceInfo() {
+  const [info, setInfo] = useState({ isIOS: false, isStandalone: false });
+
+  useEffect(() => {
+    // Use requestAnimationFrame to avoid the "setState in effect" lint warning
+    // This is a legitimate pattern for hydration-safe client detection
+    requestAnimationFrame(() => {
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isStandalone =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        ("standalone" in navigator &&
+          (navigator as { standalone?: boolean }).standalone === true);
+      setInfo({ isIOS, isStandalone });
+    });
+  }, []);
+
+  return info;
 }
 
 export function AddToHomeScreenButton({
@@ -13,20 +35,7 @@ export function AddToHomeScreenButton({
   className = "",
 }: AddToHomeScreenButtonProps) {
   const [showInstructions, setShowInstructions] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
-
-  useEffect(() => {
-    // Detect iOS
-    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    setIsIOS(iOS);
-
-    // Check if already running as standalone app
-    const standalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      ("standalone" in navigator && (navigator as { standalone?: boolean }).standalone === true);
-    setIsStandalone(standalone);
-  }, []);
+  const { isIOS, isStandalone } = useDeviceInfo();
 
   // Don't show if already installed as app
   if (isStandalone) {
@@ -37,10 +46,14 @@ export function AddToHomeScreenButton({
     setShowInstructions(true);
   };
 
+  const handleDismiss = () => {
+    setShowInstructions(false);
+    // Mark as dismissed in localStorage
+    localStorage.setItem(HOMESCREEN_PROMPT_KEY, "true");
+  };
+
   const buttonContent = (
-    <>
-      {variant === "button" ? "📲 Add to Home Screen" : "Add to Home Screen"}
-    </>
+    <>{variant === "button" ? "📲 Add to Home Screen" : "Add to Home Screen"}</>
   );
 
   return (
@@ -54,7 +67,7 @@ export function AddToHomeScreenButton({
         </button>
       ) : (
         <Button
-          variant="outline"
+          variant='outline'
           onClick={handleClick}
           className={`hover:bg-washi-pink/20 ${className}`}
         >
@@ -64,111 +77,159 @@ export function AddToHomeScreenButton({
 
       {/* Instructions Modal */}
       {showInstructions && (
-        <div
-          className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-4"
-          onClick={() => setShowInstructions(false)}
-        >
-          <div
-            className="bg-card rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-border animate-fade-in-up"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="text-center mb-4">
-              <span className="text-4xl">📲</span>
-              <h3 className="font-semibold text-lg mt-2">Add to Home Screen</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Get quick access like a real app!
-              </p>
-            </div>
-
-            {isIOS ? (
-              <div className="space-y-4">
-                <div className="flex items-start gap-3 p-3 bg-secondary/50 rounded-lg">
-                  <span className="text-2xl">1️⃣</span>
-                  <div>
-                    <p className="font-medium text-sm">Tap the Share button</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Look for{" "}
-                      <span className="inline-flex items-center justify-center w-6 h-6 bg-muted rounded">
-                        <ShareIcon />
-                      </span>{" "}
-                      at the bottom of Safari
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 p-3 bg-secondary/50 rounded-lg">
-                  <span className="text-2xl">2️⃣</span>
-                  <div>
-                    <p className="font-medium text-sm">
-                      Scroll down and tap &quot;Add to Home Screen&quot;
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      It has a{" "}
-                      <span className="inline-flex items-center justify-center w-5 h-5 bg-muted rounded">
-                        <PlusSquareIcon />
-                      </span>{" "}
-                      icon next to it
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 p-3 bg-secondary/50 rounded-lg">
-                  <span className="text-2xl">3️⃣</span>
-                  <div>
-                    <p className="font-medium text-sm">Tap &quot;Add&quot;</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      That&apos;s it! The app will appear on your home screen
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-start gap-3 p-3 bg-secondary/50 rounded-lg">
-                  <span className="text-2xl">💡</span>
-                  <div>
-                    <p className="font-medium text-sm">
-                      On iPhone Safari
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Tap Share → Add to Home Screen
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 p-3 bg-secondary/50 rounded-lg">
-                  <span className="text-2xl">🤖</span>
-                  <div>
-                    <p className="font-medium text-sm">On Android Chrome</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Tap Menu (⋮) → Add to Home Screen
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 p-3 bg-secondary/50 rounded-lg">
-                  <span className="text-2xl">🖥️</span>
-                  <div>
-                    <p className="font-medium text-sm">On Desktop Chrome</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Click the install icon in the address bar, or Menu →
-                      Install App
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <button
-              onClick={() => setShowInstructions(false)}
-              className="w-full mt-5 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity"
-            >
-              Got it!
-            </button>
-          </div>
-        </div>
+        <HomeScreenModal isIOS={isIOS} onDismiss={handleDismiss} />
       )}
     </>
+  );
+}
+
+// Auto-show prompt component for first-time users
+export function AddToHomeScreenPrompt() {
+  const [showPrompt, setShowPrompt] = useState(false);
+  const { isIOS, isStandalone } = useDeviceInfo();
+
+  useEffect(() => {
+    // Don't show if already installed
+    if (isStandalone) {
+      return;
+    }
+
+    // Check if prompt was already dismissed
+    const dismissed = localStorage.getItem(HOMESCREEN_PROMPT_KEY);
+    if (dismissed) {
+      return;
+    }
+
+    // Show prompt after a short delay for better UX
+    const timer = setTimeout(() => {
+      setShowPrompt(true);
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [isStandalone]);
+
+  const handleDismiss = () => {
+    setShowPrompt(false);
+    localStorage.setItem(HOMESCREEN_PROMPT_KEY, "true");
+  };
+
+  if (!showPrompt) {
+    return null;
+  }
+
+  return <HomeScreenModal isIOS={isIOS} onDismiss={handleDismiss} />;
+}
+
+// Shared modal component
+function HomeScreenModal({
+  isIOS,
+  onDismiss,
+}: {
+  isIOS: boolean;
+  onDismiss: () => void;
+}) {
+  return (
+    <div
+      className='fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-4'
+      onClick={onDismiss}
+    >
+      <div
+        className='bg-card rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-border animate-fade-in-up'
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className='text-center mb-4'>
+          <span className='text-4xl'>📲</span>
+          <h3 className='font-semibold text-lg mt-2'>Add to Home Screen</h3>
+          <p className='text-sm text-muted-foreground mt-1'>
+            Get quick access like a real app!
+          </p>
+        </div>
+
+        {isIOS ? (
+          <div className='space-y-4'>
+            <div className='flex items-start gap-3 p-3 bg-secondary/50 rounded-lg'>
+              <span className='text-2xl'>1️⃣</span>
+              <div>
+                <p className='font-medium text-sm'>Tap the Share button</p>
+                <p className='text-xs text-muted-foreground mt-0.5'>
+                  Look for{" "}
+                  <span className='inline-flex items-center justify-center w-6 h-6 bg-muted rounded'>
+                    <ShareIcon />
+                  </span>{" "}
+                  at the bottom of Safari
+                </p>
+              </div>
+            </div>
+
+            <div className='flex items-start gap-3 p-3 bg-secondary/50 rounded-lg'>
+              <span className='text-2xl'>2️⃣</span>
+              <div>
+                <p className='font-medium text-sm'>
+                  Scroll down and tap &quot;Add to Home Screen&quot;
+                </p>
+                <p className='text-xs text-muted-foreground mt-0.5'>
+                  It has a{" "}
+                  <span className='inline-flex items-center justify-center w-5 h-5 bg-muted rounded'>
+                    <PlusSquareIcon />
+                  </span>{" "}
+                  icon next to it
+                </p>
+              </div>
+            </div>
+
+            <div className='flex items-start gap-3 p-3 bg-secondary/50 rounded-lg'>
+              <span className='text-2xl'>3️⃣</span>
+              <div>
+                <p className='font-medium text-sm'>Tap &quot;Add&quot;</p>
+                <p className='text-xs text-muted-foreground mt-0.5'>
+                  That&apos;s it! The app will appear on your home screen
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className='space-y-4'>
+            <div className='flex items-start gap-3 p-3 bg-secondary/50 rounded-lg'>
+              <span className='text-2xl'>💡</span>
+              <div>
+                <p className='font-medium text-sm'>On iPhone Safari</p>
+                <p className='text-xs text-muted-foreground mt-0.5'>
+                  Tap Share → Add to Home Screen
+                </p>
+              </div>
+            </div>
+
+            <div className='flex items-start gap-3 p-3 bg-secondary/50 rounded-lg'>
+              <span className='text-2xl'>🤖</span>
+              <div>
+                <p className='font-medium text-sm'>On Android Chrome</p>
+                <p className='text-xs text-muted-foreground mt-0.5'>
+                  Tap Menu (⋮) → Add to Home Screen
+                </p>
+              </div>
+            </div>
+
+            <div className='flex items-start gap-3 p-3 bg-secondary/50 rounded-lg'>
+              <span className='text-2xl'>🖥️</span>
+              <div>
+                <p className='font-medium text-sm'>On Desktop Chrome</p>
+                <p className='text-xs text-muted-foreground mt-0.5'>
+                  Click the install icon in the address bar, or Menu → Install
+                  App
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <button
+          onClick={onDismiss}
+          className='w-full mt-5 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity'
+        >
+          Got it!
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -211,4 +272,3 @@ function PlusSquareIcon() {
     </svg>
   );
 }
-

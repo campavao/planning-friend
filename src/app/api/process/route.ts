@@ -1,23 +1,31 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getTikTokVideoAsBase64, getTikTokVideoInfo } from "@/lib/tiktok";
 import {
   analyzeVideoWithGemini,
-  analyzeWithThumbnail,
   analyzeWithDescription,
+  analyzeWithThumbnail,
   MultiItemAnalysisResult,
 } from "@/lib/gemini";
 import {
-  updateContent,
-  saveContent,
+  getPlatformDisplayName,
+  getSocialMediaInfo,
+  getSocialMediaVideoAsBase64,
+  SocialPlatform,
+} from "@/lib/social-media";
+import {
+  addTagsToContent,
   deleteContent,
   getOrCreateTags,
-  addTagsToContent,
+  saveContent,
+  updateContent,
   uploadThumbnailFromUrl,
 } from "@/lib/supabase";
+import { NextRequest, NextResponse } from "next/server";
 
 interface ProcessRequest {
   contentId: string;
-  tiktokUrl: string;
+  // Support both old 'tiktokUrl' and new 'socialUrl' fields for backwards compatibility
+  tiktokUrl?: string;
+  socialUrl?: string;
+  platform?: SocialPlatform;
   userId: string;
   phoneNumber: string;
 }
@@ -32,33 +40,40 @@ export async function POST(request: NextRequest) {
   try {
     const body: ProcessRequest = await request.json();
     contentId = body.contentId;
-    const { tiktokUrl } = body;
+    // Support both old 'tiktokUrl' and new 'socialUrl' for backwards compatibility
+    const socialUrl = body.socialUrl || body.tiktokUrl;
+    const platform = body.platform || "tiktok";
     userId = body.userId;
 
-    if (!contentId || !tiktokUrl || !userId) {
+    if (!contentId || !socialUrl || !userId) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    console.log(`Processing TikTok URL for content ${contentId}: ${tiktokUrl}`);
+    const platformName = getPlatformDisplayName(platform);
+    console.log(
+      `Processing ${platformName} URL for content ${contentId}: ${socialUrl}`
+    );
 
-    // Step 1: Get video info from TikTok (with fallbacks)
+    // Step 1: Get video/media info from the platform (with fallbacks)
     let videoInfo;
     try {
-      videoInfo = await getTikTokVideoInfo(tiktokUrl);
-      console.log("Video info retrieved:", {
+      videoInfo = await getSocialMediaInfo(socialUrl);
+      console.log("Media info retrieved:", {
+        platform: videoInfo.platform,
         hasVideoUrl: !!videoInfo.videoUrl,
         hasThumbnail: !!videoInfo.thumbnailUrl,
         description: videoInfo.description?.substring(0, 100),
       });
     } catch (error) {
-      console.error("Failed to get video info:", error);
+      console.error("Failed to get media info:", error);
       // Create minimal fallback
       videoInfo = {
-        description: "TikTok video",
-        originalUrl: tiktokUrl,
+        platform,
+        description: `${platformName} content`,
+        originalUrl: socialUrl,
       };
     }
 
@@ -74,7 +89,9 @@ export async function POST(request: NextRequest) {
         persistentThumbnailUrl = uploadedUrl;
         console.log("Thumbnail uploaded successfully:", persistentThumbnailUrl);
       } else {
-        console.log("Thumbnail upload failed, will use original URL as fallback");
+        console.log(
+          "Thumbnail upload failed, will use original URL as fallback"
+        );
         persistentThumbnailUrl = videoInfo.thumbnailUrl;
       }
     }
@@ -86,7 +103,7 @@ export async function POST(request: NextRequest) {
     if (videoInfo.videoUrl) {
       try {
         console.log("Attempting full video analysis...");
-        const videoData = await getTikTokVideoAsBase64(tiktokUrl);
+        const videoData = await getSocialMediaVideoAsBase64(socialUrl);
 
         if (videoData) {
           const videoSizeBytes = (videoData.base64.length * 3) / 4;
@@ -132,8 +149,8 @@ export async function POST(request: NextRequest) {
     if (!analysisResult) {
       console.log("Using description-only analysis...");
       analysisResult = await analyzeWithDescription(
-        videoInfo.description || "TikTok video",
-        tiktokUrl
+        videoInfo.description || `${platformName} content`,
+        socialUrl
       );
     }
 
@@ -176,7 +193,7 @@ export async function POST(request: NextRequest) {
       for (const item of analysisResult.items) {
         const content = await saveContent({
           user_id: userId,
-          tiktok_url: tiktokUrl,
+          tiktok_url: socialUrl, // Field name kept for DB compatibility
           category: item.category,
           title: item.title,
           data: item.data,
@@ -191,7 +208,9 @@ export async function POST(request: NextRequest) {
           );
           if (itemThumbnailUrl) {
             // Update with the item-specific thumbnail URL
-            await updateContent(content.id, { thumbnail_url: itemThumbnailUrl });
+            await updateContent(content.id, {
+              thumbnail_url: itemThumbnailUrl,
+            });
             content.thumbnail_url = itemThumbnailUrl;
           }
         }
@@ -257,7 +276,7 @@ export async function POST(request: NextRequest) {
       });
     }
   } catch (error) {
-    console.error("Error processing TikTok video:", error);
+    console.error("Error processing social media content:", error);
 
     // Mark as failed if we have a contentId
     if (contentId) {

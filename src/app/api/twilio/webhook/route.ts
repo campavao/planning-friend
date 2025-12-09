@@ -1,6 +1,6 @@
+import { createProcessingContent, getOrCreateUser } from "@/lib/supabase";
+import { extractSocialMediaUrl, normalizePhoneNumber } from "@/lib/twilio";
 import { NextRequest, NextResponse } from "next/server";
-import { extractTikTokUrl, normalizePhoneNumber } from "@/lib/twilio";
-import { getOrCreateUser, createProcessingContent } from "@/lib/supabase";
 
 // Get the base URL dynamically
 function getBaseUrl(request: NextRequest): string {
@@ -37,12 +37,12 @@ export async function POST(request: NextRequest) {
     // Normalize the phone number
     const phoneNumber = normalizePhoneNumber(from);
 
-    // Extract TikTok URL from message
-    const tiktokUrl = extractTikTokUrl(body);
+    // Extract social media URL from message (TikTok or Instagram)
+    const socialMedia = extractSocialMediaUrl(body);
 
-    if (!tiktokUrl) {
+    if (!socialMedia) {
       console.log(
-        `No TikTok URL found in message from ${phoneNumber}: ${body}`
+        `No supported social media URL found in message from ${phoneNumber}: ${body}`
       );
       // Return 200 to acknowledge receipt (Twilio expects this)
       return new NextResponse(
@@ -54,14 +54,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`Received TikTok URL from ${phoneNumber}: ${tiktokUrl}`);
+    console.log(
+      `Received ${socialMedia.platform} URL from ${phoneNumber}: ${socialMedia.url}`
+    );
 
     // Get or create user
     const user = await getOrCreateUser(phoneNumber);
     console.log(`User ID: ${user.id}`);
 
     // Create a processing entry immediately so it shows up in the UI
-    const processingContent = await createProcessingContent(user.id, tiktokUrl);
+    const processingContent = await createProcessingContent(
+      user.id,
+      socialMedia.url
+    );
     console.log(`Created processing entry: ${processingContent.id}`);
 
     // Trigger async processing using the correct base URL
@@ -76,7 +81,8 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         contentId: processingContent.id,
-        tiktokUrl,
+        socialUrl: socialMedia.url,
+        platform: socialMedia.platform,
         userId: user.id,
         phoneNumber,
       }),
