@@ -1,13 +1,13 @@
 import { BottomNav } from "@/components/bottom-nav";
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
-import { Crimson_Text, DM_Sans, JetBrains_Mono } from "next/font/google";
+import { Crimson_Text, JetBrains_Mono, Lato } from "next/font/google";
 import "./globals.css";
 
-const dmSans = DM_Sans({
+const lato = Lato({
   variable: "--font-sans",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["300", "400", "700", "900"],
 });
 
 const jetbrainsMono = JetBrains_Mono({
@@ -66,7 +66,7 @@ export default function RootLayout({
   return (
     <html lang='en'>
       <body
-        className={`${dmSans.variable} ${jetbrainsMono.variable} ${crimsonText.variable} font-sans antialiased min-h-screen bg-paper`}
+        className={`${lato.variable} ${jetbrainsMono.variable} ${crimsonText.variable} font-sans antialiased min-h-screen bg-paper`}
       >
         {children}
         <BottomNav />
