@@ -18,7 +18,8 @@ export function BottomNav() {
 
   return (
     <nav
-      className="md:hidden fixed left-0 right-0 z-50 px-4 ios-fixed-bottom"
+      // z-40 to be below modals
+      className='md:hidden fixed left-0 right-0 z-40 px-4 ios-fixed-bottom'
       style={{
         bottom: "max(16px, env(safe-area-inset-bottom, 16px))",
         WebkitTransform: "translate3d(0,0,0)",
@@ -27,8 +28,8 @@ export function BottomNav() {
         backfaceVisibility: "hidden",
       }}
     >
-      <div className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-lg shadow-black/10 border border-border/50 mx-auto max-w-sm">
-        <div className="flex justify-around items-center py-2 px-2">
+      <div className='bg-white/95 backdrop-blur-lg rounded-2xl shadow-lg shadow-black/10 border border-border/50 mx-auto max-w-sm'>
+        <div className='flex justify-around items-center py-2 px-2'>
           {NAV_ITEMS.map((item) => {
             const isActive =
               item.href === "/dashboard"
@@ -60,7 +61,7 @@ export function BottomNav() {
                   {item.label}
                 </span>
                 {isActive && (
-                  <span className="absolute -bottom-1 w-1 h-1 bg-primary rounded-full" />
+                  <span className='absolute -bottom-1 w-1 h-1 bg-primary rounded-full' />
                 )}
               </Link>
             );
