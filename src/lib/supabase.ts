@@ -56,7 +56,20 @@ export type ContentStatus = "processing" | "completed" | "failed";
 export interface User {
   id: string;
   phone_number: string;
+  name?: string;
   created_at: string;
+}
+
+// Friends types
+export interface Friend {
+  id: string;
+  user_id: string;
+  name: string;
+  phone_number?: string;
+  is_favorite: boolean;
+  linked_user_id?: string;
+  created_at: string;
+  updated_at?: string;
 }
 
 export interface MealData {
@@ -1147,6 +1160,185 @@ export async function upsertUserSettings(
   }
 
   return data as UserSettings;
+}
+
+// ==================== User Name ====================
+
+// Get user by ID
+export async function getUserById(userId: string): Promise<User | null> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("id", userId)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") {
+      return null;
+    }
+    throw new Error(`Failed to get user: ${error.message}`);
+  }
+
+  return data as User;
+}
+
+// Update user name
+export async function updateUserName(
+  userId: string,
+  name: string
+): Promise<User> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("users")
+    .update({ name: name.trim() })
+    .eq("id", userId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to update user name: ${error.message}`);
+  }
+
+  return data as User;
+}
+
+// ==================== Friends ====================
+
+// Get all friends for a user (sorted: favorites first, then alphabetically)
+export async function getFriends(userId: string): Promise<Friend[]> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("friends")
+    .select("*")
+    .eq("user_id", userId)
+    .order("is_favorite", { ascending: false })
+    .order("name", { ascending: true });
+
+  if (error) {
+    throw new Error(`Failed to get friends: ${error.message}`);
+  }
+
+  return data as Friend[];
+}
+
+// Add a friend
+export async function addFriend(
+  userId: string,
+  name: string,
+  phoneNumber?: string
+): Promise<Friend> {
+  const supabase = createServerClient();
+
+  // Normalize phone number if provided
+  const normalizedPhone = phoneNumber
+    ? normalizePhoneNumber(phoneNumber)
+    : null;
+
+  // Check if this friend (by phone) is also a Planning Friend user
+  let linkedUserId: string | null = null;
+  if (normalizedPhone) {
+    const { data: existingUser } = await supabase
+      .from("users")
+      .select("id")
+      .eq("phone_number", normalizedPhone)
+      .single();
+
+    if (existingUser) {
+      linkedUserId = existingUser.id;
+    }
+  }
+
+  const { data, error } = await supabase
+    .from("friends")
+    .insert({
+      user_id: userId,
+      name: name.trim(),
+      phone_number: normalizedPhone,
+      is_favorite: false,
+      linked_user_id: linkedUserId,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to add friend: ${error.message}`);
+  }
+
+  return data as Friend;
+}
+
+// Update a friend (name or favorite status)
+export async function updateFriend(
+  friendId: string,
+  updates: { name?: string; is_favorite?: boolean }
+): Promise<Friend> {
+  const supabase = createServerClient();
+
+  const updateData: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (updates.name !== undefined) {
+    updateData.name = updates.name.trim();
+  }
+  if (updates.is_favorite !== undefined) {
+    updateData.is_favorite = updates.is_favorite;
+  }
+
+  const { data, error } = await supabase
+    .from("friends")
+    .update(updateData)
+    .eq("id", friendId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to update friend: ${error.message}`);
+  }
+
+  return data as Friend;
+}
+
+// Delete a friend
+export async function deleteFriend(
+  friendId: string,
+  userId: string
+): Promise<void> {
+  const supabase = createServerClient();
+
+  const { error } = await supabase
+    .from("friends")
+    .delete()
+    .eq("id", friendId)
+    .eq("user_id", userId);
+
+  if (error) {
+    throw new Error(`Failed to delete friend: ${error.message}`);
+  }
+}
+
+// Add multiple friends (from contacts import)
+export async function addFriendsFromContacts(
+  userId: string,
+  contacts: Array<{ name: string; phoneNumber?: string }>
+): Promise<Friend[]> {
+  const friends: Friend[] = [];
+
+  for (const contact of contacts) {
+    try {
+      const friend = await addFriend(userId, contact.name, contact.phoneNumber);
+      friends.push(friend);
+    } catch (error) {
+      // Log but continue - some contacts might fail (duplicates, etc.)
+      console.error(`Failed to add contact ${contact.name}:`, error);
+    }
+  }
+
+  return friends;
 }
 
 // ==================== Plan Sharing ====================

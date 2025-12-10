@@ -39,6 +39,9 @@ export async function POST(request: NextRequest) {
     // Get or create the user in our users table
     const user = await getOrCreateUser(normalizedPhone);
 
+    // Check if this is a new user (no name set)
+    const isNewUser = !user.name;
+
     // Create a simple session token (in production, use a proper JWT)
     const sessionToken = Buffer.from(
       JSON.stringify({
@@ -60,9 +63,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      isNewUser,
       user: {
         id: user.id,
         phoneNumber: user.phone_number,
+        name: user.name,
       },
     });
   } catch (error) {

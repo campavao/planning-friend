@@ -22,21 +22,35 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [userName, setUserName] = useState("");
+  const [savingName, setSavingName] = useState(false);
+  const [nameMessage, setNameMessage] = useState("");
   const router = useRouter();
 
   useEffect(() => {
     async function fetchSettings() {
       try {
-        const res = await fetch("/api/settings");
-        if (res.status === 401) {
+        // Fetch both settings and user name in parallel
+        const [settingsRes, nameRes] = await Promise.all([
+          fetch("/api/settings"),
+          fetch("/api/users/name"),
+        ]);
+
+        if (settingsRes.status === 401 || nameRes.status === 401) {
           router.push("/");
           return;
         }
-        const data = await res.json();
-        if (data.settings) {
-          setSettings(data.settings);
-          setHomeRegion(data.settings.home_region || "");
-          setHomeCountry(data.settings.home_country || "");
+
+        const settingsData = await settingsRes.json();
+        if (settingsData.settings) {
+          setSettings(settingsData.settings);
+          setHomeRegion(settingsData.settings.home_region || "");
+          setHomeCountry(settingsData.settings.home_country || "");
+        }
+
+        const nameData = await nameRes.json();
+        if (nameData.name) {
+          setUserName(nameData.name);
         }
       } catch (error) {
         console.error("Failed to load settings:", error);
@@ -46,6 +60,34 @@ export default function SettingsPage() {
     }
     fetchSettings();
   }, [router]);
+
+  const handleSaveName = async () => {
+    if (!userName.trim()) return;
+
+    setSavingName(true);
+    setNameMessage("");
+
+    try {
+      const res = await fetch("/api/users/name", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: userName.trim() }),
+      });
+
+      if (res.ok) {
+        setNameMessage("Saved! ✨");
+        setTimeout(() => setNameMessage(""), 3000);
+      } else {
+        const data = await res.json();
+        setNameMessage(data.error || "Failed to save");
+      }
+    } catch (error) {
+      console.error("Failed to save name:", error);
+      setNameMessage("Failed to save");
+    } finally {
+      setSavingName(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -106,6 +148,57 @@ export default function SettingsPage() {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 space-y-6">
+        {/* Profile / Name */}
+        <div className="scrapbook-card p-5 relative">
+          {/* Tape decoration */}
+          <div className="absolute -top-2 left-8 w-16 h-5 bg-washi-blue/80 transform -rotate-1" />
+
+          <div className="flex items-center gap-3 mb-4 pt-2">
+            <span className="text-2xl">👤</span>
+            <div>
+              <h2 className="font-handwritten text-2xl">Your Profile</h2>
+              <p className="text-sm text-muted-foreground">
+                This name will be shown to friends when you share plans
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                Your Name
+              </label>
+              <Input
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                placeholder="Enter your name"
+                className="bg-white border-border"
+                maxLength={100}
+              />
+            </div>
+            <div className="flex items-center gap-4">
+              <Button
+                onClick={handleSaveName}
+                disabled={savingName || !userName.trim()}
+                className="bg-primary hover:bg-primary/90"
+              >
+                {savingName ? "Saving..." : "Save Name"}
+              </Button>
+              {nameMessage && (
+                <span
+                  className={`text-sm font-medium ${
+                    nameMessage.includes("Failed")
+                      ? "text-destructive"
+                      : "text-primary"
+                  }`}
+                >
+                  {nameMessage}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Home Location */}
         <div className="scrapbook-card p-5 relative">
           {/* Tape decoration */}
