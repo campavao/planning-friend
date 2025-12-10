@@ -37,15 +37,7 @@ export default function FriendsPage() {
   const [importingContacts, setImportingContacts] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
-  const [contactsSupported, setContactsSupported] = useState(false);
   const router = useRouter();
-
-  useEffect(() => {
-    // Check if Contact Picker API is supported
-    setContactsSupported(
-      "contacts" in navigator && "ContactsManager" in window
-    );
-  }, []);
 
   const fetchFriends = useCallback(async () => {
     try {
@@ -273,16 +265,14 @@ export default function FriendsPage() {
 
         {/* Action Buttons */}
         <div className="flex gap-2 mb-6">
-          {contactsSupported && (
-            <Button
-              onClick={handleImportContacts}
-              disabled={importingContacts}
-              variant="outline"
-              className="flex-1 hover:bg-washi-mint/20"
-            >
-              {importingContacts ? "Importing..." : "📱 Import Contacts"}
-            </Button>
-          )}
+          <Button
+            onClick={handleImportContacts}
+            disabled={importingContacts}
+            variant="outline"
+            className="flex-1 hover:bg-washi-mint/20"
+          >
+            {importingContacts ? "Importing..." : "📱 Import Contacts"}
+          </Button>
           <Button
             onClick={() => setShowAddManual(!showAddManual)}
             className="flex-1 bg-primary hover:bg-primary/90"
@@ -447,16 +437,6 @@ export default function FriendsPage() {
           </div>
         )}
 
-        {/* Contact Picker Not Supported Message */}
-        {!contactsSupported && (
-          <div className="mt-6 p-4 bg-washi-yellow/20 rounded-lg text-sm text-muted-foreground">
-            <p>
-              <strong>Note:</strong> Contact import is only available on
-              supported mobile browsers (Chrome on Android, Safari on iOS). You
-              can still add friends manually.
-            </p>
-          </div>
-        )}
       </div>
     </main>
   );
