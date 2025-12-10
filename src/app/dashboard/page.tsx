@@ -125,11 +125,27 @@ export default function Dashboard() {
     setLoading(false);
   };
 
+  const handleDismissContent = async (contentId: string) => {
+    try {
+      const res = await fetch(`/api/content/${contentId}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        // Remove from local state immediately for better UX
+        setContent((prev) => prev.filter((c) => c.id !== contentId));
+      }
+    } catch (error) {
+      console.error("Failed to dismiss content:", error);
+    }
+  };
+
   // Count stats (only completed items)
   const completedContent = content.filter((c) => c.status === "completed");
-  const processingCount = content.filter(
-    (c) => c.status === "processing"
-  ).length;
+  const processingItems = content.filter((c) => c.status === "processing");
+  const failedItems = content.filter((c) => c.status === "failed");
+  const processingCount = processingItems.length;
+  const failedCount = failedItems.length;
 
   if (loading) {
     return (
@@ -193,10 +209,10 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto px-3 md:px-4">
         {/* Processing Banner */}
         {processingCount > 0 && (
-          <div className="scrapbook-card p-4 mb-6 border-l-4 border-l-washi-coral animate-pulse">
+          <div className="scrapbook-card p-4 mb-4 border-l-4 border-l-washi-coral animate-pulse">
             <div className="flex items-center gap-3">
               <span className="text-2xl animate-wiggle">✂️</span>
-              <div>
+              <div className="flex-1">
                 <p className="font-medium font-handwritten text-lg">
                   Adding {processingCount} new clip
                   {processingCount > 1 ? "s" : ""}...
@@ -205,6 +221,56 @@ export default function Dashboard() {
                   Processing your content
                 </p>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Failed Items Banner */}
+        {failedCount > 0 && (
+          <div className="scrapbook-card p-4 mb-6 border-l-4 border-l-destructive">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">😕</span>
+                <div>
+                  <p className="font-medium font-handwritten text-lg">
+                    {failedCount} item{failedCount > 1 ? "s" : ""} failed to
+                    process
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    These links couldn&apos;t be saved
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  failedItems.forEach((item) => handleDismissContent(item.id));
+                }}
+                className="text-destructive hover:bg-destructive/10 shrink-0"
+              >
+                Dismiss All
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {failedItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between gap-2 p-2 bg-destructive/5 rounded-lg"
+                >
+                  <p className="text-sm truncate flex-1 text-muted-foreground">
+                    {item.tiktok_url}
+                  </p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDismissContent(item.id)}
+                    className="text-destructive hover:bg-destructive/10 shrink-0 h-7 px-2"
+                  >
+                    ✕
+                  </Button>
+                </div>
+              ))}
             </div>
           </div>
         )}

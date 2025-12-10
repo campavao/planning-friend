@@ -125,7 +125,14 @@ export default function FriendsPage() {
   };
 
   const handleAddFriend = async () => {
-    if (!newFriendName.trim()) return;
+    if (!newFriendName.trim() || !newFriendPhone.trim()) return;
+
+    // Validate phone number has at least 10 digits
+    const phoneDigits = newFriendPhone.replace(/\D/g, "");
+    if (phoneDigits.length < 10) {
+      alert("Please enter a valid phone number");
+      return;
+    }
 
     setAddingFriend(true);
 
@@ -135,7 +142,7 @@ export default function FriendsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: newFriendName.trim(),
-          phoneNumber: newFriendPhone.trim() || undefined,
+          phoneNumber: newFriendPhone.trim(),
         }),
       });
 
@@ -299,7 +306,7 @@ export default function FriendsPage() {
               />
               <Input
                 type="tel"
-                placeholder="Phone number (optional)"
+                placeholder="Phone number *"
                 value={newFriendPhone}
                 onChange={(e) =>
                   setNewFriendPhone(formatPhoneNumber(e.target.value))
@@ -309,7 +316,11 @@ export default function FriendsPage() {
               <div className="flex gap-2">
                 <Button
                   onClick={handleAddFriend}
-                  disabled={addingFriend || !newFriendName.trim()}
+                  disabled={
+                    addingFriend ||
+                    !newFriendName.trim() ||
+                    newFriendPhone.replace(/\D/g, "").length < 10
+                  }
                   className="flex-1 bg-primary hover:bg-primary/90"
                 >
                   {addingFriend ? "Adding..." : "Add Friend"}
