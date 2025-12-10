@@ -64,10 +64,28 @@ export default function FriendsPage() {
   }, [fetchFriends]);
 
   const handleImportContacts = async () => {
+    // Check if running as standalone PWA (required for iOS)
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as Navigator & { standalone?: boolean }).standalone ===
+        true;
+
+    // Detect iOS
+    const isIOS =
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
     if (!navigator.contacts) {
-      alert(
-        "Contact import is not supported on this device/browser. Try using Chrome on Android or Safari on iOS."
-      );
+      if (isIOS && !isStandalone) {
+        alert(
+          "To import contacts on iOS, you need to add this app to your home screen first.\n\n" +
+            "Tap the Share button (square with arrow) → 'Add to Home Screen', then open the app from there."
+        );
+      } else {
+        alert(
+          "Contact import is not supported on this device/browser. Try using Chrome on Android, or on iOS add this app to your home screen first."
+        );
+      }
       return;
     }
 
