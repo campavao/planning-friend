@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import type {
   Content,
@@ -12,6 +13,7 @@ import type {
   Tag,
   ContentWithTags,
 } from "@/lib/supabase";
+import { useState } from "react";
 
 // Generate Google Maps URL from location string
 function getGoogleMapsUrl(location: string): string {
@@ -100,6 +102,47 @@ function ProcessingCard({
   content: Content;
   index?: number;
 }) {
+  const [retryState, setRetryState] = useState<
+    "idle" | "pending" | "success" | "error"
+  >("idle");
+  const [retryMessage, setRetryMessage] = useState("");
+
+  const handleRetry = async (
+    event: React.MouseEvent<HTMLButtonElement, MouseEvent>
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setRetryState("pending");
+    setRetryMessage("");
+
+    try {
+      const res = await fetch(`/api/content/${content.id}/reprocess`, {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Failed to start retry");
+      }
+
+      setRetryState("success");
+      setRetryMessage("We'll refresh this automatically.");
+    } catch (error) {
+      setRetryState("error");
+      setRetryMessage(
+        error instanceof Error ? error.message : "Something went wrong"
+      );
+    }
+  };
+
+  const isRetrying = retryState === "pending";
+  const retryLabel =
+    retryState === "success"
+      ? "Retry sent!"
+      : isRetrying
+      ? "Retrying..."
+      : "Try again";
+
   return (
     <Link href={`/dashboard/${content.id}`}>
       <div
@@ -122,6 +165,23 @@ function ProcessingCard({
           <p className="font-medium text-xs md:text-sm line-clamp-2">
             Adding...
           </p>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="w-full mt-2 text-[11px] md:text-xs"
+            onClick={handleRetry}
+            disabled={isRetrying || retryState === "success"}
+          >
+            {retryLabel}
+          </Button>
+          {retryState === "success" && (
+            <p className="text-[10px] text-muted-foreground mt-1">
+              {retryMessage}
+            </p>
+          )}
+          {retryState === "error" && (
+            <p className="text-[10px] text-destructive mt-1">{retryMessage}</p>
+          )}
         </div>
       </div>
     </Link>
