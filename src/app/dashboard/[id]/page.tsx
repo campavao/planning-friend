@@ -36,6 +36,11 @@ export default function ContentDetailPage() {
   const [editCategory, setEditCategory] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [retryFeedback, setRetryFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
@@ -179,6 +184,37 @@ export default function ContentDetailPage() {
     }
   };
 
+  const handleRetryProcessing = async () => {
+    if (!content) return;
+
+    setRetrying(true);
+    setRetryFeedback(null);
+    try {
+      const res = await fetch(`/api/content/${content.id}/reprocess`, {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Failed to start retry");
+      }
+
+      setRetryFeedback({
+        type: "success",
+        message: "Retry started. We'll keep this page updated.",
+      });
+      await fetchContent();
+    } catch (error) {
+      setRetryFeedback({
+        type: "error",
+        message:
+          error instanceof Error ? error.message : "Something went wrong",
+      });
+    } finally {
+      setRetrying(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-paper">
@@ -291,6 +327,25 @@ export default function ContentDetailPage() {
             <p className="text-muted-foreground mb-4">
               Processing this for you. Almost done!
             </p>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleRetryProcessing}
+              disabled={retrying}
+              className="mt-1 hover:bg-washi-yellow/40"
+            >
+              {retrying ? "Retrying..." : "Try Reprocessing"}
+            </Button>
+            {retryFeedback?.type === "success" && (
+              <p className="text-sm text-muted-foreground mt-2">
+                {retryFeedback.message}
+              </p>
+            )}
+            {retryFeedback?.type === "error" && (
+              <p className="text-sm text-destructive mt-2">
+                {retryFeedback.message}
+              </p>
+            )}
             <Button
               variant="ghost"
               size="sm"
