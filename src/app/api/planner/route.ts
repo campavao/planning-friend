@@ -5,10 +5,13 @@ import {
   addPlanItem,
   getWeekStart,
   getContentByUser,
-  getSharedPlansWithDetails,
-  getPlanShareInfo,
+  getSharedItemsForUser,
+  getPlanItemShares,
+  getFriends,
   type Content,
   type ContentCategory,
+  type PlanItem,
+  type SharedPlanItem,
 } from "@/lib/supabase";
 import { cookies } from "next/headers";
 
@@ -41,6 +44,12 @@ async function getSessionUser(): Promise<SessionData | null> {
   }
 }
 
+// Extended plan item with sharing info
+interface PlanItemWithSharing extends PlanItem {
+  is_owner: boolean;
+  shared_with?: { userId: string; name: string }[];
+}
+
 // GET weekly plan
 export async function GET(request: NextRequest) {
   try {
@@ -54,32 +63,84 @@ export async function GET(request: NextRequest) {
 
     // Get or create the plan
     await getOrCreateWeeklyPlan(session.userId, weekStart);
-    
+
     // Get plan with items
     const plan = await getWeeklyPlanWithItems(session.userId, weekStart);
 
     // Get all user's content for adding to plan
     const allContent = await getContentByUser(session.userId);
-    const availableContent = allContent.filter(
-      (c) => c.status === "completed"
+    const availableContent = allContent.filter((c) => c.status === "completed");
+
+    // Get items shared with this user for this week
+    let sharedItems: SharedPlanItem[] = [];
+    try {
+      sharedItems = await getSharedItemsForUser(session.userId, weekStart);
+    } catch (error) {
+      // Table might not exist yet, continue without shared items
+      console.error("Error getting shared items:", error);
+    }
+
+    // Get user's friends with linked accounts (for sharing UI)
+    const friends = await getFriends(session.userId);
+    const shareableFriends = friends
+      .filter((f) => f.linked_user_id)
+      .map((f) => ({
+        id: f.id,
+        name: f.name,
+        linkedUserId: f.linked_user_id,
+        isFavorite: f.is_favorite,
+      }));
+
+    // Enhance own items with sharing info
+    const ownItemsWithSharing: PlanItemWithSharing[] = [];
+    if (plan?.items) {
+      for (const item of plan.items) {
+        try {
+          const shares = await getPlanItemShares(item.id);
+          // Map shared_with_user_id to friend names
+          const sharedWith = shares.map((share) => {
+            const friend = friends.find(
+              (f) => f.linked_user_id === share.shared_with_user_id
+            );
+            return {
+              userId: share.shared_with_user_id,
+              name: friend?.name || "Friend",
+            };
+          });
+
+          ownItemsWithSharing.push({
+            ...item,
+            is_owner: true,
+            shared_with: sharedWith.length > 0 ? sharedWith : undefined,
+          });
+        } catch {
+          // If sharing lookup fails, just include the item without sharing info
+          ownItemsWithSharing.push({
+            ...item,
+            is_owner: true,
+          });
+        }
+      }
+    }
+
+    // Generate suggestions based on patterns (using own items only)
+    const suggestions = generateSuggestions(
+      plan?.items || [],
+      availableContent
     );
-
-    // Generate suggestions based on patterns
-    const suggestions = generateSuggestions(plan?.items || [], availableContent);
-
-    // Get shared plans information
-    const sharedWithMe = await getSharedPlansWithDetails(session.userId);
-    
-    // Get share info for current plan (if user owns it)
-    const shareInfo = plan ? await getPlanShareInfo(plan.id, session.userId) : { isShared: false, sharedWith: [] };
 
     return NextResponse.json({
       success: true,
-      plan,
+      plan: plan
+        ? {
+            ...plan,
+            items: ownItemsWithSharing,
+          }
+        : null,
+      sharedItems,
       availableContent,
       suggestions,
-      sharedWithMe,
-      shareInfo,
+      shareableFriends,
     });
   } catch (error) {
     console.error("Error getting planner:", error);
@@ -150,11 +211,11 @@ function generateSuggestions(
 
   for (let day = 0; day <= 6; day++) {
     const dayItems = existingItems.filter((item) => item.day_of_week === day);
-    
+
     // If day is empty, suggest content
     if (dayItems.length === 0) {
       const preferredCategories = dayPatterns[day] || ["meal", "date_idea"];
-      
+
       const daySuggestions = availableContent
         .filter((content) => {
           // Not already used this week
@@ -172,4 +233,3 @@ function generateSuggestions(
 
   return suggestions;
 }
-

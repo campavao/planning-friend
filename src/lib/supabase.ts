@@ -1780,3 +1780,259 @@ export async function deleteThumbnail(contentId: string): Promise<void> {
     // Don't throw - this is a cleanup operation
   }
 }
+
+// ==================== Plan Item Sharing ====================
+
+export interface PlanItemShare {
+  id: string;
+  plan_item_id: string;
+  owner_user_id: string;
+  shared_with_user_id: string;
+  created_at: string;
+}
+
+export interface SharedPlanItem extends PlanItem {
+  owner_user_id: string;
+  owner_name?: string;
+  shared_date: string; // The actual date this item is on
+  is_shared: true;
+}
+
+export interface PlanItemWithSharing extends PlanItem {
+  is_shared?: boolean;
+  is_owner?: boolean;
+  owner_name?: string;
+  shared_with?: { id: string; name: string }[];
+}
+
+// Share a plan item with friends (by their linked_user_id)
+export async function shareItemWithFriends(
+  itemId: string,
+  ownerUserId: string,
+  friendUserIds: string[]
+): Promise<void> {
+  const supabase = createServerClient();
+
+  // Create share records for each friend
+  const shares = friendUserIds.map((userId) => ({
+    plan_item_id: itemId,
+    owner_user_id: ownerUserId,
+    shared_with_user_id: userId,
+  }));
+
+  const { error } = await supabase
+    .from("plan_item_shares")
+    .upsert(shares, { onConflict: "plan_item_id,shared_with_user_id" });
+
+  if (error) {
+    throw new Error(`Failed to share item: ${error.message}`);
+  }
+}
+
+// Remove sharing for specific friends
+export async function unshareItemWithFriends(
+  itemId: string,
+  friendUserIds: string[]
+): Promise<void> {
+  const supabase = createServerClient();
+
+  const { error } = await supabase
+    .from("plan_item_shares")
+    .delete()
+    .eq("plan_item_id", itemId)
+    .in("shared_with_user_id", friendUserIds);
+
+  if (error) {
+    throw new Error(`Failed to unshare item: ${error.message}`);
+  }
+}
+
+// Get items shared with a user for a specific week
+export async function getSharedItemsForUser(
+  userId: string,
+  weekStart: string
+): Promise<SharedPlanItem[]> {
+  const supabase = createServerClient();
+
+  // Calculate week end (7 days from start)
+  const startDate = new Date(weekStart);
+  const endDate = new Date(startDate);
+  endDate.setDate(endDate.getDate() + 6);
+
+  // Get all items shared with this user
+  const { data: shares, error: sharesError } = await supabase
+    .from("plan_item_shares")
+    .select(
+      `
+      id,
+      plan_item_id,
+      owner_user_id,
+      created_at,
+      plan_items!inner (
+        id,
+        plan_id,
+        content_id,
+        day_of_week,
+        slot_order,
+        notes,
+        created_at,
+        content (*)
+      ),
+      users!plan_item_shares_owner_user_id_fkey (
+        id,
+        name,
+        phone_number
+      )
+    `
+    )
+    .eq("shared_with_user_id", userId);
+
+  if (sharesError) {
+    throw new Error(`Failed to get shared items: ${sharesError.message}`);
+  }
+
+  if (!shares || shares.length === 0) {
+    return [];
+  }
+
+  // Filter to items in the requested week and transform the data
+  const sharedItems: SharedPlanItem[] = [];
+
+  for (const share of shares) {
+    const planItem = share.plan_items as unknown as PlanItem & {
+      content: Content;
+    };
+    const owner = share.users as unknown as User;
+
+    // Get the plan to check the week_start
+    const { data: plan } = await supabase
+      .from("weekly_plans")
+      .select("week_start")
+      .eq("id", planItem.plan_id)
+      .single();
+
+    if (plan && plan.week_start === weekStart) {
+      // Calculate the actual date
+      const itemDate = new Date(weekStart);
+      itemDate.setDate(itemDate.getDate() + planItem.day_of_week);
+
+      sharedItems.push({
+        ...planItem,
+        owner_user_id: share.owner_user_id,
+        owner_name: owner?.name || owner?.phone_number?.slice(-4) || "Friend",
+        shared_date: itemDate.toISOString().split("T")[0],
+        is_shared: true,
+      });
+    }
+  }
+
+  return sharedItems;
+}
+
+// Leave a shared item (remove yourself from the share)
+export async function leaveSharedItem(
+  itemId: string,
+  userId: string
+): Promise<void> {
+  const supabase = createServerClient();
+
+  const { error } = await supabase
+    .from("plan_item_shares")
+    .delete()
+    .eq("plan_item_id", itemId)
+    .eq("shared_with_user_id", userId);
+
+  if (error) {
+    throw new Error(`Failed to leave shared item: ${error.message}`);
+  }
+}
+
+// Get share info for an item (who it's shared with)
+export async function getItemShareInfo(
+  itemId: string
+): Promise<{ sharedWith: { userId: string; name: string }[] }> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("plan_item_shares")
+    .select(
+      `
+      shared_with_user_id,
+      users!plan_item_shares_shared_with_user_id_fkey (
+        id,
+        name,
+        phone_number
+      )
+    `
+    )
+    .eq("plan_item_id", itemId);
+
+  if (error) {
+    throw new Error(`Failed to get item share info: ${error.message}`);
+  }
+
+  const sharedWith =
+    data?.map((share) => {
+      const user = share.users as unknown as User;
+      return {
+        userId: share.shared_with_user_id,
+        name: user?.name || user?.phone_number?.slice(-4) || "User",
+      };
+    }) || [];
+
+  return { sharedWith };
+}
+
+// Update sharing for an item (set the exact list of people to share with)
+export async function updateItemSharing(
+  itemId: string,
+  ownerUserId: string,
+  friendUserIds: string[]
+): Promise<void> {
+  const supabase = createServerClient();
+
+  // First, get current shares
+  const { data: currentShares } = await supabase
+    .from("plan_item_shares")
+    .select("shared_with_user_id")
+    .eq("plan_item_id", itemId);
+
+  const currentUserIds = new Set(
+    currentShares?.map((s) => s.shared_with_user_id) || []
+  );
+  const newUserIds = new Set(friendUserIds);
+
+  // Find users to add and remove
+  const toAdd = friendUserIds.filter((id) => !currentUserIds.has(id));
+  const toRemove = Array.from(currentUserIds).filter(
+    (id) => !newUserIds.has(id)
+  );
+
+  // Add new shares
+  if (toAdd.length > 0) {
+    await shareItemWithFriends(itemId, ownerUserId, toAdd);
+  }
+
+  // Remove old shares
+  if (toRemove.length > 0) {
+    await unshareItemWithFriends(itemId, toRemove);
+  }
+}
+
+// Get all shares for a plan item (for the owner to see who it's shared with)
+export async function getPlanItemShares(
+  itemId: string
+): Promise<PlanItemShare[]> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("plan_item_shares")
+    .select("*")
+    .eq("plan_item_id", itemId);
+
+  if (error) {
+    throw new Error(`Failed to get plan item shares: ${error.message}`);
+  }
+
+  return data as PlanItemShare[];
+}
