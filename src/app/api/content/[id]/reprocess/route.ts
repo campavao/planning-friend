@@ -1,6 +1,7 @@
 import { detectPlatform } from "@/lib/social-media";
 import { getContentById, updateContent } from "@/lib/supabase";
 import { cookies } from "next/headers";
+import { after } from "next/server";
 import { NextRequest, NextResponse } from "next/server";
 
 interface SessionData {
@@ -90,30 +91,35 @@ export async function POST(
     const baseUrl = getBaseUrl(request);
     const processUrl = `${baseUrl}/api/process`;
 
-    fetch(processUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contentId: content.id,
-        socialUrl: content.tiktok_url,
-        platform,
-        userId: session.userId,
-        phoneNumber: session.phoneNumber,
-        retry: true,
-      }),
-    })
-      .then((res) => {
+    // Use after() to ensure the processing request completes even after response is sent
+    // This prevents items from getting stuck in "processing" status in serverless environments
+    after(async () => {
+      try {
+        const res = await fetch(processUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contentId: content.id,
+            socialUrl: content.tiktok_url,
+            platform,
+            userId: session.userId,
+            phoneNumber: session.phoneNumber,
+            retry: true,
+          }),
+        });
+
         if (!res.ok) {
-          res.text().then((text) =>
-            console.error("Failed to trigger reprocess:", res.status, text)
-          );
+          const text = await res.text();
+          console.error("Failed to trigger reprocess:", res.status, text);
+        } else {
+          console.log(`Reprocess API succeeded: ${res.status}`);
         }
-      })
-      .catch((error) => {
+      } catch (error) {
         console.error("Error calling process API:", error);
-      });
+      }
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -124,4 +130,3 @@ export async function POST(
     );
   }
 }
-

@@ -1,5 +1,6 @@
 import { createProcessingContent, getOrCreateUser } from "@/lib/supabase";
 import { extractSocialMediaUrl, normalizePhoneNumber } from "@/lib/twilio";
+import { after } from "next/server";
 import { NextRequest, NextResponse } from "next/server";
 
 // Get the base URL dynamically
@@ -91,42 +92,45 @@ export async function POST(request: NextRequest) {
 
     // Trigger async processing using the correct base URL
     const appUrl = getBaseUrl(request);
-    console.log(`Processing URL: ${appUrl}/api/process`);
-
-    // Fire and forget - don't await, but log the result
     const processUrl = `${appUrl}/api/process`;
     console.log(`Triggering process API at: ${processUrl}`);
 
-    fetch(processUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contentId: processingContent.id,
-        socialUrl: socialMedia.url,
-        platform: socialMedia.platform,
-        userId: user.id,
-        phoneNumber,
-        // Include MMS media if available - can use directly instead of scraping!
-        mmsMedia:
-          mediaUrls.length > 0
-            ? {
-                urls: mediaUrls,
-                types: mediaTypes,
-              }
-            : undefined,
-      }),
-    })
-      .then((res) => {
-        console.log(`Process API response: ${res.status} ${res.statusText}`);
+    // Use after() to ensure the processing request completes even after response is sent
+    // This prevents items from getting stuck in "processing" status in serverless environments
+    after(async () => {
+      try {
+        const res = await fetch(processUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contentId: processingContent.id,
+            socialUrl: socialMedia.url,
+            platform: socialMedia.platform,
+            userId: user.id,
+            phoneNumber,
+            // Include MMS media if available - can use directly instead of scraping!
+            mmsMedia:
+              mediaUrls.length > 0
+                ? {
+                    urls: mediaUrls,
+                    types: mediaTypes,
+                  }
+                : undefined,
+          }),
+        });
+
         if (!res.ok) {
-          res.text().then((text) => console.error("Process API error:", text.slice(0, 500)));
+          const text = await res.text();
+          console.error("Process API error:", res.status, text.slice(0, 500));
+        } else {
+          console.log(`Process API succeeded: ${res.status}`);
         }
-      })
-      .catch((error) => {
+      } catch (error) {
         console.error("Failed to trigger processing:", error);
-      });
+      }
+    });
 
     // Return empty TwiML response (no reply SMS for now)
     return new NextResponse(
