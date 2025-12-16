@@ -14,7 +14,15 @@ export async function POST(request: NextRequest) {
 
     let userId: string;
     try {
-      const session = JSON.parse(sessionCookie.value);
+      // Session cookie is base64 encoded
+      const decoded = Buffer.from(sessionCookie.value, "base64").toString();
+      const session = JSON.parse(decoded);
+
+      // Check if session is expired
+      if (session.exp && session.exp < Date.now()) {
+        return NextResponse.json({ error: "Session expired" }, { status: 401 });
+      }
+
       userId = session.userId;
     } catch {
       return NextResponse.json({ error: "Invalid session" }, { status: 401 });
@@ -60,7 +68,15 @@ export async function DELETE(request: NextRequest) {
 
     let userId: string;
     try {
-      const session = JSON.parse(sessionCookie.value);
+      // Session cookie is base64 encoded
+      const decoded = Buffer.from(sessionCookie.value, "base64").toString();
+      const session = JSON.parse(decoded);
+
+      // Check if session is expired
+      if (session.exp && session.exp < Date.now()) {
+        return NextResponse.json({ error: "Session expired" }, { status: 401 });
+      }
+
       userId = session.userId;
     } catch {
       return NextResponse.json({ error: "Invalid session" }, { status: 401 });
@@ -70,10 +86,7 @@ export async function DELETE(request: NextRequest) {
     const { endpoint } = body;
 
     if (!endpoint) {
-      return NextResponse.json(
-        { error: "Endpoint required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Endpoint required" }, { status: 400 });
     }
 
     await removePushSubscription(userId, endpoint);

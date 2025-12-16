@@ -26,10 +26,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Parse the session to get user info
+    // Parse the session to get user info (session cookie is base64 encoded)
     let userId: string;
     try {
-      const session = JSON.parse(sessionCookie.value);
+      const decoded = Buffer.from(sessionCookie.value, "base64").toString();
+      const session = JSON.parse(decoded);
+
+      // Check if session is expired
+      if (session.exp && session.exp < Date.now()) {
+        redirect(
+          "/dashboard/share?error=" + encodeURIComponent("Session expired")
+        );
+      }
+
       if (!session.userId) {
         redirect(
           "/dashboard/share?error=" + encodeURIComponent("Invalid session")
