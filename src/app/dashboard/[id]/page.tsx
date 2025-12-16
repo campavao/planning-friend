@@ -28,6 +28,27 @@ function getGoogleMapsUrl(location: string): string {
   )}`;
 }
 
+// Get appropriate link text for the source URL
+function getSourceLinkText(url: string): string {
+  if (
+    url.includes("tiktok.com") ||
+    url.includes("vm.tiktok.com") ||
+    url.includes("vt.tiktok.com")
+  ) {
+    return "Watch on TikTok →";
+  }
+  if (url.includes("instagram.com") || url.includes("instagr.am")) {
+    return "View on Instagram →";
+  }
+  // Generic website
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, "");
+    return `Visit ${hostname} →`;
+  } catch {
+    return "Visit Website →";
+  }
+}
+
 export default function ContentDetailPage() {
   const { user } = useSession();
   const [content, setContent] = useState<Content | null>(null);
@@ -221,16 +242,16 @@ export default function ContentDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-paper">
-        <div className="animate-shimmer w-16 h-16 rounded-full" />
+      <div className='min-h-screen flex items-center justify-center bg-paper'>
+        <div className='animate-shimmer w-16 h-16 rounded-full' />
       </div>
     );
   }
 
   if (!content) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-paper">
-        <p className="font-handwritten text-xl">Content not found</p>
+      <div className='min-h-screen flex items-center justify-center bg-paper'>
+        <p className='font-handwritten text-xl'>Content not found</p>
       </div>
     );
   }
@@ -507,9 +528,7 @@ export default function ContentDetailPage() {
                 rel='noopener noreferrer'
                 className='inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors'
               >
-                {content.tiktok_url.includes("instagram.com")
-                  ? "View on Instagram →"
-                  : "Watch on TikTok →"}
+                {getSourceLinkText(content.tiktok_url)}
               </a>
             </div>
 

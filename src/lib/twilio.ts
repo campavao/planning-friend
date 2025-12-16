@@ -148,10 +148,31 @@ export function extractInstagramUrl(messageBody: string): string | null {
   return null;
 }
 
-// Extract any supported social media URL from message body
+// Extract any generic website URL from message body
+export function extractWebsiteUrl(messageBody: string): string | null {
+  // Match any http/https URL that's not a social media URL
+  // This pattern matches URLs with common TLDs and paths
+  const pattern = /https?:\/\/(?:www\.)?[a-zA-Z0-9][-a-zA-Z0-9]*(?:\.[a-zA-Z0-9][-a-zA-Z0-9]*)+(?:\/[^\s]*)?/gi;
+
+  const match = messageBody.match(pattern);
+  if (match) {
+    // Return the first URL found, cleaning up any trailing punctuation
+    let url = match[0];
+    // Remove trailing punctuation that might have been captured
+    url = url.replace(/[.,;:!?)]+$/, '');
+    return url;
+  }
+
+  return null;
+}
+
+// Supported platform types
+export type SupportedPlatform = "tiktok" | "instagram" | "website";
+
+// Extract any supported URL from message body (social media or website)
 export function extractSocialMediaUrl(
   messageBody: string
-): { url: string; platform: "tiktok" | "instagram" } | null {
+): { url: string; platform: SupportedPlatform } | null {
   // Try TikTok first
   const tiktokUrl = extractTikTokUrl(messageBody);
   if (tiktokUrl) {
@@ -162,6 +183,12 @@ export function extractSocialMediaUrl(
   const instagramUrl = extractInstagramUrl(messageBody);
   if (instagramUrl) {
     return { url: instagramUrl, platform: "instagram" };
+  }
+
+  // Fall back to generic website URL
+  const websiteUrl = extractWebsiteUrl(messageBody);
+  if (websiteUrl) {
+    return { url: websiteUrl, platform: "website" };
   }
 
   return null;

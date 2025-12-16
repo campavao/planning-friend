@@ -1,12 +1,12 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type {
   ContentCategory,
-  MealData,
-  EventData,
   DateIdeaData,
-  GiftIdeaData,
-  TravelData,
   DrinkData,
+  EventData,
+  GiftIdeaData,
+  MealData,
+  TravelData,
 } from "./supabase";
 
 export interface AnalysisResult {
@@ -28,9 +28,9 @@ export interface MultiItemAnalysisResult {
   isMultiItem: boolean;
 }
 
-const ANALYSIS_PROMPT = `You are an AI assistant that analyzes TikTok videos to extract and categorize content.
+const ANALYSIS_PROMPT = `You are an AI assistant that analyzes content (videos, images, or web pages) to extract and categorize useful information.
 
-Analyze this video and determine what category it belongs to:
+Analyze this content and determine what category it belongs to:
 
 1. **meal** - A recipe, cooking tutorial, or FOOD-related content (not drinks/beverages)
 2. **drink** - A cocktail, mocktail, smoothie, coffee drink, or any BEVERAGE recipe
@@ -45,7 +45,14 @@ Analyze this video and determine what category it belongs to:
 - If the content is primarily about FOOD (even if drinks are mentioned), categorize it as **meal**
 
 **IMPORTANT - Multi-Item Detection:**
-If the video contains a LIST of items (e.g., "Top 5 restaurants", "3 best gifts", "My favorite spots in NYC"), extract EACH item separately and return them as an array.
+If the content contains a LIST of items (e.g., "Top 5 restaurants", "3 best gifts", "My favorite spots in NYC"), extract EACH item separately and return them as an array.
+
+**IMPORTANT - Website Content:**
+When analyzing a website/webpage:
+- For RECIPE pages: Extract full ingredients list (with quantities), step-by-step instructions, prep/cook times, and servings. This is the PRIMARY source - prefer data from the page over inferences.
+- For RESTAURANT pages: Extract the location/address, hours, phone number, reservation links (OpenTable, Resy, etc.), menu links, and cuisine type.
+- For PRODUCT pages: Extract the product name, price, purchase link, and description.
+- Look for structured data (Schema.org/JSON-LD) in the provided content for accurate information.
 
 Based on the category, extract the relevant information:
 
@@ -109,7 +116,7 @@ For **travel**:
 
 For **other**:
 - title: Brief description of the content
-- description: Summary of what the video is about
+- description: Summary of what the content is about
 
 **Tags (for ALL categories):**
 Also suggest 2-5 relevant tags for each item. Choose from these common tags or suggest similar ones:
@@ -357,6 +364,112 @@ Based on this information, determine what category this content belongs to and e
           title: description.slice(0, 50) || "Saved TikTok",
           data: {
             description: description || "Content from TikTok",
+          },
+        },
+      ],
+    };
+  }
+}
+
+// Analyze a webpage with its content and structured data
+export async function analyzeWebpage(
+  pageContent: string,
+  url: string,
+  options?: {
+    thumbnailUrl?: string;
+    structuredData?: Record<string, unknown>;
+    description?: string;
+    siteName?: string;
+  }
+): Promise<MultiItemAnalysisResult> {
+  const genAI = getGeminiClient();
+
+  // Use Gemini 2.5 Flash for text analysis
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+  // Build context from available data
+  let contextInfo = `Website URL: ${url}\n`;
+  if (options?.siteName) {
+    contextInfo += `Site name: ${options.siteName}\n`;
+  }
+  if (options?.description) {
+    contextInfo += `Page description: ${options.description}\n`;
+  }
+  if (options?.structuredData) {
+    contextInfo += `\nStructured data (JSON-LD/Schema.org):\n${JSON.stringify(
+      options.structuredData,
+      null,
+      2
+    )}\n`;
+  }
+
+  const prompt = `${ANALYSIS_PROMPT}
+
+I'm providing content from a website. Analyze it and extract the relevant information.
+
+${contextInfo}
+
+Page content (text extracted from HTML):
+"""
+${pageContent}
+"""
+
+Based on this website content, determine what category it belongs to and extract all relevant details. Pay special attention to:
+- If it's a recipe page, extract the FULL recipe with ALL ingredients and ALL steps
+- If it's a restaurant, extract location, hours, contact info, and reservation links
+- If it's a product, extract the name, price, and purchase link
+- Use the structured data if available as it's usually the most accurate source`;
+
+  try {
+    // If we have a thumbnail, include it
+    if (options?.thumbnailUrl) {
+      try {
+        const imageResponse = await fetch(options.thumbnailUrl);
+        if (imageResponse.ok) {
+          const imageBuffer = await imageResponse.arrayBuffer();
+          const imageBase64 = Buffer.from(imageBuffer).toString("base64");
+          const mimeType = options.thumbnailUrl.includes(".png")
+            ? "image/png"
+            : "image/jpeg";
+
+          const result = await model.generateContent([
+            {
+              inlineData: {
+                mimeType,
+                data: imageBase64,
+              },
+            },
+            { text: prompt },
+          ]);
+
+          const response = result.response;
+          const text = response.text();
+          return parseAnalysisResponse(text);
+        }
+      } catch (imgError) {
+        console.log("Failed to include thumbnail in analysis:", imgError);
+        // Continue without image
+      }
+    }
+
+    // Text-only analysis
+    const result = await model.generateContent([{ text: prompt }]);
+    const response = result.response;
+    const text = response.text();
+
+    return parseAnalysisResponse(text);
+  } catch (error) {
+    console.error("Error analyzing webpage with Gemini:", error);
+
+    return {
+      isMultiItem: false,
+      items: [
+        {
+          category: "other",
+          title: options?.description?.slice(0, 50) || "Website content",
+          data: {
+            description:
+              options?.description || `Content from ${new URL(url).hostname}`,
           },
         },
       ],

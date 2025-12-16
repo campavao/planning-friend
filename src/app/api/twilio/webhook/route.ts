@@ -1,7 +1,6 @@
 import { createProcessingContent, getOrCreateUser } from "@/lib/supabase";
 import { extractSocialMediaUrl, normalizePhoneNumber } from "@/lib/twilio";
-import { after } from "next/server";
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 
 // Get the base URL dynamically
 function getBaseUrl(request: NextRequest): string {
@@ -58,12 +57,12 @@ export async function POST(request: NextRequest) {
     // Normalize the phone number
     const phoneNumber = normalizePhoneNumber(from);
 
-    // Extract social media URL from message (TikTok or Instagram)
+    // Extract URL from message (TikTok, Instagram, or any website)
     const socialMedia = extractSocialMediaUrl(body);
 
     if (!socialMedia) {
       console.log(
-        `No supported social media URL found in message from ${phoneNumber}: ${body}`
+        `No supported URL found in message from ${phoneNumber}: ${body}`
       );
       // Return 200 to acknowledge receipt (Twilio expects this)
       return new NextResponse(

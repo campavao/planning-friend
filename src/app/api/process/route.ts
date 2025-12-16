@@ -1,5 +1,6 @@
 import {
   analyzeVideoWithGemini,
+  analyzeWebpage,
   analyzeWithDescription,
   analyzeWithThumbnail,
   MultiItemAnalysisResult,
@@ -163,11 +164,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Step 3: Analyze the video using best available method
+    // Step 3: Analyze the content using best available method
     let analysisResult: MultiItemAnalysisResult | undefined;
 
-    // Try full video analysis if we have a video URL
-    if (videoInfo.videoUrl) {
+    // For websites, use webpage analysis with scraped content
+    if (platform === "website" && videoInfo.pageContent) {
+      try {
+        console.log("Using webpage content analysis...");
+        analysisResult = await analyzeWebpage(
+          videoInfo.pageContent,
+          socialUrl,
+          {
+            thumbnailUrl: videoInfo.thumbnailUrl,
+            structuredData: videoInfo.structuredData,
+            description: videoInfo.description,
+            siteName: videoInfo.siteName,
+          }
+        );
+      } catch (error) {
+        console.error("Webpage analysis failed:", error);
+      }
+    }
+
+    // Try full video analysis if we have a video URL (not for websites)
+    if (!analysisResult && videoInfo.videoUrl && platform !== "website") {
       try {
         console.log("Attempting full video analysis...");
         const videoData = await getSocialMediaVideoAsBase64(socialUrl);

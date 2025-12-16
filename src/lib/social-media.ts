@@ -1,13 +1,14 @@
-// Unified social media handler for TikTok and Instagram
+// Unified social media handler for TikTok, Instagram, and websites
 
 import {
-    getInstagramMediaInfo,
-    getInstagramVideoAsBase64,
-    isInstagramUrl,
+  getInstagramMediaInfo,
+  getInstagramVideoAsBase64,
+  isInstagramUrl,
 } from "./instagram";
 import { getTikTokVideoAsBase64, getTikTokVideoInfo } from "./tiktok";
+import { getWebsiteInfo, isGenericWebsiteUrl } from "./website";
 
-export type SocialPlatform = "tiktok" | "instagram" | "unknown";
+export type SocialPlatform = "tiktok" | "instagram" | "website" | "unknown";
 
 export interface SocialMediaInfo {
   platform: SocialPlatform;
@@ -16,6 +17,10 @@ export interface SocialMediaInfo {
   description: string;
   author?: string;
   originalUrl: string;
+  // Website-specific fields
+  pageContent?: string;
+  structuredData?: Record<string, unknown>;
+  siteName?: string;
 }
 
 // Detect which platform a URL belongs to
@@ -25,6 +30,9 @@ export function detectPlatform(url: string): SocialPlatform {
   }
   if (isTikTokUrl(url)) {
     return "tiktok";
+  }
+  if (isGenericWebsiteUrl(url)) {
+    return "website";
   }
   return "unknown";
 }
@@ -39,7 +47,9 @@ export function isTikTokUrl(url: string): boolean {
 }
 
 // Get media info from any supported platform
-export async function getSocialMediaInfo(url: string): Promise<SocialMediaInfo> {
+export async function getSocialMediaInfo(
+  url: string
+): Promise<SocialMediaInfo> {
   const platform = detectPlatform(url);
 
   switch (platform) {
@@ -67,10 +77,23 @@ export async function getSocialMediaInfo(url: string): Promise<SocialMediaInfo> 
       };
     }
 
+    case "website": {
+      const info = await getWebsiteInfo(url);
+      return {
+        platform: "website",
+        thumbnailUrl: info.thumbnailUrl,
+        description: info.description || info.title || "Website content",
+        originalUrl: url,
+        pageContent: info.pageContent,
+        structuredData: info.structuredData,
+        siteName: info.siteName,
+      };
+    }
+
     default:
       return {
         platform: "unknown",
-        description: "Unknown social media content",
+        description: "Unknown content",
         originalUrl: url,
       };
   }
@@ -147,8 +170,9 @@ export function getPlatformDisplayName(platform: SocialPlatform): string {
       return "TikTok";
     case "instagram":
       return "Instagram";
+    case "website":
+      return "Website";
     default:
-      return "Social Media";
+      return "Content";
   }
 }
-
