@@ -26,30 +26,7 @@ export default function Dashboard() {
     if (dismissed) setShowTip(false);
   }, []);
 
-  // Check if user needs to set their name
-  useEffect(() => {
-    async function checkUserName() {
-      // Skip if already seen the prompt
-      const hasSeenPrompt = localStorage.getItem("hasSeenNamePrompt");
-      if (hasSeenPrompt) return;
 
-      try {
-        const res = await fetch("/api/users/name");
-        if (res.ok) {
-          const data = await res.json();
-          if (!data.hasName) {
-            setShowNamePrompt(true);
-          }
-        }
-      } catch (error) {
-        console.error("Failed to check user name:", error);
-      }
-    }
-
-    if (user) {
-      checkUserName();
-    }
-  }, [user]);
 
   const dismissTip = () => {
     setShowTip(false);
@@ -78,7 +55,7 @@ export default function Dashboard() {
     }
   }, [router]);
 
-  useSession({
+  const { user } = useSession({
     onSuccess: async () => {
       await fetchContent();
     },
@@ -86,6 +63,31 @@ export default function Dashboard() {
       setLoading(false);
     },
   });
+
+  // Check if user needs to set their name
+  useEffect(() => {
+    async function checkUserName() {
+      // Skip if already seen the prompt
+      const hasSeenPrompt = localStorage.getItem("hasSeenNamePrompt");
+      if (hasSeenPrompt) return;
+
+      try {
+        const res = await fetch("/api/users/name");
+        if (res.ok) {
+          const data = await res.json();
+          if (!data.hasName) {
+            setShowNamePrompt(true);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to check user name:", error);
+      }
+    }
+
+    if (user) {
+      checkUserName();
+    }
+  }, [user]);
 
   // Poll for updates when there are processing items
   useEffect(() => {
