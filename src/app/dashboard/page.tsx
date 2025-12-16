@@ -55,13 +55,13 @@ export default function Dashboard() {
     }
   }, [router]);
 
+  const onFinishLoading = useCallback(() => {
+    setLoading(false);
+  }, []);
+
   const { user } = useSession({
-    onSuccess: async () => {
-      await fetchContent();
-    },
-    onFinishLoading: () => {
-      setLoading(false);
-    },
+    onSuccess: fetchContent,
+    onFinishLoading: onFinishLoading,
   });
 
   // Check if user needs to set their name
