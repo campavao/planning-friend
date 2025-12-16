@@ -8,6 +8,7 @@ interface UsePushNotificationsReturn {
   permission: PermissionState;
   isSubscribed: boolean;
   isLoading: boolean;
+  isChecking: boolean; // Separate state for initial check vs active operation
   error: string | null;
   subscribe: () => Promise<boolean>;
   unsubscribe: () => Promise<boolean>;
@@ -17,7 +18,8 @@ interface UsePushNotificationsReturn {
 export function usePushNotifications(): UsePushNotificationsReturn {
   const [permission, setPermission] = useState<PermissionState>("prompt");
   const [isSubscribed, setIsSubscribed] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // For active operations (subscribe/unsubscribe)
+  const [isChecking, setIsChecking] = useState(true); // For initial check
   const [error, setError] = useState<string | null>(null);
 
   // Check if push notifications are supported
@@ -31,7 +33,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   const checkSubscription = useCallback(async () => {
     if (!isSupported) {
       setPermission("unsupported");
-      setIsLoading(false);
+      setIsChecking(false);
       return;
     }
 
@@ -40,14 +42,16 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       const notifPermission = Notification.permission;
       setPermission(notifPermission as PermissionState);
 
-      // Check if we have an active subscription
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
-      setIsSubscribed(!!subscription);
+      // Only check for existing subscription if a service worker is already registered
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (registration) {
+        const subscription = await registration.pushManager.getSubscription();
+        setIsSubscribed(!!subscription);
+      }
     } catch (err) {
       console.error("Error checking push subscription:", err);
     } finally {
-      setIsLoading(false);
+      setIsChecking(false);
     }
   }, [isSupported]);
 
@@ -170,6 +174,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     permission,
     isSubscribed,
     isLoading,
+    isChecking,
     error,
     subscribe,
     unsubscribe,

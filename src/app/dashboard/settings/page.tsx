@@ -31,6 +31,7 @@ export default function SettingsPage() {
     permission,
     isSubscribed,
     isLoading: pushLoading,
+    isChecking: pushChecking,
     error: pushError,
     subscribe,
     unsubscribe,
@@ -134,63 +135,63 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-paper">
-        <div className="animate-shimmer w-16 h-16 rounded-full mx-auto" />
+      <div className='min-h-screen flex items-center justify-center bg-paper'>
+        <div className='animate-shimmer w-16 h-16 rounded-full mx-auto' />
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen pb-28 md:pb-8 bg-paper">
+    <main className='min-h-screen pb-28 md:pb-8 bg-paper'>
       {/* Scrapbook Header */}
-      <div className="pt-6 pb-4 px-4 md:px-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="relative inline-block">
-            <h1 className="font-handwritten text-4xl md:text-5xl text-foreground transform -rotate-1">
+      <div className='pt-6 pb-4 px-4 md:px-6'>
+        <div className='max-w-4xl mx-auto'>
+          <div className='relative inline-block'>
+            <h1 className='font-handwritten text-4xl md:text-5xl text-foreground transform -rotate-1'>
               Settings
             </h1>
-            <div className="absolute -bottom-1 left-0 right-0 h-2 bg-washi-lavender/60 transform rotate-0.5 -z-10" />
+            <div className='absolute -bottom-1 left-0 right-0 h-2 bg-washi-lavender/60 transform rotate-0.5 -z-10' />
           </div>
-          <p className="text-muted-foreground text-sm mt-2">
+          <p className='text-muted-foreground text-sm mt-2'>
             ⚙️ Customize your experience
           </p>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 space-y-6">
+      <div className='max-w-4xl mx-auto px-4 space-y-6'>
         {/* Profile / Name */}
-        <div className="scrapbook-card p-5 relative">
+        <div className='scrapbook-card p-5 relative'>
           {/* Tape decoration */}
-          <div className="absolute -top-2 left-8 w-16 h-5 bg-washi-blue/80 transform -rotate-1" />
+          <div className='absolute -top-2 left-8 w-16 h-5 bg-washi-blue/80 transform -rotate-1' />
 
-          <div className="flex items-center gap-3 mb-4 pt-2">
-            <span className="text-2xl">👤</span>
+          <div className='flex items-center gap-3 mb-4 pt-2'>
+            <span className='text-2xl'>👤</span>
             <div>
-              <h2 className="font-handwritten text-2xl">Your Profile</h2>
-              <p className="text-sm text-muted-foreground">
+              <h2 className='font-handwritten text-2xl'>Your Profile</h2>
+              <p className='text-sm text-muted-foreground'>
                 This name will be shown to friends when you share plans
               </p>
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className='space-y-4'>
             <div>
-              <label className="text-sm font-medium mb-2 block">
+              <label className='text-sm font-medium mb-2 block'>
                 Your Name
               </label>
               <Input
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
-                placeholder="Enter your name"
-                className="bg-white border-border"
+                placeholder='Enter your name'
+                className='bg-white border-border'
                 maxLength={100}
               />
             </div>
-            <div className="flex items-center gap-4">
+            <div className='flex items-center gap-4'>
               <Button
                 onClick={handleSaveName}
                 disabled={savingName || !userName.trim()}
-                className="bg-primary hover:bg-primary/90"
+                className='bg-primary hover:bg-primary/90'
               >
                 {savingName ? "Saving..." : "Save Name"}
               </Button>
@@ -210,51 +211,51 @@ export default function SettingsPage() {
         </div>
 
         {/* Home Location */}
-        <div className="scrapbook-card p-5 relative">
+        <div className='scrapbook-card p-5 relative'>
           {/* Tape decoration */}
-          <div className="absolute -top-2 left-6 w-14 h-5 bg-washi-mint/80 transform -rotate-2" />
+          <div className='absolute -top-2 left-6 w-14 h-5 bg-washi-mint/80 transform -rotate-2' />
 
-          <div className="flex items-center gap-3 mb-4 pt-2">
-            <span className="text-2xl">🏠</span>
+          <div className='flex items-center gap-3 mb-4 pt-2'>
+            <span className='text-2xl'>🏠</span>
             <div>
-              <h2 className="font-handwritten text-2xl">Home Location</h2>
-              <p className="text-sm text-muted-foreground">
+              <h2 className='font-handwritten text-2xl'>Home Location</h2>
+              <p className='text-sm text-muted-foreground'>
                 Places outside your home region will be marked as Travel
               </p>
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className='space-y-4'>
             <div>
-              <label className="text-sm font-medium mb-2 block">
+              <label className='text-sm font-medium mb-2 block'>
                 City / Region
               </label>
               <Input
                 value={homeRegion}
                 onChange={(e) => setHomeRegion(e.target.value)}
-                placeholder="e.g., Chicago, IL or San Francisco Bay Area"
-                className="bg-white border-border"
+                placeholder='e.g., Chicago, IL or San Francisco Bay Area'
+                className='bg-white border-border'
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-2 block">Country</label>
+              <label className='text-sm font-medium mb-2 block'>Country</label>
               <Input
                 value={homeCountry}
                 onChange={(e) => setHomeCountry(e.target.value)}
-                placeholder="e.g., United States"
-                className="bg-white border-border"
+                placeholder='e.g., United States'
+                className='bg-white border-border'
               />
             </div>
-            <div className="flex items-center gap-4">
+            <div className='flex items-center gap-4'>
               <Button
                 onClick={handleSave}
                 disabled={saving}
-                className="bg-primary hover:bg-primary/90"
+                className='bg-primary hover:bg-primary/90'
               >
                 {saving ? "Saving..." : "Save Location"}
               </Button>
               {message && (
-                <span className="text-sm text-primary font-medium">
+                <span className='text-sm text-primary font-medium'>
                   {message}
                 </span>
               )}
@@ -263,45 +264,47 @@ export default function SettingsPage() {
         </div>
 
         {/* Push Notifications */}
-        <div className="scrapbook-card p-5 relative">
-          <div className="absolute -top-2 right-10 w-14 h-5 bg-washi-yellow/80 transform rotate-1" />
+        <div className='scrapbook-card p-5 relative'>
+          <div className='absolute -top-2 right-10 w-14 h-5 bg-washi-yellow/80 transform rotate-1' />
 
-          <div className="flex items-center gap-3 mb-4 pt-2">
-            <span className="text-2xl">🔔</span>
+          <div className='flex items-center gap-3 mb-4 pt-2'>
+            <span className='text-2xl'>🔔</span>
             <div>
-              <h2 className="font-handwritten text-2xl">Notifications</h2>
-              <p className="text-sm text-muted-foreground">
+              <h2 className='font-handwritten text-2xl'>Notifications</h2>
+              <p className='text-sm text-muted-foreground'>
                 Get notified when your content finishes processing
               </p>
             </div>
           </div>
 
           {!isSupported ? (
-            <p className="text-sm text-muted-foreground">
+            <p className='text-sm text-muted-foreground'>
               Push notifications are not supported in this browser. Try using
               Chrome or Safari on mobile.
             </p>
+          ) : pushChecking ? (
+            <p className='text-sm text-muted-foreground'>Checking...</p>
           ) : (
-            <div className="space-y-3">
+            <div className='space-y-3'>
               {permission === "denied" ? (
-                <p className="text-sm text-amber-600">
+                <p className='text-sm text-amber-600'>
                   Notifications are blocked. Please enable them in your browser
                   settings.
                 </p>
               ) : isSubscribed ? (
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-sm text-muted-foreground">
+                <div className='flex items-center gap-4'>
+                  <div className='flex items-center gap-2'>
+                    <span className='w-2 h-2 rounded-full bg-green-500 animate-pulse' />
+                    <span className='text-sm text-muted-foreground'>
                       Notifications enabled
                     </span>
                   </div>
                   <Button
-                    variant="outline"
-                    size="sm"
+                    variant='outline'
+                    size='sm'
                     onClick={unsubscribe}
                     disabled={pushLoading}
-                    className="text-muted-foreground"
+                    className='text-muted-foreground'
                   >
                     {pushLoading ? "..." : "Turn Off"}
                   </Button>
@@ -310,27 +313,27 @@ export default function SettingsPage() {
                 <Button
                   onClick={subscribe}
                   disabled={pushLoading}
-                  className="bg-primary hover:bg-primary/90"
+                  className='bg-primary hover:bg-primary/90'
                 >
                   {pushLoading ? "Enabling..." : "🔔 Enable Notifications"}
                 </Button>
               )}
               {pushError && (
-                <p className="text-sm text-destructive">{pushError}</p>
+                <p className='text-sm text-destructive'>{pushError}</p>
               )}
             </div>
           )}
         </div>
 
         {/* Planner Sharing */}
-        <div className="scrapbook-card p-5 relative">
-          <div className="absolute -top-2 right-8 w-12 h-5 bg-washi-pink/80 transform rotate-1" />
+        <div className='scrapbook-card p-5 relative'>
+          <div className='absolute -top-2 right-8 w-12 h-5 bg-washi-pink/80 transform rotate-1' />
 
-          <div className="flex items-center gap-3 mb-4 pt-2">
-            <span className="text-2xl">🤝</span>
+          <div className='flex items-center gap-3 mb-4 pt-2'>
+            <span className='text-2xl'>🤝</span>
             <div>
-              <h2 className="font-handwritten text-2xl">Planner Sharing</h2>
-              <p className="text-sm text-muted-foreground">
+              <h2 className='font-handwritten text-2xl'>Planner Sharing</h2>
+              <p className='text-sm text-muted-foreground'>
                 Share your weekly planner with friends or family using share
                 codes
               </p>
@@ -338,64 +341,64 @@ export default function SettingsPage() {
           </div>
 
           <Button
-            variant="outline"
+            variant='outline'
             onClick={() => router.push("/dashboard/planner")}
-            className="hover:bg-washi-blue/20"
+            className='hover:bg-washi-blue/20'
           >
             📅 Go to Planner →
           </Button>
         </div>
 
         {/* About */}
-        <div className="scrapbook-card p-5 relative">
-          <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-washi-yellow/80 transform -rotate-1" />
+        <div className='scrapbook-card p-5 relative'>
+          <div className='absolute -top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-washi-yellow/80 transform -rotate-1' />
 
-          <div className="flex items-center gap-3 mb-4 pt-2">
-            <span className="text-2xl">📒</span>
+          <div className='flex items-center gap-3 mb-4 pt-2'>
+            <span className='text-2xl'>📒</span>
             <div>
-              <h2 className="font-handwritten text-2xl">
+              <h2 className='font-handwritten text-2xl'>
                 About Planning Friend
               </h2>
             </div>
           </div>
 
-          <p className="text-sm text-muted-foreground mb-4">
+          <p className='text-sm text-muted-foreground mb-4'>
             Planning Friend is your personal assistant for collecting and
             organizing ideas from social media. Text links to save meals,
             events, date ideas, and more!
           </p>
 
-          <div className="flex flex-wrap items-center gap-3 mb-4">
-            <AddContactButton variant="button" />
-            <AddToHomeScreenButton variant="button" />
+          <div className='flex flex-wrap items-center gap-3 mb-4'>
+            <AddContactButton variant='button' />
+            <AddToHomeScreenButton variant='button' />
           </div>
-          <p className="text-sm text-muted-foreground mb-4">
+          <p className='text-sm text-muted-foreground mb-4'>
             Text links to <PhoneNumberDisplay /> to save content
           </p>
 
-          <p className="text-xs text-muted-foreground">
+          <p className='text-xs text-muted-foreground'>
             Version 1.0 • Made with 💕
           </p>
         </div>
 
         {/* Sign Out */}
-        <div className="scrapbook-card p-5 relative border-destructive/20">
-          <div className="absolute -top-2 right-6 w-10 h-5 bg-washi-coral/80 transform rotate-2" />
+        <div className='scrapbook-card p-5 relative border-destructive/20'>
+          <div className='absolute -top-2 right-6 w-10 h-5 bg-washi-coral/80 transform rotate-2' />
 
-          <div className="flex items-center gap-3 mb-4 pt-2">
-            <span className="text-2xl">👋</span>
+          <div className='flex items-center gap-3 mb-4 pt-2'>
+            <span className='text-2xl'>👋</span>
             <div>
-              <h2 className="font-handwritten text-2xl">Sign Out</h2>
-              <p className="text-sm text-muted-foreground">
+              <h2 className='font-handwritten text-2xl'>Sign Out</h2>
+              <p className='text-sm text-muted-foreground'>
                 Sign out of this device
               </p>
             </div>
           </div>
 
           <Button
-            variant="outline"
+            variant='outline'
             onClick={handleLogout}
-            className="text-destructive border-destructive/30 hover:bg-destructive/10"
+            className='text-destructive border-destructive/30 hover:bg-destructive/10'
           >
             Sign Out
           </Button>
