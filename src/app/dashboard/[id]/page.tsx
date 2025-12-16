@@ -396,7 +396,8 @@ export default function ContentDetailPage() {
                 <Image
                   src={content.thumbnail_url}
                   alt={content.title}
-                  className='w-full h-full object-cover'
+                  fill
+                  className='object-cover'
                 />
               </div>
             </div>
