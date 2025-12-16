@@ -9,14 +9,9 @@ import type { ContentWithTags, Tag } from "@/lib/supabase";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-
-interface SessionUser {
-  id: string;
-  phoneNumber: string;
-}
+import { useSession } from "./useSession";
 
 export default function Dashboard() {
-  const [user, setUser] = useState<SessionUser | null>(null);
   const [content, setContent] = useState<ContentWithTags[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,28 +78,14 @@ export default function Dashboard() {
     }
   }, [router]);
 
-  useEffect(() => {
-    async function checkAuth() {
-      try {
-        const res = await fetch("/api/auth/session");
-        const data = await res.json();
-
-        if (!data.authenticated) {
-          router.push("/");
-          return;
-        }
-
-        setUser(data.user);
-        await fetchContent();
-      } catch {
-        router.push("/");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    checkAuth();
-  }, [router, fetchContent]);
+  useSession({
+    onSuccess: async () => {
+      await fetchContent();
+    },
+    onFinishLoading: () => {
+      setLoading(false);
+    },
+  });
 
   // Poll for updates when there are processing items
   useEffect(() => {

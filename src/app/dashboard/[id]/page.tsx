@@ -16,8 +16,10 @@ import type {
   TravelData,
 } from "@/lib/supabase";
 import { ChevronDownIcon } from "lucide-react";
+import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { useSession } from "../useSession";
 
 // Generate Google Maps URL from location string
 function getGoogleMapsUrl(location: string): string {
@@ -27,6 +29,7 @@ function getGoogleMapsUrl(location: string): string {
 }
 
 export default function ContentDetailPage() {
+  const { user } = useSession();
   const [content, setContent] = useState<Content | null>(null);
   const [tags, setTags] = useState<Tag[]>([]);
   const [allTags, setAllTags] = useState<Tag[]>([]);
@@ -44,6 +47,7 @@ export default function ContentDetailPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
+  const isEditable = content?.user_id === user?.id;
 
   const fetchContent = useCallback(async () => {
     try {
@@ -294,7 +298,7 @@ export default function ContentDetailPage() {
             ← Back
           </Button>
           <div className="flex gap-2">
-            {content.status === "completed" && (
+            {content.status === "completed" && isEditable && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -387,7 +391,7 @@ export default function ContentDetailPage() {
           {content.thumbnail_url && (
             <div className="p-3 pt-6 pb-0">
               <div className="relative h-56 md:h-72 overflow-hidden rounded bg-muted">
-                <img
+                <Image
                   src={content.thumbnail_url}
                   alt={content.title}
                   className="w-full h-full object-cover"
@@ -450,20 +454,22 @@ export default function ContentDetailPage() {
             )}
 
             {/* Tags Section */}
-            <div className="mt-4">
-              <p className="text-sm text-muted-foreground mb-2 font-handwritten">
-                Tags
-              </p>
-              <TagPills
-                tags={tags}
-                editable={true}
-                allTags={allTags}
-                suggestions={DEFAULT_TAGS}
-                onAdd={handleAddTag}
-                onRemove={handleRemoveTag}
-                onAddExisting={handleAddExistingTag}
-              />
-            </div>
+            {isEditable && (
+              <div className="mt-4">
+                <p className="text-sm text-muted-foreground mb-2 font-handwritten">
+                  Tags
+                </p>
+                <TagPills
+                  tags={tags}
+                  editable={true}
+                  allTags={allTags}
+                  suggestions={DEFAULT_TAGS}
+                  onAdd={handleAddTag}
+                  onRemove={handleRemoveTag}
+                  onAddExisting={handleAddExistingTag}
+                />
+              </div>
+            )}
           </div>
 
           <div className="px-4 pb-4 space-y-6">

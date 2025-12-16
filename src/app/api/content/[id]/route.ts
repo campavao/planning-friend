@@ -55,11 +55,6 @@ export async function GET(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    // Verify ownership
-    if (content.user_id !== session.userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     // Fetch tags for this content
     let tags: Awaited<ReturnType<typeof getContentTags>> = [];
     try {
