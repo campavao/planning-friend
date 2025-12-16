@@ -286,76 +286,78 @@ export default function ContentDetailPage() {
   const config = categoryConfig[content.category] || categoryConfig.other;
 
   return (
-    <main className="min-h-screen pb-28 md:pb-8 bg-paper">
+    <main className='min-h-screen pb-28 md:pb-8 bg-paper'>
       {/* Scrapbook Header */}
-      <div className="pt-6 pb-4 px-4 md:px-6">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
+      <div className='pt-6 pb-4 px-4 md:px-6'>
+        <div className='max-w-4xl mx-auto flex items-center justify-between'>
           <Button
-            variant="ghost"
+            variant='ghost'
             onClick={() => router.push("/dashboard")}
-            className="hover:bg-washi-mint/20"
+            className='hover:bg-washi-mint/20'
           >
             ← Back
           </Button>
-          <div className="flex gap-2">
+          <div className='flex gap-2'>
             {content.status === "completed" && isEditable && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setEditing(!editing)}
-                className="hover:bg-washi-blue/20"
-              >
-                {editing ? "Cancel" : "✏️ Edit"}
-              </Button>
+              <>
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  onClick={() => setEditing(!editing)}
+                  className='hover:bg-washi-blue/20'
+                >
+                  {editing ? "Cancel" : "✏️ Edit"}
+                </Button>
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className='text-destructive hover:text-destructive hover:bg-destructive/10'
+                >
+                  {deleting ? "..." : "🗑️"}
+                </Button>
+              </>
             )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDelete}
-              disabled={deleting}
-              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-            >
-              {deleting ? "..." : "🗑️"}
-            </Button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4">
+      <div className='max-w-4xl mx-auto px-4'>
         {/* Processing State */}
         {content.status === "processing" && (
-          <div className="scrapbook-card p-8 text-center mb-8 relative">
-            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-20 h-5 bg-washi-yellow/80 transform -rotate-1" />
-            <div className="text-6xl mb-4 animate-wiggle pt-2">✂️</div>
-            <h2 className="font-handwritten text-2xl mb-2">Clipping...</h2>
-            <p className="text-muted-foreground mb-4">
+          <div className='scrapbook-card p-8 text-center mb-8 relative'>
+            <div className='absolute -top-2 left-1/2 -translate-x-1/2 w-20 h-5 bg-washi-yellow/80 transform -rotate-1' />
+            <div className='text-6xl mb-4 animate-wiggle pt-2'>✂️</div>
+            <h2 className='font-handwritten text-2xl mb-2'>Clipping...</h2>
+            <p className='text-muted-foreground mb-4'>
               Processing this for you. Almost done!
             </p>
             <Button
-              variant="secondary"
-              size="sm"
+              variant='secondary'
+              size='sm'
               onClick={handleRetryProcessing}
               disabled={retrying}
-              className="mt-1 hover:bg-washi-yellow/40"
+              className='mt-1 hover:bg-washi-yellow/40'
             >
               {retrying ? "Retrying..." : "Try Reprocessing"}
             </Button>
             {retryFeedback?.type === "success" && (
-              <p className="text-sm text-muted-foreground mt-2">
+              <p className='text-sm text-muted-foreground mt-2'>
                 {retryFeedback.message}
               </p>
             )}
             {retryFeedback?.type === "error" && (
-              <p className="text-sm text-destructive mt-2">
+              <p className='text-sm text-destructive mt-2'>
                 {retryFeedback.message}
               </p>
             )}
             <Button
-              variant="ghost"
-              size="sm"
+              variant='ghost'
+              size='sm'
               onClick={handleDelete}
               disabled={deleting}
-              className="text-muted-foreground hover:text-destructive"
+              className='text-muted-foreground hover:text-destructive'
             >
               {deleting ? "Cancelling..." : "Cancel"}
             </Button>
@@ -364,18 +366,18 @@ export default function ContentDetailPage() {
 
         {/* Failed State */}
         {content.status === "failed" && (
-          <div className="scrapbook-card p-8 text-center mb-8 border-destructive/20 relative">
-            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-washi-coral/80 transform rotate-1" />
-            <div className="text-6xl mb-4 pt-2">😕</div>
-            <h2 className="font-handwritten text-2xl mb-2">Oops!</h2>
-            <p className="text-muted-foreground mb-4">
+          <div className='scrapbook-card p-8 text-center mb-8 border-destructive/20 relative'>
+            <div className='absolute -top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-washi-coral/80 transform rotate-1' />
+            <div className='text-6xl mb-4 pt-2'>😕</div>
+            <h2 className='font-handwritten text-2xl mb-2'>Oops!</h2>
+            <p className='text-muted-foreground mb-4'>
               We couldn&apos;t process this link.
             </p>
             <Button
-              variant="outline"
+              variant='outline'
               onClick={handleDelete}
               disabled={deleting}
-              className="text-destructive border-destructive/30 hover:bg-destructive/10"
+              className='text-destructive border-destructive/30 hover:bg-destructive/10'
             >
               {deleting ? "Deleting..." : "🗑️ Delete & Try Again"}
             </Button>
@@ -383,42 +385,42 @@ export default function ContentDetailPage() {
         )}
 
         {/* Main Content Card - Polaroid style */}
-        <div className="scrapbook-card overflow-hidden relative">
+        <div className='scrapbook-card overflow-hidden relative'>
           {/* Washi tape decorations */}
-          <div className="absolute -top-2 left-8 w-16 h-5 bg-washi-mint/80 transform -rotate-2 z-10" />
-          <div className="absolute -top-2 right-12 w-14 h-5 bg-washi-pink/80 transform rotate-1 z-10" />
+          <div className='absolute -top-2 left-8 w-16 h-5 bg-washi-mint/80 transform -rotate-2 z-10' />
+          <div className='absolute -top-2 right-12 w-14 h-5 bg-washi-pink/80 transform rotate-1 z-10' />
 
           {content.thumbnail_url && (
-            <div className="p-3 pt-6 pb-0">
-              <div className="relative h-56 md:h-72 overflow-hidden rounded bg-muted">
+            <div className='p-3 pt-6 pb-0'>
+              <div className='relative h-56 md:h-72 overflow-hidden rounded bg-muted'>
                 <Image
                   src={content.thumbnail_url}
                   alt={content.title}
-                  className="w-full h-full object-cover"
+                  className='w-full h-full object-cover'
                 />
               </div>
             </div>
           )}
 
           {/* Sticker badge / Category selector */}
-          <div className="px-4 pt-3">
+          <div className='px-4 pt-3'>
             {editing ? (
-              <div className="relative inline-block">
+              <div className='relative inline-block'>
                 <select
                   value={editCategory}
                   onChange={(e) => setEditCategory(e.target.value)}
-                  className="text-sm pl-4 pr-10 py-2 rounded-full bg-white border border-border font-medium cursor-pointer appearance-none"
+                  className='text-sm pl-4 pr-10 py-2 rounded-full bg-white border border-border font-medium cursor-pointer appearance-none'
                 >
-                  <option value="meal">🍽️ Recipe</option>
-                  <option value="drink">🍹 Drink</option>
-                  <option value="event">🎉 Event</option>
-                  <option value="date_idea">💕 Date Idea</option>
-                  <option value="gift_idea">🎁 Gift Idea</option>
-                  <option value="travel">✈️ Travel</option>
-                  <option value="other">📌 Other</option>
+                  <option value='meal'>🍽️ Recipe</option>
+                  <option value='drink'>🍹 Drink</option>
+                  <option value='event'>🎉 Event</option>
+                  <option value='date_idea'>💕 Date Idea</option>
+                  <option value='gift_idea'>🎁 Gift Idea</option>
+                  <option value='travel'>✈️ Travel</option>
+                  <option value='other'>📌 Other</option>
                 </select>
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground text-xs">
-                  <ChevronDownIcon className="w-4 h-4" />
+                <span className='absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground text-xs'>
+                  <ChevronDownIcon className='w-4 h-4' />
                 </span>
               </div>
             ) : (
@@ -430,33 +432,33 @@ export default function ContentDetailPage() {
             )}
           </div>
 
-          <div className="px-4 pt-3 pb-2">
+          <div className='px-4 pt-3 pb-2'>
             {editing ? (
-              <div className="flex gap-2">
+              <div className='flex gap-2'>
                 <Input
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
-                  className="text-xl font-bold bg-white border-border"
-                  placeholder="Title"
+                  className='text-xl font-bold bg-white border-border'
+                  placeholder='Title'
                 />
                 <Button
                   onClick={handleSave}
                   disabled={saving}
-                  className="bg-primary hover:bg-primary/90"
+                  className='bg-primary hover:bg-primary/90'
                 >
                   {saving ? "..." : "Save"}
                 </Button>
               </div>
             ) : (
-              <h1 className="text-xl md:text-2xl font-semibold">
+              <h1 className='text-xl md:text-2xl font-semibold'>
                 {content.title}
               </h1>
             )}
 
             {/* Tags Section */}
             {isEditable && (
-              <div className="mt-4">
-                <p className="text-sm text-muted-foreground mb-2 font-handwritten">
+              <div className='mt-4'>
+                <p className='text-sm text-muted-foreground mb-2 font-handwritten'>
                   Tags
                 </p>
                 <TagPills
@@ -472,7 +474,7 @@ export default function ContentDetailPage() {
             )}
           </div>
 
-          <div className="px-4 pb-4 space-y-6">
+          <div className='px-4 pb-4 space-y-6'>
             {/* Category-specific content */}
             {content.category === "meal" && (
               <MealContent data={content.data as MealData} />
@@ -497,12 +499,12 @@ export default function ContentDetailPage() {
             )}
 
             {/* Link to original content */}
-            <div className="pt-4 border-t border-border">
+            <div className='pt-4 border-t border-border'>
               <a
                 href={content.tiktok_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                target='_blank'
+                rel='noopener noreferrer'
+                className='inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors'
               >
                 {content.tiktok_url.includes("instagram.com")
                   ? "View on Instagram →"
@@ -511,7 +513,7 @@ export default function ContentDetailPage() {
             </div>
 
             {/* Metadata */}
-            <p className="text-sm text-muted-foreground">
+            <p className='text-sm text-muted-foreground'>
               Saved on {new Date(content.created_at).toLocaleDateString()}
             </p>
           </div>
