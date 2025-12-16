@@ -66,8 +66,18 @@ export async function downloadTwilioImage(
 }
 
 // Extract EXIF data from image buffer
-export function extractExifData(imageBuffer: Buffer): ExifData {
+// Note: EXIF data is only present in JPEG images, not PNG or other formats
+export function extractExifData(
+  imageBuffer: Buffer,
+  mimeType: string
+): ExifData {
   const exifData: ExifData = {};
+
+  // Only JPEG images contain EXIF data
+  if (!mimeType.includes("jpeg") && !mimeType.includes("jpg")) {
+    console.log(`Skipping EXIF extraction for non-JPEG image: ${mimeType}`);
+    return exifData;
+  }
 
   try {
     const parser = ExifParser.create(imageBuffer);
@@ -150,8 +160,8 @@ export async function processMmsImage(
 
   const { buffer, mimeType } = downloaded;
 
-  // Extract EXIF data
-  const exif = extractExifData(buffer);
+  // Extract EXIF data (only works for JPEG images)
+  const exif = extractExifData(buffer, mimeType);
 
   // Create location string if GPS data available
   let locationString: string | undefined;

@@ -481,6 +481,8 @@ Based on this website content, determine what category it belongs to and extract
 const IMAGE_ANALYSIS_PROMPT = `You are an AI assistant that analyzes photos and screenshots to extract useful information.
 You have access to Google Search to look up additional details about what you see.
 
+**IMPORTANT**: When extracting recipe information, PARAPHRASE the instructions in your own words. Do NOT copy text verbatim. Summarize and reword the steps while preserving the essential cooking technique and order.
+
 Analyze this image and determine what it contains:
 
 1. **Recipe Screenshot** - A photo or screenshot of a recipe (from a website, book, or handwritten)
@@ -492,10 +494,10 @@ Analyze this image and determine what it contains:
 Based on what you identify:
 
 **For Recipe Screenshots:**
-- Extract ALL text you can see (ingredients, instructions, etc.)
 - Identify the dish name
+- List the ingredients you can see (paraphrase, don't copy exactly)
+- REWRITE the cooking instructions in your own words - summarize each step
 - Use Google Search to find more details about this recipe if helpful
-- Format as a complete recipe with ingredients and steps
 - Category: "meal" or "drink" depending on content
 
 **For Restaurant Photos:**
@@ -514,7 +516,7 @@ Based on what you identify:
 **For Food Photos:**
 - Try to identify what dish this is
 - Use Google Search to find a recipe for this dish
-- Extract recipe details if found
+- Extract recipe details if found (in your own words)
 - Category: "meal" or "drink"
 
 ${ANALYSIS_PROMPT.split("Based on the category")[1]}`;
@@ -541,7 +543,7 @@ export async function analyzeImage(
         // Enable Google Search grounding for looking up restaurants, products, etc.
         googleSearch: {},
       },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ] as any,
   });
 
@@ -552,7 +554,8 @@ export async function analyzeImage(
     if (options.locationString) {
       contextInfo += ` (${options.locationString})`;
     }
-    contextInfo += "\nUse this location to help identify restaurants or places in the photo.";
+    contextInfo +=
+      "\nUse this location to help identify restaurants or places in the photo.";
   }
   if (options?.dateTaken) {
     contextInfo += `\n**Photo taken:** ${options.dateTaken.toISOString()}`;
@@ -565,6 +568,28 @@ export async function analyzeImage(
 ${contextInfo ? `\n**Additional Context:**${contextInfo}` : ""}
 
 Analyze this image and use Google Search to find relevant details. Return your analysis as JSON.`;
+
+  // Fallback prompt for when RECITATION error occurs - emphasizes heavy paraphrasing
+  const fallbackPrompt = `Analyze this image. If it's a recipe, identify the dish name and describe:
+1. What ingredients are needed (list them generally, don't copy exact measurements)
+2. Summarize the cooking technique in 3-5 simple steps using your own words
+
+If it's a restaurant, identify it and search for its details.
+If it's a product, identify it and search for where to buy it.
+
+IMPORTANT: Use your own words to describe everything. Do not reproduce any text verbatim.
+${contextInfo ? `\n**Context:**${contextInfo}` : ""}
+
+Return as JSON with this format:
+{
+  "isMultiItem": false,
+  "items": [{
+    "category": "meal" | "drink" | "date_idea" | "gift_idea" | "other",
+    "title": "Name of dish/restaurant/product",
+    "data": { ... relevant fields ... },
+    "suggested_tags": ["tag1", "tag2"]
+  }]
+}`;
 
   try {
     const result = await model.generateContent([
@@ -584,6 +609,36 @@ Analyze this image and use Google Search to find relevant details. Return your a
 
     return parseAnalysisResponse(text);
   } catch (error) {
+    // Check if this is a RECITATION error (content blocked due to similarity to copyrighted content)
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes("RECITATION")) {
+      console.log(
+        "RECITATION error detected, retrying with paraphrase-focused prompt..."
+      );
+
+      try {
+        // Retry with the fallback prompt that emphasizes paraphrasing
+        const retryResult = await model.generateContent([
+          {
+            inlineData: {
+              mimeType,
+              data: imageBase64,
+            },
+          },
+          { text: fallbackPrompt },
+        ]);
+
+        const retryResponse = retryResult.response;
+        const retryText = retryResponse.text();
+
+        console.log("Retry analysis response:", retryText.slice(0, 500));
+
+        return parseAnalysisResponse(retryText);
+      } catch (retryError) {
+        console.error("Retry also failed:", retryError);
+      }
+    }
+
     console.error("Error analyzing image with Gemini:", error);
 
     return {
