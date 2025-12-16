@@ -28,8 +28,17 @@ function getGoogleMapsUrl(location: string): string {
   )}`;
 }
 
+// Check if the URL is an image-only placeholder (not a real URL)
+function isImageOnlyContent(url: string): boolean {
+  return url.startsWith("mms://image/");
+}
+
 // Get appropriate link text for the source URL
-function getSourceLinkText(url: string): string {
+function getSourceLinkText(url: string): string | null {
+  // Image-only content has no external link
+  if (isImageOnlyContent(url)) {
+    return null;
+  }
   if (
     url.includes("tiktok.com") ||
     url.includes("vm.tiktok.com") ||
@@ -520,17 +529,19 @@ export default function ContentDetailPage() {
               <OtherContent data={content.data as { description?: string }} />
             )}
 
-            {/* Link to original content */}
-            <div className='pt-4 border-t border-border'>
-              <a
-                href={content.tiktok_url}
-                target='_blank'
-                rel='noopener noreferrer'
-                className='inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors'
-              >
-                {getSourceLinkText(content.tiktok_url)}
-              </a>
-            </div>
+            {/* Link to original content (not shown for image-only content) */}
+            {!isImageOnlyContent(content.tiktok_url) && (
+              <div className='pt-4 border-t border-border'>
+                <a
+                  href={content.tiktok_url}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors'
+                >
+                  {getSourceLinkText(content.tiktok_url)}
+                </a>
+              </div>
+            )}
 
             {/* Metadata */}
             <p className='text-sm text-muted-foreground'>

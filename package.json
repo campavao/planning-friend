@@ -17,6 +17,7 @@
     "@vercel/analytics": "^1.6.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "exif-parser": "^0.1.12",
     "lucide-react": "^0.556.0",
     "next": "16.0.7",
     "react": "19.2.0",

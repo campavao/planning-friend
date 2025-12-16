@@ -49,8 +49,9 @@ export async function POST(request: NextRequest) {
       console.log(`Received ${numMedia} MMS attachments from ${from}`);
     }
 
-    if (!body || !from) {
-      console.error("Missing required fields from Twilio webhook");
+    // From is required, but body might be empty for image-only messages
+    if (!from) {
+      console.error("Missing 'From' field from Twilio webhook");
       return new NextResponse("Missing required fields", { status: 400 });
     }
 
@@ -58,11 +59,19 @@ export async function POST(request: NextRequest) {
     const phoneNumber = normalizePhoneNumber(from);
 
     // Extract URL from message (TikTok, Instagram, or any website)
-    const socialMedia = extractSocialMediaUrl(body);
+    const socialMedia = body ? extractSocialMediaUrl(body) : null;
 
-    if (!socialMedia) {
+    // Check if we have an image-only message (no URL but has image attachments)
+    const hasImageAttachment = mediaUrls.some((_, i) =>
+      mediaTypes[i]?.startsWith("image/")
+    );
+    const isImageOnlyMessage = !socialMedia && hasImageAttachment;
+
+    if (!socialMedia && !isImageOnlyMessage) {
       console.log(
-        `No supported URL found in message from ${phoneNumber}: ${body}`
+        `No supported URL or image found in message from ${phoneNumber}: ${
+          body || "(empty)"
+        }`
       );
       // Return 200 to acknowledge receipt (Twilio expects this)
       return new NextResponse(
@@ -74,8 +83,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Determine platform and URL
+    const platform = isImageOnlyMessage ? "image" : socialMedia!.platform;
+    // For image-only, we don't have a real URL - use a placeholder that identifies it as an image
+    const contentUrl = isImageOnlyMessage
+      ? `mms://image/${Date.now()}`
+      : socialMedia!.url;
+
     console.log(
-      `Received ${socialMedia.platform} URL from ${phoneNumber}: ${socialMedia.url}`
+      `Received ${platform} content from ${phoneNumber}: ${
+        isImageOnlyMessage ? "Image attachment" : contentUrl
+      }`
     );
 
     // Get or create user
@@ -85,7 +103,7 @@ export async function POST(request: NextRequest) {
     // Create a processing entry immediately so it shows up in the UI
     const processingContent = await createProcessingContent(
       user.id,
-      socialMedia.url
+      contentUrl
     );
     console.log(`Created processing entry: ${processingContent.id}`);
 
@@ -105,11 +123,13 @@ export async function POST(request: NextRequest) {
           },
           body: JSON.stringify({
             contentId: processingContent.id,
-            socialUrl: socialMedia.url,
-            platform: socialMedia.platform,
+            socialUrl: contentUrl,
+            platform: platform,
             userId: user.id,
             phoneNumber,
-            // Include MMS media if available - can use directly instead of scraping!
+            // Include message text (might contain context for the image)
+            messageText: body || undefined,
+            // Include MMS media - required for image-only processing
             mmsMedia:
               mediaUrls.length > 0
                 ? {

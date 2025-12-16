@@ -477,6 +477,130 @@ Based on this website content, determine what category it belongs to and extract
   }
 }
 
+// Specialized prompt for analyzing photos/screenshots with Google Search
+const IMAGE_ANALYSIS_PROMPT = `You are an AI assistant that analyzes photos and screenshots to extract useful information.
+You have access to Google Search to look up additional details about what you see.
+
+Analyze this image and determine what it contains:
+
+1. **Recipe Screenshot** - A photo or screenshot of a recipe (from a website, book, or handwritten)
+2. **Restaurant Photo** - A photo taken at or of a restaurant, cafe, bar, or food establishment
+3. **Product Photo** - A photo of a product or item that could be purchased
+4. **Food Photo** - A photo of a dish/meal (not a recipe, just the food itself)
+5. **Other** - Something else
+
+Based on what you identify:
+
+**For Recipe Screenshots:**
+- Extract ALL text you can see (ingredients, instructions, etc.)
+- Identify the dish name
+- Use Google Search to find more details about this recipe if helpful
+- Format as a complete recipe with ingredients and steps
+- Category: "meal" or "drink" depending on content
+
+**For Restaurant Photos:**
+- Identify the restaurant name from any visible signage, menus, or context
+- If GPS coordinates are provided, use them to help identify the location
+- Use Google Search to find: address, phone, website, hours, reservation links (OpenTable, Resy, etc.)
+- Look for menu links and any notable dishes
+- Category: "date_idea" (type: "dinner")
+
+**For Product Photos:**
+- Identify the product name and brand
+- Use Google Search to find: price, where to buy, product details
+- Construct an Amazon search link
+- Category: "gift_idea"
+
+**For Food Photos:**
+- Try to identify what dish this is
+- Use Google Search to find a recipe for this dish
+- Extract recipe details if found
+- Category: "meal" or "drink"
+
+${ANALYSIS_PROMPT.split("Based on the category")[1]}`;
+
+// Analyze an image (photo/screenshot) with Google Search grounding
+export async function analyzeImage(
+  imageBase64: string,
+  mimeType: string,
+  options?: {
+    gpsCoordinates?: { latitude: number; longitude: number };
+    locationString?: string;
+    dateTaken?: Date;
+    messageText?: string; // Any text sent with the image
+  }
+): Promise<MultiItemAnalysisResult> {
+  const genAI = getGeminiClient();
+
+  // Use Gemini 2.5 Flash with Google Search grounding enabled
+  // Note: googleSearch is a valid tool but not yet in the TypeScript types
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.5-flash",
+    tools: [
+      {
+        // Enable Google Search grounding for looking up restaurants, products, etc.
+        googleSearch: {},
+      },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ] as any,
+  });
+
+  // Build context from available metadata
+  let contextInfo = "";
+  if (options?.gpsCoordinates) {
+    contextInfo += `\n**GPS Location:** ${options.gpsCoordinates.latitude}, ${options.gpsCoordinates.longitude}`;
+    if (options.locationString) {
+      contextInfo += ` (${options.locationString})`;
+    }
+    contextInfo += "\nUse this location to help identify restaurants or places in the photo.";
+  }
+  if (options?.dateTaken) {
+    contextInfo += `\n**Photo taken:** ${options.dateTaken.toISOString()}`;
+  }
+  if (options?.messageText) {
+    contextInfo += `\n**User's message:** "${options.messageText}"`;
+  }
+
+  const prompt = `${IMAGE_ANALYSIS_PROMPT}
+${contextInfo ? `\n**Additional Context:**${contextInfo}` : ""}
+
+Analyze this image and use Google Search to find relevant details. Return your analysis as JSON.`;
+
+  try {
+    const result = await model.generateContent([
+      {
+        inlineData: {
+          mimeType,
+          data: imageBase64,
+        },
+      },
+      { text: prompt },
+    ]);
+
+    const response = result.response;
+    const text = response.text();
+
+    console.log("Image analysis response:", text.slice(0, 500));
+
+    return parseAnalysisResponse(text);
+  } catch (error) {
+    console.error("Error analyzing image with Gemini:", error);
+
+    return {
+      isMultiItem: false,
+      items: [
+        {
+          category: "other",
+          title: "Photo",
+          data: {
+            description: options?.messageText || "Photo analysis failed",
+          },
+        },
+      ],
+    };
+  }
+}
+
 // Legacy function for backwards compatibility - returns first item only
 export async function analyzeSingleItem(
   videoBase64: string,

@@ -1,10 +1,12 @@
 import {
+  analyzeImage,
   analyzeVideoWithGemini,
   analyzeWebpage,
   analyzeWithDescription,
   analyzeWithThumbnail,
   MultiItemAnalysisResult,
 } from "@/lib/gemini";
+import { processMmsImage } from "@/lib/image-processing";
 import {
   getPlatformDisplayName,
   getSocialMediaInfo,
@@ -13,6 +15,7 @@ import {
 } from "@/lib/social-media";
 import {
   addTagsToContent,
+  createServerClient,
   deleteContent,
   getOrCreateTags,
   saveContent,
@@ -21,14 +24,19 @@ import {
 } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
 
+// Extended platform type to include image-only
+type ProcessPlatform = SocialPlatform | "image";
+
 interface ProcessRequest {
   contentId: string;
   // Support both old 'tiktokUrl' and new 'socialUrl' fields for backwards compatibility
   tiktokUrl?: string;
   socialUrl?: string;
-  platform?: SocialPlatform;
+  platform?: ProcessPlatform;
   userId: string;
   phoneNumber: string;
+  // Message text (for context when processing images)
+  messageText?: string;
   // MMS media attachments from Twilio (if user shared via "Share to")
   mmsMedia?: {
     urls: string[];
@@ -57,6 +65,7 @@ export async function POST(request: NextRequest) {
     const platform = body.platform || "tiktok";
     userId = body.userId;
     const mmsMedia = body.mmsMedia;
+    const messageText = body.messageText;
 
     if (!contentId || !socialUrl || !userId) {
       return NextResponse.json(
@@ -65,7 +74,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const platformName = getPlatformDisplayName(platform);
+    // Handle image-only processing separately
+    if (platform === "image") {
+      console.log(`Processing image-only content for ${contentId}`);
+      return await processImageOnly(
+        contentId,
+        userId,
+        mmsMedia,
+        messageText,
+        socialUrl
+      );
+    }
+
+    const platformName = getPlatformDisplayName(platform as SocialPlatform);
     console.log(
       `Processing ${platformName} URL for content ${contentId}: ${socialUrl}`
     );
@@ -382,6 +403,238 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+// Process image-only MMS messages (photos/screenshots sent without URLs)
+async function processImageOnly(
+  contentId: string,
+  userId: string,
+  mmsMedia:
+    | {
+        urls: string[];
+        types: string[];
+      }
+    | undefined,
+  messageText: string | undefined,
+  placeholderUrl: string
+): Promise<NextResponse> {
+  console.log("Processing image-only content...");
+
+  try {
+    // Find the first image in the MMS attachments
+    if (!mmsMedia || mmsMedia.urls.length === 0) {
+      console.error("No MMS media provided for image processing");
+      await updateContent(contentId, {
+        status: "failed",
+        title: "No image found",
+        data: { error: "No image attachment found in message" },
+      });
+      return NextResponse.json(
+        { error: "No image attachment found" },
+        { status: 400 }
+      );
+    }
+
+    // Find the first image attachment
+    const imageIndex = mmsMedia.types.findIndex((type) =>
+      type.startsWith("image/")
+    );
+    if (imageIndex === -1) {
+      console.error("No image type found in MMS attachments");
+      await updateContent(contentId, {
+        status: "failed",
+        title: "No image found",
+        data: { error: "No image attachment found in message" },
+      });
+      return NextResponse.json(
+        { error: "No image attachment found" },
+        { status: 400 }
+      );
+    }
+
+    const imageUrl = mmsMedia.urls[imageIndex];
+    const imageMimeType = mmsMedia.types[imageIndex];
+
+    console.log(`Processing image: ${imageUrl} (${imageMimeType})`);
+
+    // Download and process the image (with EXIF extraction)
+    const imageInfo = await processMmsImage(imageUrl);
+    if (!imageInfo) {
+      console.error("Failed to download/process MMS image");
+      await updateContent(contentId, {
+        status: "failed",
+        title: "Failed to process image",
+        data: { error: "Could not download or process the image" },
+      });
+      return NextResponse.json(
+        { error: "Failed to process image" },
+        { status: 500 }
+      );
+    }
+
+    console.log("Image processed successfully:", {
+      hasGPS: !!(imageInfo.exif.latitude && imageInfo.exif.longitude),
+      hasDate: !!imageInfo.exif.dateTaken,
+      mimeType: imageInfo.mimeType,
+      size: imageInfo.buffer.length,
+    });
+
+    // Upload the image as the thumbnail
+    let persistentThumbnailUrl: string | undefined;
+    try {
+      const supabase = createServerClient();
+      const fileName = `${contentId}.jpg`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("thumbnails")
+        .upload(fileName, imageInfo.buffer, {
+          contentType: imageInfo.mimeType,
+          upsert: true,
+        });
+
+      if (!uploadError) {
+        const { data: urlData } = supabase.storage
+          .from("thumbnails")
+          .getPublicUrl(fileName);
+        persistentThumbnailUrl = urlData.publicUrl;
+        console.log("Image uploaded as thumbnail:", persistentThumbnailUrl);
+      } else {
+        console.error("Failed to upload image as thumbnail:", uploadError);
+      }
+    } catch (uploadError) {
+      console.error("Error uploading thumbnail:", uploadError);
+    }
+
+    // Analyze the image with Gemini + Google Search
+    console.log("Analyzing image with Gemini...");
+    const analysisResult = await analyzeImage(
+      imageInfo.base64,
+      imageInfo.mimeType,
+      {
+        gpsCoordinates:
+          imageInfo.exif.latitude && imageInfo.exif.longitude
+            ? {
+                latitude: imageInfo.exif.latitude,
+                longitude: imageInfo.exif.longitude,
+              }
+            : undefined,
+        locationString: imageInfo.locationString,
+        dateTaken: imageInfo.exif.dateTaken,
+        messageText: messageText,
+      }
+    );
+
+    console.log("Image analysis result:", {
+      isMultiItem: analysisResult.isMultiItem,
+      itemCount: analysisResult.items.length,
+      items: analysisResult.items.map((i) => ({
+        category: i.category,
+        title: i.title,
+      })),
+    });
+
+    // Validate we have at least one item
+    if (!analysisResult.items || analysisResult.items.length === 0) {
+      console.error("No items returned from image analysis");
+      await updateContent(contentId, {
+        status: "failed",
+        title: "Analysis returned no results",
+        data: { error: "Could not extract content from image" },
+      });
+      return NextResponse.json(
+        { error: "Analysis returned no results" },
+        { status: 500 }
+      );
+    }
+
+    // Handle results (similar to main flow)
+    if (analysisResult.isMultiItem && analysisResult.items.length > 1) {
+      // Multi-item: Delete the placeholder and create individual entries
+      console.log(
+        `Creating ${analysisResult.items.length} separate content entries from image...`
+      );
+
+      await deleteContent(contentId, userId);
+
+      const createdContents = [];
+      for (const item of analysisResult.items) {
+        const content = await saveContent({
+          user_id: userId,
+          tiktok_url: placeholderUrl,
+          category: item.category,
+          title: item.title,
+          data: item.data,
+          thumbnail_url: persistentThumbnailUrl,
+        });
+        createdContents.push(content);
+        console.log(`Created content: ${content.id} - ${content.title}`);
+
+        // Apply suggested tags
+        if (item.suggested_tags && item.suggested_tags.length > 0) {
+          try {
+            const tags = await getOrCreateTags(userId, item.suggested_tags);
+            await addTagsToContent(
+              content.id,
+              tags.map((t) => t.id)
+            );
+          } catch (tagError) {
+            console.error("Failed to apply tags:", tagError);
+          }
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        multiItem: true,
+        contents: createdContents,
+      });
+    } else {
+      // Single item: Update the existing entry
+      const item = analysisResult.items[0];
+      const updatedContent = await updateContent(contentId, {
+        category: item.category,
+        title: item.title,
+        data: item.data,
+        thumbnail_url: persistentThumbnailUrl,
+        status: "completed",
+      });
+
+      console.log(`Image content updated: ${updatedContent.id}`);
+
+      // Apply suggested tags
+      if (item.suggested_tags && item.suggested_tags.length > 0) {
+        try {
+          const tags = await getOrCreateTags(userId, item.suggested_tags);
+          await addTagsToContent(
+            updatedContent.id,
+            tags.map((t) => t.id)
+          );
+        } catch (tagError) {
+          console.error("Failed to apply tags:", tagError);
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        content: updatedContent,
+      });
+    }
+  } catch (error) {
+    console.error("Error processing image:", error);
+
+    await updateContent(contentId, {
+      status: "failed",
+      title: "Failed to process image",
+      data: {
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+    });
+
+    return NextResponse.json(
+      { error: "Failed to process image" },
       { status: 500 }
     );
   }
