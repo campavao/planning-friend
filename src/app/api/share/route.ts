@@ -1,8 +1,14 @@
 import { analyzeImage } from "@/lib/gemini";
 import { extractExifData, formatGpsCoordinates } from "@/lib/image-processing";
+import { notifyContentReady } from "@/lib/push-notifications";
 import {
-    addTagsToContent, createProcessingContent, createServerClient, deleteContent,
-    getOrCreateTags, saveContent, updateContent
+  addTagsToContent,
+  createProcessingContent,
+  createServerClient,
+  deleteContent,
+  getOrCreateTags,
+  saveContent,
+  updateContent,
 } from "@/lib/supabase";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -57,7 +63,10 @@ export async function POST(request: NextRequest) {
     // If a URL was shared (e.g., sharing a link from browser), process it
     if (sharedUrl && !images.length) {
       // Create a processing entry and trigger URL processing
-      const processingContent = await createProcessingContent(userId, sharedUrl);
+      const processingContent = await createProcessingContent(
+        userId,
+        sharedUrl
+      );
 
       // Trigger the process API
       const processUrl = new URL("/api/process", request.url).toString();
@@ -155,6 +164,7 @@ export async function POST(request: NextRequest) {
           // Multi-item: create separate entries
           await deleteContent(processingContent.id, userId);
 
+          const createdContents = [];
           for (const item of analysisResult.items) {
             const content = await saveContent({
               user_id: userId,
@@ -164,6 +174,7 @@ export async function POST(request: NextRequest) {
               data: item.data,
               thumbnail_url: persistentThumbnailUrl,
             });
+            createdContents.push(content);
 
             if (item.suggested_tags?.length) {
               try {
@@ -174,6 +185,23 @@ export async function POST(request: NextRequest) {
                 );
               } catch {}
             }
+          }
+
+          // Send push notification for multi-item
+          if (createdContents.length > 0) {
+            try {
+              const firstItem = createdContents[0];
+              const notificationTitle =
+                createdContents.length > 1
+                  ? `${firstItem.title} (+${createdContents.length - 1} more)`
+                  : firstItem.title;
+              await notifyContentReady(
+                userId,
+                firstItem.id,
+                notificationTitle,
+                firstItem.category
+              );
+            } catch {}
           }
         } else {
           // Single item: update the processing entry
@@ -195,6 +223,16 @@ export async function POST(request: NextRequest) {
               );
             } catch {}
           }
+
+          // Send push notification
+          try {
+            await notifyContentReady(
+              userId,
+              processingContent.id,
+              item.title,
+              item.category
+            );
+          } catch {}
         }
       }
 

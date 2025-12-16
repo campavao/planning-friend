@@ -7,6 +7,7 @@ import {
 import { AddToHomeScreenButton } from "@/components/add-to-homescreen-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -26,6 +27,15 @@ export default function SettingsPage() {
   const [savingName, setSavingName] = useState(false);
   const [nameMessage, setNameMessage] = useState("");
   const router = useRouter();
+  const {
+    permission,
+    isSubscribed,
+    isLoading: pushLoading,
+    error: pushError,
+    subscribe,
+    unsubscribe,
+    isSupported,
+  } = usePushNotifications();
 
   useEffect(() => {
     async function fetchSettings() {
@@ -250,6 +260,66 @@ export default function SettingsPage() {
               )}
             </div>
           </div>
+        </div>
+
+        {/* Push Notifications */}
+        <div className="scrapbook-card p-5 relative">
+          <div className="absolute -top-2 right-10 w-14 h-5 bg-washi-yellow/80 transform rotate-1" />
+
+          <div className="flex items-center gap-3 mb-4 pt-2">
+            <span className="text-2xl">🔔</span>
+            <div>
+              <h2 className="font-handwritten text-2xl">Notifications</h2>
+              <p className="text-sm text-muted-foreground">
+                Get notified when your content finishes processing
+              </p>
+            </div>
+          </div>
+
+          {!isSupported ? (
+            <p className="text-sm text-muted-foreground">
+              Push notifications are not supported in this browser. Try using
+              Chrome or Safari on mobile.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {permission === "denied" ? (
+                <p className="text-sm text-amber-600">
+                  Notifications are blocked. Please enable them in your browser
+                  settings.
+                </p>
+              ) : isSubscribed ? (
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                    <span className="text-sm text-muted-foreground">
+                      Notifications enabled
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={unsubscribe}
+                    disabled={pushLoading}
+                    className="text-muted-foreground"
+                  >
+                    {pushLoading ? "..." : "Turn Off"}
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  onClick={subscribe}
+                  disabled={pushLoading}
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  {pushLoading ? "Enabling..." : "🔔 Enable Notifications"}
+                </Button>
+              )}
+              {pushError && (
+                <p className="text-sm text-destructive">{pushError}</p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Planner Sharing */}

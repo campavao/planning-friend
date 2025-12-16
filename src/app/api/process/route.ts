@@ -7,6 +7,7 @@ import {
   MultiItemAnalysisResult,
 } from "@/lib/gemini";
 import { processMmsImage } from "@/lib/image-processing";
+import { notifyContentReady } from "@/lib/push-notifications";
 import {
   getPlatformDisplayName,
   getSocialMediaInfo,
@@ -343,6 +344,25 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Send push notification for multi-item (notify about first item)
+      if (createdContents.length > 0) {
+        try {
+          const firstItem = createdContents[0];
+          const notificationTitle =
+            createdContents.length > 1
+              ? `${firstItem.title} (+${createdContents.length - 1} more)`
+              : firstItem.title;
+          await notifyContentReady(
+            userId,
+            firstItem.id,
+            notificationTitle,
+            firstItem.category
+          );
+        } catch (notifyError) {
+          console.error("Failed to send push notification:", notifyError);
+        }
+      }
+
       return NextResponse.json({
         success: true,
         multiItem: true,
@@ -376,6 +396,18 @@ export async function POST(request: NextRequest) {
           console.error("Failed to apply tags:", tagError);
           // Don't fail the whole process for tag errors
         }
+      }
+
+      // Send push notification
+      try {
+        await notifyContentReady(
+          userId,
+          updatedContent.id,
+          item.title,
+          item.category
+        );
+      } catch (notifyError) {
+        console.error("Failed to send push notification:", notifyError);
       }
 
       return NextResponse.json({
@@ -586,6 +618,25 @@ async function processImageOnly(
         }
       }
 
+      // Send push notification for multi-item image
+      if (createdContents.length > 0) {
+        try {
+          const firstItem = createdContents[0];
+          const notificationTitle =
+            createdContents.length > 1
+              ? `${firstItem.title} (+${createdContents.length - 1} more)`
+              : firstItem.title;
+          await notifyContentReady(
+            userId,
+            firstItem.id,
+            notificationTitle,
+            firstItem.category
+          );
+        } catch (notifyError) {
+          console.error("Failed to send push notification:", notifyError);
+        }
+      }
+
       return NextResponse.json({
         success: true,
         multiItem: true,
@@ -615,6 +666,18 @@ async function processImageOnly(
         } catch (tagError) {
           console.error("Failed to apply tags:", tagError);
         }
+      }
+
+      // Send push notification
+      try {
+        await notifyContentReady(
+          userId,
+          updatedContent.id,
+          item.title,
+          item.category
+        );
+      } catch (notifyError) {
+        console.error("Failed to send push notification:", notifyError);
       }
 
       return NextResponse.json({
