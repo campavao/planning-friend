@@ -1,8 +1,7 @@
 import { detectPlatform } from "@/lib/social-media";
 import { getContentById, updateContent } from "@/lib/supabase";
 import { cookies } from "next/headers";
-import { after } from "next/server";
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 
 interface SessionData {
   userId: string;
@@ -78,12 +77,13 @@ export async function POST(
       );
     }
 
-    if (content.status === "completed") {
-      return NextResponse.json(
-        { error: "Content has already finished processing" },
-        { status: 400 }
-      );
-    }
+    // Allow reprocessing of completed content
+    // if (content.status === "completed") {
+    //   return NextResponse.json(
+    //     { error: "Content has already finished processing" },
+    //     { status: 400 }
+    //   );
+    // }
 
     await updateContent(id, { status: "processing" });
 
