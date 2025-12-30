@@ -404,6 +404,25 @@ export default function ContentDetailPage() {
               We couldn&apos;t process this link.
             </p>
             <Button
+              variant='secondary'
+              size='sm'
+              onClick={handleRetryProcessing}
+              disabled={retrying}
+              className='mt-1 hover:bg-washi-yellow/40'
+            >
+              {retrying ? "Retrying..." : "Try Reprocessing"}
+            </Button>
+            {retryFeedback?.type === "success" && (
+              <p className='text-sm text-muted-foreground mt-2'>
+                {retryFeedback.message}
+              </p>
+            )}
+            {retryFeedback?.type === "error" && (
+              <p className='text-sm text-destructive mt-2'>
+                {retryFeedback.message}
+              </p>
+            )}
+            <Button
               variant='outline'
               onClick={handleDelete}
               disabled={deleting}

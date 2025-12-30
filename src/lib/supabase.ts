@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { formatDateString } from "./utils";
 import { checkVerifyOtp, sendVerifyOtp } from "./twilio";
 
 // ==================== Phone Auth (OTP via Twilio Verify) ====================
@@ -518,7 +519,7 @@ export function getWeekStart(date: Date = new Date()): string {
   const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
   d.setDate(diff);
   d.setHours(0, 0, 0, 0);
-  return d.toISOString().split("T")[0];
+  return formatDateString(d);
 }
 
 // Get or create a weekly plan

@@ -46,3 +46,23 @@ export function formatPhoneNumber(value: string) {
     )}`;
   }
 }
+
+/**
+ * Parse a date string in YYYY-MM-DD format to a local Date object.
+ * This avoids timezone issues that occur when using new Date(dateString).
+ */
+export function parseDateString(dateString: string): Date {
+  const [year, month, day] = dateString.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+/**
+ * Format a Date object to YYYY-MM-DD string in local time.
+ * This avoids timezone issues that occur when using toISOString().
+ */
+export function formatDateString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
