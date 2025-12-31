@@ -205,13 +205,22 @@ export async function PUT(request: NextRequest) {
       const supabase = createServerClient();
       const { data: planItem } = await supabase
         .from("plan_items")
-        .select("content_id, plan_id")
+        .select("content_id, note_title, plan_id")
         .eq("id", itemId)
         .single();
 
       if (planItem) {
-        // Get content title and week
-        const content = await getContentById(planItem.content_id);
+        // Get content title (for content items) or use note_title (for quick notes)
+        let itemTitle = "an item";
+        if (planItem.note_title) {
+          // Quick note - use note_title directly
+          itemTitle = planItem.note_title;
+        } else if (planItem.content_id) {
+          // Content item - fetch the content title
+          const content = await getContentById(planItem.content_id);
+          itemTitle = content?.title || "an item";
+        }
+
         const { data: plan } = await supabase
           .from("weekly_plans")
           .select("week_start")
@@ -227,7 +236,7 @@ export async function PUT(request: NextRequest) {
           notifyItemShared(
             userId,
             sharerName,
-            content?.title || "an item",
+            itemTitle,
             plan?.week_start || ""
           ).catch((err) =>
             console.error("Failed to send share notification:", err)
