@@ -500,12 +500,13 @@ export interface WeeklyPlan {
 export interface PlanItem {
   id: string;
   plan_id: string;
-  content_id: string;
+  content_id?: string; // Optional for quick notes
   day_of_week: number; // 0=Monday, 6=Sunday
   slot_order: number;
   notes?: string;
+  note_title?: string; // For quick notes without linked content
   created_at: string;
-  content?: Content; // Joined content
+  content?: Content; // Joined content (null for quick notes)
 }
 
 export interface WeeklyPlanWithItems extends WeeklyPlan {
@@ -604,14 +605,17 @@ export async function getWeeklyPlanWithItems(
   } as WeeklyPlanWithItems;
 }
 
-// Add item to plan
+// Add item to plan (either content or quick note)
 export async function addPlanItem(
   planId: string,
-  contentId: string,
   dayOfWeek: number,
-  notes?: string
+  options: { contentId?: string; noteTitle?: string; notes?: string }
 ): Promise<PlanItem> {
   const supabase = createServerClient();
+
+  if (!options.contentId && !options.noteTitle) {
+    throw new Error("Either contentId or noteTitle must be provided");
+  }
 
   // Get the highest slot order for this day
   const { data: existingItems } = await supabase
@@ -624,15 +628,32 @@ export async function addPlanItem(
 
   const slotOrder = existingItems?.[0]?.slot_order ?? -1;
 
+  const insertData: {
+    plan_id: string;
+    content_id?: string;
+    note_title?: string;
+    day_of_week: number;
+    slot_order: number;
+    notes?: string;
+  } = {
+    plan_id: planId,
+    day_of_week: dayOfWeek,
+    slot_order: slotOrder + 1,
+  };
+
+  if (options.contentId) {
+    insertData.content_id = options.contentId;
+  }
+  if (options.noteTitle) {
+    insertData.note_title = options.noteTitle;
+  }
+  if (options.notes) {
+    insertData.notes = options.notes;
+  }
+
   const { data, error } = await supabase
     .from("plan_items")
-    .insert({
-      plan_id: planId,
-      content_id: contentId,
-      day_of_week: dayOfWeek,
-      slot_order: slotOrder + 1,
-      notes,
-    })
+    .insert(insertData)
     .select(
       `
       *,

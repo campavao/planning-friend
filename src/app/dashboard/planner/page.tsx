@@ -155,6 +155,8 @@ function PlannerContent() {
   const [gridLoading, setGridLoading] = useState(false);
   const [weekStart, setWeekStart] = useState<string>("");
   const [addingToDay, setAddingToDay] = useState<number | null>(null);
+  const [quickNoteInput, setQuickNoteInput] = useState("");
+  const [addingQuickNote, setAddingQuickNote] = useState(false);
 
   // Persistent filter state
   const storedFilters = useMemo(() => getStoredFilters(), []);
@@ -317,6 +319,30 @@ function PlannerContent() {
     setAddingToDay(null);
   };
 
+  const addQuickNote = async (dayOfWeek: number) => {
+    if (!quickNoteInput.trim()) return;
+    
+    setAddingQuickNote(true);
+    try {
+      const res = await fetch("/api/planner", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ weekStart, noteTitle: quickNoteInput.trim(), dayOfWeek }),
+      });
+
+      if (res.ok) {
+        setQuickNoteInput("");
+        invalidateCache(weekStart);
+        fetchPlanner(weekStart, false);
+        setAddingToDay(null);
+      }
+    } catch (error) {
+      console.error("Failed to add quick note:", error);
+    } finally {
+      setAddingQuickNote(false);
+    }
+  };
+
   const removeFromDay = async (itemId: string) => {
     try {
       const res = await fetch(`/api/planner/item?id=${itemId}`, {
@@ -345,10 +371,13 @@ function PlannerContent() {
       preSelectedFriendIds = getLastSharedFriendIds();
     }
 
+    // Use note_title for quick notes, content title for content items
+    const itemTitle = item.note_title || item.content?.title || "Item";
+
     setItemShare({
       isOpen: true,
       itemId: item.id,
-      itemTitle: item.content?.title || "Item",
+      itemTitle,
       selectedFriendIds: preSelectedFriendIds,
       loading: false,
       error: "",
@@ -879,7 +908,68 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                           const ownItem = !isShared
                             ? (item as PlanItemWithSharing)
                             : null;
+                          const isQuickNote = !item.content_id && item.note_title;
 
+                          // Quick note display (mobile)
+                          if (isQuickNote) {
+                            return (
+                              <div
+                                key={item.id}
+                                className={`group relative glass rounded-xl overflow-hidden p-3 ${
+                                  isShared
+                                    ? "border-2 border-washi-pink/50 bg-washi-pink/5"
+                                    : "bg-washi-yellow/10"
+                                }`}
+                              >
+                                <div className='flex items-center gap-2 pr-16'>
+                                  <span className='text-sm'>📝</span>
+                                  <p className='font-medium text-sm flex-1'>
+                                    {item.note_title}
+                                  </p>
+                                  {isShared && (
+                                    <span className='text-[10px] bg-washi-pink/30 px-1.5 py-0.5 rounded'>
+                                      from {sharedItem?.owner_name}
+                                    </span>
+                                  )}
+                                  {ownItem?.shared_with &&
+                                    ownItem.shared_with.length > 0 && (
+                                      <span className='text-[10px] bg-washi-mint/30 px-1.5 py-0.5 rounded'>
+                                        🤝 {ownItem.shared_with.length}
+                                      </span>
+                                    )}
+                                </div>
+                                <div className='absolute top-2 right-2 flex gap-1'>
+                                  {isShared ? (
+                                    <button
+                                      onClick={() => leaveSharedItem(item.id)}
+                                      className='bg-secondary/90 text-secondary-foreground rounded-full w-7 h-7 text-xs flex items-center justify-center shadow-md'
+                                      title='Leave'
+                                    >
+                                      👋
+                                    </button>
+                                  ) : (
+                                    <>
+                                      <button
+                                        onClick={() => openShareModal(ownItem!)}
+                                        className='bg-washi-mint/90 text-foreground rounded-full w-7 h-7 text-xs flex items-center justify-center shadow-md'
+                                        title='Share'
+                                      >
+                                        🤝
+                                      </button>
+                                      <button
+                                        onClick={() => removeFromDay(item.id)}
+                                        className='bg-destructive/90 text-destructive-foreground rounded-full w-7 h-7 text-sm flex items-center justify-center shadow-md'
+                                      >
+                                        ✕
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          // Content item display (mobile)
                           return (
                             <div
                               key={item.id}
@@ -1039,7 +1129,68 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                       const ownItem = !isShared
                         ? (item as PlanItemWithSharing)
                         : null;
+                      const isQuickNote = !item.content_id && item.note_title;
 
+                      // Quick note display (desktop)
+                      if (isQuickNote) {
+                        return (
+                          <div
+                            key={item.id}
+                            className={`group relative glass rounded-lg overflow-hidden p-2 ${
+                              isShared
+                                ? "border-2 border-washi-pink/50 bg-washi-pink/5"
+                                : "bg-washi-yellow/10"
+                            }`}
+                          >
+                            <div className='flex items-center gap-1 mb-0.5 flex-wrap'>
+                              <span className='text-xs'>📝</span>
+                              {isShared && (
+                                <span className='text-[8px] bg-washi-pink/30 px-1 py-0.5 rounded'>
+                                  {sharedItem?.owner_name}
+                                </span>
+                              )}
+                              {ownItem?.shared_with &&
+                                ownItem.shared_with.length > 0 && (
+                                  <span className='text-[8px] bg-washi-mint/30 px-1 py-0.5 rounded'>
+                                    🤝 {ownItem.shared_with.length}
+                                  </span>
+                                )}
+                            </div>
+                            <p className='text-xs font-medium line-clamp-2'>
+                              {item.note_title}
+                            </p>
+                            <div className='absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity'>
+                              {isShared ? (
+                                <button
+                                  onClick={() => leaveSharedItem(item.id)}
+                                  className='bg-secondary/90 text-secondary-foreground rounded-full w-5 h-5 text-[10px] flex items-center justify-center'
+                                  title='Leave'
+                                >
+                                  👋
+                                </button>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() => openShareModal(ownItem!)}
+                                    className='bg-washi-mint/90 text-foreground rounded-full w-5 h-5 text-[10px] flex items-center justify-center'
+                                    title='Share'
+                                  >
+                                    🤝
+                                  </button>
+                                  <button
+                                    onClick={() => removeFromDay(item.id)}
+                                    className='bg-destructive/90 text-destructive-foreground rounded-full w-5 h-5 text-[10px] flex items-center justify-center'
+                                  >
+                                    ✕
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Content item display (desktop)
                       return (
                         <div
                           key={item.id}
@@ -1201,16 +1352,48 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
             {/* Scrollable content area - includes filters and list */}
             <div className='flex-1 overflow-y-auto overscroll-contain'>
+              {/* Quick Note Input */}
+              <div className='p-4 border-b border-border bg-washi-yellow/10'>
+                <p className='text-xs text-muted-foreground mb-2'>Quick note</p>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    addQuickNote(addingToDay);
+                  }}
+                  className='flex gap-2'
+                >
+                  <Input
+                    type='text'
+                    placeholder='e.g., "Salmon", "Date night", "Pick up groceries"'
+                    value={quickNoteInput}
+                    onChange={(e) => setQuickNoteInput(e.target.value)}
+                    className='flex-1'
+                    autoFocus
+                  />
+                  <Button
+                    type='submit'
+                    size='sm'
+                    disabled={!quickNoteInput.trim() || addingQuickNote}
+                  >
+                    {addingQuickNote ? "..." : "Add"}
+                  </Button>
+                </form>
+              </div>
+
+              {/* Divider */}
+              <div className='px-4 py-2 text-xs text-muted-foreground text-center bg-secondary/30'>
+                — or pick from saved items —
+              </div>
+
               {/* Search & Filters */}
               <div className='p-4 border-b border-border space-y-3 sticky top-0 glass z-10'>
                 <div className='flex gap-2'>
                   <Input
                     type='text'
-                    placeholder='Search...'
+                    placeholder='Search saved items...'
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className='flex-1'
-                    autoFocus
                   />
                   {hasActiveFilters && (
                     <Button

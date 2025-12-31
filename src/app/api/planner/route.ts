@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST add item to plan
+// POST add item to plan (content or quick note)
 export async function POST(request: NextRequest) {
   try {
     const session = await getSessionUser();
@@ -165,11 +165,19 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { weekStart, contentId, dayOfWeek, notes } = body;
+    const { weekStart, contentId, noteTitle, dayOfWeek, notes } = body;
 
-    if (contentId === undefined || dayOfWeek === undefined) {
+    // Require dayOfWeek and either contentId or noteTitle
+    if (dayOfWeek === undefined) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "dayOfWeek is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!contentId && !noteTitle) {
+      return NextResponse.json(
+        { error: "Either contentId or noteTitle is required" },
         { status: 400 }
       );
     }
@@ -180,8 +188,12 @@ export async function POST(request: NextRequest) {
       weekStart || getWeekStart()
     );
 
-    // Add the item
-    const item = await addPlanItem(plan.id, contentId, dayOfWeek, notes);
+    // Add the item (either content or quick note)
+    const item = await addPlanItem(plan.id, dayOfWeek, {
+      contentId,
+      noteTitle,
+      notes,
+    });
 
     return NextResponse.json({ success: true, item });
   } catch (error) {
