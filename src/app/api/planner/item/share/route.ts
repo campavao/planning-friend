@@ -1,12 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { notifyItemShared } from "@/lib/push-notifications";
 import {
+  createServerClient,
+  getContentById,
+  getFriends,
+  getItemShareInfo,
+  getPlanItemShares,
+  getUserById,
+  leaveSharedItem,
   shareItemWithFriends,
   updateItemSharing,
-  leaveSharedItem,
-  getItemShareInfo,
-  getFriends,
 } from "@/lib/supabase";
+import { cookies } from "next/headers";
+import { NextRequest, NextResponse } from "next/server";
 
 interface SessionData {
   userId: string;
@@ -168,20 +173,68 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // Get current shares to find who is new
+    const existingShares = await getPlanItemShares(itemId);
+    const existingUserIds = new Set(
+      existingShares.map((s) => s.shared_with_user_id)
+    );
+
     // Get the friends to find their linked_user_ids
     const friends = await getFriends(session.userId);
     const friendMap = new Map(friends.map((f) => [f.id, f]));
 
     // Convert friend IDs to linked user IDs
     const linkedUserIds: string[] = [];
+    const newlySharedUserIds: string[] = [];
     for (const friendId of friendIds) {
       const friend = friendMap.get(friendId);
       if (friend?.linked_user_id) {
         linkedUserIds.push(friend.linked_user_id);
+        // Track who is newly being shared with
+        if (!existingUserIds.has(friend.linked_user_id)) {
+          newlySharedUserIds.push(friend.linked_user_id);
+        }
       }
     }
 
     await updateItemSharing(itemId, session.userId, linkedUserIds);
+
+    // Send notifications to newly shared users
+    if (newlySharedUserIds.length > 0) {
+      // Get the item details for the notification
+      const supabase = createServerClient();
+      const { data: planItem } = await supabase
+        .from("plan_items")
+        .select("content_id, plan_id")
+        .eq("id", itemId)
+        .single();
+
+      if (planItem) {
+        // Get content title and week
+        const content = await getContentById(planItem.content_id);
+        const { data: plan } = await supabase
+          .from("weekly_plans")
+          .select("week_start")
+          .eq("id", planItem.plan_id)
+          .single();
+
+        // Get sharer's name
+        const sharer = await getUserById(session.userId);
+        const sharerName = sharer?.name || "Someone";
+
+        // Send notifications (don't await, let them run in background)
+        for (const userId of newlySharedUserIds) {
+          notifyItemShared(
+            userId,
+            sharerName,
+            content?.title || "an item",
+            plan?.week_start || ""
+          ).catch((err) =>
+            console.error("Failed to send share notification:", err)
+          );
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,

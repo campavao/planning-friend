@@ -225,6 +225,24 @@ export function isPushConfigured(): boolean {
 }
 
 /**
+ * Send a notification when an item is shared with a user
+ */
+export async function notifyItemShared(
+  recipientUserId: string,
+  sharerName: string,
+  itemTitle: string,
+  weekStart: string
+): Promise<void> {
+  await sendPushNotification(recipientUserId, {
+    title: "🤝 Item Shared With You!",
+    body: `${sharerName} shared "${itemTitle}" with you`,
+    icon: "/android-chrome-192x192.png",
+    badge: "/android-chrome-192x192.png",
+    url: `/dashboard/planner?week=${weekStart}`,
+  });
+}
+
+/**
  * Get the public VAPID key for client-side subscription
  */
 export function getPublicVapidKey(): string | null {

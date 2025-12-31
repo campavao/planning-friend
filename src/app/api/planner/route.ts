@@ -4,10 +4,11 @@ import {
   getWeeklyPlanWithItems,
   addPlanItem,
   getWeekStart,
-  getContentByUser,
+  getContentWithTags,
   getSharedItemsForUser,
   getPlanItemShares,
   getFriends,
+  getUserTags,
   type Content,
   type ContentCategory,
   type PlanItem,
@@ -67,9 +68,12 @@ export async function GET(request: NextRequest) {
     // Get plan with items
     const plan = await getWeeklyPlanWithItems(session.userId, weekStart);
 
-    // Get all user's content for adding to plan
-    const allContent = await getContentByUser(session.userId);
+    // Get all user's content with tags for adding to plan
+    const allContent = await getContentWithTags(session.userId);
     const availableContent = allContent.filter((c) => c.status === "completed");
+
+    // Get all user tags for the filter UI
+    const allTags = await getUserTags(session.userId);
 
     // Get items shared with this user for this week
     let sharedItems: SharedPlanItem[] = [];
@@ -141,6 +145,7 @@ export async function GET(request: NextRequest) {
       availableContent,
       suggestions,
       shareableFriends,
+      allTags,
     });
   } catch (error) {
     console.error("Error getting planner:", error);

@@ -17,7 +17,7 @@ import type {
 } from "@/lib/supabase";
 import { ChevronDownIcon } from "lucide-react";
 import Image from "next/image";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "../useSession";
 
@@ -76,8 +76,23 @@ export default function ContentDetailPage() {
   } | null>(null);
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params.id as string;
   const isEditable = content?.user_id === user?.id;
+
+  // Determine back navigation based on where user came from
+  const handleBack = useCallback(() => {
+    const from = searchParams.get("from");
+    const week = searchParams.get("week");
+
+    if (from === "planner" && week) {
+      // Navigate back to planner with the same week
+      router.push(`/dashboard/planner?week=${week}`);
+    } else {
+      // Default to dashboard
+      router.push("/dashboard");
+    }
+  }, [router, searchParams]);
 
   const fetchContent = useCallback(async () => {
     try {
@@ -322,7 +337,7 @@ export default function ContentDetailPage() {
         <div className='max-w-4xl mx-auto flex items-center justify-between'>
           <Button
             variant='ghost'
-            onClick={() => router.push("/dashboard")}
+            onClick={handleBack}
             className='hover:bg-washi-mint/20'
           >
             ← Back
