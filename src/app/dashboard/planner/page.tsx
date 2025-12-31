@@ -1,5 +1,6 @@
 "use client";
 
+import { TagFilter } from "@/components/tag-filter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,7 +19,14 @@ import { formatDateString, parseDateString } from "@/lib/utils";
 import html2canvas from "html2canvas";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const DAYS_FULL = [
@@ -138,7 +146,7 @@ function saveFilters(filters: {
   }
 }
 
-export default function PlannerPage() {
+function PlannerContent() {
   const [weekCache, setWeekCache] = useState<Map<string, PlannerData>>(
     new Map()
   );
@@ -1191,7 +1199,7 @@ export default function PlannerPage() {
       {addingToDay !== null && (
         <div className='fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-0 md:p-4'>
           <div className='glass w-full md:max-w-lg md:rounded-2xl rounded-t-2xl max-h-[80vh] flex flex-col'>
-            <div className='p-4 border-b border-border flex items-center justify-between'>
+            <div className='p-4 border-b border-border flex items-center justify-between shrink-0'>
               <h3 className='font-semibold'>Add to {DAYS_FULL[addingToDay]}</h3>
               <button
                 onClick={() => setAddingToDay(null)}
@@ -1201,98 +1209,90 @@ export default function PlannerPage() {
               </button>
             </div>
 
-            {/* Search & Filters */}
-            <div className='p-4 border-b border-border space-y-3'>
-              <div className='flex gap-2'>
-                <Input
-                  type='text'
-                  placeholder='Search...'
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className='flex-1'
-                  autoFocus
-                />
-                {hasActiveFilters && (
-                  <Button
-                    variant='ghost'
-                    size='sm'
-                    onClick={clearAllFilters}
-                    className='shrink-0 text-xs text-destructive hover:text-destructive'
-                  >
-                    Clear all
-                  </Button>
-                )}
-              </div>
-
-              {/* Category filters */}
-              <div className='flex gap-2 overflow-x-auto pb-1'>
-                <Button
-                  variant={categoryFilter === "all" ? "default" : "ghost"}
-                  size='sm'
-                  onClick={() => setCategoryFilter("all")}
-                  className='shrink-0'
-                >
-                  All
-                </Button>
-                <Button
-                  variant={categoryFilter === "meal" ? "default" : "ghost"}
-                  size='sm'
-                  onClick={() => setCategoryFilter("meal")}
-                  className='shrink-0'
-                >
-                  🍽️ Meals
-                </Button>
-                <Button
-                  variant={categoryFilter === "drink" ? "default" : "ghost"}
-                  size='sm'
-                  onClick={() => setCategoryFilter("drink")}
-                  className='shrink-0'
-                >
-                  🍹 Drinks
-                </Button>
-                <Button
-                  variant={categoryFilter === "event" ? "default" : "ghost"}
-                  size='sm'
-                  onClick={() => setCategoryFilter("event")}
-                  className='shrink-0'
-                >
-                  🎉 Events
-                </Button>
-                <Button
-                  variant={categoryFilter === "date_idea" ? "default" : "ghost"}
-                  size='sm'
-                  onClick={() => setCategoryFilter("date_idea")}
-                  className='shrink-0'
-                >
-                  💕 Dates
-                </Button>
-              </div>
-
-              {/* Tag filters */}
-              {data?.allTags && data.allTags.length > 0 && (
-                <div className='flex flex-wrap gap-1.5'>
-                  <span className='text-xs text-muted-foreground py-1'>
-                    Tags:
-                  </span>
-                  {data.allTags.map((tag) => (
-                    <button
-                      key={tag.id}
-                      onClick={() => toggleTagSelection(tag.id)}
-                      className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
-                        selectedTagIds.includes(tag.id)
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-secondary hover:bg-secondary/80"
-                      }`}
+            {/* Scrollable content area - includes filters and list */}
+            <div className='flex-1 overflow-y-auto overscroll-contain'>
+              {/* Search & Filters */}
+              <div className='p-4 border-b border-border space-y-3 sticky top-0 glass z-10'>
+                <div className='flex gap-2'>
+                  <Input
+                    type='text'
+                    placeholder='Search...'
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className='flex-1'
+                    autoFocus
+                  />
+                  {hasActiveFilters && (
+                    <Button
+                      variant='ghost'
+                      size='sm'
+                      onClick={clearAllFilters}
+                      className='shrink-0 text-xs text-destructive hover:text-destructive'
                     >
-                      {tag.name}
-                    </button>
-                  ))}
+                      Clear all
+                    </Button>
+                  )}
+                </div>
+
+                {/* Category filters */}
+                <div className='flex gap-2 overflow-x-auto pb-1'>
+                  <Button
+                    variant={categoryFilter === "all" ? "default" : "ghost"}
+                    size='sm'
+                    onClick={() => setCategoryFilter("all")}
+                    className='shrink-0'
+                  >
+                    All
+                  </Button>
+                  <Button
+                    variant={categoryFilter === "meal" ? "default" : "ghost"}
+                    size='sm'
+                    onClick={() => setCategoryFilter("meal")}
+                    className='shrink-0'
+                  >
+                    🍽️ Meals
+                  </Button>
+                  <Button
+                    variant={categoryFilter === "drink" ? "default" : "ghost"}
+                    size='sm'
+                    onClick={() => setCategoryFilter("drink")}
+                    className='shrink-0'
+                  >
+                    🍹 Drinks
+                  </Button>
+                  <Button
+                    variant={categoryFilter === "event" ? "default" : "ghost"}
+                    size='sm'
+                    onClick={() => setCategoryFilter("event")}
+                    className='shrink-0'
+                  >
+                    🎉 Events
+                  </Button>
+                  <Button
+                    variant={categoryFilter === "date_idea" ? "default" : "ghost"}
+                    size='sm'
+                    onClick={() => setCategoryFilter("date_idea")}
+                    className='shrink-0'
+                  >
+                    💕 Dates
+                  </Button>
+                </div>
+              </div>
+
+              {/* Tag filters - collapsible, scrolls with content */}
+              {data?.allTags && data.allTags.length > 0 && (
+                <div className='px-4 py-2 border-b border-border'>
+                  <TagFilter
+                    tags={data.allTags}
+                    selectedTags={selectedTagIds}
+                    onToggle={toggleTagSelection}
+                    onClear={() => setSelectedTagIds([])}
+                  />
                 </div>
               )}
-            </div>
 
-            {/* Content List */}
-            <div className='flex-1 overflow-y-auto p-4 space-y-2'>
+              {/* Content List */}
+              <div className='p-4 space-y-2'>
               {getFilteredContent().map((content) => (
                 <button
                   key={content.id}
@@ -1352,6 +1352,7 @@ export default function PlannerPage() {
                   )}
                 </div>
               )}
+            </div>
             </div>
           </div>
         </div>
@@ -1756,5 +1757,19 @@ export default function PlannerPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function PlannerPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className='min-h-screen flex items-center justify-center bg-paper'>
+          <div className='animate-shimmer w-16 h-16 rounded-full' />
+        </div>
+      }
+    >
+      <PlannerContent />
+    </Suspense>
   );
 }
