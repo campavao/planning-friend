@@ -650,63 +650,53 @@ function PlannerContent() {
     }
   };
 
-  // Save grocery list as screenshot
+  // Save grocery list as screenshot - creates a clean, plain text list for OCR/import
   const saveGroceryScreenshot = async () => {
-    if (!groceryListRef.current) return;
+    if (groceryList.items.length === 0) return;
 
     setGroceryList((s) => ({ ...s, saving: true }));
 
     try {
-      const canvas = await html2canvas(groceryListRef.current, {
+      // Create a temporary container with plain black text on white background
+      const container = document.createElement("div");
+      container.style.cssText = `
+        position: fixed;
+        left: -9999px;
+        top: 0;
+        background: white;
+        padding: 32px;
+        font-family: Arial, sans-serif;
+        font-size: 18px;
+        line-height: 1.6;
+        color: black;
+        width: 400px;
+      `;
+
+      // Build a simple list: just ingredient and quantity
+      const listItems = groceryList.items.map((item) => {
+        const quantity = item.quantity ? ` - ${item.quantity}` : "";
+        return `${item.ingredient}${quantity}`;
+      });
+
+      // Create the content - simple bulleted list
+      container.innerHTML = `
+        <div style="margin-bottom: 16px; font-weight: bold; font-size: 20px; border-bottom: 2px solid black; padding-bottom: 8px;">
+          Grocery List
+        </div>
+        <div style="white-space: pre-line;">
+${listItems.map((item) => `• ${item}`).join("\n")}
+        </div>
+      `;
+
+      document.body.appendChild(container);
+
+      const canvas = await html2canvas(container, {
         backgroundColor: "#ffffff",
         scale: 2,
-        logging: false, // Suppress console warnings
-        onclone: (clonedDoc) => {
-          // Fix unsupported CSS color functions (oklab, oklch, lab, lch)
-          // by replacing them with fallback colors
-          const allElements = clonedDoc.querySelectorAll("*");
-          allElements.forEach((el) => {
-            const style = window.getComputedStyle(el);
-            const htmlEl = el as HTMLElement;
-
-            // Check common color properties and replace if they use unsupported functions
-            const colorProps = [
-              "color",
-              "backgroundColor",
-              "borderColor",
-              "borderTopColor",
-              "borderRightColor",
-              "borderBottomColor",
-              "borderLeftColor",
-            ];
-
-            colorProps.forEach((prop) => {
-              const value = style.getPropertyValue(
-                prop.replace(/([A-Z])/g, "-$1").toLowerCase()
-              );
-              if (
-                value &&
-                (value.includes("oklab") ||
-                  value.includes("oklch") ||
-                  value.includes("lab(") ||
-                  value.includes("lch("))
-              ) {
-                // Replace with a safe fallback
-                if (prop === "backgroundColor") {
-                  htmlEl.style.backgroundColor = "#f5f5f5";
-                } else if (prop === "color") {
-                  htmlEl.style.color = "#1a1a1a";
-                } else {
-                  htmlEl.style.setProperty(
-                    prop.replace(/([A-Z])/g, "-$1").toLowerCase(),
-                    "#e5e5e5"
-                  );
-                }
-              }
-            });
-          });
-        },
+        logging: false,
       });
+
+      document.body.removeChild(container);
 
       const link = document.createElement("a");
       link.download = `grocery-list-${weekStart}.png`;
@@ -1269,7 +1259,9 @@ function PlannerContent() {
                     🎉 Events
                   </Button>
                   <Button
-                    variant={categoryFilter === "date_idea" ? "default" : "ghost"}
+                    variant={
+                      categoryFilter === "date_idea" ? "default" : "ghost"
+                    }
                     size='sm'
                     onClick={() => setCategoryFilter("date_idea")}
                     className='shrink-0'
@@ -1293,66 +1285,66 @@ function PlannerContent() {
 
               {/* Content List */}
               <div className='p-4 space-y-2'>
-              {getFilteredContent().map((content) => (
-                <button
-                  key={content.id}
-                  onClick={() => addToDay(content.id, addingToDay)}
-                  className='w-full glass rounded-xl p-3 text-left hover:bg-secondary/50 transition-colors flex items-center gap-3'
-                >
-                  {content.thumbnail_url && (
-                    <img
-                      src={content.thumbnail_url}
-                      alt=''
-                      className='w-16 h-16 object-cover rounded-lg shrink-0'
-                    />
-                  )}
-                  <div className='flex-1 min-w-0'>
-                    <div className='flex items-center gap-2'>
-                      <span>{CATEGORY_EMOJI[content.category]}</span>
-                      <span className='text-sm font-medium line-clamp-1'>
-                        {content.title}
-                      </span>
-                    </div>
-                    <p className='text-xs text-muted-foreground capitalize'>
-                      {content.category.replace("_", " ")}
-                    </p>
-                    {content.tags && content.tags.length > 0 && (
-                      <div className='flex flex-wrap gap-1 mt-1'>
-                        {content.tags.slice(0, 3).map((tag) => (
-                          <span
-                            key={tag.id}
-                            className='text-[10px] px-1.5 py-0.5 bg-secondary rounded'
-                          >
-                            {tag.name}
-                          </span>
-                        ))}
-                        {content.tags.length > 3 && (
-                          <span className='text-[10px] text-muted-foreground'>
-                            +{content.tags.length - 3}
-                          </span>
-                        )}
+                {getFilteredContent().map((content) => (
+                  <button
+                    key={content.id}
+                    onClick={() => addToDay(content.id, addingToDay)}
+                    className='w-full glass rounded-xl p-3 text-left hover:bg-secondary/50 transition-colors flex items-center gap-3'
+                  >
+                    {content.thumbnail_url && (
+                      <img
+                        src={content.thumbnail_url}
+                        alt=''
+                        className='w-16 h-16 object-cover rounded-lg shrink-0'
+                      />
+                    )}
+                    <div className='flex-1 min-w-0'>
+                      <div className='flex items-center gap-2'>
+                        <span>{CATEGORY_EMOJI[content.category]}</span>
+                        <span className='text-sm font-medium line-clamp-1'>
+                          {content.title}
+                        </span>
                       </div>
+                      <p className='text-xs text-muted-foreground capitalize'>
+                        {content.category.replace("_", " ")}
+                      </p>
+                      {content.tags && content.tags.length > 0 && (
+                        <div className='flex flex-wrap gap-1 mt-1'>
+                          {content.tags.slice(0, 3).map((tag) => (
+                            <span
+                              key={tag.id}
+                              className='text-[10px] px-1.5 py-0.5 bg-secondary rounded'
+                            >
+                              {tag.name}
+                            </span>
+                          ))}
+                          {content.tags.length > 3 && (
+                            <span className='text-[10px] text-muted-foreground'>
+                              +{content.tags.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                ))}
+
+                {getFilteredContent().length === 0 && (
+                  <div className='text-center py-8 text-muted-foreground'>
+                    <p>No items found</p>
+                    {hasActiveFilters && (
+                      <Button
+                        variant='ghost'
+                        size='sm'
+                        onClick={clearAllFilters}
+                        className='mt-2'
+                      >
+                        Clear all filters
+                      </Button>
                     )}
                   </div>
-                </button>
-              ))}
-
-              {getFilteredContent().length === 0 && (
-                <div className='text-center py-8 text-muted-foreground'>
-                  <p>No items found</p>
-                  {hasActiveFilters && (
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      onClick={clearAllFilters}
-                      className='mt-2'
-                    >
-                      Clear all filters
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
