@@ -1894,6 +1894,7 @@ export async function getSharedItemsForUser(
         id,
         plan_id,
         content_id,
+        note_title,
         day_of_week,
         slot_order,
         notes,
