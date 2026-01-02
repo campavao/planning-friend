@@ -6,7 +6,7 @@ import type { Friend } from "@/lib/supabase";
 import { formatPhoneNumber } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 // Type for Contact Picker API
 interface ContactInfo {
@@ -38,7 +38,6 @@ export default function FriendsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchFriends = useCallback(async () => {
     try {
@@ -64,138 +63,55 @@ export default function FriendsPage() {
     fetchFriends();
   }, [fetchFriends]);
 
-  // Parse vCard file content
-  const parseVCard = (
-    content: string
-  ): { name: string; phoneNumber?: string }[] => {
-    const contacts: { name: string; phoneNumber?: string }[] = [];
-    const vcards = content.split("END:VCARD");
-
-    for (const vcard of vcards) {
-      if (!vcard.includes("BEGIN:VCARD")) continue;
-
-      let name = "";
-      let phone = "";
-
-      // Extract FN (formatted name)
-      const fnMatch = vcard.match(/FN[;:][^\r\n]*?:?([^\r\n]+)/i);
-      if (fnMatch) {
-        name = fnMatch[1].trim();
-      }
-
-      // Fallback to N (structured name) if FN not found
-      if (!name) {
-        const nMatch = vcard.match(/^N[;:][^\r\n]*?:?([^\r\n]+)/im);
-        if (nMatch) {
-          const parts = nMatch[1].split(";");
-          name = `${parts[1] || ""} ${parts[0] || ""}`.trim();
-        }
-      }
-
-      // Extract phone number
-      const telMatch = vcard.match(/TEL[;:][^\r\n]*?:?([+\d\s()-]+)/i);
-      if (telMatch) {
-        phone = telMatch[1].trim();
-      }
-
-      if (name) {
-        contacts.push({ name, phoneNumber: phone || undefined });
-      }
+  const handleImportContacts = async () => {
+    // Contact Picker API is primarily supported on Chrome Android
+    if (!navigator.contacts) {
+      alert("Contact import is only available on mobile devices. Please add friends manually.");
+      return;
     }
-
-    return contacts;
-  };
-
-  // Handle vCard file import
-  const handleFileImport = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
 
     setImportingContacts(true);
 
     try {
-      const content = await file.text();
-      const contacts = parseVCard(content);
-
-      if (contacts.length === 0) {
-        alert("No valid contacts found in file");
-        return;
-      }
-
-      const res = await fetch("/api/friends", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contacts }),
+      const contacts = await navigator.contacts.select(["name", "tel"], {
+        multiple: true,
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        alert(`Added ${data.imported} friend${data.imported !== 1 ? "s" : ""}!`);
-        fetchFriends();
-      }
-    } catch (error) {
-      console.error("Failed to import contacts:", error);
-      alert("Failed to import contacts from file");
-    } finally {
-      setImportingContacts(false);
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    }
-  };
+      if (contacts && contacts.length > 0) {
+        // Format contacts for API
+        const formattedContacts = contacts
+          .filter((c) => c.name?.[0])
+          .map((c) => ({
+            name: c.name![0],
+            phoneNumber: c.tel?.[0] || undefined,
+          }));
 
-  const handleImportContacts = async () => {
-    // Contact Picker API is primarily supported on Chrome Android
-    if (navigator.contacts) {
-      setImportingContacts(true);
+        if (formattedContacts.length === 0) {
+          alert("No valid contacts selected");
+          return;
+        }
 
-      try {
-        const contacts = await navigator.contacts.select(["name", "tel"], {
-          multiple: true,
+        const res = await fetch("/api/friends", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contacts: formattedContacts }),
         });
 
-        if (contacts && contacts.length > 0) {
-          // Format contacts for API
-          const formattedContacts = contacts
-            .filter((c) => c.name?.[0])
-            .map((c) => ({
-              name: c.name![0],
-              phoneNumber: c.tel?.[0] || undefined,
-            }));
-
-          if (formattedContacts.length === 0) {
-            alert("No valid contacts selected");
-            return;
-          }
-
-          const res = await fetch("/api/friends", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ contacts: formattedContacts }),
-          });
-
-          if (res.ok) {
-            const data = await res.json();
-            alert(
-              `Added ${data.imported} friend${data.imported !== 1 ? "s" : ""}!`
-            );
-            fetchFriends();
-          }
+        if (res.ok) {
+          const data = await res.json();
+          alert(
+            `Added ${data.imported} friend${data.imported !== 1 ? "s" : ""}!`
+          );
+          fetchFriends();
         }
-      } catch (error) {
-        // User cancelled or error occurred
-        if ((error as Error).name !== "InvalidStateError") {
-          console.error("Failed to import contacts:", error);
-        }
-      } finally {
-        setImportingContacts(false);
       }
-    } else {
-      // Fallback: open file picker for vCard import
-      fileInputRef.current?.click();
+    } catch (error) {
+      // User cancelled or error occurred
+      if ((error as Error).name !== "InvalidStateError") {
+        console.error("Failed to import contacts:", error);
+      }
+    } finally {
+      setImportingContacts(false);
     }
   };
 
@@ -345,15 +261,6 @@ export default function FriendsPage() {
             className="w-full bg-white border-border"
           />
         </div>
-
-        {/* Hidden file input for vCard import */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".vcf,text/vcard,text/x-vcard"
-          onChange={handleFileImport}
-          className="hidden"
-        />
 
         {/* Action Buttons */}
         <div className="flex gap-2 mb-6">
