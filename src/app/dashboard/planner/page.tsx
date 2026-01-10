@@ -250,86 +250,20 @@ function PlannerContent() {
       }
 
       try {
-        // week is the DISPLAY week start (Sunday). We need two backend weeks:
-        // - prevWeekStart (Monday) for Sunday items
-        // - mainWeekStart (Monday) for Mon-Sat items
-        const displayStart = parseDateString(week);
-        const prevWeekStartDate = new Date(displayStart);
-        prevWeekStartDate.setDate(prevWeekStartDate.getDate() - 6); // Monday before this Sunday
-        const mainWeekStartDate = new Date(displayStart);
-        mainWeekStartDate.setDate(mainWeekStartDate.getDate() + 1); // Monday after this Sunday
+        const res = await fetch(`/api/planner?week=${week}&weekMode=sunday`);
+        const result = await res.json();
 
-        const prevWeekStart = formatDateString(prevWeekStartDate);
-        const mainWeekStart = formatDateString(mainWeekStartDate);
-
-        const [prevRes, mainRes] = await Promise.all([
-          fetch(`/api/planner?week=${prevWeekStart}`),
-          fetch(`/api/planner?week=${mainWeekStart}`),
-        ]);
-
-        const [prevResult, mainResult] = await Promise.all([
-          prevRes.json(),
-          mainRes.json(),
-        ]);
-
-        if (!prevRes.ok || !mainRes.ok) {
-          const unauthorized = prevRes.status === 401 || mainRes.status === 401;
-          if (unauthorized) {
+        if (!res.ok) {
+          if (res.status === 401) {
             router.push("/");
             return;
           }
-          throw new Error(prevResult?.error || mainResult?.error || "Failed");
+          throw new Error(result.error);
         }
-
-        // Merge into a single DISPLAY-week view:
-        // - Sunday (display day 0): prev week day_of_week=6
-        // - Mon-Sat (display days 1..6): main week day_of_week=0..5 shifted by +1
-        const prevPlanItems = (prevResult.plan?.items || [])
-          .filter((i: PlanItemWithSharing) => i.day_of_week === 6)
-          .map((i: PlanItemWithSharing) => ({ ...i, day_of_week: 0 }));
-
-        const mainPlanItems = (mainResult.plan?.items || [])
-          .filter((i: PlanItemWithSharing) => i.day_of_week >= 0 && i.day_of_week <= 5)
-          .map((i: PlanItemWithSharing) => ({
-            ...i,
-            day_of_week: i.day_of_week + 1,
-          }));
-
-        const mergedPlanBase = mainResult.plan || prevResult.plan;
-        const mergedPlan = mergedPlanBase
-          ? {
-              ...mergedPlanBase,
-              items: [...prevPlanItems, ...mainPlanItems],
-            }
-          : null;
-
-        const prevSharedItems = (prevResult.sharedItems || [])
-          .filter((i: SharedPlanItem) => i.day_of_week === 6)
-          .map((i: SharedPlanItem) => ({ ...i, day_of_week: 0 }));
-
-        const mainSharedItems = (mainResult.sharedItems || [])
-          .filter((i: SharedPlanItem) => i.day_of_week >= 0 && i.day_of_week <= 5)
-          .map((i: SharedPlanItem) => ({
-            ...i,
-            day_of_week: i.day_of_week + 1,
-          }));
-
-        const mergedSuggestions: Record<number, Content[]> = {};
-        if (prevResult.suggestions?.[6]) mergedSuggestions[0] = prevResult.suggestions[6];
-        for (let d = 0; d <= 5; d++) {
-          if (mainResult.suggestions?.[d]) mergedSuggestions[d + 1] = mainResult.suggestions[d];
-        }
-
-        const merged: PlannerData = {
-          ...mainResult,
-          plan: mergedPlan,
-          sharedItems: [...prevSharedItems, ...mainSharedItems],
-          suggestions: mergedSuggestions,
-        };
 
         // Update cache
-        setWeekCache((prev) => new Map(prev).set(week, merged));
-        setData(merged);
+        setWeekCache((prev) => new Map(prev).set(week, result));
+        setData(result);
         setWeekStart(week);
       } catch (error) {
         console.error("Failed to fetch planner:", error);
