@@ -28,15 +28,22 @@ import {
   useState,
 } from "react";
 
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const DAYS_FULL = [
+// UI should display weeks as Sunday -> Saturday.
+//
+// IMPORTANT: The backend/database groups weeks as Monday -> Sunday with
+// day_of_week as 0=Monday ... 6=Sunday. To show a Sunday-start week
+// chronologically, we merge:
+// - Sunday from the *previous* backend week (day_of_week=6)
+// - Mon-Sat from the *current* backend week (day_of_week=0..5)
+const DISPLAY_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DISPLAY_DAYS_FULL = [
+  "Sunday",
   "Monday",
   "Tuesday",
   "Wednesday",
   "Thursday",
   "Friday",
   "Saturday",
-  "Sunday",
 ];
 
 const CATEGORY_EMOJI: Record<string, string> = {
@@ -223,12 +230,12 @@ function PlannerContent() {
 
   const getCurrentWeekStart = () => {
     const now = new Date();
-    const day = now.getDay();
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-    const monday = new Date(now);
-    monday.setDate(diff);
-    monday.setHours(0, 0, 0, 0);
-    return formatDateString(monday);
+    // Sunday-start week: get the Sunday for the current week.
+    const day = now.getDay(); // 0=Sun..6=Sat
+    const sunday = new Date(now);
+    sunday.setDate(now.getDate() - day);
+    sunday.setHours(0, 0, 0, 0);
+    return formatDateString(sunday);
   };
 
   const fetchPlanner = useCallback(
@@ -243,7 +250,7 @@ function PlannerContent() {
       }
 
       try {
-        const res = await fetch(`/api/planner?week=${week}`);
+        const res = await fetch(`/api/planner?week=${week}&weekMode=sunday`);
         const result = await res.json();
 
         if (!res.ok) {
@@ -301,12 +308,29 @@ function PlannerContent() {
     fetchPlanner(newWeek);
   };
 
-  const addToDay = async (contentId: string, dayOfWeek: number) => {
+  const addToDay = async (contentId: string, displayDayIndex: number) => {
     try {
+      // Translate DISPLAY day + DISPLAY weekStart into backend weekStart + db day_of_week.
+      const displayStart = parseDateString(weekStart);
+      const prevWeekStartDate = new Date(displayStart);
+      prevWeekStartDate.setDate(prevWeekStartDate.getDate() - 6); // Monday before this Sunday
+      const mainWeekStartDate = new Date(displayStart);
+      mainWeekStartDate.setDate(mainWeekStartDate.getDate() + 1); // Monday after this Sunday
+
+      const prevWeekStart = formatDateString(prevWeekStartDate);
+      const mainWeekStart = formatDateString(mainWeekStartDate);
+
+      const postWeekStart = displayDayIndex === 0 ? prevWeekStart : mainWeekStart;
+      const dbDayOfWeek = displayDayIndex === 0 ? 6 : displayDayIndex - 1;
+
       const res = await fetch("/api/planner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ weekStart, contentId, dayOfWeek }),
+        body: JSON.stringify({
+          weekStart: postWeekStart,
+          contentId,
+          dayOfWeek: dbDayOfWeek,
+        }),
       });
 
       if (res.ok) {
@@ -319,15 +343,32 @@ function PlannerContent() {
     setAddingToDay(null);
   };
 
-  const addQuickNote = async (dayOfWeek: number) => {
+  const addQuickNote = async (displayDayIndex: number) => {
     if (!quickNoteInput.trim()) return;
     
     setAddingQuickNote(true);
     try {
+      // Translate DISPLAY day + DISPLAY weekStart into backend weekStart + db day_of_week.
+      const displayStart = parseDateString(weekStart);
+      const prevWeekStartDate = new Date(displayStart);
+      prevWeekStartDate.setDate(prevWeekStartDate.getDate() - 6); // Monday before this Sunday
+      const mainWeekStartDate = new Date(displayStart);
+      mainWeekStartDate.setDate(mainWeekStartDate.getDate() + 1); // Monday after this Sunday
+
+      const prevWeekStart = formatDateString(prevWeekStartDate);
+      const mainWeekStart = formatDateString(mainWeekStartDate);
+
+      const postWeekStart = displayDayIndex === 0 ? prevWeekStart : mainWeekStart;
+      const dbDayOfWeek = displayDayIndex === 0 ? 6 : displayDayIndex - 1;
+
       const res = await fetch("/api/planner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ weekStart, noteTitle: quickNoteInput.trim(), dayOfWeek }),
+        body: JSON.stringify({
+          weekStart: postWeekStart,
+          noteTitle: quickNoteInput.trim(),
+          dayOfWeek: dbDayOfWeek,
+        }),
       });
 
       if (res.ok) {
@@ -506,6 +547,7 @@ function PlannerContent() {
 
   const formatWeekRange = () => {
     if (!weekStart) return "";
+    // weekStart is DISPLAY Sunday-start.
     const start = parseDateString(weekStart);
     const end = new Date(start);
     end.setDate(end.getDate() + 6);
@@ -862,7 +904,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
             </div>
           )}
           <div className='grid grid-cols-1 md:grid-cols-7 gap-3'>
-            {DAYS.map((day, dayIndex) => (
+            {DISPLAY_DAYS.map((day, dayIndex) => (
               <Card
                 key={day}
                 className={`glass overflow-hidden ${
@@ -880,7 +922,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                           {getDateForDay(dayIndex)}
                         </span>
                         <span className='text-sm text-muted-foreground'>
-                          {DAYS_FULL[dayIndex]}
+                          {DISPLAY_DAYS_FULL[dayIndex]}
                         </span>
                         {isToday(dayIndex) && (
                           <Badge variant='secondary' className='text-xs'>
@@ -1068,7 +1110,10 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     ) : data?.suggestions?.[dayIndex]?.[0] ? (
                       <button
                         onClick={() =>
-                          addToDay(data.suggestions[dayIndex][0].id, dayIndex)
+                          addToDay(
+                            data.suggestions[dayIndex][0].id,
+                            dayIndex
+                          )
                         }
                         className='w-full glass rounded-xl overflow-hidden border border-dashed border-primary/30 hover:bg-primary/5 transition-colors'
                       >
@@ -1106,7 +1151,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                           {getDateForDay(dayIndex)}
                         </span>
                         <span className='text-xs text-muted-foreground'>
-                          {DAYS[dayIndex]}
+                          {DISPLAY_DAYS[dayIndex]}
                         </span>
                       </div>
                       {isToday(dayIndex) && (
@@ -1284,7 +1329,10 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                       data?.suggestions?.[dayIndex]?.[0] && (
                         <button
                           onClick={() =>
-                            addToDay(data.suggestions[dayIndex][0].id, dayIndex)
+                            addToDay(
+                              data.suggestions[dayIndex][0].id,
+                              dayIndex
+                            )
                           }
                           className='w-full glass rounded-lg overflow-hidden border border-dashed border-primary/30 hover:bg-primary/5 transition-colors'
                         >
@@ -1341,7 +1389,9 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
         <div className='fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-0 md:p-4'>
           <div className='glass w-full md:max-w-lg md:rounded-2xl rounded-t-2xl max-h-[80vh] flex flex-col'>
             <div className='p-4 border-b border-border flex items-center justify-between shrink-0'>
-              <h3 className='font-semibold'>Add to {DAYS_FULL[addingToDay]}</h3>
+              <h3 className='font-semibold'>
+                Add to {DISPLAY_DAYS_FULL[addingToDay]}
+              </h3>
               <button
                 onClick={() => setAddingToDay(null)}
                 className='text-muted-foreground hover:text-foreground p-1'
