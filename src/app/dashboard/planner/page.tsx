@@ -30,8 +30,11 @@ import {
 
 // UI should display weeks as Sunday -> Saturday.
 //
-// IMPORTANT: The backend/database uses day_of_week as 0=Monday ... 6=Sunday.
-// We keep that stable and map between display index and stored index.
+// IMPORTANT: The backend/database groups weeks as Monday -> Sunday with
+// day_of_week as 0=Monday ... 6=Sunday. To show a Sunday-start week
+// chronologically, we merge:
+// - Sunday from the *previous* backend week (day_of_week=6)
+// - Mon-Sat from the *current* backend week (day_of_week=0..5)
 const DISPLAY_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DISPLAY_DAYS_FULL = [
   "Sunday",
@@ -42,11 +45,6 @@ const DISPLAY_DAYS_FULL = [
   "Friday",
   "Saturday",
 ];
-
-function dbDayFromDisplayIndex(displayIndex: number) {
-  // display: 0=Sun,1=Mon,...6=Sat  -> db: 6=Sun,0=Mon,...5=Sat
-  return (displayIndex + 6) % 7;
-}
 
 const CATEGORY_EMOJI: Record<string, string> = {
   meal: "🍽️",
@@ -232,12 +230,12 @@ function PlannerContent() {
 
   const getCurrentWeekStart = () => {
     const now = new Date();
-    const day = now.getDay();
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-    const monday = new Date(now);
-    monday.setDate(diff);
-    monday.setHours(0, 0, 0, 0);
-    return formatDateString(monday);
+    // Sunday-start week: get the Sunday for the current week.
+    const day = now.getDay(); // 0=Sun..6=Sat
+    const sunday = new Date(now);
+    sunday.setDate(now.getDate() - day);
+    sunday.setHours(0, 0, 0, 0);
+    return formatDateString(sunday);
   };
 
   const fetchPlanner = useCallback(
@@ -252,20 +250,86 @@ function PlannerContent() {
       }
 
       try {
-        const res = await fetch(`/api/planner?week=${week}`);
-        const result = await res.json();
+        // week is the DISPLAY week start (Sunday). We need two backend weeks:
+        // - prevWeekStart (Monday) for Sunday items
+        // - mainWeekStart (Monday) for Mon-Sat items
+        const displayStart = parseDateString(week);
+        const prevWeekStartDate = new Date(displayStart);
+        prevWeekStartDate.setDate(prevWeekStartDate.getDate() - 6); // Monday before this Sunday
+        const mainWeekStartDate = new Date(displayStart);
+        mainWeekStartDate.setDate(mainWeekStartDate.getDate() + 1); // Monday after this Sunday
 
-        if (!res.ok) {
-          if (res.status === 401) {
+        const prevWeekStart = formatDateString(prevWeekStartDate);
+        const mainWeekStart = formatDateString(mainWeekStartDate);
+
+        const [prevRes, mainRes] = await Promise.all([
+          fetch(`/api/planner?week=${prevWeekStart}`),
+          fetch(`/api/planner?week=${mainWeekStart}`),
+        ]);
+
+        const [prevResult, mainResult] = await Promise.all([
+          prevRes.json(),
+          mainRes.json(),
+        ]);
+
+        if (!prevRes.ok || !mainRes.ok) {
+          const unauthorized = prevRes.status === 401 || mainRes.status === 401;
+          if (unauthorized) {
             router.push("/");
             return;
           }
-          throw new Error(result.error);
+          throw new Error(prevResult?.error || mainResult?.error || "Failed");
         }
 
+        // Merge into a single DISPLAY-week view:
+        // - Sunday (display day 0): prev week day_of_week=6
+        // - Mon-Sat (display days 1..6): main week day_of_week=0..5 shifted by +1
+        const prevPlanItems = (prevResult.plan?.items || [])
+          .filter((i: PlanItemWithSharing) => i.day_of_week === 6)
+          .map((i: PlanItemWithSharing) => ({ ...i, day_of_week: 0 }));
+
+        const mainPlanItems = (mainResult.plan?.items || [])
+          .filter((i: PlanItemWithSharing) => i.day_of_week >= 0 && i.day_of_week <= 5)
+          .map((i: PlanItemWithSharing) => ({
+            ...i,
+            day_of_week: i.day_of_week + 1,
+          }));
+
+        const mergedPlanBase = mainResult.plan || prevResult.plan;
+        const mergedPlan = mergedPlanBase
+          ? {
+              ...mergedPlanBase,
+              items: [...prevPlanItems, ...mainPlanItems],
+            }
+          : null;
+
+        const prevSharedItems = (prevResult.sharedItems || [])
+          .filter((i: SharedPlanItem) => i.day_of_week === 6)
+          .map((i: SharedPlanItem) => ({ ...i, day_of_week: 0 }));
+
+        const mainSharedItems = (mainResult.sharedItems || [])
+          .filter((i: SharedPlanItem) => i.day_of_week >= 0 && i.day_of_week <= 5)
+          .map((i: SharedPlanItem) => ({
+            ...i,
+            day_of_week: i.day_of_week + 1,
+          }));
+
+        const mergedSuggestions: Record<number, Content[]> = {};
+        if (prevResult.suggestions?.[6]) mergedSuggestions[0] = prevResult.suggestions[6];
+        for (let d = 0; d <= 5; d++) {
+          if (mainResult.suggestions?.[d]) mergedSuggestions[d + 1] = mainResult.suggestions[d];
+        }
+
+        const merged: PlannerData = {
+          ...mainResult,
+          plan: mergedPlan,
+          sharedItems: [...prevSharedItems, ...mainSharedItems],
+          suggestions: mergedSuggestions,
+        };
+
         // Update cache
-        setWeekCache((prev) => new Map(prev).set(week, result));
-        setData(result);
+        setWeekCache((prev) => new Map(prev).set(week, merged));
+        setData(merged);
         setWeekStart(week);
       } catch (error) {
         console.error("Failed to fetch planner:", error);
@@ -310,12 +374,29 @@ function PlannerContent() {
     fetchPlanner(newWeek);
   };
 
-  const addToDay = async (contentId: string, dayOfWeek: number) => {
+  const addToDay = async (contentId: string, displayDayIndex: number) => {
     try {
+      // Translate DISPLAY day + DISPLAY weekStart into backend weekStart + db day_of_week.
+      const displayStart = parseDateString(weekStart);
+      const prevWeekStartDate = new Date(displayStart);
+      prevWeekStartDate.setDate(prevWeekStartDate.getDate() - 6); // Monday before this Sunday
+      const mainWeekStartDate = new Date(displayStart);
+      mainWeekStartDate.setDate(mainWeekStartDate.getDate() + 1); // Monday after this Sunday
+
+      const prevWeekStart = formatDateString(prevWeekStartDate);
+      const mainWeekStart = formatDateString(mainWeekStartDate);
+
+      const postWeekStart = displayDayIndex === 0 ? prevWeekStart : mainWeekStart;
+      const dbDayOfWeek = displayDayIndex === 0 ? 6 : displayDayIndex - 1;
+
       const res = await fetch("/api/planner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ weekStart, contentId, dayOfWeek }),
+        body: JSON.stringify({
+          weekStart: postWeekStart,
+          contentId,
+          dayOfWeek: dbDayOfWeek,
+        }),
       });
 
       if (res.ok) {
@@ -328,15 +409,32 @@ function PlannerContent() {
     setAddingToDay(null);
   };
 
-  const addQuickNote = async (dayOfWeek: number) => {
+  const addQuickNote = async (displayDayIndex: number) => {
     if (!quickNoteInput.trim()) return;
     
     setAddingQuickNote(true);
     try {
+      // Translate DISPLAY day + DISPLAY weekStart into backend weekStart + db day_of_week.
+      const displayStart = parseDateString(weekStart);
+      const prevWeekStartDate = new Date(displayStart);
+      prevWeekStartDate.setDate(prevWeekStartDate.getDate() - 6); // Monday before this Sunday
+      const mainWeekStartDate = new Date(displayStart);
+      mainWeekStartDate.setDate(mainWeekStartDate.getDate() + 1); // Monday after this Sunday
+
+      const prevWeekStart = formatDateString(prevWeekStartDate);
+      const mainWeekStart = formatDateString(mainWeekStartDate);
+
+      const postWeekStart = displayDayIndex === 0 ? prevWeekStart : mainWeekStart;
+      const dbDayOfWeek = displayDayIndex === 0 ? 6 : displayDayIndex - 1;
+
       const res = await fetch("/api/planner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ weekStart, noteTitle: quickNoteInput.trim(), dayOfWeek }),
+        body: JSON.stringify({
+          weekStart: postWeekStart,
+          noteTitle: quickNoteInput.trim(),
+          dayOfWeek: dbDayOfWeek,
+        }),
       });
 
       if (res.ok) {
@@ -515,9 +613,8 @@ function PlannerContent() {
 
   const formatWeekRange = () => {
     if (!weekStart) return "";
-    // weekStart is stored as Monday; display range should be Sunday -> Saturday.
+    // weekStart is DISPLAY Sunday-start.
     const start = parseDateString(weekStart);
-    start.setDate(start.getDate() - 1);
     const end = new Date(start);
     end.setDate(end.getDate() + 6);
     const formatDate = (d: Date) =>
@@ -529,9 +626,7 @@ function PlannerContent() {
 
   const getDateForDay = (dayIndex: number) => {
     if (!weekStart) return 0;
-    // dayIndex is display index (Sun=0..Sat=6). weekStart is Monday.
     const date = parseDateString(weekStart);
-    date.setDate(date.getDate() - 1);
     date.setDate(date.getDate() + dayIndex);
     return date.getDate();
   };
@@ -539,9 +634,7 @@ function PlannerContent() {
   const isToday = (dayIndex: number) => {
     if (!weekStart) return false;
     const today = new Date();
-    // dayIndex is display index (Sun=0..Sat=6). weekStart is Monday.
     const dayDate = parseDateString(weekStart);
-    dayDate.setDate(dayDate.getDate() - 1);
     dayDate.setDate(dayDate.getDate() + dayIndex);
     return today.toDateString() === dayDate.toDateString();
   };
@@ -777,16 +870,14 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
     isSharedWithMe?: boolean;
   };
 
-  // Keyed by *display index* (Sun=0..Sat=6)
   const itemsByDay: Record<number, DisplayItem[]> = {};
   for (let i = 0; i <= 6; i++) {
-    const dbDay = dbDayFromDisplayIndex(i);
     const ownItems: DisplayItem[] = (
-      data?.plan?.items.filter((item) => item.day_of_week === dbDay) || []
+      data?.plan?.items.filter((item) => item.day_of_week === i) || []
     ).map((item) => ({ ...item, isSharedWithMe: false }));
 
     const sharedItems: DisplayItem[] = (
-      data?.sharedItems?.filter((item) => item.day_of_week === dbDay) || []
+      data?.sharedItems?.filter((item) => item.day_of_week === i) || []
     ).map((item) => ({ ...item, isSharedWithMe: true }));
 
     itemsByDay[i] = [...ownItems, ...sharedItems];
@@ -1082,21 +1173,20 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                           );
                         })}
                       </div>
-                    ) : data?.suggestions?.[dbDayFromDisplayIndex(dayIndex)]?.[0] ? (
+                    ) : data?.suggestions?.[dayIndex]?.[0] ? (
                       <button
                         onClick={() =>
                           addToDay(
-                            data.suggestions[dbDayFromDisplayIndex(dayIndex)][0]
-                              .id,
-                            dbDayFromDisplayIndex(dayIndex)
+                            data.suggestions[dayIndex][0].id,
+                            dayIndex
                           )
                         }
                         className='w-full glass rounded-xl overflow-hidden border border-dashed border-primary/30 hover:bg-primary/5 transition-colors'
                       >
                         <div className='flex gap-3'>
-                          {data.suggestions[dbDayFromDisplayIndex(dayIndex)][0].thumbnail_url && (
+                          {data.suggestions[dayIndex][0].thumbnail_url && (
                             <img
-                              src={data.suggestions[dbDayFromDisplayIndex(dayIndex)][0].thumbnail_url}
+                              src={data.suggestions[dayIndex][0].thumbnail_url}
                               alt=''
                               className='w-16 h-16 object-cover shrink-0 opacity-60'
                             />
@@ -1106,7 +1196,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                               Suggested
                             </p>
                             <p className='text-sm line-clamp-2 text-muted-foreground'>
-                              {data.suggestions[dbDayFromDisplayIndex(dayIndex)][0].title}
+                              {data.suggestions[dayIndex][0].title}
                             </p>
                           </div>
                         </div>
@@ -1302,24 +1392,19 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     })}
 
                     {itemsByDay[dayIndex].length === 0 &&
-                      data?.suggestions?.[dbDayFromDisplayIndex(dayIndex)]?.[0] && (
+                      data?.suggestions?.[dayIndex]?.[0] && (
                         <button
                           onClick={() =>
                             addToDay(
-                              data.suggestions[dbDayFromDisplayIndex(dayIndex)][0]
-                                .id,
-                              dbDayFromDisplayIndex(dayIndex)
+                              data.suggestions[dayIndex][0].id,
+                              dayIndex
                             )
                           }
                           className='w-full glass rounded-lg overflow-hidden border border-dashed border-primary/30 hover:bg-primary/5 transition-colors'
                         >
-                          {data.suggestions[dbDayFromDisplayIndex(dayIndex)][0]
-                            .thumbnail_url && (
+                          {data.suggestions[dayIndex][0].thumbnail_url && (
                             <img
-                              src={
-                                data.suggestions[dbDayFromDisplayIndex(dayIndex)][0]
-                                  .thumbnail_url
-                              }
+                              src={data.suggestions[dayIndex][0].thumbnail_url}
                               alt=''
                               className='w-full h-16 object-cover opacity-50'
                             />
@@ -1329,8 +1414,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                               Suggested
                             </p>
                             <p className='text-xs line-clamp-2 text-muted-foreground'>
-                              {data.suggestions[dbDayFromDisplayIndex(dayIndex)][0]
-                                .title}
+                              {data.suggestions[dayIndex][0].title}
                             </p>
                           </div>
                         </button>
@@ -1390,7 +1474,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
-                    addQuickNote(dbDayFromDisplayIndex(addingToDay));
+                    addQuickNote(addingToDay);
                   }}
                   className='flex gap-2'
                 >
@@ -1503,9 +1587,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                 {getFilteredContent().map((content) => (
                   <button
                     key={content.id}
-                    onClick={() =>
-                      addToDay(content.id, dbDayFromDisplayIndex(addingToDay))
-                    }
+                    onClick={() => addToDay(content.id, addingToDay)}
                     className='w-full glass rounded-xl p-3 text-left hover:bg-secondary/50 transition-colors flex items-center gap-3'
                   >
                     {content.thumbnail_url && (
