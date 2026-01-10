@@ -12,6 +12,50 @@ interface CategoryTabsProps {
   allTags?: Tag[];
 }
 
+function EmptyState({
+  category,
+  hasActiveTagFilters,
+}: {
+  category: string;
+  hasActiveTagFilters: boolean;
+}) {
+  return (
+    <div className='col-span-full flex flex-col items-center justify-center py-16 text-center'>
+      <div className='text-6xl mb-4'>
+        {category === "meals" && "🍳"}
+        {category === "drinks" && "🍹"}
+        {category === "events" && "🎉"}
+        {category === "dates" && "💕"}
+        {category === "gifts" && "🎁"}
+        {category === "travel" && "✈️"}
+        {category === "other" && "📌"}
+        {category === "all" && "📱"}
+      </div>
+      <h3 className='text-xl font-semibold mb-2'>
+        {hasActiveTagFilters
+          ? `No ${category} match selected tags`
+          : `No ${category} saved yet`}
+      </h3>
+      <p className='text-muted-foreground max-w-md mb-4'>
+        {hasActiveTagFilters
+          ? "Try removing some tag filters."
+          : "Text a TikTok or Instagram link and we'll automatically categorize and save it here."}
+      </p>
+      {!hasActiveTagFilters && <AddContactButton variant='button' />}
+    </div>
+  );
+}
+
+function ContentGrid({ items }: { items: ContentWithTags[] }) {
+  return (
+    <div className='grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6'>
+      {items.map((item, index) => (
+        <ContentCard key={item.id} content={item} index={index} />
+      ))}
+    </div>
+  );
+}
+
 export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
@@ -41,40 +85,7 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
       prev.includes(tagId) ? prev.filter((t) => t !== tagId) : [...prev, tagId]
     );
   };
-
-  const EmptyState = ({ category }: { category: string }) => (
-    <div className='col-span-full flex flex-col items-center justify-center py-16 text-center'>
-      <div className='text-6xl mb-4'>
-        {category === "meals" && "🍳"}
-        {category === "drinks" && "🍹"}
-        {category === "events" && "🎉"}
-        {category === "dates" && "💕"}
-        {category === "gifts" && "🎁"}
-        {category === "travel" && "✈️"}
-        {category === "other" && "📌"}
-        {category === "all" && "📱"}
-      </div>
-      <h3 className='text-xl font-semibold mb-2'>
-        {selectedTags.length > 0
-          ? `No ${category} match selected tags`
-          : `No ${category} saved yet`}
-      </h3>
-      <p className='text-muted-foreground max-w-md mb-4'>
-        {selectedTags.length > 0
-          ? "Try removing some tag filters."
-          : "Text a TikTok or Instagram link and we'll automatically categorize and save it here."}
-      </p>
-      {selectedTags.length === 0 && <AddContactButton variant='button' />}
-    </div>
-  );
-
-  const ContentGrid = ({ items }: { items: ContentWithTags[] }) => (
-    <div className='grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6'>
-      {items.map((item, index) => (
-        <ContentCard key={item.id} content={item} index={index} />
-      ))}
-    </div>
-  );
+  const hasActiveTagFilters = selectedTags.length > 0;
 
   return (
     <Tabs defaultValue='all' className='w-full'>
@@ -143,7 +154,7 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
 
       <TabsContent value='all' className='mt-0'>
         {filteredContent.length === 0 ? (
-          <EmptyState category='all' />
+          <EmptyState category='all' hasActiveTagFilters={hasActiveTagFilters} />
         ) : (
           <ContentGrid items={filteredContent} />
         )}
@@ -151,7 +162,10 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
 
       <TabsContent value='meals' className='mt-0'>
         {meals.length === 0 ? (
-          <EmptyState category='meals' />
+          <EmptyState
+            category='meals'
+            hasActiveTagFilters={hasActiveTagFilters}
+          />
         ) : (
           <ContentGrid items={meals} />
         )}
@@ -159,7 +173,10 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
 
       <TabsContent value='drinks' className='mt-0'>
         {drinks.length === 0 ? (
-          <EmptyState category='drinks' />
+          <EmptyState
+            category='drinks'
+            hasActiveTagFilters={hasActiveTagFilters}
+          />
         ) : (
           <ContentGrid items={drinks} />
         )}
@@ -167,7 +184,10 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
 
       <TabsContent value='events' className='mt-0'>
         {events.length === 0 ? (
-          <EmptyState category='events' />
+          <EmptyState
+            category='events'
+            hasActiveTagFilters={hasActiveTagFilters}
+          />
         ) : (
           <ContentGrid items={events} />
         )}
@@ -175,7 +195,10 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
 
       <TabsContent value='dates' className='mt-0'>
         {dateIdeas.length === 0 ? (
-          <EmptyState category='dates' />
+          <EmptyState
+            category='dates'
+            hasActiveTagFilters={hasActiveTagFilters}
+          />
         ) : (
           <ContentGrid items={dateIdeas} />
         )}
@@ -183,7 +206,10 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
 
       <TabsContent value='gifts' className='mt-0'>
         {giftIdeas.length === 0 ? (
-          <EmptyState category='gifts' />
+          <EmptyState
+            category='gifts'
+            hasActiveTagFilters={hasActiveTagFilters}
+          />
         ) : (
           <ContentGrid items={giftIdeas} />
         )}
@@ -191,7 +217,10 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
 
       <TabsContent value='travel' className='mt-0'>
         {travel.length === 0 ? (
-          <EmptyState category='travel' />
+          <EmptyState
+            category='travel'
+            hasActiveTagFilters={hasActiveTagFilters}
+          />
         ) : (
           <ContentGrid items={travel} />
         )}
@@ -199,7 +228,10 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
 
       <TabsContent value='other' className='mt-0'>
         {other.length === 0 ? (
-          <EmptyState category='other' />
+          <EmptyState
+            category='other'
+            hasActiveTagFilters={hasActiveTagFilters}
+          />
         ) : (
           <ContentGrid items={other} />
         )}

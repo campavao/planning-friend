@@ -6,6 +6,15 @@ import { useMemo, useState } from "react";
 
 const MAX_COLLAPSED_TAGS = 7;
 
+function stableHash(input: string) {
+  // Simple deterministic string hash (pure; no randomness).
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    hash = (hash * 31 + input.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+}
+
 interface TagFilterProps {
   tags: Tag[];
   selectedTags: string[];
@@ -21,20 +30,20 @@ export function TagFilter({
 }: TagFilterProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Randomized tag IDs for collapsed view - stable unless tags array changes
-  const randomTagIds = useMemo(() => {
-    const shuffled = [...tags].sort(() => Math.random() - 0.5);
-    return new Set(shuffled.slice(0, MAX_COLLAPSED_TAGS).map((t) => t.id));
+  // Stable "random-ish" selection for collapsed view (deterministic, render-pure).
+  const featuredTagIds = useMemo(() => {
+    const ordered = [...tags].sort((a, b) => stableHash(a.id) - stableHash(b.id));
+    return new Set(ordered.slice(0, MAX_COLLAPSED_TAGS).map((t) => t.id));
   }, [tags]);
 
-  // Collapsed tags: show random selection + any selected tags not in random set
+  // Collapsed tags: show featured selection + any selected tags not in featured set
   const collapsedTags = useMemo(() => {
-    const randomTags = tags.filter((t) => randomTagIds.has(t.id));
-    const selectedNotInRandom = tags.filter(
-      (t) => selectedTags.includes(t.id) && !randomTagIds.has(t.id)
+    const featuredTags = tags.filter((t) => featuredTagIds.has(t.id));
+    const selectedNotInFeatured = tags.filter(
+      (t) => selectedTags.includes(t.id) && !featuredTagIds.has(t.id)
     );
-    return [...selectedNotInRandom, ...randomTags];
-  }, [tags, randomTagIds, selectedTags]);
+    return [...selectedNotInFeatured, ...featuredTags];
+  }, [tags, featuredTagIds, selectedTags]);
 
   // Alphabetically sorted tags for expanded view
   const sortedTags = useMemo(() => {

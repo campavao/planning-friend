@@ -28,16 +28,25 @@ import {
   useState,
 } from "react";
 
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const DAYS_FULL = [
+// UI should display weeks as Sunday -> Saturday.
+//
+// IMPORTANT: The backend/database uses day_of_week as 0=Monday ... 6=Sunday.
+// We keep that stable and map between display index and stored index.
+const DISPLAY_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DISPLAY_DAYS_FULL = [
+  "Sunday",
   "Monday",
   "Tuesday",
   "Wednesday",
   "Thursday",
   "Friday",
   "Saturday",
-  "Sunday",
 ];
+
+function dbDayFromDisplayIndex(displayIndex: number) {
+  // display: 0=Sun,1=Mon,...6=Sat  -> db: 6=Sun,0=Mon,...5=Sat
+  return (displayIndex + 6) % 7;
+}
 
 const CATEGORY_EMOJI: Record<string, string> = {
   meal: "🍽️",
@@ -506,7 +515,9 @@ function PlannerContent() {
 
   const formatWeekRange = () => {
     if (!weekStart) return "";
+    // weekStart is stored as Monday; display range should be Sunday -> Saturday.
     const start = parseDateString(weekStart);
+    start.setDate(start.getDate() - 1);
     const end = new Date(start);
     end.setDate(end.getDate() + 6);
     const formatDate = (d: Date) =>
@@ -518,7 +529,9 @@ function PlannerContent() {
 
   const getDateForDay = (dayIndex: number) => {
     if (!weekStart) return 0;
+    // dayIndex is display index (Sun=0..Sat=6). weekStart is Monday.
     const date = parseDateString(weekStart);
+    date.setDate(date.getDate() - 1);
     date.setDate(date.getDate() + dayIndex);
     return date.getDate();
   };
@@ -526,7 +539,9 @@ function PlannerContent() {
   const isToday = (dayIndex: number) => {
     if (!weekStart) return false;
     const today = new Date();
+    // dayIndex is display index (Sun=0..Sat=6). weekStart is Monday.
     const dayDate = parseDateString(weekStart);
+    dayDate.setDate(dayDate.getDate() - 1);
     dayDate.setDate(dayDate.getDate() + dayIndex);
     return today.toDateString() === dayDate.toDateString();
   };
@@ -762,14 +777,16 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
     isSharedWithMe?: boolean;
   };
 
+  // Keyed by *display index* (Sun=0..Sat=6)
   const itemsByDay: Record<number, DisplayItem[]> = {};
   for (let i = 0; i <= 6; i++) {
+    const dbDay = dbDayFromDisplayIndex(i);
     const ownItems: DisplayItem[] = (
-      data?.plan?.items.filter((item) => item.day_of_week === i) || []
+      data?.plan?.items.filter((item) => item.day_of_week === dbDay) || []
     ).map((item) => ({ ...item, isSharedWithMe: false }));
 
     const sharedItems: DisplayItem[] = (
-      data?.sharedItems?.filter((item) => item.day_of_week === i) || []
+      data?.sharedItems?.filter((item) => item.day_of_week === dbDay) || []
     ).map((item) => ({ ...item, isSharedWithMe: true }));
 
     itemsByDay[i] = [...ownItems, ...sharedItems];
@@ -862,7 +879,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
             </div>
           )}
           <div className='grid grid-cols-1 md:grid-cols-7 gap-3'>
-            {DAYS.map((day, dayIndex) => (
+            {DISPLAY_DAYS.map((day, dayIndex) => (
               <Card
                 key={day}
                 className={`glass overflow-hidden ${
@@ -880,7 +897,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                           {getDateForDay(dayIndex)}
                         </span>
                         <span className='text-sm text-muted-foreground'>
-                          {DAYS_FULL[dayIndex]}
+                          {DISPLAY_DAYS_FULL[dayIndex]}
                         </span>
                         {isToday(dayIndex) && (
                           <Badge variant='secondary' className='text-xs'>
@@ -1065,17 +1082,21 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                           );
                         })}
                       </div>
-                    ) : data?.suggestions?.[dayIndex]?.[0] ? (
+                    ) : data?.suggestions?.[dbDayFromDisplayIndex(dayIndex)]?.[0] ? (
                       <button
                         onClick={() =>
-                          addToDay(data.suggestions[dayIndex][0].id, dayIndex)
+                          addToDay(
+                            data.suggestions[dbDayFromDisplayIndex(dayIndex)][0]
+                              .id,
+                            dbDayFromDisplayIndex(dayIndex)
+                          )
                         }
                         className='w-full glass rounded-xl overflow-hidden border border-dashed border-primary/30 hover:bg-primary/5 transition-colors'
                       >
                         <div className='flex gap-3'>
-                          {data.suggestions[dayIndex][0].thumbnail_url && (
+                          {data.suggestions[dbDayFromDisplayIndex(dayIndex)][0].thumbnail_url && (
                             <img
-                              src={data.suggestions[dayIndex][0].thumbnail_url}
+                              src={data.suggestions[dbDayFromDisplayIndex(dayIndex)][0].thumbnail_url}
                               alt=''
                               className='w-16 h-16 object-cover shrink-0 opacity-60'
                             />
@@ -1085,7 +1106,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                               Suggested
                             </p>
                             <p className='text-sm line-clamp-2 text-muted-foreground'>
-                              {data.suggestions[dayIndex][0].title}
+                              {data.suggestions[dbDayFromDisplayIndex(dayIndex)][0].title}
                             </p>
                           </div>
                         </div>
@@ -1106,7 +1127,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                           {getDateForDay(dayIndex)}
                         </span>
                         <span className='text-xs text-muted-foreground'>
-                          {DAYS[dayIndex]}
+                          {DISPLAY_DAYS[dayIndex]}
                         </span>
                       </div>
                       {isToday(dayIndex) && (
@@ -1281,16 +1302,24 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     })}
 
                     {itemsByDay[dayIndex].length === 0 &&
-                      data?.suggestions?.[dayIndex]?.[0] && (
+                      data?.suggestions?.[dbDayFromDisplayIndex(dayIndex)]?.[0] && (
                         <button
                           onClick={() =>
-                            addToDay(data.suggestions[dayIndex][0].id, dayIndex)
+                            addToDay(
+                              data.suggestions[dbDayFromDisplayIndex(dayIndex)][0]
+                                .id,
+                              dbDayFromDisplayIndex(dayIndex)
+                            )
                           }
                           className='w-full glass rounded-lg overflow-hidden border border-dashed border-primary/30 hover:bg-primary/5 transition-colors'
                         >
-                          {data.suggestions[dayIndex][0].thumbnail_url && (
+                          {data.suggestions[dbDayFromDisplayIndex(dayIndex)][0]
+                            .thumbnail_url && (
                             <img
-                              src={data.suggestions[dayIndex][0].thumbnail_url}
+                              src={
+                                data.suggestions[dbDayFromDisplayIndex(dayIndex)][0]
+                                  .thumbnail_url
+                              }
                               alt=''
                               className='w-full h-16 object-cover opacity-50'
                             />
@@ -1300,7 +1329,8 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                               Suggested
                             </p>
                             <p className='text-xs line-clamp-2 text-muted-foreground'>
-                              {data.suggestions[dayIndex][0].title}
+                              {data.suggestions[dbDayFromDisplayIndex(dayIndex)][0]
+                                .title}
                             </p>
                           </div>
                         </button>
@@ -1341,7 +1371,9 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
         <div className='fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-0 md:p-4'>
           <div className='glass w-full md:max-w-lg md:rounded-2xl rounded-t-2xl max-h-[80vh] flex flex-col'>
             <div className='p-4 border-b border-border flex items-center justify-between shrink-0'>
-              <h3 className='font-semibold'>Add to {DAYS_FULL[addingToDay]}</h3>
+              <h3 className='font-semibold'>
+                Add to {DISPLAY_DAYS_FULL[addingToDay]}
+              </h3>
               <button
                 onClick={() => setAddingToDay(null)}
                 className='text-muted-foreground hover:text-foreground p-1'
@@ -1358,7 +1390,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
-                    addQuickNote(addingToDay);
+                    addQuickNote(dbDayFromDisplayIndex(addingToDay));
                   }}
                   className='flex gap-2'
                 >
@@ -1471,7 +1503,9 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                 {getFilteredContent().map((content) => (
                   <button
                     key={content.id}
-                    onClick={() => addToDay(content.id, addingToDay)}
+                    onClick={() =>
+                      addToDay(content.id, dbDayFromDisplayIndex(addingToDay))
+                    }
                     className='w-full glass rounded-xl p-3 text-left hover:bg-secondary/50 transition-colors flex items-center gap-3'
                   >
                     {content.thumbnail_url && (
