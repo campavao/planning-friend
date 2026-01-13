@@ -1,5 +1,5 @@
 // TikTok video downloader with multiple fallback methods
-// Priority: oEmbed API (free) -> Page scrape (free) -> RapidAPI (paid, optional)
+// Priority: RapidAPI (paid, best quality) -> oEmbed API (free) -> Page scrape (free)
 
 export interface TikTokVideoInfo {
   videoUrl?: string;
@@ -394,7 +394,7 @@ function decodeHTMLEntities(text: string): string {
 }
 
 // Main function with fallbacks
-// Priority: oEmbed (free) -> Page scrape (free) -> RapidAPI (paid, optional) -> URL-only
+// Priority: RapidAPI (paid, best quality) -> oEmbed (free) -> Page scrape (free) -> URL-only
 export async function getTikTokVideoInfo(
   tiktokUrl: string
 ): Promise<TikTokVideoInfo> {
@@ -402,24 +402,7 @@ export async function getTikTokVideoInfo(
   const resolvedUrl = await resolveShortUrl(tiktokUrl);
   console.log(`Resolved URL: ${resolvedUrl}`);
 
-  // Try oEmbed API first (free, official, reliable)
-  console.log("Trying oEmbed API method...");
-  const oembedResult = await tryOEmbed(resolvedUrl);
-  if (oembedResult) {
-    console.log("oEmbed method succeeded");
-    return oembedResult;
-  }
-
-  // Try page scraping (free, extracts from HTML)
-  console.log("Trying page scrape method...");
-  const scrapeResult = await tryPageScrape(resolvedUrl);
-  if (scrapeResult) {
-    console.log("Page scrape method succeeded");
-    return scrapeResult;
-  }
-
-  // Try RapidAPI as last paid option (only if key is set)
-  // This provides video download URL which free methods don't
+  // Try RapidAPI first (best quality, provides video download URL)
   const rapidApiKey = process.env.RAPIDAPI_KEY;
   if (rapidApiKey) {
     console.log("Trying RapidAPI method...");
@@ -428,6 +411,22 @@ export async function getTikTokVideoInfo(
       console.log("RapidAPI method succeeded");
       return rapidApiResult;
     }
+  }
+
+  // Fall back to oEmbed API (free, official, reliable)
+  console.log("Trying oEmbed API method...");
+  const oembedResult = await tryOEmbed(resolvedUrl);
+  if (oembedResult) {
+    console.log("oEmbed method succeeded");
+    return oembedResult;
+  }
+
+  // Fall back to page scraping (free, extracts from HTML)
+  console.log("Trying page scrape method...");
+  const scrapeResult = await tryPageScrape(resolvedUrl);
+  if (scrapeResult) {
+    console.log("Page scrape method succeeded");
+    return scrapeResult;
   }
 
   // Last resort: return basic info from URL
