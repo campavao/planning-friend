@@ -517,6 +517,9 @@ export default function ContentDetailPage() {
 
 function MealContent({ data }: { data: MealData }) {
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+  const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(
+    new Set()
+  );
 
   const toggleStep = (stepIndex: number) => {
     setCompletedSteps((prev) => {
@@ -530,22 +533,52 @@ function MealContent({ data }: { data: MealData }) {
     });
   };
 
+  const toggleIngredient = (index: number) => {
+    setCheckedIngredients((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="space-y-6">
       {data.ingredients && data.ingredients.length > 0 && (
         <div>
           <h3 className="text-lg font-bold uppercase mb-3">Ingredients</h3>
-          <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {data.ingredients.map((ingredient, i) => (
-              <li
-                key={i}
-                className="flex items-start gap-2 p-2 bg-secondary border-2 border-border"
-              >
-                <span className="text-primary font-bold">•</span>
-                <span>{ingredient}</span>
-              </li>
-            ))}
-          </ul>
+          <div className="brutal-card-static divide-y-2 divide-border">
+            {data.ingredients.map((ingredient, i) => {
+              const isChecked = checkedIngredients.has(i);
+              return (
+                <button
+                  key={i}
+                  onClick={() => toggleIngredient(i)}
+                  className={`w-full flex items-center gap-3 p-3 text-left transition-colors ${
+                    isChecked ? "bg-green-50" : "hover:bg-accent/50"
+                  }`}
+                >
+                  <span
+                    className={`shrink-0 w-5 h-5 border-2 border-border flex items-center justify-center text-xs font-bold ${
+                      isChecked ? "bg-green-500 text-white" : "bg-white"
+                    }`}
+                  >
+                    {isChecked && "✓"}
+                  </span>
+                  <span
+                    className={
+                      isChecked ? "line-through text-muted-foreground" : ""
+                    }
+                  >
+                    {ingredient}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -762,6 +795,9 @@ function GiftIdeaContent({ data }: { data: GiftIdeaData }) {
 
 function DrinkContent({ data }: { data: DrinkData }) {
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+  const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(
+    new Set()
+  );
 
   const toggleStep = (stepIndex: number) => {
     setCompletedSteps((prev) => {
@@ -770,6 +806,18 @@ function DrinkContent({ data }: { data: DrinkData }) {
         next.delete(stepIndex);
       } else {
         next.add(stepIndex);
+      }
+      return next;
+    });
+  };
+
+  const toggleIngredient = (index: number) => {
+    setCheckedIngredients((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
       }
       return next;
     });
@@ -795,17 +843,35 @@ function DrinkContent({ data }: { data: DrinkData }) {
       {data.ingredients && data.ingredients.length > 0 && (
         <div>
           <h3 className="text-lg font-bold uppercase mb-3">Ingredients</h3>
-          <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {data.ingredients.map((ingredient, i) => (
-              <li
-                key={i}
-                className="flex items-start gap-2 p-2 bg-secondary border-2 border-border"
-              >
-                <span className="text-primary font-bold">•</span>
-                <span>{ingredient}</span>
-              </li>
-            ))}
-          </ul>
+          <div className="brutal-card-static divide-y-2 divide-border">
+            {data.ingredients.map((ingredient, i) => {
+              const isChecked = checkedIngredients.has(i);
+              return (
+                <button
+                  key={i}
+                  onClick={() => toggleIngredient(i)}
+                  className={`w-full flex items-center gap-3 p-3 text-left transition-colors ${
+                    isChecked ? "bg-green-50" : "hover:bg-accent/50"
+                  }`}
+                >
+                  <span
+                    className={`shrink-0 w-5 h-5 border-2 border-border flex items-center justify-center text-xs font-bold ${
+                      isChecked ? "bg-green-500 text-white" : "bg-white"
+                    }`}
+                  >
+                    {isChecked && "✓"}
+                  </span>
+                  <span
+                    className={
+                      isChecked ? "line-through text-muted-foreground" : ""
+                    }
+                  >
+                    {ingredient}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
