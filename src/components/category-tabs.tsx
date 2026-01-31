@@ -3,8 +3,17 @@
 import { AddContactButton } from "@/components/add-contact-button";
 import { ContentCard } from "@/components/content-card";
 import { TagFilter } from "@/components/tag-filter";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ContentWithTags, Tag } from "@/lib/supabase";
+import {
+  Calendar,
+  Coffee,
+  Gift,
+  Heart,
+  Pin,
+  Plane,
+  Smartphone,
+  Utensils,
+} from "lucide-react";
 import { useState } from "react";
 
 interface CategoryTabsProps {
@@ -12,7 +21,19 @@ interface CategoryTabsProps {
   allTags?: Tag[];
 }
 
+const TABS = [
+  { id: "all", label: "All", icon: null },
+  { id: "meals", label: "Meals", icon: Utensils, category: "meal" },
+  { id: "drinks", label: "Drinks", icon: Coffee, category: "drink" },
+  { id: "events", label: "Events", icon: Calendar, category: "event" },
+  { id: "dates", label: "Dates", icon: Heart, category: "date_idea" },
+  { id: "gifts", label: "Gifts", icon: Gift, category: "gift_idea" },
+  { id: "travel", label: "Travel", icon: Plane, category: "travel" },
+  { id: "other", label: "Other", icon: Pin, category: "other" },
+];
+
 export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
+  const [activeTab, setActiveTab] = useState("all");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   // Filter content by selected tags
@@ -23,18 +44,14 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
     );
   };
 
-  const filteredContent = filterByTags(content);
-  const meals = filterByTags(content.filter((c) => c.category === "meal"));
-  const drinks = filterByTags(content.filter((c) => c.category === "drink"));
-  const events = filterByTags(content.filter((c) => c.category === "event"));
-  const dateIdeas = filterByTags(
-    content.filter((c) => c.category === "date_idea")
-  );
-  const giftIdeas = filterByTags(
-    content.filter((c) => c.category === "gift_idea")
-  );
-  const travel = filterByTags(content.filter((c) => c.category === "travel"));
-  const other = filterByTags(content.filter((c) => c.category === "other"));
+  // Get filtered content for a category
+  const getFilteredContent = (category?: string) => {
+    let items = content;
+    if (category) {
+      items = content.filter((c) => c.category === category);
+    }
+    return filterByTags(items);
+  };
 
   const toggleTag = (tagId: string) => {
     setSelectedTags((prev) =>
@@ -42,96 +59,82 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
     );
   };
 
-  const EmptyState = ({ category }: { category: string }) => (
-    <div className='col-span-full flex flex-col items-center justify-center py-16 text-center'>
-      <div className='text-6xl mb-4'>
-        {category === "meals" && "🍳"}
-        {category === "drinks" && "🍹"}
-        {category === "events" && "🎉"}
-        {category === "dates" && "💕"}
-        {category === "gifts" && "🎁"}
-        {category === "travel" && "✈️"}
-        {category === "other" && "📌"}
-        {category === "all" && "📱"}
+  // Get counts for each category
+  const getCounts = () => {
+    const filtered = filterByTags(content);
+    return {
+      all: filtered.length,
+      meals: filterByTags(content.filter((c) => c.category === "meal")).length,
+      drinks: filterByTags(content.filter((c) => c.category === "drink")).length,
+      events: filterByTags(content.filter((c) => c.category === "event")).length,
+      dates: filterByTags(content.filter((c) => c.category === "date_idea")).length,
+      gifts: filterByTags(content.filter((c) => c.category === "gift_idea")).length,
+      travel: filterByTags(content.filter((c) => c.category === "travel")).length,
+      other: filterByTags(content.filter((c) => c.category === "other")).length,
+    };
+  };
+
+  const counts = getCounts();
+
+  const EmptyState = ({ category }: { category: string }) => {
+    const Icon = TABS.find((t) => t.id === category)?.icon || Smartphone;
+
+    return (
+      <div className="col-span-full flex flex-col items-center justify-center py-16 text-center brutal-card-static">
+        <Icon className="w-16 h-16 mb-4 text-muted-foreground" />
+        <h3 className="text-xl font-bold mb-2 font-mono uppercase">
+          {selectedTags.length > 0
+            ? `No ${category} match tags`
+            : `No ${category} saved`}
+        </h3>
+        <p className="text-muted-foreground max-w-md mb-4 text-sm">
+          {selectedTags.length > 0
+            ? "Try removing some tag filters."
+            : "Text a TikTok or Instagram link to save it here."}
+        </p>
+        {selectedTags.length === 0 && <AddContactButton variant="button" />}
       </div>
-      <h3 className='text-xl font-semibold mb-2'>
-        {selectedTags.length > 0
-          ? `No ${category} match selected tags`
-          : `No ${category} saved yet`}
-      </h3>
-      <p className='text-muted-foreground max-w-md mb-4'>
-        {selectedTags.length > 0
-          ? "Try removing some tag filters."
-          : "Text a TikTok or Instagram link and we'll automatically categorize and save it here."}
-      </p>
-      {selectedTags.length === 0 && <AddContactButton variant='button' />}
-    </div>
-  );
+    );
+  };
 
   const ContentGrid = ({ items }: { items: ContentWithTags[] }) => (
-    <div className='grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6'>
+    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
       {items.map((item, index) => (
         <ContentCard key={item.id} content={item} index={index} />
       ))}
     </div>
   );
 
+  const currentTab = TABS.find((t) => t.id === activeTab);
+  const currentContent = getFilteredContent(currentTab?.category);
+
   return (
-    <Tabs defaultValue='all' className='w-full'>
-      <TabsList className='glass w-full justify-start gap-1 p-1 mb-4 overflow-x-auto flex-wrap h-auto'>
-        <TabsTrigger
-          value='all'
-          className='data-[state=active]:bg-primary data-[state=active]:text-primary-foreground'
-        >
-          All ({filteredContent.length})
-        </TabsTrigger>
-        <TabsTrigger
-          value='meals'
-          className='data-[state=active]:bg-meal/20 data-[state=active]:text-meal'
-        >
-          🍽️ Meals ({meals.length})
-        </TabsTrigger>
-        <TabsTrigger
-          value='drinks'
-          className='data-[state=active]:bg-drink/20 data-[state=active]:text-drink'
-        >
-          🍹 Drinks ({drinks.length})
-        </TabsTrigger>
-        <TabsTrigger
-          value='events'
-          className='data-[state=active]:bg-event/20 data-[state=active]:text-event'
-        >
-          🎉 Events ({events.length})
-        </TabsTrigger>
-        <TabsTrigger
-          value='dates'
-          className='data-[state=active]:bg-date/20 data-[state=active]:text-date'
-        >
-          💕 Dates ({dateIdeas.length})
-        </TabsTrigger>
-        <TabsTrigger
-          value='gifts'
-          className='data-[state=active]:bg-gift/20 data-[state=active]:text-gift'
-        >
-          🎁 Gifts ({giftIdeas.length})
-        </TabsTrigger>
-        <TabsTrigger
-          value='travel'
-          className='data-[state=active]:bg-travel/20 data-[state=active]:text-travel'
-        >
-          ✈️ Travel ({travel.length})
-        </TabsTrigger>
-        <TabsTrigger
-          value='other'
-          className='data-[state=active]:bg-other/20 data-[state=active]:text-other'
-        >
-          📌 Other ({other.length})
-        </TabsTrigger>
-      </TabsList>
+    <div className="w-full">
+      {/* Tabs */}
+      <div className="brutal-tabs mb-4 hide-scrollbar">
+        {TABS.map((tab) => {
+          const count = counts[tab.id as keyof typeof counts];
+          const Icon = tab.icon;
+
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`brutal-tab flex items-center gap-2 ${
+                activeTab === tab.id ? "active" : ""
+              }`}
+            >
+              {Icon && <Icon className="w-4 h-4" />}
+              <span>{tab.label}</span>
+              <span className="font-mono">({count})</span>
+            </button>
+          );
+        })}
+      </div>
 
       {/* Tag Filter */}
       {allTags.length > 0 && (
-        <div className='mb-6'>
+        <div className="mb-6 brutal-card-static p-4">
           <TagFilter
             tags={allTags}
             selectedTags={selectedTags}
@@ -141,69 +144,12 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
         </div>
       )}
 
-      <TabsContent value='all' className='mt-0'>
-        {filteredContent.length === 0 ? (
-          <EmptyState category='all' />
-        ) : (
-          <ContentGrid items={filteredContent} />
-        )}
-      </TabsContent>
-
-      <TabsContent value='meals' className='mt-0'>
-        {meals.length === 0 ? (
-          <EmptyState category='meals' />
-        ) : (
-          <ContentGrid items={meals} />
-        )}
-      </TabsContent>
-
-      <TabsContent value='drinks' className='mt-0'>
-        {drinks.length === 0 ? (
-          <EmptyState category='drinks' />
-        ) : (
-          <ContentGrid items={drinks} />
-        )}
-      </TabsContent>
-
-      <TabsContent value='events' className='mt-0'>
-        {events.length === 0 ? (
-          <EmptyState category='events' />
-        ) : (
-          <ContentGrid items={events} />
-        )}
-      </TabsContent>
-
-      <TabsContent value='dates' className='mt-0'>
-        {dateIdeas.length === 0 ? (
-          <EmptyState category='dates' />
-        ) : (
-          <ContentGrid items={dateIdeas} />
-        )}
-      </TabsContent>
-
-      <TabsContent value='gifts' className='mt-0'>
-        {giftIdeas.length === 0 ? (
-          <EmptyState category='gifts' />
-        ) : (
-          <ContentGrid items={giftIdeas} />
-        )}
-      </TabsContent>
-
-      <TabsContent value='travel' className='mt-0'>
-        {travel.length === 0 ? (
-          <EmptyState category='travel' />
-        ) : (
-          <ContentGrid items={travel} />
-        )}
-      </TabsContent>
-
-      <TabsContent value='other' className='mt-0'>
-        {other.length === 0 ? (
-          <EmptyState category='other' />
-        ) : (
-          <ContentGrid items={other} />
-        )}
-      </TabsContent>
-    </Tabs>
+      {/* Content */}
+      {currentContent.length === 0 ? (
+        <EmptyState category={activeTab} />
+      ) : (
+        <ContentGrid items={currentContent} />
+      )}
+    </div>
   );
 }

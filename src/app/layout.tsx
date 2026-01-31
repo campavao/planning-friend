@@ -2,31 +2,25 @@ import { BottomNav } from "@/components/bottom-nav";
 import { SWRProvider } from "@/lib/swr-config";
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
-import { Crimson_Text, JetBrains_Mono, Lato } from "next/font/google";
+import { Inter, Space_Mono } from "next/font/google";
 import "./globals.css";
 
-const lato = Lato({
+const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin"],
-  weight: ["300", "400", "700", "900"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
-const jetbrainsMono = JetBrains_Mono({
+const spaceMono = Space_Mono({
   variable: "--font-mono",
   subsets: ["latin"],
-  weight: ["400", "500"],
-});
-
-const crimsonText = Crimson_Text({
-  variable: "--font-handwritten",
-  subsets: ["latin"],
-  weight: ["400", "600", "700"],
+  weight: ["400", "700"],
 });
 
 export const metadata: Metadata = {
-  title: "Planning Friend - Text it. Save it. Plan it.",
+  title: "Planning Friend - Save it. Plan it. Do it.",
   description:
-    "Your planning friend! Text links to save meals, events, and date ideas. Access your organized collection anytime.",
+    "Your planning companion. Text links to save meals, events, and date ideas. Access your organized collection anytime.",
   keywords: [
     "planning",
     "recipes",
@@ -67,7 +61,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${lato.variable} ${jetbrainsMono.variable} ${crimsonText.variable} font-sans antialiased min-h-screen bg-paper`}
+        className={`${inter.variable} ${spaceMono.variable} font-sans antialiased min-h-screen bg-background`}
       >
         <SWRProvider>
           {children}

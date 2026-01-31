@@ -10,6 +10,18 @@ import { Input } from "@/components/ui/input";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { clearSWRCache } from "@/lib/swr-config";
 import { getWeekStartDay, setWeekStartDay } from "@/lib/utils";
+import {
+  Bell,
+  Calendar,
+  ChevronDown,
+  Hand,
+  Info,
+  Loader2,
+  LogOut,
+  MapPin,
+  User,
+  Users,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -51,7 +63,6 @@ export default function SettingsPage() {
     isSupported,
   } = usePushNotifications();
 
-  // Load week start preference from localStorage on mount
   useEffect(() => {
     setWeekStartDayValue(getWeekStartDay());
   }, []);
@@ -59,7 +70,6 @@ export default function SettingsPage() {
   useEffect(() => {
     async function fetchSettings() {
       try {
-        // Fetch both settings and user name in parallel
         const [settingsRes, nameRes] = await Promise.all([
           fetch("/api/settings"),
           fetch("/api/users/name"),
@@ -109,7 +119,7 @@ export default function SettingsPage() {
       });
 
       if (res.ok) {
-        setNameMessage("Saved! ✨");
+        setNameMessage("Saved!");
         setTimeout(() => setNameMessage(""), 3000);
       } else {
         const data = await res.json();
@@ -140,7 +150,7 @@ export default function SettingsPage() {
       if (res.ok) {
         const data = await res.json();
         setSettings(data.settings);
-        setMessage("Saved! ✨");
+        setMessage("Saved!");
         setTimeout(() => setMessage(""), 3000);
       }
     } catch (error) {
@@ -152,7 +162,6 @@ export default function SettingsPage() {
   };
 
   const handleLogout = async () => {
-    // Clear SWR cache on logout to prevent stale data for next user
     clearSWRCache();
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/");
@@ -160,55 +169,53 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-paper">
-        <div className="animate-shimmer w-16 h-16 rounded-full mx-auto" />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="brutal-loading w-32">
+          <div className="brutal-loading-bar" />
+        </div>
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen pb-28 md:pb-8 bg-paper">
-      {/* Scrapbook Header */}
-      <div className="pt-6 pb-4 px-4 md:px-6">
+    <main className="min-h-screen pb-28 md:pb-8 bg-background">
+      {/* Header */}
+      <div className="brutal-header">
         <div className="max-w-4xl mx-auto">
-          <div className="relative inline-block">
-            <h1 className="font-handwritten text-4xl md:text-5xl text-foreground transform -rotate-1">
-              Settings
-            </h1>
-            <div className="absolute -bottom-1 left-0 right-0 h-2 bg-washi-lavender/60 transform rotate-0.5 -z-10" />
-          </div>
-          <p className="text-muted-foreground text-sm mt-2">
-            ⚙️ Customize your experience
+          <h1 className="font-mono text-3xl md:text-4xl font-bold tracking-tight">
+            CONFIG
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Customize your experience
           </p>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 space-y-6">
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
         {/* Profile / Name */}
-        <div className="scrapbook-card p-5 relative">
-          {/* Tape decoration */}
-          <div className="absolute -top-2 left-8 w-16 h-5 bg-washi-blue/80 transform -rotate-1" />
-
-          <div className="flex items-center gap-3 mb-4 pt-2">
-            <span className="text-2xl">👤</span>
+        <div className="brutal-card-static">
+          <div className="p-5 border-b-[3px] border-border bg-accent flex items-center gap-3">
+            <User className="w-6 h-6" />
             <div>
-              <h2 className="font-handwritten text-2xl">Your Profile</h2>
+              <h2 className="font-mono text-xl font-bold uppercase">
+                Your Profile
+              </h2>
               <p className="text-sm text-muted-foreground">
-                This name will be shown to friends when you share plans
+                Shown to friends when you share plans
               </p>
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="p-5 space-y-4">
             <div>
-              <label className="text-sm font-medium mb-2 block">
+              <label className="text-sm font-bold font-mono uppercase mb-2 block">
                 Your Name
               </label>
               <Input
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
                 placeholder="Enter your name"
-                className="bg-white border-border"
+                className="brutal-input"
                 maxLength={100}
               />
             </div>
@@ -216,13 +223,13 @@ export default function SettingsPage() {
               <Button
                 onClick={handleSaveName}
                 disabled={savingName || !userName.trim()}
-                className="bg-primary hover:bg-primary/90"
+                className="brutal-btn"
               >
                 {savingName ? "Saving..." : "Save Name"}
               </Button>
               {nameMessage && (
                 <span
-                  className={`text-sm font-medium ${
+                  className={`text-sm font-bold font-mono ${
                     nameMessage.includes("Failed")
                       ? "text-destructive"
                       : "text-primary"
@@ -236,51 +243,52 @@ export default function SettingsPage() {
         </div>
 
         {/* Home Location */}
-        <div className="scrapbook-card p-5 relative">
-          {/* Tape decoration */}
-          <div className="absolute -top-2 left-6 w-14 h-5 bg-washi-mint/80 transform -rotate-2" />
-
-          <div className="flex items-center gap-3 mb-4 pt-2">
-            <span className="text-2xl">🏠</span>
+        <div className="brutal-card-static">
+          <div className="p-5 border-b-[3px] border-border bg-accent flex items-center gap-3">
+            <MapPin className="w-6 h-6" />
             <div>
-              <h2 className="font-handwritten text-2xl">Home Location</h2>
+              <h2 className="font-mono text-xl font-bold uppercase">
+                Home Location
+              </h2>
               <p className="text-sm text-muted-foreground">
-                Places outside your home region will be marked as Travel
+                Places outside this will be marked as Travel
               </p>
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="p-5 space-y-4">
             <div>
-              <label className="text-sm font-medium mb-2 block">
+              <label className="text-sm font-bold font-mono uppercase mb-2 block">
                 City / Region
               </label>
               <Input
                 value={homeRegion}
                 onChange={(e) => setHomeRegion(e.target.value)}
-                placeholder="e.g., Chicago, IL or San Francisco Bay Area"
-                className="bg-white border-border"
+                placeholder="e.g., Chicago, IL"
+                className="brutal-input"
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-2 block">Country</label>
+              <label className="text-sm font-bold font-mono uppercase mb-2 block">
+                Country
+              </label>
               <Input
                 value={homeCountry}
                 onChange={(e) => setHomeCountry(e.target.value)}
                 placeholder="e.g., United States"
-                className="bg-white border-border"
+                className="brutal-input"
               />
             </div>
             <div className="flex items-center gap-4">
               <Button
                 onClick={handleSave}
                 disabled={saving}
-                className="bg-primary hover:bg-primary/90"
+                className="brutal-btn"
               >
                 {saving ? "Saving..." : "Save Location"}
               </Button>
               {message && (
-                <span className="text-sm text-primary font-medium">
+                <span className="text-sm text-primary font-bold font-mono">
                   {message}
                 </span>
               )}
@@ -289,183 +297,197 @@ export default function SettingsPage() {
         </div>
 
         {/* Calendar Preferences */}
-        <div className="scrapbook-card p-5 relative">
-          <div className="absolute -top-2 right-12 w-14 h-5 bg-washi-coral/80 transform rotate-2" />
-
-          <div className="flex items-center gap-3 mb-4 pt-2">
-            <span className="text-2xl">📅</span>
+        <div className="brutal-card-static">
+          <div className="p-5 border-b-[3px] border-border bg-accent flex items-center gap-3">
+            <Calendar className="w-6 h-6" />
             <div>
-              <h2 className="font-handwritten text-2xl">
+              <h2 className="font-mono text-xl font-bold uppercase">
                 Calendar Preferences
               </h2>
               <p className="text-sm text-muted-foreground">
-                Customize how your weekly planner is displayed
+                Customize your weekly planner display
               </p>
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="p-5 space-y-4">
             <div>
-              <label className="text-sm font-medium mb-2 block">
+              <label className="text-sm font-bold font-mono uppercase mb-2 block">
                 Week starts on
               </label>
-              <select
-                value={weekStartDayValue}
-                onChange={(e) => handleWeekStartChange(Number(e.target.value))}
-                className="w-full max-w-xs px-3 py-2 bg-white border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-              >
-                {WEEK_START_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-muted-foreground mt-2">
-                Changes take effect immediately when you view the planner
+              <div className="relative w-full max-w-xs">
+                <select
+                  value={weekStartDayValue}
+                  onChange={(e) =>
+                    handleWeekStartChange(Number(e.target.value))
+                  }
+                  className="brutal-input w-full pr-10 appearance-none cursor-pointer"
+                >
+                  {WEEK_START_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" />
+              </div>
+              <p className="text-xs text-muted-foreground mt-2 font-mono">
+                Changes take effect immediately
               </p>
             </div>
           </div>
         </div>
 
         {/* Push Notifications */}
-        <div className="scrapbook-card p-5 relative">
-          <div className="absolute -top-2 right-10 w-14 h-5 bg-washi-yellow/80 transform rotate-1" />
-
-          <div className="flex items-center gap-3 mb-4 pt-2">
-            <span className="text-2xl">🔔</span>
+        <div className="brutal-card-static">
+          <div className="p-5 border-b-[3px] border-border bg-accent flex items-center gap-3">
+            <Bell className="w-6 h-6" />
             <div>
-              <h2 className="font-handwritten text-2xl">Notifications</h2>
+              <h2 className="font-mono text-xl font-bold uppercase">
+                Notifications
+              </h2>
               <p className="text-sm text-muted-foreground">
-                Get notified when your content finishes processing
+                Get notified when content finishes processing
               </p>
             </div>
           </div>
 
-          {!isSupported ? (
-            <p className="text-sm text-muted-foreground">
-              Push notifications are not supported in this browser. Try using
-              Chrome or Safari on mobile.
-            </p>
-          ) : pushChecking ? (
-            <p className="text-sm text-muted-foreground">Checking...</p>
-          ) : (
-            <div className="space-y-3">
-              {permission === "denied" ? (
-                <p className="text-sm text-amber-600">
-                  Notifications are blocked. Please enable them in your browser
-                  settings.
-                </p>
-              ) : isSubscribed ? (
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-sm text-muted-foreground">
-                      Notifications enabled
-                    </span>
+          <div className="p-5">
+            {!isSupported ? (
+              <p className="text-sm text-muted-foreground">
+                Push notifications are not supported in this browser.
+              </p>
+            ) : pushChecking ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Checking...
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {permission === "denied" ? (
+                  <p className="text-sm text-amber-600 font-mono">
+                    Notifications are blocked. Enable them in browser settings.
+                  </p>
+                ) : isSubscribed ? (
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 bg-green-500 animate-pulse" />
+                      <span className="text-sm text-muted-foreground font-mono">
+                        Enabled
+                      </span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={unsubscribe}
+                      disabled={pushLoading}
+                      className="border-2 border-border"
+                    >
+                      {pushLoading ? "..." : "Turn Off"}
+                    </Button>
                   </div>
+                ) : (
                   <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={unsubscribe}
+                    onClick={subscribe}
                     disabled={pushLoading}
-                    className="text-muted-foreground"
+                    className="brutal-btn"
                   >
-                    {pushLoading ? "..." : "Turn Off"}
+                    <Bell className="w-4 h-4 mr-2" />
+                    {pushLoading ? "Enabling..." : "Enable Notifications"}
                   </Button>
-                </div>
-              ) : (
-                <Button
-                  onClick={subscribe}
-                  disabled={pushLoading}
-                  className="bg-primary hover:bg-primary/90"
-                >
-                  {pushLoading ? "Enabling..." : "🔔 Enable Notifications"}
-                </Button>
-              )}
-              {pushError && (
-                <p className="text-sm text-destructive">{pushError}</p>
-              )}
-            </div>
-          )}
+                )}
+                {pushError && (
+                  <p className="text-sm text-destructive font-mono">
+                    {pushError}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Planner Sharing */}
-        <div className="scrapbook-card p-5 relative">
-          <div className="absolute -top-2 right-8 w-12 h-5 bg-washi-pink/80 transform rotate-1" />
-
-          <div className="flex items-center gap-3 mb-4 pt-2">
-            <span className="text-2xl">🤝</span>
+        <div className="brutal-card-static">
+          <div className="p-5 border-b-[3px] border-border bg-accent flex items-center gap-3">
+            <Users className="w-6 h-6" />
             <div>
-              <h2 className="font-handwritten text-2xl">Planner Sharing</h2>
+              <h2 className="font-mono text-xl font-bold uppercase">
+                Planner Sharing
+              </h2>
               <p className="text-sm text-muted-foreground">
-                Share your weekly planner with friends or family using share
-                codes
+                Share your weekly planner with friends
               </p>
             </div>
           </div>
 
-          <Button
-            variant="outline"
-            onClick={() => router.push("/dashboard/planner")}
-            className="hover:bg-washi-blue/20"
-          >
-            📅 Go to Planner →
-          </Button>
+          <div className="p-5">
+            <Button
+              variant="outline"
+              onClick={() => router.push("/dashboard/planner")}
+              className="border-[3px] border-border hover:bg-accent"
+            >
+              <Calendar className="w-4 h-4 mr-2" />
+              Go to Planner
+            </Button>
+          </div>
         </div>
 
         {/* About */}
-        <div className="scrapbook-card p-5 relative">
-          <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-washi-yellow/80 transform -rotate-1" />
-
-          <div className="flex items-center gap-3 mb-4 pt-2">
-            <span className="text-2xl">📒</span>
+        <div className="brutal-card-static">
+          <div className="p-5 border-b-[3px] border-border bg-accent flex items-center gap-3">
+            <Info className="w-6 h-6" />
             <div>
-              <h2 className="font-handwritten text-2xl">
+              <h2 className="font-mono text-xl font-bold uppercase">
                 About Planning Friend
               </h2>
             </div>
           </div>
 
-          <p className="text-sm text-muted-foreground mb-4">
-            Planning Friend is your personal assistant for collecting and
-            organizing ideas from social media. Text links to save meals,
-            events, date ideas, and more!
-          </p>
+          <div className="p-5 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Your personal assistant for collecting and organizing ideas from
+              social media. Text links to save meals, events, date ideas, and
+              more!
+            </p>
 
-          <div className="flex flex-wrap items-center gap-3 mb-4">
-            <AddContactButton variant="button" />
-            <AddToHomeScreenButton variant="button" />
+            <div className="flex flex-wrap items-center gap-3">
+              <AddContactButton variant="button" />
+              <AddToHomeScreenButton variant="button" />
+            </div>
+            <p className="text-sm text-muted-foreground font-mono">
+              Text links to <PhoneNumberDisplay /> to save content
+            </p>
+
+            <p className="text-xs text-muted-foreground font-mono">
+              Version 1.0
+            </p>
           </div>
-          <p className="text-sm text-muted-foreground mb-4">
-            Text links to <PhoneNumberDisplay /> to save content
-          </p>
-
-          <p className="text-xs text-muted-foreground">
-            Version 1.0 • Made with 💕
-          </p>
         </div>
 
         {/* Sign Out */}
-        <div className="scrapbook-card p-5 relative border-destructive/20">
-          <div className="absolute -top-2 right-6 w-10 h-5 bg-washi-coral/80 transform rotate-2" />
-
-          <div className="flex items-center gap-3 mb-4 pt-2">
-            <span className="text-2xl">👋</span>
+        <div className="brutal-card-static border-destructive">
+          <div className="p-5 border-b-[3px] border-destructive bg-red-50 flex items-center gap-3">
+            <Hand className="w-6 h-6 text-destructive" />
             <div>
-              <h2 className="font-handwritten text-2xl">Sign Out</h2>
+              <h2 className="font-mono text-xl font-bold uppercase text-destructive">
+                Sign Out
+              </h2>
               <p className="text-sm text-muted-foreground">
                 Sign out of this device
               </p>
             </div>
           </div>
 
-          <Button
-            variant="outline"
-            onClick={handleLogout}
-            className="text-destructive border-destructive/30 hover:bg-destructive/10"
-          >
-            Sign Out
-          </Button>
+          <div className="p-5">
+            <Button
+              variant="outline"
+              onClick={handleLogout}
+              className="border-[3px] border-destructive text-destructive hover:bg-destructive/10"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </div>
     </main>

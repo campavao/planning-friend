@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { formatPhoneNumber } from "@/lib/utils";
+import { Smartphone } from "lucide-react";
 
 interface AddContactButtonProps {
   variant?: "button" | "link" | "inline";
@@ -49,7 +50,7 @@ export function AddContactButton({
 VERSION:3.0
 FN:Planning Friend
 TEL;TYPE=CELL:${phoneNumber}
-${photoLine}NOTE:Your planning friend! Text TikTok or Instagram links to save meals, events, and ideas.
+${photoLine}NOTE:Your planning companion! Text TikTok or Instagram links to save meals, events, and ideas.
 END:VCARD`;
 
     // Create blob and download
@@ -69,7 +70,7 @@ END:VCARD`;
     return (
       <button
         onClick={handleAddContact}
-        className={`text-primary font-medium hover:underline ${className}`}
+        className={`text-primary font-bold hover:underline font-mono ${className}`}
       >
         {formatPhoneNumber(phoneNumber)}
       </button>
@@ -79,14 +80,14 @@ END:VCARD`;
   if (variant === "inline") {
     return (
       <span className={`inline-flex items-center gap-2 ${className}`}>
-        <span className="text-primary font-medium">
+        <span className="text-primary font-bold font-mono">
           {formatPhoneNumber(phoneNumber)}
         </span>
         <button
           onClick={handleAddContact}
-          className="text-xs text-muted-foreground hover:text-primary underline"
+          className="text-xs text-muted-foreground hover:text-primary underline font-mono"
         >
-          (add to contacts)
+          (add)
         </button>
       </span>
     );
@@ -96,14 +97,15 @@ END:VCARD`;
     <Button
       variant="outline"
       onClick={handleAddContact}
-      className={`hover:bg-washi-mint/20 ${className}`}
+      className={`border-[3px] border-border hover:bg-accent ${className}`}
     >
-      📱 Add to Contacts
+      <Smartphone className="w-4 h-4 mr-2" />
+      Add to Contacts
     </Button>
   );
 }
 
 export function PhoneNumberDisplay() {
   const phoneNumber = process.env.NEXT_PUBLIC_TWILIO_PHONE_NUMBER || "";
-  return <span>{formatPhoneNumber(phoneNumber)}</span>;
+  return <span className="font-mono">{formatPhoneNumber(phoneNumber)}</span>;
 }

@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Tag } from "@/lib/supabase";
+import { Plus, X } from "lucide-react";
 
 interface TagPillsProps {
   tags: Tag[];
@@ -65,15 +65,14 @@ export function TagPills({
   );
 
   const sizeClasses =
-    size === "sm" ? "text-[10px] px-1.5 py-0" : "text-xs px-2 py-0.5";
+    size === "sm" ? "text-[10px] px-2 py-0.5" : "text-xs px-3 py-1";
 
   return (
-    <div className="flex flex-wrap gap-1.5 items-center">
+    <div className="flex flex-wrap gap-2 items-center">
       {tags.map((tag) => (
-        <Badge
+        <span
           key={tag.id}
-          variant="secondary"
-          className={`${sizeClasses} group cursor-default`}
+          className={`${sizeClasses} bg-accent border-2 border-border font-medium inline-flex items-center gap-1`}
         >
           {tag.name}
           {editable && onRemove && (
@@ -82,47 +81,46 @@ export function TagPills({
                 e.stopPropagation();
                 onRemove(tag.id);
               }}
-              className="ml-1 opacity-50 hover:opacity-100"
+              className="hover:text-destructive"
             >
-              ×
+              <X className="w-3 h-3" />
             </button>
           )}
-        </Badge>
+        </span>
       ))}
 
       {editable && (
         <div className="relative">
-          <Button
-            size="sm"
-            variant="ghost"
-            className={`${sizeClasses} border border-dashed`}
+          <button
+            className={`${sizeClasses} border-2 border-dashed border-border hover:bg-accent font-medium inline-flex items-center gap-1`}
             onClick={() => setShowSuggestions(!showSuggestions)}
           >
-            + tag
-          </Button>
+            <Plus className="w-3 h-3" />
+            Tag
+          </button>
 
           {showSuggestions && (
             <>
               {/* Backdrop for mobile */}
               <div
-                className="fixed inset-0 bg-black/20 z-40 md:hidden"
+                className="fixed inset-0 bg-black/30 z-40 md:hidden"
                 onClick={() => setShowSuggestions(false)}
               />
 
               {/* Tag picker */}
-              <div className="fixed inset-x-4 bottom-32 md:absolute md:inset-auto md:top-full md:right-0 md:bottom-auto mt-1 z-50 bg-card rounded-xl p-4 md:p-3 md:min-w-[260px] md:max-w-[300px] max-h-[350px] md:max-h-[280px] overflow-y-auto shadow-xl border border-border">
+              <div className="fixed inset-x-4 bottom-32 md:absolute md:inset-auto md:top-full md:right-0 md:bottom-auto mt-1 z-50 brutal-card-static p-4 md:p-3 md:min-w-[280px] md:max-w-[320px] max-h-[350px] md:max-h-[300px] overflow-y-auto">
                 {/* Close button for mobile */}
                 <button
                   onClick={() => setShowSuggestions(false)}
-                  className="absolute top-2 right-3 text-muted-foreground hover:text-foreground text-xl md:hidden"
+                  className="absolute top-2 right-3 text-muted-foreground hover:text-foreground md:hidden"
                 >
-                  ×
+                  <X className="w-5 h-5" />
                 </button>
 
-                {/* Custom tag input - always at top */}
-                <div className="mb-3">
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Create new tag:
+                {/* Custom tag input */}
+                <div className="mb-4">
+                  <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">
+                    Create Tag
                   </p>
                   <div className="flex gap-2">
                     <Input
@@ -139,12 +137,12 @@ export function TagPills({
                           setNewTag("");
                         }
                       }}
-                      placeholder="Type tag name..."
-                      className="h-9 md:h-8 text-sm md:text-xs flex-1 bg-background"
+                      placeholder="Tag name..."
+                      className="brutal-input h-9 md:h-8 text-sm md:text-xs flex-1"
                     />
                     <Button
                       size="sm"
-                      className="h-9 md:h-8 px-3"
+                      className="brutal-btn h-9 md:h-8 px-3 text-xs"
                       onClick={handleAddCustom}
                       disabled={!newTag.trim()}
                     >
@@ -153,18 +151,18 @@ export function TagPills({
                   </div>
                 </div>
 
-                {/* Existing tags to add */}
+                {/* Existing tags */}
                 {availableTags.length > 0 && (
-                  <div className="mb-3">
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Your tags:
+                  <div className="mb-4">
+                    <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">
+                      Your Tags
                     </p>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-2">
                       {availableTags.slice(0, 12).map((tag) => (
                         <button
                           key={tag.id}
                           onClick={() => handleAddExistingTag(tag.id)}
-                          className="text-sm md:text-xs px-3 md:px-2 py-1 md:py-0.5 rounded-full bg-secondary hover:bg-secondary/80 transition-colors"
+                          className="text-sm md:text-xs px-3 md:px-2 py-1.5 md:py-1 border-2 border-border bg-card hover:bg-accent transition-colors"
                         >
                           {tag.name}
                         </button>
@@ -173,18 +171,18 @@ export function TagPills({
                   </div>
                 )}
 
-                {/* Suggested tags */}
+                {/* Suggestions */}
                 {availableSuggestions.length > 0 && (
                   <div>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Suggestions:
+                    <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">
+                      Suggestions
                     </p>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-2">
                       {availableSuggestions.slice(0, 12).map((name) => (
                         <button
                           key={name}
                           onClick={() => handleAddSuggestion(name)}
-                          className="text-sm md:text-xs px-3 md:px-2 py-1 md:py-0.5 rounded-full bg-primary/20 hover:bg-primary/30 text-primary transition-colors"
+                          className="text-sm md:text-xs px-3 md:px-2 py-1.5 md:py-1 border-2 border-primary bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
                         >
                           + {name}
                         </button>
@@ -194,10 +192,10 @@ export function TagPills({
                 )}
 
                 {/* Done button for mobile */}
-                <div className="mt-4 pt-3 border-t border-border md:hidden">
+                <div className="mt-4 pt-3 border-t-[3px] border-border md:hidden">
                   <Button
                     variant="outline"
-                    className="w-full"
+                    className="w-full border-[3px] border-border"
                     onClick={() => setShowSuggestions(false)}
                   >
                     Done

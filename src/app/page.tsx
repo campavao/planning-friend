@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AddContactButton } from "@/components/add-contact-button";
 import { formatPhoneNumber } from "@/lib/utils";
+import { ArrowRight, Calendar, MessageSquare, Sparkles, Target } from "lucide-react";
 
 export default function Home() {
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -94,159 +95,167 @@ export default function Home() {
 
   if (checkingSession) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-paper">
-        <div className="animate-shimmer w-12 h-12 rounded-full" />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="brutal-loading w-32">
+          <div className="brutal-loading-bar" />
+        </div>
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen flex flex-col bg-paper">
+    <main className="min-h-screen flex flex-col bg-background">
       {/* Hero Section */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">
-        <div className="text-center mb-10 animate-fade-in-up opacity-0">
-          {/* Scrapbook-style logo */}
-          <div className="inline-block mb-6 relative">
-            <div className="text-7xl p-4 relative">
-              📒
-              <span className="absolute -top-1 -right-1 text-2xl">✨</span>
+        <div className="text-center mb-10 animate-slide-up">
+          {/* Logo */}
+          <div className="inline-block mb-8">
+            <div className="w-24 h-24 bg-accent border-[3px] border-border shadow-[6px_6px_0_#0a0a0a] flex items-center justify-center">
+              <Target className="w-12 h-12" />
             </div>
           </div>
 
-          {/* Title with handwritten font */}
-          <h1 className="font-handwritten text-5xl md:text-7xl mb-4 text-foreground transform -rotate-1">
-            Planning Friend
+          {/* Title */}
+          <h1 className="font-mono text-5xl md:text-7xl font-bold mb-4 tracking-tight">
+            PLANNING
+            <br />
+            FRIEND
           </h1>
-          <div className="inline-block relative mb-4">
-            <p className="text-lg md:text-xl text-muted-foreground">
-              Text it. Save it. Plan it.
-            </p>
-            <div className="absolute -bottom-1 left-0 right-0 h-2 bg-washi-coral/50 transform rotate-0.5 -z-10" />
-          </div>
+          <p className="text-lg md:text-xl text-muted-foreground mb-2">
+            Save it. Plan it. Do it.
+          </p>
           <p className="text-sm text-muted-foreground max-w-md mx-auto mt-4">
-            Your personal planning assistant. Text links to{" "}
+            Your planning companion. Text links to{" "}
             <AddContactButton variant="link" /> to save meals, events, date
-            ideas, and more!
+            ideas, and more.
           </p>
         </div>
 
-        {/* Login Card - Scrapbook style */}
-        <div className="scrapbook-card w-full max-w-md animate-fade-in-up opacity-0 stagger-2 relative overflow-visible">
-          {/* Washi tape decoration */}
-          <div className="absolute -top-3 left-8 w-20 h-6 bg-washi-mint/80 transform -rotate-2 z-10" />
-          <div className="absolute -top-3 right-12 w-16 h-6 bg-washi-pink/80 transform rotate-1 z-10" />
-
-          <div className="p-6 pt-8">
-            <h2 className="font-handwritten text-2xl text-center mb-2">
-              {step === "phone" ? "Sign In" : "Enter Your Code"}
+        {/* Login Card */}
+        <div className="brutal-card-static w-full max-w-md animate-slide-up stagger-2">
+          <div className="bg-accent border-b-[3px] border-border px-6 py-4">
+            <h2 className="font-mono text-xl font-bold uppercase">
+              {step === "phone" ? "Sign In" : "Enter Code"}
             </h2>
-            <p className="text-sm text-muted-foreground text-center mb-6">
+            <p className="text-sm text-muted-foreground mt-1">
               {step === "phone"
                 ? "Enter the phone number you use to text links"
                 : `We sent a code to ${phoneNumber}`}
             </p>
+          </div>
 
+          <div className="p-6">
             {step === "phone" ? (
               <form onSubmit={handleSendCode} className="space-y-4">
-                <div className="space-y-2">
-                  <Input
-                    type="tel"
-                    placeholder="(555) 123-4567"
-                    value={phoneNumber}
-                    onChange={handlePhoneChange}
-                    className="text-center text-lg h-14 bg-white border-border"
-                    maxLength={14}
-                  />
-                </div>
+                <Input
+                  type="tel"
+                  placeholder="(555) 123-4567"
+                  value={phoneNumber}
+                  onChange={handlePhoneChange}
+                  className="brutal-input text-center text-lg h-14"
+                  maxLength={14}
+                />
                 {error && (
-                  <p className="text-destructive text-sm text-center">
+                  <p className="text-destructive text-sm text-center font-mono">
                     {error}
                   </p>
                 )}
                 <Button
                   type="submit"
-                  className="w-full h-12 text-lg font-medium bg-primary hover:bg-primary/90"
+                  className="brutal-btn w-full h-12 text-base"
                   disabled={
                     loading || phoneNumber.replace(/\D/g, "").length < 10
                   }
                 >
-                  {loading ? "Sending..." : "Send Code ✨"}
+                  {loading ? "Sending..." : "Send Code"}
+                  <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </form>
             ) : (
               <form onSubmit={handleVerify} className="space-y-4">
-                <div className="space-y-2">
-                  <Input
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    placeholder="123456"
-                    value={verificationCode}
-                    onChange={(e) => {
-                      setVerificationCode(
-                        e.target.value.replace(/\D/g, "").slice(0, 6)
-                      );
-                      setError("");
-                    }}
-                    className="text-center text-2xl tracking-[0.5em] h-14 bg-white border-border font-mono"
-                    maxLength={6}
-                  />
-                </div>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="123456"
+                  value={verificationCode}
+                  onChange={(e) => {
+                    setVerificationCode(
+                      e.target.value.replace(/\D/g, "").slice(0, 6)
+                    );
+                    setError("");
+                  }}
+                  className="brutal-input text-center text-2xl tracking-[0.3em] h-14 font-mono"
+                  maxLength={6}
+                />
                 {error && (
-                  <p className="text-destructive text-sm text-center">
+                  <p className="text-destructive text-sm text-center font-mono">
                     {error}
                   </p>
                 )}
                 <Button
                   type="submit"
-                  className="w-full h-12 text-lg font-medium bg-primary hover:bg-primary/90"
+                  className="brutal-btn w-full h-12 text-base"
                   disabled={loading || verificationCode.length < 6}
                 >
-                  {loading ? "Checking..." : "Let's Go! 📒"}
+                  {loading ? "Checking..." : "Let's Go"}
+                  <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
-                  className="w-full"
+                  className="w-full border-[3px] border-border hover:bg-accent"
                   onClick={() => {
                     setStep("phone");
                     setVerificationCode("");
                     setError("");
                   }}
                 >
-                  ← Different Number
+                  Different Number
                 </Button>
               </form>
             )}
           </div>
         </div>
 
-        {/* How it works - Scrapbook style */}
-        <div className="mt-16 w-full max-w-3xl animate-fade-in-up opacity-0 stagger-3 px-4">
-          <h2 className="font-handwritten text-3xl text-center mb-8 transform -rotate-1">
+        {/* How it works */}
+        <div className="mt-16 w-full max-w-3xl animate-slide-up stagger-3 px-4">
+          <h2 className="font-mono text-2xl font-bold text-center mb-8 uppercase">
             How It Works
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="scrapbook-card p-5 text-center relative">
-              <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-5 bg-washi-yellow/80 transform -rotate-1" />
-              <div className="text-4xl mb-3 pt-2">💬</div>
-              <h3 className="font-semibold mb-2">1. Text a Link</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="brutal-card-static p-6 text-center">
+              <div className="font-mono text-4xl font-bold text-primary mb-2">
+                01
+              </div>
+              <div className="w-12 h-12 mx-auto mb-4 bg-accent border-2 border-border flex items-center justify-center">
+                <MessageSquare className="w-6 h-6" />
+              </div>
+              <h3 className="font-bold uppercase mb-2">Text a Link</h3>
               <p className="text-sm text-muted-foreground">
-                Send any TikTok, Instagram, or YouTube link
+                Send any TikTok, Instagram, or website link
               </p>
             </div>
-            <div className="scrapbook-card p-5 text-center relative">
-              <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-14 h-5 bg-washi-mint/80 transform rotate-1" />
-              <div className="text-4xl mb-3 pt-2">✂️</div>
-              <h3 className="font-semibold mb-2">2. We Clip It</h3>
+            <div className="brutal-card-static p-6 text-center">
+              <div className="font-mono text-4xl font-bold text-primary mb-2">
+                02
+              </div>
+              <div className="w-12 h-12 mx-auto mb-4 bg-accent border-2 border-border flex items-center justify-center">
+                <Sparkles className="w-6 h-6" />
+              </div>
+              <h3 className="font-bold uppercase mb-2">AI Extracts</h3>
               <p className="text-sm text-muted-foreground">
-                AI extracts recipes, places, and ideas automatically
+                We pull out recipes, places, and ideas automatically
               </p>
             </div>
-            <div className="scrapbook-card p-5 text-center relative">
-              <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-12 h-5 bg-washi-pink/80 transform -rotate-2" />
-              <div className="text-4xl mb-3 pt-2">📒</div>
-              <h3 className="font-semibold mb-2">3. Plan Later</h3>
+            <div className="brutal-card-static p-6 text-center">
+              <div className="font-mono text-4xl font-bold text-primary mb-2">
+                03
+              </div>
+              <div className="w-12 h-12 mx-auto mb-4 bg-accent border-2 border-border flex items-center justify-center">
+                <Calendar className="w-6 h-6" />
+              </div>
+              <h3 className="font-bold uppercase mb-2">Plan Later</h3>
               <p className="text-sm text-muted-foreground">
                 Browse and plan with your organized collection
               </p>
@@ -256,8 +265,8 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      <footer className="text-center py-6 text-sm text-muted-foreground">
-        <p>Made with 💕 for collectors & planners</p>
+      <footer className="text-center py-6 text-sm text-muted-foreground border-t-[3px] border-border">
+        <p className="font-mono">Made for collectors & planners</p>
       </footer>
     </main>
   );

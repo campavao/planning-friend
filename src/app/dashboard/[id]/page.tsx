@@ -14,11 +14,44 @@ import type {
   MealData,
   TravelData,
 } from "@/lib/supabase";
-import { ChevronDownIcon } from "lucide-react";
+import {
+  ArrowLeft,
+  Calendar,
+  ChevronDown,
+  Clock,
+  Coffee,
+  ExternalLink,
+  Gift,
+  Heart,
+  Loader2,
+  MapPin,
+  Pencil,
+  Pin,
+  Plane,
+  RefreshCw,
+  ShoppingCart,
+  Trash2,
+  Utensils,
+  XCircle,
+} from "lucide-react";
 import Image from "next/image";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "../useSession";
+
+// Category config
+const CATEGORY_CONFIG: Record<
+  string,
+  { icon: React.ElementType; label: string; badgeClass: string }
+> = {
+  meal: { icon: Utensils, label: "Recipe", badgeClass: "brutal-badge-meal" },
+  drink: { icon: Coffee, label: "Drink", badgeClass: "brutal-badge-drink" },
+  event: { icon: Calendar, label: "Event", badgeClass: "brutal-badge-event" },
+  date_idea: { icon: Heart, label: "Date", badgeClass: "brutal-badge-date_idea" },
+  gift_idea: { icon: Gift, label: "Gift", badgeClass: "brutal-badge-gift_idea" },
+  travel: { icon: Plane, label: "Travel", badgeClass: "brutal-badge-travel" },
+  other: { icon: Pin, label: "Saved", badgeClass: "brutal-badge-other" },
+};
 
 // Generate Google Maps URL from location string
 function getGoogleMapsUrl(location: string): string {
@@ -34,7 +67,6 @@ function isImageOnlyContent(url: string): boolean {
 
 // Get appropriate link text for the source URL
 function getSourceLinkText(url: string): string | null {
-  // Image-only content has no external link
   if (isImageOnlyContent(url)) {
     return null;
   }
@@ -43,17 +75,16 @@ function getSourceLinkText(url: string): string | null {
     url.includes("vm.tiktok.com") ||
     url.includes("vt.tiktok.com")
   ) {
-    return "Watch on TikTok →";
+    return "Watch on TikTok";
   }
   if (url.includes("instagram.com") || url.includes("instagr.am")) {
-    return "View on Instagram →";
+    return "View on Instagram";
   }
-  // Generic website
   try {
     const hostname = new URL(url).hostname.replace(/^www\./, "");
-    return `Visit ${hostname} →`;
+    return `Visit ${hostname}`;
   } catch {
-    return "Visit Website →";
+    return "Visit Website";
   }
 }
 
@@ -64,7 +95,6 @@ export default function ContentDetailPage() {
   const searchParams = useSearchParams();
   const id = params.id as string;
 
-  // Content fetching with SWR
   const {
     content,
     tags,
@@ -72,10 +102,8 @@ export default function ContentDetailPage() {
     mutate: mutateContent,
   } = useContentById(id, { enabled: !!user });
 
-  // All tags for the tag picker
   const { tags: allTags, mutate: mutateTags } = useTags({ enabled: !!user });
 
-  // Local state for editing
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editCategory, setEditCategory] = useState("");
@@ -90,7 +118,6 @@ export default function ContentDetailPage() {
   const isEditable = content?.user_id === user?.id;
   const loading = sessionLoading || (!!user && contentLoading && !content);
 
-  // Sync edit fields when content loads
   useEffect(() => {
     if (content) {
       setEditTitle(content.title);
@@ -98,16 +125,13 @@ export default function ContentDetailPage() {
     }
   }, [content]);
 
-  // Determine back navigation based on where user came from
   const handleBack = useCallback(() => {
     const from = searchParams.get("from");
     const week = searchParams.get("week");
 
     if (from === "planner" && week) {
-      // Navigate back to planner with the same week
       router.push(`/dashboard/planner?week=${week}`);
     } else {
-      // Default to dashboard
       router.push("/dashboard");
     }
   }, [router, searchParams]);
@@ -156,7 +180,6 @@ export default function ContentDetailPage() {
     }
   };
 
-  // Poll for updates if processing
   useEffect(() => {
     if (content?.status !== "processing") return;
 
@@ -220,7 +243,7 @@ export default function ContentDetailPage() {
 
       setRetryFeedback({
         type: "success",
-        message: "Retry started. We'll keep this page updated.",
+        message: "Retrying...",
       });
       mutateContent();
     } catch (error) {
@@ -236,120 +259,71 @@ export default function ContentDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-paper">
-        <div className="animate-shimmer w-16 h-16 rounded-full" />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="brutal-loading w-32">
+          <div className="brutal-loading-bar" />
+        </div>
       </div>
     );
   }
 
   if (!content) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-paper">
-        <p className="font-handwritten text-xl">Content not found</p>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="brutal-card-static p-8 text-center">
+          <XCircle className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+          <p className="font-mono uppercase">Content not found</p>
+        </div>
       </div>
     );
   }
 
-  const categoryConfig: Record<
-    string,
-    { emoji: string; label: string; color: string; sticker: string }
-  > = {
-    meal: {
-      emoji: "🍽️",
-      label: "Recipe",
-      color: "badge-meal",
-      sticker: "sticker-meal",
-    },
-    drink: {
-      emoji: "🍹",
-      label: "Drink",
-      color: "badge-drink",
-      sticker: "sticker-drink",
-    },
-    event: {
-      emoji: "🎉",
-      label: "Event",
-      color: "badge-event",
-      sticker: "sticker-event",
-    },
-    date_idea: {
-      emoji: "💕",
-      label: "Date Idea",
-      color: "badge-date_idea",
-      sticker: "sticker-date_idea",
-    },
-    gift_idea: {
-      emoji: "🎁",
-      label: "Gift Idea",
-      color: "badge-gift_idea",
-      sticker: "sticker-gift_idea",
-    },
-    travel: {
-      emoji: "✈️",
-      label: "Travel",
-      color: "badge-travel",
-      sticker: "sticker-travel",
-    },
-    other: {
-      emoji: "📌",
-      label: "Saved",
-      color: "badge-other",
-      sticker: "sticker-other",
-    },
-  };
-
-  const config = categoryConfig[content.category] || categoryConfig.other;
+  const config = CATEGORY_CONFIG[content.category] || CATEGORY_CONFIG.other;
+  const Icon = config.icon;
 
   return (
-    <main className="min-h-screen pb-28 md:pb-8 bg-paper">
-      {/* Scrapbook Header */}
-      <div className="pt-6 pb-4 px-4 md:px-6">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
+    <main className="min-h-screen pb-28 md:pb-8 bg-background">
+      {/* Header */}
+      <div className="border-b-[3px] border-border bg-card">
+        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <Button
             variant="ghost"
             onClick={handleBack}
-            className="hover:bg-washi-mint/20"
+            className="border-[3px] border-border hover:bg-accent"
           >
-            ← Back
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
           </Button>
           <div className="flex gap-2">
             {content.status === "completed" && isEditable && (
               <>
                 <Button
-                  variant="secondary"
+                  variant="ghost"
                   size="sm"
                   onClick={handleRetryProcessing}
                   disabled={retrying}
-                  className="mt-1 hover:bg-washi-yellow/40"
+                  className="border-[3px] border-border hover:bg-accent"
                 >
-                  {retrying ? "Retrying..." : "Try Reprocessing"}
+                  <RefreshCw
+                    className={`w-4 h-4 ${retrying ? "animate-spin" : ""}`}
+                  />
                 </Button>
-                {retryFeedback?.type === "success" && (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    {retryFeedback.message}
-                  </p>
-                )}
-                {retryFeedback?.type === "error" && (
-                  <p className="text-sm text-destructive mt-2">
-                    {retryFeedback.message}
-                  </p>
-                )}
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setEditing(!editing)}
-                  className="hover:bg-washi-blue/20"
+                  className="border-[3px] border-border hover:bg-accent"
                 >
-                  {editing ? "Cancel" : "✏️ Edit"}
+                  <Pencil className="w-4 h-4" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  className="border-[3px] border-destructive text-destructive hover:bg-destructive/10"
                 >
-                  {deleting ? "..." : "🗑️"}
+                  <Trash2 className="w-4 h-4" />
                 </Button>
               </>
             )}
@@ -357,162 +331,125 @@ export default function ContentDetailPage() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4">
+      <div className="max-w-4xl mx-auto px-4 py-6">
         {/* Processing State */}
         {content.status === "processing" && (
-          <div className="scrapbook-card p-8 text-center mb-8 relative">
-            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-20 h-5 bg-washi-yellow/80 transform -rotate-1" />
-            <div className="text-6xl mb-4 animate-wiggle pt-2">✂️</div>
-            <h2 className="font-handwritten text-2xl mb-2">Clipping...</h2>
-            <p className="text-muted-foreground mb-4">
-              Processing this for you. Almost done!
-            </p>
+          <div className="brutal-card-static brutal-processing p-8 text-center mb-8">
+            <Loader2 className="w-16 h-16 mx-auto mb-4 animate-spin" />
+            <h2 className="font-mono text-xl font-bold uppercase mb-2">
+              Processing
+            </h2>
+            <p className="text-muted-foreground mb-4">Almost done...</p>
+            <div className="brutal-loading w-48 mx-auto mb-4">
+              <div className="brutal-loading-bar" />
+            </div>
             <Button
               variant="secondary"
               size="sm"
               onClick={handleRetryProcessing}
               disabled={retrying}
-              className="mt-1 hover:bg-washi-yellow/40"
+              className="brutal-btn bg-secondary text-secondary-foreground"
             >
-              {retrying ? "Retrying..." : "Try Reprocessing"}
-            </Button>
-            {retryFeedback?.type === "success" && (
-              <p className="text-sm text-muted-foreground mt-2">
-                {retryFeedback.message}
-              </p>
-            )}
-            {retryFeedback?.type === "error" && (
-              <p className="text-sm text-destructive mt-2">
-                {retryFeedback.message}
-              </p>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDelete}
-              disabled={deleting}
-              className="text-muted-foreground hover:text-destructive"
-            >
-              {deleting ? "Cancelling..." : "Cancel"}
+              {retrying ? "..." : "Retry"}
             </Button>
           </div>
         )}
 
         {/* Failed State */}
         {content.status === "failed" && (
-          <div className="scrapbook-card p-8 text-center mb-8 border-destructive/20 relative">
-            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-washi-coral/80 transform rotate-1" />
-            <div className="text-6xl mb-4 pt-2">😕</div>
-            <h2 className="font-handwritten text-2xl mb-2">Oops!</h2>
+          <div className="brutal-card-static brutal-error p-8 text-center mb-8">
+            <XCircle className="w-16 h-16 mx-auto mb-4 text-destructive" />
+            <h2 className="font-mono text-xl font-bold uppercase mb-2">
+              Failed
+            </h2>
             <p className="text-muted-foreground mb-4">
-              We couldn&apos;t process this link.
+              Couldn&apos;t process this link
             </p>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleRetryProcessing}
-              disabled={retrying}
-              className="mt-1 hover:bg-washi-yellow/40"
-            >
-              {retrying ? "Retrying..." : "Try Reprocessing"}
-            </Button>
-            {retryFeedback?.type === "success" && (
-              <p className="text-sm text-muted-foreground mt-2">
-                {retryFeedback.message}
-              </p>
-            )}
-            {retryFeedback?.type === "error" && (
-              <p className="text-sm text-destructive mt-2">
-                {retryFeedback.message}
-              </p>
-            )}
-            <Button
-              variant="outline"
-              onClick={handleDelete}
-              disabled={deleting}
-              className="text-destructive border-destructive/30 hover:bg-destructive/10"
-            >
-              {deleting ? "Deleting..." : "🗑️ Delete & Try Again"}
-            </Button>
+            <div className="flex gap-2 justify-center">
+              <Button
+                onClick={handleRetryProcessing}
+                disabled={retrying}
+                className="brutal-btn"
+              >
+                {retrying ? "..." : "Retry"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="border-[3px] border-destructive text-destructive hover:bg-destructive/10"
+              >
+                Delete
+              </Button>
+            </div>
           </div>
         )}
 
-        {/* Main Content Card - Polaroid style */}
-        <div className="scrapbook-card overflow-hidden relative">
-          {/* Washi tape decorations */}
-          <div className="absolute -top-2 left-8 w-16 h-5 bg-washi-mint/80 transform -rotate-2 z-10" />
-          <div className="absolute -top-2 right-12 w-14 h-5 bg-washi-pink/80 transform rotate-1 z-10" />
-
+        {/* Main Content Card */}
+        <div className="brutal-card-static overflow-hidden">
           {content.thumbnail_url && (
-            <div className="p-3 pt-6 pb-0">
-              <div className="relative h-56 md:h-72 overflow-hidden rounded bg-muted">
-                <Image
-                  src={content.thumbnail_url}
-                  alt={content.title}
-                  fill
-                  className="object-cover"
-                />
-              </div>
+            <div className="relative h-56 md:h-72 border-b-[3px] border-border">
+              <Image
+                src={content.thumbnail_url}
+                alt={content.title}
+                fill
+                className="object-cover"
+              />
             </div>
           )}
 
-          {/* Sticker badge / Category selector */}
-          <div className="px-4 pt-3">
+          {/* Category Badge */}
+          <div className="px-6 pt-6">
             {editing ? (
               <div className="relative inline-block">
                 <select
                   value={editCategory}
                   onChange={(e) => setEditCategory(e.target.value)}
-                  className="text-sm pl-4 pr-10 py-2 rounded-full bg-white border border-border font-medium cursor-pointer appearance-none"
+                  className="brutal-input text-sm pl-4 pr-10 py-2 font-bold uppercase appearance-none cursor-pointer"
                 >
-                  <option value="meal">🍽️ Recipe</option>
-                  <option value="drink">🍹 Drink</option>
-                  <option value="event">🎉 Event</option>
-                  <option value="date_idea">💕 Date Idea</option>
-                  <option value="gift_idea">🎁 Gift Idea</option>
-                  <option value="travel">✈️ Travel</option>
-                  <option value="other">📌 Other</option>
+                  <option value="meal">Recipe</option>
+                  <option value="drink">Drink</option>
+                  <option value="event">Event</option>
+                  <option value="date_idea">Date</option>
+                  <option value="gift_idea">Gift</option>
+                  <option value="travel">Travel</option>
+                  <option value="other">Other</option>
                 </select>
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground text-xs">
-                  <ChevronDownIcon className="w-4 h-4" />
-                </span>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" />
               </div>
             ) : (
-              <span
-                className={`sticker ${config.sticker} text-xs inline-block`}
-              >
-                {config.emoji} {config.label}
+              <span className={`brutal-badge ${config.badgeClass}`}>
+                <Icon className="w-3 h-3" />
+                {config.label}
               </span>
             )}
           </div>
 
-          <div className="px-4 pt-3 pb-2">
+          <div className="px-6 pt-4 pb-2">
             {editing ? (
               <div className="flex gap-2">
                 <Input
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
-                  className="text-xl font-bold bg-white border-border"
+                  className="brutal-input text-xl font-bold"
                   placeholder="Title"
                 />
                 <Button
                   onClick={handleSave}
                   disabled={saving}
-                  className="bg-primary hover:bg-primary/90"
+                  className="brutal-btn"
                 >
                   {saving ? "..." : "Save"}
                 </Button>
               </div>
             ) : (
-              <h1 className="text-xl md:text-2xl font-semibold">
-                {content.title}
-              </h1>
+              <h1 className="text-xl md:text-2xl font-bold">{content.title}</h1>
             )}
 
-            {/* Tags Section */}
+            {/* Tags */}
             {isEditable && (
               <div className="mt-4">
-                <p className="text-sm text-muted-foreground mb-2 font-handwritten">
+                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">
                   Tags
                 </p>
                 <TagPills
@@ -528,7 +465,7 @@ export default function ContentDetailPage() {
             )}
           </div>
 
-          <div className="px-4 pb-4 space-y-6">
+          <div className="px-6 pb-6 space-y-6">
             {/* Category-specific content */}
             {content.category === "meal" && (
               <MealContent data={content.data as MealData} />
@@ -552,23 +489,24 @@ export default function ContentDetailPage() {
               <OtherContent data={content.data as { description?: string }} />
             )}
 
-            {/* Link to original content (not shown for image-only content) */}
+            {/* Source Link */}
             {!isImageOnlyContent(content.tiktok_url) && (
-              <div className="pt-4 border-t border-border">
+              <div className="pt-6 border-t-[3px] border-border">
                 <a
                   href={content.tiktok_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                  className="brutal-btn inline-flex items-center gap-2 px-6 py-3"
                 >
                   {getSourceLinkText(content.tiktok_url)}
+                  <ExternalLink className="w-4 h-4" />
                 </a>
               </div>
             )}
 
             {/* Metadata */}
-            <p className="text-sm text-muted-foreground">
-              Saved on {new Date(content.created_at).toLocaleDateString()}
+            <p className="text-sm text-muted-foreground font-mono">
+              Saved {new Date(content.created_at).toLocaleDateString()}
             </p>
           </div>
         </div>
@@ -578,15 +516,32 @@ export default function ContentDetailPage() {
 }
 
 function MealContent({ data }: { data: MealData }) {
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+
+  const toggleStep = (stepIndex: number) => {
+    setCompletedSteps((prev) => {
+      const next = new Set(prev);
+      if (next.has(stepIndex)) {
+        next.delete(stepIndex);
+      } else {
+        next.add(stepIndex);
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="space-y-6">
       {data.ingredients && data.ingredients.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold mb-3">Ingredients</h3>
+          <h3 className="text-lg font-bold uppercase mb-3">Ingredients</h3>
           <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {data.ingredients.map((ingredient, i) => (
-              <li key={i} className="flex items-start gap-2">
-                <span className="text-primary">•</span>
+              <li
+                key={i}
+                className="flex items-start gap-2 p-2 bg-secondary border-2 border-border"
+              >
+                <span className="text-primary font-bold">•</span>
                 <span>{ingredient}</span>
               </li>
             ))}
@@ -596,13 +551,20 @@ function MealContent({ data }: { data: MealData }) {
 
       {data.recipe && data.recipe.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold mb-3">Instructions</h3>
+          <h3 className="text-lg font-bold uppercase mb-3">Instructions</h3>
           <ol className="space-y-3">
             {data.recipe.map((step, i) => (
               <li key={i} className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-mono text-sm">
-                  {i + 1}
-                </span>
+                <button
+                  onClick={() => toggleStep(i)}
+                  className={`shrink-0 w-8 h-8 flex items-center justify-center font-mono font-bold border-2 border-border transition-colors ${
+                    completedSteps.has(i)
+                      ? "bg-green-500 text-white"
+                      : "bg-primary text-primary-foreground"
+                  }`}
+                >
+                  {String(i + 1).padStart(2, "0")}
+                </button>
                 <span className="pt-1">{step}</span>
               </li>
             ))}
@@ -613,21 +575,33 @@ function MealContent({ data }: { data: MealData }) {
       {(data.prep_time || data.cook_time || data.servings) && (
         <div className="flex flex-wrap gap-4 pt-4">
           {data.prep_time && (
-            <div className="glass rounded-lg px-4 py-2">
-              <p className="text-xs text-muted-foreground">Prep Time</p>
-              <p className="font-medium">{data.prep_time}</p>
+            <div className="brutal-card-static px-4 py-2">
+              <p className="text-xs font-mono uppercase text-muted-foreground">
+                Prep
+              </p>
+              <p className="font-bold flex items-center gap-1">
+                <Clock className="w-4 h-4" />
+                {data.prep_time}
+              </p>
             </div>
           )}
           {data.cook_time && (
-            <div className="glass rounded-lg px-4 py-2">
-              <p className="text-xs text-muted-foreground">Cook Time</p>
-              <p className="font-medium">{data.cook_time}</p>
+            <div className="brutal-card-static px-4 py-2">
+              <p className="text-xs font-mono uppercase text-muted-foreground">
+                Cook
+              </p>
+              <p className="font-bold flex items-center gap-1">
+                <Clock className="w-4 h-4" />
+                {data.cook_time}
+              </p>
             </div>
           )}
           {data.servings && (
-            <div className="glass rounded-lg px-4 py-2">
-              <p className="text-xs text-muted-foreground">Servings</p>
-              <p className="font-medium">{data.servings}</p>
+            <div className="brutal-card-static px-4 py-2">
+              <p className="text-xs font-mono uppercase text-muted-foreground">
+                Servings
+              </p>
+              <p className="font-bold">{data.servings}</p>
             </div>
           )}
         </div>
@@ -644,29 +618,29 @@ function EventContent({ data }: { data: EventData }) {
           href={getGoogleMapsUrl(data.location)}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-start gap-3 group hover:bg-secondary/50 -mx-2 px-2 py-2 rounded-lg transition-colors"
+          className="flex items-start gap-3 p-4 brutal-card hover:bg-accent"
         >
-          <span className="text-2xl">📍</span>
-          <div>
-            <p className="text-sm text-muted-foreground">Location</p>
-            <p className="font-medium group-hover:text-primary underline decoration-dotted underline-offset-2">
-              {data.location}
+          <MapPin className="w-6 h-6 text-primary" />
+          <div className="flex-1">
+            <p className="text-xs font-mono uppercase text-muted-foreground">
+              Location
             </p>
+            <p className="font-bold">{data.location}</p>
           </div>
-          <span className="text-muted-foreground ml-auto text-sm group-hover:text-primary">
-            Open in Maps →
-          </span>
+          <ExternalLink className="w-4 h-4 text-muted-foreground" />
         </a>
       )}
 
       {(data.date || data.time) && (
-        <div className="flex items-start gap-3">
-          <span className="text-2xl">📅</span>
+        <div className="flex items-start gap-3 p-4 brutal-card-static">
+          <Calendar className="w-6 h-6 text-primary" />
           <div>
-            <p className="text-sm text-muted-foreground">When</p>
-            <p className="font-medium">
+            <p className="text-xs font-mono uppercase text-muted-foreground">
+              When
+            </p>
+            <p className="font-bold">
               {data.date}
-              {data.date && data.time && " at "}
+              {data.date && data.time && " / "}
               {data.time}
             </p>
           </div>
@@ -675,51 +649,17 @@ function EventContent({ data }: { data: EventData }) {
 
       {data.description && (
         <div>
-          <h3 className="text-lg font-semibold mb-2">About</h3>
+          <h3 className="text-lg font-bold uppercase mb-2">About</h3>
           <p className="text-muted-foreground">{data.description}</p>
         </div>
       )}
 
       <div className="flex flex-wrap gap-2">
         {data.requires_reservation && (
-          <Badge variant="outline">🎫 Reservation Required</Badge>
+          <Badge className="brutal-badge">Reservation Required</Badge>
         )}
         {data.requires_ticket && (
-          <Badge variant="outline">🎟️ Ticket Required</Badge>
-        )}
-      </div>
-
-      {/* Links */}
-      <div className="flex flex-wrap gap-3 pt-2">
-        {data.website && (
-          <a
-            href={data.website}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-          >
-            🌐 Website
-          </a>
-        )}
-        {data.reservation_link && (
-          <a
-            href={data.reservation_link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-          >
-            🎫 Make Reservation
-          </a>
-        )}
-        {data.ticket_link && (
-          <a
-            href={data.ticket_link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-          >
-            🎟️ Get Tickets
-          </a>
+          <Badge className="brutal-badge">Ticket Required</Badge>
         )}
       </div>
     </div>
@@ -727,14 +667,6 @@ function EventContent({ data }: { data: EventData }) {
 }
 
 function DateIdeaContent({ data }: { data: DateIdeaData }) {
-  const typeEmoji: Record<string, string> = {
-    dinner: "🍷",
-    activity: "🎯",
-    entertainment: "🎭",
-    outdoors: "🌲",
-    other: "💡",
-  };
-
   return (
     <div className="space-y-4">
       {data.location && (
@@ -742,73 +674,36 @@ function DateIdeaContent({ data }: { data: DateIdeaData }) {
           href={getGoogleMapsUrl(data.location)}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-start gap-3 group hover:bg-secondary/50 -mx-2 px-2 py-2 rounded-lg transition-colors"
+          className="flex items-start gap-3 p-4 brutal-card hover:bg-accent"
         >
-          <span className="text-2xl">📍</span>
-          <div>
-            <p className="text-sm text-muted-foreground">Location</p>
-            <p className="font-medium group-hover:text-primary underline decoration-dotted underline-offset-2">
-              {data.location}
+          <MapPin className="w-6 h-6 text-primary" />
+          <div className="flex-1">
+            <p className="text-xs font-mono uppercase text-muted-foreground">
+              Location
             </p>
+            <p className="font-bold">{data.location}</p>
           </div>
-          <span className="text-muted-foreground ml-auto text-sm group-hover:text-primary">
-            Open in Maps →
-          </span>
+          <ExternalLink className="w-4 h-4 text-muted-foreground" />
         </a>
       )}
 
       <div className="flex flex-wrap gap-2">
         {data.type && (
-          <Badge variant="outline">
-            {typeEmoji[data.type] || "💡"}{" "}
-            {data.type.charAt(0).toUpperCase() + data.type.slice(1)}
-          </Badge>
+          <Badge className="brutal-badge capitalize">{data.type}</Badge>
         )}
         {data.price_range && (
-          <Badge variant="outline">{data.price_range}</Badge>
+          <Badge className="brutal-badge">{data.price_range}</Badge>
         )}
       </div>
 
       {data.description && (
         <div>
-          <h3 className="text-lg font-semibold mb-2">Why it&apos;s great</h3>
+          <h3 className="text-lg font-bold uppercase mb-2">
+            Why it&apos;s great
+          </h3>
           <p className="text-muted-foreground">{data.description}</p>
         </div>
       )}
-
-      {/* Links */}
-      <div className="flex flex-wrap gap-3 pt-2">
-        {data.website && (
-          <a
-            href={data.website}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-          >
-            🌐 Website
-          </a>
-        )}
-        {data.menu_link && (
-          <a
-            href={data.menu_link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-          >
-            📋 Menu
-          </a>
-        )}
-        {data.reservation_link && (
-          <a
-            href={data.reservation_link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-          >
-            🎫 Make Reservation
-          </a>
-        )}
-      </div>
     </div>
   );
 }
@@ -817,32 +712,36 @@ function GiftIdeaContent({ data }: { data: GiftIdeaData }) {
   return (
     <div className="space-y-4">
       {data.cost && (
-        <div className="flex items-start gap-3">
-          <span className="text-2xl">💰</span>
+        <div className="flex items-start gap-3 p-4 brutal-card-static bg-gift-bg">
+          <Gift className="w-6 h-6 text-gift" />
           <div>
-            <p className="text-sm text-muted-foreground">Price</p>
-            <p className="font-medium text-xl text-gift">{data.cost}</p>
+            <p className="text-xs font-mono uppercase text-muted-foreground">
+              Price
+            </p>
+            <p className="text-2xl font-bold font-mono text-gift">
+              {data.cost}
+            </p>
           </div>
         </div>
       )}
 
       {data.description && (
         <div>
-          <h3 className="text-lg font-semibold mb-2">About this gift</h3>
+          <h3 className="text-lg font-bold uppercase mb-2">About this gift</h3>
           <p className="text-muted-foreground">{data.description}</p>
         </div>
       )}
 
-      {/* Purchase Links */}
       <div className="flex flex-wrap gap-3 pt-4">
         {data.amazon_link && (
           <a
             href={data.amazon_link}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 transition-colors"
+            className="brutal-btn bg-orange-500 inline-flex items-center gap-2 px-4 py-2"
           >
-            🛒 View on Amazon
+            <ShoppingCart className="w-4 h-4" />
+            Amazon
           </a>
         )}
         {data.purchase_link && (
@@ -850,9 +749,10 @@ function GiftIdeaContent({ data }: { data: GiftIdeaData }) {
             href={data.purchase_link}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/20 text-primary hover:bg-primary/30 transition-colors"
+            className="brutal-btn inline-flex items-center gap-2 px-4 py-2"
           >
-            🛍️ Buy Now
+            <ExternalLink className="w-4 h-4" />
+            Buy Now
           </a>
         )}
       </div>
@@ -861,43 +761,47 @@ function GiftIdeaContent({ data }: { data: GiftIdeaData }) {
 }
 
 function DrinkContent({ data }: { data: DrinkData }) {
-  const typeEmoji: Record<string, string> = {
-    cocktail: "🍸",
-    mocktail: "🍹",
-    coffee: "☕",
-    smoothie: "🥤",
-    wine: "🍷",
-    beer: "🍺",
-    other: "🥃",
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+
+  const toggleStep = (stepIndex: number) => {
+    setCompletedSteps((prev) => {
+      const next = new Set(prev);
+      if (next.has(stepIndex)) {
+        next.delete(stepIndex);
+      } else {
+        next.add(stepIndex);
+      }
+      return next;
+    });
   };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2">
         {data.type && (
-          <Badge variant="outline">
-            {typeEmoji[data.type] || "🥃"}{" "}
-            {data.type.charAt(0).toUpperCase() + data.type.slice(1)}
-          </Badge>
+          <Badge className="brutal-badge capitalize">{data.type}</Badge>
         )}
         {data.difficulty && (
-          <Badge variant="outline">
-            {data.difficulty === "easy" && "✅"}
-            {data.difficulty === "medium" && "⚡"}
-            {data.difficulty === "hard" && "🔥"}{" "}
-            {data.difficulty.charAt(0).toUpperCase() + data.difficulty.slice(1)}
+          <Badge className="brutal-badge capitalize">{data.difficulty}</Badge>
+        )}
+        {data.prep_time && (
+          <Badge className="brutal-badge flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            {data.prep_time}
           </Badge>
         )}
-        {data.prep_time && <Badge variant="outline">⏱️ {data.prep_time}</Badge>}
       </div>
 
       {data.ingredients && data.ingredients.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold mb-3">Ingredients</h3>
+          <h3 className="text-lg font-bold uppercase mb-3">Ingredients</h3>
           <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {data.ingredients.map((ingredient, i) => (
-              <li key={i} className="flex items-start gap-2">
-                <span className="text-primary">•</span>
+              <li
+                key={i}
+                className="flex items-start gap-2 p-2 bg-secondary border-2 border-border"
+              >
+                <span className="text-primary font-bold">•</span>
                 <span>{ingredient}</span>
               </li>
             ))}
@@ -907,24 +811,24 @@ function DrinkContent({ data }: { data: DrinkData }) {
 
       {data.recipe && data.recipe.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold mb-3">Instructions</h3>
+          <h3 className="text-lg font-bold uppercase mb-3">Instructions</h3>
           <ol className="space-y-3">
             {data.recipe.map((step, i) => (
               <li key={i} className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-mono text-sm">
-                  {i + 1}
-                </span>
+                <button
+                  onClick={() => toggleStep(i)}
+                  className={`shrink-0 w-8 h-8 flex items-center justify-center font-mono font-bold border-2 border-border transition-colors ${
+                    completedSteps.has(i)
+                      ? "bg-green-500 text-white"
+                      : "bg-primary text-primary-foreground"
+                  }`}
+                >
+                  {String(i + 1).padStart(2, "0")}
+                </button>
                 <span className="pt-1">{step}</span>
               </li>
             ))}
           </ol>
-        </div>
-      )}
-
-      {data.description && (
-        <div>
-          <h3 className="text-lg font-semibold mb-2">About</h3>
-          <p className="text-muted-foreground">{data.description}</p>
         </div>
       )}
     </div>
@@ -932,14 +836,6 @@ function DrinkContent({ data }: { data: DrinkData }) {
 }
 
 function TravelContent({ data }: { data: TravelData }) {
-  const typeEmoji: Record<string, string> = {
-    restaurant: "🍽️",
-    attraction: "🏛️",
-    hotel: "🏨",
-    activity: "🎯",
-    other: "📍",
-  };
-
   return (
     <div className="space-y-4">
       {data.location && (
@@ -947,27 +843,27 @@ function TravelContent({ data }: { data: TravelData }) {
           href={getGoogleMapsUrl(data.location)}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-start gap-3 group hover:bg-secondary/50 -mx-2 px-2 py-2 rounded-lg transition-colors"
+          className="flex items-start gap-3 p-4 brutal-card hover:bg-accent"
         >
-          <span className="text-2xl">📍</span>
-          <div>
-            <p className="text-sm text-muted-foreground">Location</p>
-            <p className="font-medium group-hover:text-primary underline decoration-dotted underline-offset-2">
-              {data.location}
+          <MapPin className="w-6 h-6 text-primary" />
+          <div className="flex-1">
+            <p className="text-xs font-mono uppercase text-muted-foreground">
+              Location
             </p>
+            <p className="font-bold">{data.location}</p>
           </div>
-          <span className="text-muted-foreground ml-auto text-sm group-hover:text-primary">
-            Open in Maps →
-          </span>
+          <ExternalLink className="w-4 h-4 text-muted-foreground" />
         </a>
       )}
 
       {(data.destination_city || data.destination_country) && (
-        <div className="flex items-start gap-3">
-          <span className="text-2xl">🌍</span>
+        <div className="flex items-start gap-3 p-4 brutal-card-static">
+          <Plane className="w-6 h-6 text-primary" />
           <div>
-            <p className="text-sm text-muted-foreground">Destination</p>
-            <p className="font-medium">
+            <p className="text-xs font-mono uppercase text-muted-foreground">
+              Destination
+            </p>
+            <p className="font-bold">
               {data.destination_city}
               {data.destination_city && data.destination_country && ", "}
               {data.destination_country}
@@ -978,46 +874,19 @@ function TravelContent({ data }: { data: TravelData }) {
 
       <div className="flex flex-wrap gap-2">
         {data.type && (
-          <Badge variant="outline">
-            {typeEmoji[data.type] || "📍"}{" "}
-            {data.type.charAt(0).toUpperCase() + data.type.slice(1)}
-          </Badge>
+          <Badge className="brutal-badge capitalize">{data.type}</Badge>
         )}
         {data.price_range && (
-          <Badge variant="outline">{data.price_range}</Badge>
+          <Badge className="brutal-badge">{data.price_range}</Badge>
         )}
       </div>
 
       {data.description && (
         <div>
-          <h3 className="text-lg font-semibold mb-2">About</h3>
+          <h3 className="text-lg font-bold uppercase mb-2">About</h3>
           <p className="text-muted-foreground">{data.description}</p>
         </div>
       )}
-
-      {/* Links */}
-      <div className="flex flex-wrap gap-3 pt-2">
-        {data.website && (
-          <a
-            href={data.website}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-          >
-            🌐 Website
-          </a>
-        )}
-        {data.booking_link && (
-          <a
-            href={data.booking_link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-          >
-            📅 Book Now
-          </a>
-        )}
-      </div>
     </div>
   );
 }

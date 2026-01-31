@@ -10,6 +10,17 @@ import type {
   GiftIdeaData,
   GiftRecipientWithAssignments,
 } from "@/lib/supabase";
+import {
+  ArrowLeft,
+  ExternalLink,
+  Gift,
+  Pencil,
+  Plus,
+  ShoppingCart,
+  Trash2,
+  User,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -34,13 +45,11 @@ export default function GiftPlannerPage() {
         fetch("/api/gifts/assignments"),
       ]);
 
-      // Check for auth errors
       if (recipientsRes.status === 401 || giftsRes.status === 401) {
         router.push("/");
         return;
       }
 
-      // Handle recipients response (may fail if tables don't exist yet)
       if (recipientsRes.ok) {
         const recipientsData = await recipientsRes.json();
         setRecipients(recipientsData.recipients || []);
@@ -49,7 +58,6 @@ export default function GiftPlannerPage() {
         setRecipients([]);
       }
 
-      // Handle gifts response
       if (giftsRes.ok) {
         const giftsData = await giftsRes.json();
         setGiftIdeas(giftsData.giftIdeas || []);
@@ -59,7 +67,6 @@ export default function GiftPlannerPage() {
       }
     } catch (error) {
       console.error("Failed to fetch data:", error);
-      // Don't redirect, just show empty state
       setRecipients([]);
       setGiftIdeas([]);
     } finally {
@@ -176,139 +183,143 @@ export default function GiftPlannerPage() {
 
   if (loading) {
     return (
-      <div className='min-h-screen flex items-center justify-center bg-paper'>
-        <div className='animate-shimmer w-16 h-16 rounded-full' />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="brutal-loading w-32">
+          <div className="brutal-loading-bar" />
+        </div>
       </div>
     );
   }
 
   return (
-    <main className='min-h-screen pb-28 md:pb-8 bg-paper'>
-      {/* Scrapbook Header */}
-      <div className='pt-6 pb-4 px-4 md:px-6'>
-        <div className='max-w-4xl mx-auto flex items-center justify-between'>
-          <Link href='/dashboard'>
+    <main className="min-h-screen pb-28 md:pb-8 bg-background">
+      {/* Header */}
+      <div className="brutal-header">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <Link href="/dashboard">
             <Button
-              variant='ghost'
-              size='sm'
-              className='hover:bg-washi-mint/20'
+              variant="ghost"
+              className="border-[3px] border-border hover:bg-card"
             >
-              ← Back
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
             </Button>
           </Link>
-          <div className='relative'>
-            <h1 className='font-handwritten text-3xl md:text-4xl text-foreground transform -rotate-1'>
-              Gift Ideas
-            </h1>
-            <div className='absolute -bottom-1 left-0 right-0 h-2 bg-washi-coral/60 transform rotate-0.5 -z-10' />
-          </div>
-          <div className='w-16' />
+          <h1 className="font-mono text-2xl md:text-3xl font-bold uppercase">
+            Gift_Ideas
+          </h1>
+          <div className="w-20" />
         </div>
       </div>
 
-      <div className='max-w-4xl mx-auto px-3 md:px-4'>
+      <div className="max-w-4xl mx-auto px-3 md:px-4 py-6">
         {/* Add New Person */}
-        <div className='scrapbook-card p-5 mb-6 relative'>
-          <div className='absolute -top-2 left-8 w-16 h-5 bg-washi-pink/80 transform -rotate-2' />
-          <h2 className='font-handwritten text-xl mb-3 pt-2'>Add a Person</h2>
-          <div className='flex gap-2'>
+        <div className="brutal-card-static mb-6">
+          <div className="p-4 border-b-[3px] border-border bg-accent">
+            <h2 className="font-mono text-lg font-bold uppercase flex items-center gap-2">
+              <Plus className="w-5 h-5" />
+              Add a Person
+            </h2>
+          </div>
+          <div className="p-4 flex gap-2">
             <Input
-              placeholder='Enter name (e.g., Mom, Dad, Best Friend)'
+              placeholder="Enter name (e.g., Mom, Dad, Best Friend)"
               value={newRecipientName}
               onChange={(e) => setNewRecipientName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addRecipient()}
-              className='flex-1 bg-white border-border'
+              className="brutal-input flex-1"
             />
-            <Button
-              onClick={addRecipient}
-              className='bg-primary hover:bg-primary/90'
-            >
-              Add 🎁
+            <Button onClick={addRecipient} className="brutal-btn">
+              <Gift className="w-4 h-4 mr-2" />
+              Add
             </Button>
           </div>
         </div>
 
         {/* Recipients List */}
         {recipients.length === 0 ? (
-          <div className='scrapbook-card p-8 text-center relative'>
-            <div className='absolute -top-2 left-1/2 -translate-x-1/2 w-20 h-5 bg-washi-yellow/80 transform -rotate-1' />
-            <div className='text-6xl mb-4 pt-2'>🎁</div>
-            <h3 className='font-handwritten text-2xl mb-2'>
+          <div className="brutal-card-static p-8 text-center">
+            <Gift className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="font-mono text-xl font-bold uppercase mb-2">
               No people added yet
             </h3>
-            <p className='text-muted-foreground'>
+            <p className="text-muted-foreground">
               Add people you want to give gifts to, then assign gift ideas to
               them.
             </p>
           </div>
         ) : (
-          <div className='space-y-4'>
+          <div className="space-y-4">
             {recipients.map((recipient) => (
-              <Card key={recipient.id} className='glass overflow-hidden'>
-                <CardHeader className='pb-2'>
-                  <div className='flex items-center justify-between'>
+              <Card key={recipient.id} className="brutal-card-static overflow-hidden">
+                <CardHeader className="pb-2 border-b-[3px] border-border bg-card">
+                  <div className="flex items-center justify-between">
                     {editingId === recipient.id ? (
-                      <div className='flex gap-2 flex-1 mr-2'>
+                      <div className="flex gap-2 flex-1 mr-2">
                         <Input
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
                           onKeyDown={(e) =>
                             e.key === "Enter" && updateRecipient(recipient.id)
                           }
-                          className='flex-1'
+                          className="brutal-input flex-1"
                           autoFocus
                         />
                         <Button
-                          size='sm'
+                          size="sm"
                           onClick={() => updateRecipient(recipient.id)}
+                          className="brutal-btn"
                         >
                           Save
                         </Button>
                         <Button
-                          size='sm'
-                          variant='ghost'
+                          size="sm"
+                          variant="ghost"
                           onClick={() => setEditingId(null)}
+                          className="border-2 border-border"
                         >
                           Cancel
                         </Button>
                       </div>
                     ) : (
                       <>
-                        <CardTitle className='text-xl flex items-center gap-2'>
-                          <span>👤</span> {recipient.name}
-                          <Badge variant='secondary' className='ml-2'>
+                        <CardTitle className="text-xl flex items-center gap-2">
+                          <User className="w-5 h-5" />
+                          {recipient.name}
+                          <Badge className="brutal-badge ml-2">
                             {recipient.assignments.length} gift
                             {recipient.assignments.length !== 1 ? "s" : ""}
                           </Badge>
                         </CardTitle>
-                        <div className='flex gap-1'>
+                        <div className="flex gap-1">
                           <Button
-                            size='sm'
-                            variant='ghost'
+                            size="sm"
+                            variant="ghost"
                             onClick={() => {
                               setEditingId(recipient.id);
                               setEditName(recipient.name);
                             }}
+                            className="border-2 border-border"
                           >
-                            Edit
+                            <Pencil className="w-4 h-4" />
                           </Button>
                           <Button
-                            size='sm'
-                            variant='ghost'
-                            className='text-destructive'
+                            size="sm"
+                            variant="ghost"
+                            className="border-2 border-destructive text-destructive"
                             onClick={() => deleteRecipient(recipient.id)}
                           >
-                            Delete
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                       </>
                     )}
                   </div>
                 </CardHeader>
-                <CardContent className='pt-0'>
+                <CardContent className="pt-4">
                   {/* Assigned Gifts */}
                   {recipient.assignments.length > 0 && (
-                    <div className='space-y-2 mb-4'>
+                    <div className="space-y-2 mb-4">
                       {recipient.assignments.map(
                         (assignment: GiftAssignment) => {
                           const giftData = assignment.content
@@ -316,33 +327,34 @@ export default function GiftPlannerPage() {
                           return (
                             <div
                               key={assignment.id}
-                              className='group flex items-center gap-3 glass rounded-lg p-3'
+                              className="group flex items-center gap-3 brutal-card-static p-3"
                             >
                               {assignment.content?.thumbnail_url && (
                                 <img
                                   src={assignment.content.thumbnail_url}
-                                  alt=''
-                                  className='w-12 h-12 object-cover rounded-lg shrink-0'
+                                  alt=""
+                                  className="w-12 h-12 object-cover shrink-0 border-2 border-border"
                                 />
                               )}
-                              <div className='flex-1 min-w-0'>
-                                <p className='font-medium line-clamp-1'>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium line-clamp-1">
                                   {assignment.content?.title}
                                 </p>
                                 {giftData?.cost && (
-                                  <p className='text-sm text-gift'>
+                                  <p className="text-sm font-mono text-gift font-bold">
                                     {giftData.cost}
                                   </p>
                                 )}
                               </div>
-                              <div className='flex gap-2 shrink-0'>
+                              <div className="flex gap-2 shrink-0">
                                 {giftData?.amazon_link && (
                                   <a
                                     href={giftData.amazon_link}
-                                    target='_blank'
-                                    rel='noopener noreferrer'
-                                    className='text-xs text-orange-400 hover:underline'
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-orange-500 hover:underline flex items-center gap-1 font-mono"
                                   >
+                                    <ShoppingCart className="w-3 h-3" />
                                     Amazon
                                   </a>
                                 )}
@@ -350,9 +362,9 @@ export default function GiftPlannerPage() {
                                   onClick={() =>
                                     removeAssignment(assignment.id)
                                   }
-                                  className='text-destructive hover:bg-destructive/20 rounded p-1 text-xs opacity-0 group-hover:opacity-100 transition-opacity'
+                                  className="text-destructive hover:bg-destructive/20 p-1 text-xs opacity-0 group-hover:opacity-100 transition-opacity border border-destructive"
                                 >
-                                  ✕
+                                  <X className="w-4 h-4" />
                                 </button>
                               </div>
                             </div>
@@ -364,12 +376,13 @@ export default function GiftPlannerPage() {
 
                   {/* Add Gift Button */}
                   <Button
-                    variant='outline'
-                    size='sm'
-                    className='w-full border-dashed'
+                    variant="outline"
+                    size="sm"
+                    className="w-full border-2 border-dashed border-border hover:bg-accent"
                     onClick={() => setAssigningTo(recipient.id)}
                   >
-                    + Add Gift Idea
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Gift Idea
                   </Button>
                 </CardContent>
               </Card>
@@ -379,8 +392,8 @@ export default function GiftPlannerPage() {
 
         {/* Empty State for Gift Ideas */}
         {giftIdeas.length === 0 && recipients.length > 0 && (
-          <div className='glass rounded-2xl p-6 mt-6 text-center'>
-            <p className='text-muted-foreground'>
+          <div className="brutal-card-static p-6 mt-6 text-center">
+            <p className="text-muted-foreground">
               No gift ideas saved yet. Text a TikTok or Instagram with product
               recommendations to save gift ideas!
             </p>
@@ -390,11 +403,10 @@ export default function GiftPlannerPage() {
 
       {/* Assign Gift Modal */}
       {assigningTo !== null && (
-        <div className='fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-0 md:p-4'>
-          <div className='glass w-full md:max-w-lg md:rounded-2xl rounded-t-2xl max-h-[80vh] flex flex-col'>
-            {/* Modal Header */}
-            <div className='p-4 border-b border-border flex items-center justify-between'>
-              <h3 className='font-semibold'>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+          <div className="brutal-card-static w-full md:max-w-lg max-h-[80vh] flex flex-col">
+            <div className="p-4 border-b-[3px] border-border flex items-center justify-between bg-accent">
+              <h3 className="font-bold font-mono uppercase">
                 Add Gift for{" "}
                 {recipients.find((r) => r.id === assigningTo)?.name}
               </h3>
@@ -403,61 +415,65 @@ export default function GiftPlannerPage() {
                   setAssigningTo(null);
                   setSearchQuery("");
                 }}
-                className='text-muted-foreground hover:text-foreground p-1'
+                className="text-muted-foreground hover:text-foreground p-1"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Search */}
-            <div className='p-4 border-b border-border'>
+            <div className="p-4 border-b-[3px] border-border">
               <Input
-                type='text'
-                placeholder='Search gift ideas...'
+                type="text"
+                placeholder="Search gift ideas..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className='w-full'
+                className="brutal-input w-full"
                 autoFocus
               />
             </div>
 
-            {/* Gift List */}
-            <div className='flex-1 overflow-y-auto p-4 space-y-2'>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
               {getFilteredGifts(assigningTo).map((gift) => {
                 const giftData = gift.data as GiftIdeaData;
                 return (
                   <button
                     key={gift.id}
                     onClick={() => assignGift(assigningTo, gift.id)}
-                    className='w-full glass rounded-xl p-3 text-left hover:bg-secondary/50 transition-colors flex items-center gap-3'
+                    className="w-full brutal-card p-3 text-left flex items-center gap-3"
                   >
                     {gift.thumbnail_url && (
                       <img
                         src={gift.thumbnail_url}
-                        alt=''
-                        className='w-16 h-16 object-cover rounded-lg shrink-0'
+                        alt=""
+                        className="w-16 h-16 object-cover shrink-0 border-2 border-border"
                       />
                     )}
-                    <div className='flex-1 min-w-0'>
-                      <p className='font-medium line-clamp-1'>{gift.title}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium line-clamp-1">{gift.title}</p>
                       {giftData?.cost && (
-                        <p className='text-sm text-gift'>{giftData.cost}</p>
+                        <p className="text-sm font-mono text-gift font-bold">
+                          {giftData.cost}
+                        </p>
                       )}
                       {giftData?.description && (
-                        <p className='text-xs text-muted-foreground line-clamp-1'>
+                        <p className="text-xs text-muted-foreground line-clamp-1">
                           {giftData.description}
                         </p>
                       )}
                     </div>
+                    {giftData?.amazon_link && (
+                      <ExternalLink className="w-4 h-4 text-muted-foreground shrink-0" />
+                    )}
                   </button>
                 );
               })}
 
               {getFilteredGifts(assigningTo).length === 0 && (
-                <div className='text-center py-8 text-muted-foreground'>
-                  <p>No gift ideas available</p>
+                <div className="text-center py-8 text-muted-foreground">
+                  <Gift className="w-12 h-12 mx-auto mb-4" />
+                  <p className="font-mono uppercase">No gift ideas available</p>
                   {giftIdeas.length === 0 && (
-                    <p className='text-sm mt-2'>
+                    <p className="text-sm mt-2">
                       Text product TikToks or Reels to save gift ideas!
                     </p>
                   )}
@@ -470,4 +486,3 @@ export default function GiftPlannerPage() {
     </main>
   );
 }
-

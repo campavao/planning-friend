@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import type { Tag } from "@/lib/supabase";
+import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 const MAX_COLLAPSED_TAGS = 7;
@@ -47,9 +48,9 @@ export function TagFilter({
   const hasMoreTags = tags.length > MAX_COLLAPSED_TAGS;
 
   return (
-    <div className="flex flex-wrap items-center gap-2 py-2">
-      <span className="text-xs text-muted-foreground shrink-0">
-        Filter by tag:
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-xs font-mono uppercase tracking-wider text-muted-foreground shrink-0">
+        Filter:
       </span>
       {displayTags.map((tag) => {
         const isSelected = selectedTags.includes(tag.id);
@@ -57,10 +58,10 @@ export function TagFilter({
           <button
             key={tag.id}
             onClick={() => onToggle(tag.id)}
-            className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
+            className={`text-xs px-3 py-1 border-2 border-border font-medium transition-colors ${
               isSelected
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary hover:bg-secondary/80"
+                ? "bg-foreground text-background"
+                : "bg-card hover:bg-accent"
             }`}
           >
             {tag.name}
@@ -70,20 +71,27 @@ export function TagFilter({
       {hasMoreTags && (
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="text-xs px-2 py-0.5 rounded-full bg-washi-blue/30 hover:bg-washi-blue/50 transition-colors text-foreground/70"
+          className="text-xs px-3 py-1 border-2 border-border bg-accent hover:bg-accent/80 transition-colors font-mono flex items-center gap-1"
         >
-          {isExpanded
-            ? "See less"
-            : `+${tags.length - MAX_COLLAPSED_TAGS} more`}
+          {isExpanded ? (
+            <>
+              Less <ChevronUp className="w-3 h-3" />
+            </>
+          ) : (
+            <>
+              +{tags.length - MAX_COLLAPSED_TAGS} <ChevronDown className="w-3 h-3" />
+            </>
+          )}
         </button>
       )}
       {selectedTags.length > 0 && (
         <Button
           size="sm"
           variant="ghost"
-          className="h-6 px-2 text-xs"
+          className="h-7 px-2 text-xs border-2 border-destructive text-destructive hover:bg-destructive/10"
           onClick={onClear}
         >
+          <X className="w-3 h-3 mr-1" />
           Clear
         </Button>
       )}
