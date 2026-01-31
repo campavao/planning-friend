@@ -1,38 +1,84 @@
+import { fetcher } from "@/lib/swr-config";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import useSWR from "swr";
 
 export interface SessionUser {
-    id: string;
-    phoneNumber: string;
-  }
+  id: string;
+  phoneNumber: string;
+}
 
+interface SessionResponse {
+  authenticated: boolean;
+  user?: SessionUser;
+}
 
-export function useSession({ onSuccess, onFinishLoading }: { onSuccess?: () => Promise<void>, onFinishLoading?: () => void } = {}) {
-    const router = useRouter();
-    const [user, setUser] = useState<SessionUser | null>(null);
+interface UseSessionOptions {
+  onSuccess?: () => Promise<void>;
+  onFinishLoading?: () => void;
+  // Set to true to skip redirect on unauthenticated (useful for public pages)
+  allowUnauthenticated?: boolean;
+}
 
-    useEffect(() => {
-        async function checkAuth() {
-          try {
-            const res = await fetch("/api/auth/session");
-            const data = await res.json();
+export function useSession({
+  onSuccess,
+  onFinishLoading,
+  allowUnauthenticated = false,
+}: UseSessionOptions = {}) {
+  const router = useRouter();
 
-            if (!data.authenticated) {
-              router.push("/");
-              return;
-            }
+  const { data, error, isLoading, isValidating, mutate } =
+    useSWR<SessionResponse>("/api/auth/session", fetcher, {
+      // Revalidate session on focus for security
+      revalidateOnFocus: true,
+      // Cache session for 5 minutes
+      dedupingInterval: 5 * 60 * 1000,
+      // Don't retry on auth errors
+      shouldRetryOnError: false,
+      // Keep showing cached session while revalidating
+      revalidateIfStale: true,
+    });
 
-            setUser(data.user);
-            await onSuccess?.();
-          } catch {
-            router.push("/");
-          } finally {
-            onFinishLoading?.();
-          }
-        }
+  const isAuthenticated = data?.authenticated ?? false;
+  const user = data?.user ?? null;
 
-        checkAuth();
-      }, [router, onSuccess, onFinishLoading]);
+  // Handle authentication redirect
+  useEffect(() => {
+    // Wait for initial load to complete
+    if (isLoading) return;
 
-    return { user };
+    // If there's an error or not authenticated, redirect to login
+    if ((error || !isAuthenticated) && !allowUnauthenticated) {
+      router.push("/");
+      return;
+    }
+
+    // If authenticated, call onSuccess
+    if (isAuthenticated && onSuccess) {
+      onSuccess();
+    }
+  }, [
+    isLoading,
+    isAuthenticated,
+    error,
+    router,
+    onSuccess,
+    allowUnauthenticated,
+  ]);
+
+  // Call onFinishLoading when initial load completes
+  useEffect(() => {
+    if (!isLoading && onFinishLoading) {
+      onFinishLoading();
+    }
+  }, [isLoading, onFinishLoading]);
+
+  return {
+    user,
+    isLoading,
+    isValidating,
+    isAuthenticated,
+    // Expose mutate for manual revalidation (e.g., after login/logout)
+    mutate,
+  };
 }

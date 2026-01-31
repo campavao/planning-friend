@@ -4,15 +4,14 @@ import { TagPills } from "@/components/tag-pills";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useContentById, useTags } from "@/hooks/useContent";
 import { DEFAULT_TAGS } from "@/lib/constants";
 import type {
-  Content,
   DateIdeaData,
   DrinkData,
   EventData,
   GiftIdeaData,
   MealData,
-  Tag,
   TravelData,
 } from "@/lib/supabase";
 import { ChevronDownIcon } from "lucide-react";
@@ -59,11 +58,24 @@ function getSourceLinkText(url: string): string | null {
 }
 
 export default function ContentDetailPage() {
-  const { user } = useSession();
-  const [content, setContent] = useState<Content | null>(null);
-  const [tags, setTags] = useState<Tag[]>([]);
-  const [allTags, setAllTags] = useState<Tag[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user, isLoading: sessionLoading } = useSession();
+  const router = useRouter();
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const id = params.id as string;
+
+  // Content fetching with SWR
+  const {
+    content,
+    tags,
+    isLoading: contentLoading,
+    mutate: mutateContent,
+  } = useContentById(id, { enabled: !!user });
+
+  // All tags for the tag picker
+  const { tags: allTags, mutate: mutateTags } = useTags({ enabled: !!user });
+
+  // Local state for editing
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editCategory, setEditCategory] = useState("");
@@ -74,11 +86,17 @@ export default function ContentDetailPage() {
     type: "success" | "error";
     message: string;
   } | null>(null);
-  const router = useRouter();
-  const params = useParams();
-  const searchParams = useSearchParams();
-  const id = params.id as string;
+
   const isEditable = content?.user_id === user?.id;
+  const loading = sessionLoading || (!!user && contentLoading && !content);
+
+  // Sync edit fields when content loads
+  useEffect(() => {
+    if (content) {
+      setEditTitle(content.title);
+      setEditCategory(content.category);
+    }
+  }, [content]);
 
   // Determine back navigation based on where user came from
   const handleBack = useCallback(() => {
@@ -94,45 +112,6 @@ export default function ContentDetailPage() {
     }
   }, [router, searchParams]);
 
-  const fetchContent = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/content/${id}`);
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (res.status === 401) {
-          router.push("/");
-          return;
-        }
-        throw new Error(data.error);
-      }
-
-      setContent(data.content);
-      setEditTitle(data.content.title);
-      setEditCategory(data.content.category);
-      if (data.tags) {
-        setTags(data.tags);
-      }
-    } catch (error) {
-      console.error("Failed to fetch content:", error);
-      router.push("/dashboard");
-    } finally {
-      setLoading(false);
-    }
-  }, [id, router]);
-
-  const fetchAllTags = useCallback(async () => {
-    try {
-      const res = await fetch("/api/tags");
-      if (res.ok) {
-        const data = await res.json();
-        setAllTags(data.tags || []);
-      }
-    } catch (error) {
-      console.error("Failed to fetch tags:", error);
-    }
-  }, []);
-
   const handleAddTag = async (name: string) => {
     try {
       const res = await fetch("/api/tags", {
@@ -141,9 +120,8 @@ export default function ContentDetailPage() {
         body: JSON.stringify({ name, contentId: id }),
       });
       if (res.ok) {
-        const data = await res.json();
-        setTags((prev) => [...prev, data.tag]);
-        fetchAllTags();
+        mutateContent();
+        mutateTags();
       }
     } catch (error) {
       console.error("Failed to add tag:", error);
@@ -158,10 +136,7 @@ export default function ContentDetailPage() {
         body: JSON.stringify({ tagId, contentId: id }),
       });
       if (res.ok) {
-        const tag = allTags.find((t) => t.id === tagId);
-        if (tag) {
-          setTags((prev) => [...prev, tag]);
-        }
+        mutateContent();
       }
     } catch (error) {
       console.error("Failed to add tag:", error);
@@ -174,26 +149,23 @@ export default function ContentDetailPage() {
         method: "DELETE",
       });
       if (res.ok) {
-        setTags((prev) => prev.filter((t) => t.id !== tagId));
+        mutateContent();
       }
     } catch (error) {
       console.error("Failed to remove tag:", error);
     }
   };
 
+  // Poll for updates if processing
   useEffect(() => {
-    fetchContent();
-    fetchAllTags();
+    if (content?.status !== "processing") return;
 
-    // Poll for updates if processing
     const interval = setInterval(() => {
-      if (content?.status === "processing") {
-        fetchContent();
-      }
+      mutateContent();
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [fetchContent, fetchAllTags, content?.status]);
+  }, [content?.status, mutateContent]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -205,9 +177,7 @@ export default function ContentDetailPage() {
       });
 
       if (res.ok) {
-        const data = await res.json();
-        setContent(data.content);
-        setEditCategory(data.content.category);
+        mutateContent();
         setEditing(false);
       }
     } catch (error) {
@@ -252,7 +222,7 @@ export default function ContentDetailPage() {
         type: "success",
         message: "Retry started. We'll keep this page updated.",
       });
-      await fetchContent();
+      mutateContent();
     } catch (error) {
       setRetryFeedback({
         type: "error",
@@ -266,16 +236,16 @@ export default function ContentDetailPage() {
 
   if (loading) {
     return (
-      <div className='min-h-screen flex items-center justify-center bg-paper'>
-        <div className='animate-shimmer w-16 h-16 rounded-full' />
+      <div className="min-h-screen flex items-center justify-center bg-paper">
+        <div className="animate-shimmer w-16 h-16 rounded-full" />
       </div>
     );
   }
 
   if (!content) {
     return (
-      <div className='min-h-screen flex items-center justify-center bg-paper'>
-        <p className='font-handwritten text-xl'>Content not found</p>
+      <div className="min-h-screen flex items-center justify-center bg-paper">
+        <p className="font-handwritten text-xl">Content not found</p>
       </div>
     );
   }
@@ -331,53 +301,53 @@ export default function ContentDetailPage() {
   const config = categoryConfig[content.category] || categoryConfig.other;
 
   return (
-    <main className='min-h-screen pb-28 md:pb-8 bg-paper'>
+    <main className="min-h-screen pb-28 md:pb-8 bg-paper">
       {/* Scrapbook Header */}
-      <div className='pt-6 pb-4 px-4 md:px-6'>
-        <div className='max-w-4xl mx-auto flex items-center justify-between'>
+      <div className="pt-6 pb-4 px-4 md:px-6">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
           <Button
-            variant='ghost'
+            variant="ghost"
             onClick={handleBack}
-            className='hover:bg-washi-mint/20'
+            className="hover:bg-washi-mint/20"
           >
             ← Back
           </Button>
-          <div className='flex gap-2'>
+          <div className="flex gap-2">
             {content.status === "completed" && isEditable && (
               <>
                 <Button
-                  variant='secondary'
-                  size='sm'
+                  variant="secondary"
+                  size="sm"
                   onClick={handleRetryProcessing}
                   disabled={retrying}
-                  className='mt-1 hover:bg-washi-yellow/40'
+                  className="mt-1 hover:bg-washi-yellow/40"
                 >
                   {retrying ? "Retrying..." : "Try Reprocessing"}
                 </Button>
                 {retryFeedback?.type === "success" && (
-                  <p className='text-sm text-muted-foreground mt-2'>
+                  <p className="text-sm text-muted-foreground mt-2">
                     {retryFeedback.message}
                   </p>
                 )}
                 {retryFeedback?.type === "error" && (
-                  <p className='text-sm text-destructive mt-2'>
+                  <p className="text-sm text-destructive mt-2">
                     {retryFeedback.message}
                   </p>
                 )}
                 <Button
-                  variant='ghost'
-                  size='sm'
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setEditing(!editing)}
-                  className='hover:bg-washi-blue/20'
+                  className="hover:bg-washi-blue/20"
                 >
                   {editing ? "Cancel" : "✏️ Edit"}
                 </Button>
                 <Button
-                  variant='ghost'
-                  size='sm'
+                  variant="ghost"
+                  size="sm"
                   onClick={handleDelete}
                   disabled={deleting}
-                  className='text-destructive hover:text-destructive hover:bg-destructive/10'
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
                 >
                   {deleting ? "..." : "🗑️"}
                 </Button>
@@ -387,41 +357,41 @@ export default function ContentDetailPage() {
         </div>
       </div>
 
-      <div className='max-w-4xl mx-auto px-4'>
+      <div className="max-w-4xl mx-auto px-4">
         {/* Processing State */}
         {content.status === "processing" && (
-          <div className='scrapbook-card p-8 text-center mb-8 relative'>
-            <div className='absolute -top-2 left-1/2 -translate-x-1/2 w-20 h-5 bg-washi-yellow/80 transform -rotate-1' />
-            <div className='text-6xl mb-4 animate-wiggle pt-2'>✂️</div>
-            <h2 className='font-handwritten text-2xl mb-2'>Clipping...</h2>
-            <p className='text-muted-foreground mb-4'>
+          <div className="scrapbook-card p-8 text-center mb-8 relative">
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-20 h-5 bg-washi-yellow/80 transform -rotate-1" />
+            <div className="text-6xl mb-4 animate-wiggle pt-2">✂️</div>
+            <h2 className="font-handwritten text-2xl mb-2">Clipping...</h2>
+            <p className="text-muted-foreground mb-4">
               Processing this for you. Almost done!
             </p>
             <Button
-              variant='secondary'
-              size='sm'
+              variant="secondary"
+              size="sm"
               onClick={handleRetryProcessing}
               disabled={retrying}
-              className='mt-1 hover:bg-washi-yellow/40'
+              className="mt-1 hover:bg-washi-yellow/40"
             >
               {retrying ? "Retrying..." : "Try Reprocessing"}
             </Button>
             {retryFeedback?.type === "success" && (
-              <p className='text-sm text-muted-foreground mt-2'>
+              <p className="text-sm text-muted-foreground mt-2">
                 {retryFeedback.message}
               </p>
             )}
             {retryFeedback?.type === "error" && (
-              <p className='text-sm text-destructive mt-2'>
+              <p className="text-sm text-destructive mt-2">
                 {retryFeedback.message}
               </p>
             )}
             <Button
-              variant='ghost'
-              size='sm'
+              variant="ghost"
+              size="sm"
               onClick={handleDelete}
               disabled={deleting}
-              className='text-muted-foreground hover:text-destructive'
+              className="text-muted-foreground hover:text-destructive"
             >
               {deleting ? "Cancelling..." : "Cancel"}
             </Button>
@@ -430,37 +400,37 @@ export default function ContentDetailPage() {
 
         {/* Failed State */}
         {content.status === "failed" && (
-          <div className='scrapbook-card p-8 text-center mb-8 border-destructive/20 relative'>
-            <div className='absolute -top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-washi-coral/80 transform rotate-1' />
-            <div className='text-6xl mb-4 pt-2'>😕</div>
-            <h2 className='font-handwritten text-2xl mb-2'>Oops!</h2>
-            <p className='text-muted-foreground mb-4'>
+          <div className="scrapbook-card p-8 text-center mb-8 border-destructive/20 relative">
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-16 h-5 bg-washi-coral/80 transform rotate-1" />
+            <div className="text-6xl mb-4 pt-2">😕</div>
+            <h2 className="font-handwritten text-2xl mb-2">Oops!</h2>
+            <p className="text-muted-foreground mb-4">
               We couldn&apos;t process this link.
             </p>
             <Button
-              variant='secondary'
-              size='sm'
+              variant="secondary"
+              size="sm"
               onClick={handleRetryProcessing}
               disabled={retrying}
-              className='mt-1 hover:bg-washi-yellow/40'
+              className="mt-1 hover:bg-washi-yellow/40"
             >
               {retrying ? "Retrying..." : "Try Reprocessing"}
             </Button>
             {retryFeedback?.type === "success" && (
-              <p className='text-sm text-muted-foreground mt-2'>
+              <p className="text-sm text-muted-foreground mt-2">
                 {retryFeedback.message}
               </p>
             )}
             {retryFeedback?.type === "error" && (
-              <p className='text-sm text-destructive mt-2'>
+              <p className="text-sm text-destructive mt-2">
                 {retryFeedback.message}
               </p>
             )}
             <Button
-              variant='outline'
+              variant="outline"
               onClick={handleDelete}
               disabled={deleting}
-              className='text-destructive border-destructive/30 hover:bg-destructive/10'
+              className="text-destructive border-destructive/30 hover:bg-destructive/10"
             >
               {deleting ? "Deleting..." : "🗑️ Delete & Try Again"}
             </Button>
@@ -468,43 +438,43 @@ export default function ContentDetailPage() {
         )}
 
         {/* Main Content Card - Polaroid style */}
-        <div className='scrapbook-card overflow-hidden relative'>
+        <div className="scrapbook-card overflow-hidden relative">
           {/* Washi tape decorations */}
-          <div className='absolute -top-2 left-8 w-16 h-5 bg-washi-mint/80 transform -rotate-2 z-10' />
-          <div className='absolute -top-2 right-12 w-14 h-5 bg-washi-pink/80 transform rotate-1 z-10' />
+          <div className="absolute -top-2 left-8 w-16 h-5 bg-washi-mint/80 transform -rotate-2 z-10" />
+          <div className="absolute -top-2 right-12 w-14 h-5 bg-washi-pink/80 transform rotate-1 z-10" />
 
           {content.thumbnail_url && (
-            <div className='p-3 pt-6 pb-0'>
-              <div className='relative h-56 md:h-72 overflow-hidden rounded bg-muted'>
+            <div className="p-3 pt-6 pb-0">
+              <div className="relative h-56 md:h-72 overflow-hidden rounded bg-muted">
                 <Image
                   src={content.thumbnail_url}
                   alt={content.title}
                   fill
-                  className='object-cover'
+                  className="object-cover"
                 />
               </div>
             </div>
           )}
 
           {/* Sticker badge / Category selector */}
-          <div className='px-4 pt-3'>
+          <div className="px-4 pt-3">
             {editing ? (
-              <div className='relative inline-block'>
+              <div className="relative inline-block">
                 <select
                   value={editCategory}
                   onChange={(e) => setEditCategory(e.target.value)}
-                  className='text-sm pl-4 pr-10 py-2 rounded-full bg-white border border-border font-medium cursor-pointer appearance-none'
+                  className="text-sm pl-4 pr-10 py-2 rounded-full bg-white border border-border font-medium cursor-pointer appearance-none"
                 >
-                  <option value='meal'>🍽️ Recipe</option>
-                  <option value='drink'>🍹 Drink</option>
-                  <option value='event'>🎉 Event</option>
-                  <option value='date_idea'>💕 Date Idea</option>
-                  <option value='gift_idea'>🎁 Gift Idea</option>
-                  <option value='travel'>✈️ Travel</option>
-                  <option value='other'>📌 Other</option>
+                  <option value="meal">🍽️ Recipe</option>
+                  <option value="drink">🍹 Drink</option>
+                  <option value="event">🎉 Event</option>
+                  <option value="date_idea">💕 Date Idea</option>
+                  <option value="gift_idea">🎁 Gift Idea</option>
+                  <option value="travel">✈️ Travel</option>
+                  <option value="other">📌 Other</option>
                 </select>
-                <span className='absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground text-xs'>
-                  <ChevronDownIcon className='w-4 h-4' />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground text-xs">
+                  <ChevronDownIcon className="w-4 h-4" />
                 </span>
               </div>
             ) : (
@@ -516,33 +486,33 @@ export default function ContentDetailPage() {
             )}
           </div>
 
-          <div className='px-4 pt-3 pb-2'>
+          <div className="px-4 pt-3 pb-2">
             {editing ? (
-              <div className='flex gap-2'>
+              <div className="flex gap-2">
                 <Input
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
-                  className='text-xl font-bold bg-white border-border'
-                  placeholder='Title'
+                  className="text-xl font-bold bg-white border-border"
+                  placeholder="Title"
                 />
                 <Button
                   onClick={handleSave}
                   disabled={saving}
-                  className='bg-primary hover:bg-primary/90'
+                  className="bg-primary hover:bg-primary/90"
                 >
                   {saving ? "..." : "Save"}
                 </Button>
               </div>
             ) : (
-              <h1 className='text-xl md:text-2xl font-semibold'>
+              <h1 className="text-xl md:text-2xl font-semibold">
                 {content.title}
               </h1>
             )}
 
             {/* Tags Section */}
             {isEditable && (
-              <div className='mt-4'>
-                <p className='text-sm text-muted-foreground mb-2 font-handwritten'>
+              <div className="mt-4">
+                <p className="text-sm text-muted-foreground mb-2 font-handwritten">
                   Tags
                 </p>
                 <TagPills
@@ -558,7 +528,7 @@ export default function ContentDetailPage() {
             )}
           </div>
 
-          <div className='px-4 pb-4 space-y-6'>
+          <div className="px-4 pb-4 space-y-6">
             {/* Category-specific content */}
             {content.category === "meal" && (
               <MealContent data={content.data as MealData} />
@@ -584,12 +554,12 @@ export default function ContentDetailPage() {
 
             {/* Link to original content (not shown for image-only content) */}
             {!isImageOnlyContent(content.tiktok_url) && (
-              <div className='pt-4 border-t border-border'>
+              <div className="pt-4 border-t border-border">
                 <a
                   href={content.tiktok_url}
-                  target='_blank'
-                  rel='noopener noreferrer'
-                  className='inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors'
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                 >
                   {getSourceLinkText(content.tiktok_url)}
                 </a>
@@ -597,7 +567,7 @@ export default function ContentDetailPage() {
             )}
 
             {/* Metadata */}
-            <p className='text-sm text-muted-foreground'>
+            <p className="text-sm text-muted-foreground">
               Saved on {new Date(content.created_at).toLocaleDateString()}
             </p>
           </div>

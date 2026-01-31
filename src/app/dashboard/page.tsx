@@ -5,64 +5,42 @@ import { AddToHomeScreenPrompt } from "@/components/add-to-homescreen-button";
 import { CategoryTabs } from "@/components/category-tabs";
 import { NamePromptModal } from "@/components/name-prompt-modal";
 import { Button } from "@/components/ui/button";
-import type { ContentWithTags, Tag } from "@/lib/supabase";
+import { useContent } from "@/hooks/useContent";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "./useSession";
 
+// Initialize tip visibility from localStorage
+function getInitialTipVisibility() {
+  if (typeof window === "undefined") return true;
+  return !localStorage.getItem("tipDismissed");
+}
+
 export default function Dashboard() {
-  const [content, setContent] = useState<ContentWithTags[]>([]);
-  const [tags, setTags] = useState<Tag[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [showTip, setShowTip] = useState(true);
+  const [showTip, setShowTip] = useState(getInitialTipVisibility);
   const [showNamePrompt, setShowNamePrompt] = useState(false);
-  const router = useRouter();
 
-  // Check if tip was dismissed
-  useEffect(() => {
-    const dismissed = localStorage.getItem("tipDismissed");
-    if (dismissed) setShowTip(false);
-  }, []);
+  // Session management with SWR
+  const { user, isLoading: sessionLoading } = useSession();
 
+  // Content fetching with SWR - only fetch when session is validated
+  const {
+    content,
+    tags,
+    isLoading: contentLoading,
+    isValidating,
+    error,
+    mutate: mutateContent,
+  } = useContent({ enabled: !!user });
 
+  // Combined loading state - show loading only on initial load, not revalidation
+  const isInitialLoading =
+    sessionLoading || (!!user && contentLoading && content.length === 0);
 
   const dismissTip = () => {
     setShowTip(false);
     localStorage.setItem("tipDismissed", "true");
   };
-
-  const fetchContent = useCallback(async () => {
-    try {
-      const res = await fetch("/api/content?includeTags=true");
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (res.status === 401) {
-          router.push("/");
-          return;
-        }
-        throw new Error(data.error || "Failed to fetch content");
-      }
-
-      setContent(data.content);
-      if (data.tags) {
-        setTags(data.tags);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load content");
-    }
-  }, [router]);
-
-  const onFinishLoading = useCallback(() => {
-    setLoading(false);
-  }, []);
-
-  const { user } = useSession({
-    onSuccess: fetchContent,
-    onFinishLoading: onFinishLoading,
-  });
 
   // Check if user needs to set their name
   useEffect(() => {
@@ -96,30 +74,42 @@ export default function Dashboard() {
     if (!hasProcessing) return;
 
     const interval = setInterval(() => {
-      fetchContent();
+      mutateContent();
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [content, fetchContent]);
+  }, [content, mutateContent]);
 
-  const handleRefresh = async () => {
-    setLoading(true);
-    await fetchContent();
-    setLoading(false);
+  const handleRefresh = () => {
+    mutateContent();
   };
 
   const handleDismissContent = async (contentId: string) => {
+    // Optimistic update - remove from cache immediately
+    mutateContent(
+      (currentData) => {
+        if (!currentData) return currentData;
+        return {
+          ...currentData,
+          content: currentData.content.filter((c) => c.id !== contentId),
+        };
+      },
+      { revalidate: false }
+    );
+
     try {
       const res = await fetch(`/api/content/${contentId}`, {
         method: "DELETE",
       });
 
-      if (res.ok) {
-        // Remove from local state immediately for better UX
-        setContent((prev) => prev.filter((c) => c.id !== contentId));
+      if (!res.ok) {
+        // Revalidate to restore state if delete failed
+        mutateContent();
       }
     } catch (error) {
       console.error("Failed to dismiss content:", error);
+      // Revalidate to restore state on error
+      mutateContent();
     }
   };
 
@@ -130,7 +120,7 @@ export default function Dashboard() {
   const processingCount = processingItems.length;
   const failedCount = failedItems.length;
 
-  if (loading) {
+  if (isInitialLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-paper">
         <div className="text-center">
@@ -173,10 +163,10 @@ export default function Dashboard() {
                 variant="ghost"
                 size="sm"
                 onClick={handleRefresh}
-                disabled={loading}
+                disabled={isValidating}
                 className="hover:bg-washi-mint/20"
               >
-                🔄
+                {isValidating ? "..." : "🔄"}
               </Button>
             </div>
           </div>
@@ -317,7 +307,7 @@ export default function Dashboard() {
         {error ? (
           <div className="text-center py-12 scrapbook-card">
             <p className="text-destructive mb-4 font-handwritten text-xl">
-              {error}
+              Failed to load content
             </p>
             <Button onClick={handleRefresh}>Try Again</Button>
           </div>

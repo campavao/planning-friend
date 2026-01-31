@@ -1,4 +1,5 @@
 import { BottomNav } from "@/components/bottom-nav";
+import { SWRProvider } from "@/lib/swr-config";
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { Crimson_Text, JetBrains_Mono, Lato } from "next/font/google";
@@ -64,12 +65,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang='en'>
+    <html lang="en">
       <body
         className={`${lato.variable} ${jetbrainsMono.variable} ${crimsonText.variable} font-sans antialiased min-h-screen bg-paper`}
       >
-        {children}
-        <BottomNav />
+        <SWRProvider>
+          {children}
+          <BottomNav />
+        </SWRProvider>
         <Analytics />
       </body>
     </html>
