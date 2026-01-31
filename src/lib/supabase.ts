@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { formatDateString } from "./utils";
+import { formatDateString, parseDateString } from "./utils";
 import { checkVerifyOtp, sendVerifyOtp } from "./twilio";
 
 // ==================== Phone Auth (OTP via Twilio Verify) ====================
@@ -1876,10 +1876,10 @@ export async function getSharedItemsForUser(
 ): Promise<SharedPlanItem[]> {
   const supabase = createServerClient();
 
-  // Calculate week end (7 days from start)
-  const startDate = new Date(weekStart);
-  const endDate = new Date(startDate);
-  endDate.setDate(endDate.getDate() + 6);
+  // Calculate recipient's week range
+  const recipientWeekStart = parseDateString(weekStart);
+  const recipientWeekEnd = new Date(recipientWeekStart);
+  recipientWeekEnd.setDate(recipientWeekEnd.getDate() + 6);
 
   // Get all items shared with this user
   const { data: shares, error: sharesError } = await supabase
@@ -1927,25 +1927,38 @@ export async function getSharedItemsForUser(
     };
     const owner = share.users as unknown as User;
 
-    // Get the plan to check the week_start
+    // Get the owner's plan to get their week_start
     const { data: plan } = await supabase
       .from("weekly_plans")
       .select("week_start")
       .eq("id", planItem.plan_id)
       .single();
 
-    if (plan && plan.week_start === weekStart) {
-      // Calculate the actual date
-      const itemDate = new Date(weekStart);
+    if (plan) {
+      // Calculate the actual calendar date of this item
+      // using the owner's week_start + day_of_week offset
+      const ownerWeekStart = parseDateString(plan.week_start);
+      const itemDate = new Date(ownerWeekStart);
       itemDate.setDate(itemDate.getDate() + planItem.day_of_week);
 
-      sharedItems.push({
-        ...planItem,
-        owner_user_id: share.owner_user_id,
-        owner_name: owner?.name || owner?.phone_number?.slice(-4) || "Friend",
-        shared_date: itemDate.toISOString().split("T")[0],
-        is_shared: true,
-      });
+      // Check if this date falls within the recipient's requested week
+      if (itemDate >= recipientWeekStart && itemDate <= recipientWeekEnd) {
+        // Calculate the day slot for the recipient's week view
+        const recipientDayOfWeek = Math.round(
+          (itemDate.getTime() - recipientWeekStart.getTime()) /
+            (1000 * 60 * 60 * 24)
+        );
+
+        sharedItems.push({
+          ...planItem,
+          // Override day_of_week with the recipient's slot position
+          day_of_week: recipientDayOfWeek,
+          owner_user_id: share.owner_user_id,
+          owner_name: owner?.name || owner?.phone_number?.slice(-4) || "Friend",
+          shared_date: formatDateString(itemDate),
+          is_shared: true,
+        });
+      }
     }
   }
 

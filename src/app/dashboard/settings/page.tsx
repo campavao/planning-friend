@@ -8,8 +8,19 @@ import { AddToHomeScreenButton } from "@/components/add-to-homescreen-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { getWeekStartDay, setWeekStartDay } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+
+const WEEK_START_OPTIONS = [
+  { value: 0, label: "Sunday" },
+  { value: 1, label: "Monday" },
+  { value: 2, label: "Tuesday" },
+  { value: 3, label: "Wednesday" },
+  { value: 4, label: "Thursday" },
+  { value: 5, label: "Friday" },
+  { value: 6, label: "Saturday" },
+];
 
 interface UserSettings {
   home_region?: string;
@@ -26,6 +37,7 @@ export default function SettingsPage() {
   const [userName, setUserName] = useState("");
   const [savingName, setSavingName] = useState(false);
   const [nameMessage, setNameMessage] = useState("");
+  const [weekStartDayValue, setWeekStartDayValue] = useState(0);
   const router = useRouter();
   const {
     permission,
@@ -37,6 +49,11 @@ export default function SettingsPage() {
     unsubscribe,
     isSupported,
   } = usePushNotifications();
+
+  // Load week start preference from localStorage on mount
+  useEffect(() => {
+    setWeekStartDayValue(getWeekStartDay());
+  }, []);
 
   useEffect(() => {
     async function fetchSettings() {
@@ -71,6 +88,11 @@ export default function SettingsPage() {
     }
     fetchSettings();
   }, [router]);
+
+  const handleWeekStartChange = (value: number) => {
+    setWeekStartDayValue(value);
+    setWeekStartDay(value);
+  };
 
   const handleSaveName = async () => {
     if (!userName.trim()) return;
@@ -259,6 +281,43 @@ export default function SettingsPage() {
                   {message}
                 </span>
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* Calendar Preferences */}
+        <div className='scrapbook-card p-5 relative'>
+          <div className='absolute -top-2 right-12 w-14 h-5 bg-washi-coral/80 transform rotate-2' />
+
+          <div className='flex items-center gap-3 mb-4 pt-2'>
+            <span className='text-2xl'>📅</span>
+            <div>
+              <h2 className='font-handwritten text-2xl'>Calendar Preferences</h2>
+              <p className='text-sm text-muted-foreground'>
+                Customize how your weekly planner is displayed
+              </p>
+            </div>
+          </div>
+
+          <div className='space-y-4'>
+            <div>
+              <label className='text-sm font-medium mb-2 block'>
+                Week starts on
+              </label>
+              <select
+                value={weekStartDayValue}
+                onChange={(e) => handleWeekStartChange(Number(e.target.value))}
+                className='w-full max-w-xs px-3 py-2 bg-white border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/20'
+              >
+                {WEEK_START_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <p className='text-xs text-muted-foreground mt-2'>
+                Changes take effect immediately when you view the planner
+              </p>
             </div>
           </div>
         </div>

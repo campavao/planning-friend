@@ -15,7 +15,13 @@ import type {
   Tag,
   WeeklyPlanWithItems,
 } from "@/lib/supabase";
-import { formatDateString, parseDateString } from "@/lib/utils";
+import {
+  formatDateString,
+  getOrderedDays,
+  getWeekStartDay,
+  getWeekStartForDate,
+  parseDateString,
+} from "@/lib/utils";
 import html2canvas from "html2canvas";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -27,17 +33,6 @@ import {
   useRef,
   useState,
 } from "react";
-
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const DAYS_FULL = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-];
 
 const CATEGORY_EMOJI: Record<string, string> = {
   meal: "🍽️",
@@ -158,6 +153,15 @@ function PlannerContent() {
   const [quickNoteInput, setQuickNoteInput] = useState("");
   const [addingQuickNote, setAddingQuickNote] = useState(false);
 
+  // Week start day preference (0=Sunday, 1=Monday, etc.)
+  const weekStartDay = useMemo(() => getWeekStartDay(), []);
+
+  // Dynamic day name arrays based on user's week start preference
+  const { days: DAYS, daysFull: DAYS_FULL } = useMemo(
+    () => getOrderedDays(weekStartDay),
+    [weekStartDay]
+  );
+
   // Persistent filter state
   const storedFilters = useMemo(() => getStoredFilters(), []);
   const [searchQuery, setSearchQuery] = useState(storedFilters.searchQuery);
@@ -221,15 +225,9 @@ function PlannerContent() {
     }
   };
 
-  const getCurrentWeekStart = () => {
-    const now = new Date();
-    const day = now.getDay();
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-    const monday = new Date(now);
-    monday.setDate(diff);
-    monday.setHours(0, 0, 0, 0);
-    return formatDateString(monday);
-  };
+  const getCurrentWeekStart = useCallback(() => {
+    return getWeekStartForDate(new Date(), weekStartDay);
+  }, [weekStartDay]);
 
   const fetchPlanner = useCallback(
     async (week: string, useCache = true) => {
@@ -321,7 +319,7 @@ function PlannerContent() {
 
   const addQuickNote = async (dayOfWeek: number) => {
     if (!quickNoteInput.trim()) return;
-    
+
     setAddingQuickNote(true);
     try {
       const res = await fetch("/api/planner", {
