@@ -313,8 +313,8 @@ export default function FriendsPage() {
   return (
     <main className="min-h-screen pb-28 md:pb-8 bg-[var(--background)]">
       {/* Header */}
-      <div className="bg-gradient-to-br from-[var(--secondary)] to-[var(--secondary-dark)] px-4 py-5">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
+      <div className="bg-[var(--secondary)] px-4 py-5">
+        <div className="max-w-4xl mx-auto flex items-center gap-4">
           <Link href="/dashboard" className="hidden md:inline-flex">
             <Button
               variant="ghost"
@@ -324,11 +324,9 @@ export default function FriendsPage() {
               Back
             </Button>
           </Link>
-          <div className="md:hidden w-16" />
           <h1 className="heading-1 text-white">
             Friends
           </h1>
-          <div className="hidden md:block w-20" />
         </div>
       </div>
 
