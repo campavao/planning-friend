@@ -170,69 +170,69 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="brutal-loading w-32">
-          <div className="brutal-loading-bar" />
-        </div>
+        <div className="loading-spinner" />
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen pb-28 md:pb-8 bg-background">
+    <main className="min-h-screen pb-28 md:pb-8 bg-[var(--background)]">
       {/* Header */}
-      <div className="brutal-header">
+      <div className="bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] px-4 py-5">
         <div className="max-w-4xl mx-auto">
-          <h1 className="font-mono text-3xl md:text-4xl font-bold tracking-tight">
-            CONFIG
+          <h1 className="heading-1 text-white">
+            Settings
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">
+          <p className="text-white/80 text-sm mt-1">
             Customize your experience
           </p>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
         {/* Profile / Name */}
-        <div className="brutal-card-static">
-          <div className="p-5 border-b-[3px] border-border bg-accent flex items-center gap-3">
-            <User className="w-6 h-6" />
+        <div className="card-elevated">
+          <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center">
+              <User className="w-5 h-5 text-[var(--primary)]" />
+            </div>
             <div>
-              <h2 className="font-mono text-xl font-bold uppercase">
+              <h2 className="font-semibold text-base">
                 Your Profile
               </h2>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Shown to friends when you share plans
               </p>
             </div>
           </div>
 
-          <div className="p-5 space-y-4">
+          <div className="p-4 space-y-4">
             <div>
-              <label className="text-sm font-bold font-mono uppercase mb-2 block">
+              <label className="text-sm font-medium mb-1.5 block">
                 Your Name
               </label>
               <Input
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
                 placeholder="Enter your name"
-                className="brutal-input"
+                className="input-modern"
                 maxLength={100}
               />
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <Button
                 onClick={handleSaveName}
                 disabled={savingName || !userName.trim()}
-                className="brutal-btn"
+                className="btn-primary"
               >
                 {savingName ? "Saving..." : "Save Name"}
               </Button>
               {nameMessage && (
                 <span
-                  className={`text-sm font-bold font-mono ${
+                  className={`text-sm font-medium ${
                     nameMessage.includes("Failed")
                       ? "text-destructive"
-                      : "text-primary"
+                      : "text-[var(--primary)]"
                   }`}
                 >
                   {nameMessage}
@@ -243,52 +243,54 @@ export default function SettingsPage() {
         </div>
 
         {/* Home Location */}
-        <div className="brutal-card-static">
-          <div className="p-5 border-b-[3px] border-border bg-accent flex items-center gap-3">
-            <MapPin className="w-6 h-6" />
+        <div className="card-elevated">
+          <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[var(--secondary)]/10 flex items-center justify-center">
+              <MapPin className="w-5 h-5 text-[var(--secondary)]" />
+            </div>
             <div>
-              <h2 className="font-mono text-xl font-bold uppercase">
+              <h2 className="font-semibold text-base">
                 Home Location
               </h2>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Places outside this will be marked as Travel
               </p>
             </div>
           </div>
 
-          <div className="p-5 space-y-4">
+          <div className="p-4 space-y-4">
             <div>
-              <label className="text-sm font-bold font-mono uppercase mb-2 block">
+              <label className="text-sm font-medium mb-1.5 block">
                 City / Region
               </label>
               <Input
                 value={homeRegion}
                 onChange={(e) => setHomeRegion(e.target.value)}
                 placeholder="e.g., Chicago, IL"
-                className="brutal-input"
+                className="input-modern"
               />
             </div>
             <div>
-              <label className="text-sm font-bold font-mono uppercase mb-2 block">
+              <label className="text-sm font-medium mb-1.5 block">
                 Country
               </label>
               <Input
                 value={homeCountry}
                 onChange={(e) => setHomeCountry(e.target.value)}
                 placeholder="e.g., United States"
-                className="brutal-input"
+                className="input-modern"
               />
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <Button
                 onClick={handleSave}
                 disabled={saving}
-                className="brutal-btn"
+                className="btn-primary"
               >
                 {saving ? "Saving..." : "Save Location"}
               </Button>
               {message && (
-                <span className="text-sm text-primary font-bold font-mono">
+                <span className="text-sm text-[var(--primary)] font-medium">
                   {message}
                 </span>
               )}
@@ -297,22 +299,24 @@ export default function SettingsPage() {
         </div>
 
         {/* Calendar Preferences */}
-        <div className="brutal-card-static">
-          <div className="p-5 border-b-[3px] border-border bg-accent flex items-center gap-3">
-            <Calendar className="w-6 h-6" />
+        <div className="card-elevated">
+          <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[var(--accent)]/20 flex items-center justify-center">
+              <Calendar className="w-5 h-5 text-[var(--accent)]" />
+            </div>
             <div>
-              <h2 className="font-mono text-xl font-bold uppercase">
+              <h2 className="font-semibold text-base">
                 Calendar Preferences
               </h2>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Customize your weekly planner display
               </p>
             </div>
           </div>
 
-          <div className="p-5 space-y-4">
+          <div className="p-4 space-y-4">
             <div>
-              <label className="text-sm font-bold font-mono uppercase mb-2 block">
+              <label className="text-sm font-medium mb-1.5 block">
                 Week starts on
               </label>
               <div className="relative w-full max-w-xs">
@@ -321,7 +325,7 @@ export default function SettingsPage() {
                   onChange={(e) =>
                     handleWeekStartChange(Number(e.target.value))
                   }
-                  className="brutal-input w-full pr-10 appearance-none cursor-pointer"
+                  className="input-modern w-full pr-10 appearance-none cursor-pointer"
                 >
                   {WEEK_START_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -329,9 +333,9 @@ export default function SettingsPage() {
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" />
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-muted-foreground" />
               </div>
-              <p className="text-xs text-muted-foreground mt-2 font-mono">
+              <p className="text-xs text-muted-foreground mt-2">
                 Changes take effect immediately
               </p>
             </div>
@@ -339,20 +343,22 @@ export default function SettingsPage() {
         </div>
 
         {/* Push Notifications */}
-        <div className="brutal-card-static">
-          <div className="p-5 border-b-[3px] border-border bg-accent flex items-center gap-3">
-            <Bell className="w-6 h-6" />
+        <div className="card-elevated">
+          <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+              <Bell className="w-5 h-5 text-blue-500" />
+            </div>
             <div>
-              <h2 className="font-mono text-xl font-bold uppercase">
+              <h2 className="font-semibold text-base">
                 Notifications
               </h2>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Get notified when content finishes processing
               </p>
             </div>
           </div>
 
-          <div className="p-5">
+          <div className="p-4">
             {!isSupported ? (
               <p className="text-sm text-muted-foreground">
                 Push notifications are not supported in this browser.
@@ -365,14 +371,14 @@ export default function SettingsPage() {
             ) : (
               <div className="space-y-3">
                 {permission === "denied" ? (
-                  <p className="text-sm text-amber-600 font-mono">
+                  <p className="text-sm text-amber-600">
                     Notifications are blocked. Enable them in browser settings.
                   </p>
                 ) : isSubscribed ? (
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 bg-green-500 animate-pulse" />
-                      <span className="text-sm text-muted-foreground font-mono">
+                      <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                      <span className="text-sm text-muted-foreground">
                         Enabled
                       </span>
                     </div>
@@ -381,7 +387,7 @@ export default function SettingsPage() {
                       size="sm"
                       onClick={unsubscribe}
                       disabled={pushLoading}
-                      className="border-2 border-border"
+                      className="rounded-lg border-[var(--border)]"
                     >
                       {pushLoading ? "..." : "Turn Off"}
                     </Button>
@@ -390,14 +396,14 @@ export default function SettingsPage() {
                   <Button
                     onClick={subscribe}
                     disabled={pushLoading}
-                    className="brutal-btn"
+                    className="btn-primary"
                   >
                     <Bell className="w-4 h-4 mr-2" />
                     {pushLoading ? "Enabling..." : "Enable Notifications"}
                   </Button>
                 )}
                 {pushError && (
-                  <p className="text-sm text-destructive font-mono">
+                  <p className="text-sm text-destructive">
                     {pushError}
                   </p>
                 )}
@@ -407,24 +413,26 @@ export default function SettingsPage() {
         </div>
 
         {/* Planner Sharing */}
-        <div className="brutal-card-static">
-          <div className="p-5 border-b-[3px] border-border bg-accent flex items-center gap-3">
-            <Users className="w-6 h-6" />
+        <div className="card-elevated">
+          <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
+              <Users className="w-5 h-5 text-purple-500" />
+            </div>
             <div>
-              <h2 className="font-mono text-xl font-bold uppercase">
+              <h2 className="font-semibold text-base">
                 Planner Sharing
               </h2>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Share your weekly planner with friends
               </p>
             </div>
           </div>
 
-          <div className="p-5">
+          <div className="p-4">
             <Button
               variant="outline"
               onClick={() => router.push("/dashboard/planner")}
-              className="border-[3px] border-border hover:bg-accent"
+              className="rounded-xl border-[var(--border)] hover:bg-[var(--muted)]"
             >
               <Calendar className="w-4 h-4 mr-2" />
               Go to Planner
@@ -433,17 +441,19 @@ export default function SettingsPage() {
         </div>
 
         {/* About */}
-        <div className="brutal-card-static">
-          <div className="p-5 border-b-[3px] border-border bg-accent flex items-center gap-3">
-            <Info className="w-6 h-6" />
+        <div className="card-elevated">
+          <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[var(--muted)] flex items-center justify-center">
+              <Info className="w-5 h-5 text-muted-foreground" />
+            </div>
             <div>
-              <h2 className="font-mono text-xl font-bold uppercase">
+              <h2 className="font-semibold text-base">
                 About Planning Friend
               </h2>
             </div>
           </div>
 
-          <div className="p-5 space-y-4">
+          <div className="p-4 space-y-4">
             <p className="text-sm text-muted-foreground">
               Your personal assistant for collecting and organizing ideas from
               social media. Text links to save meals, events, date ideas, and
@@ -454,35 +464,37 @@ export default function SettingsPage() {
               <AddContactButton variant="button" />
               <AddToHomeScreenButton variant="button" />
             </div>
-            <p className="text-sm text-muted-foreground font-mono">
+            <p className="text-sm text-muted-foreground">
               Text links to <PhoneNumberDisplay /> to save content
             </p>
 
-            <p className="text-xs text-muted-foreground font-mono">
+            <p className="text-xs text-muted-foreground">
               Version 1.0
             </p>
           </div>
         </div>
 
         {/* Sign Out */}
-        <div className="brutal-card-static border-destructive">
-          <div className="p-5 border-b-[3px] border-destructive bg-red-50 flex items-center gap-3">
-            <Hand className="w-6 h-6 text-destructive" />
+        <div className="card-elevated border-red-200">
+          <div className="p-4 border-b border-red-200 bg-red-50 rounded-t-2xl flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+              <Hand className="w-5 h-5 text-destructive" />
+            </div>
             <div>
-              <h2 className="font-mono text-xl font-bold uppercase text-destructive">
+              <h2 className="font-semibold text-base text-destructive">
                 Sign Out
               </h2>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Sign out of this device
               </p>
             </div>
           </div>
 
-          <div className="p-5">
+          <div className="p-4">
             <Button
               variant="outline"
               onClick={handleLogout}
-              className="border-[3px] border-destructive text-destructive hover:bg-destructive/10"
+              className="rounded-xl border-red-200 text-destructive hover:bg-red-50"
             >
               <LogOut className="w-4 h-4 mr-2" />
               Sign Out

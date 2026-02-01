@@ -184,29 +184,27 @@ export default function GiftPlannerPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="brutal-loading w-32">
-          <div className="brutal-loading-bar" />
-        </div>
+        <div className="loading-spinner" />
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen pb-28 md:pb-8 bg-background">
+    <main className="min-h-screen pb-28 md:pb-8 bg-[var(--background)]">
       {/* Header */}
-      <div className="brutal-header">
+      <div className="bg-gradient-to-br from-[var(--accent)] to-[var(--accent-dark)] px-4 py-5">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <Link href="/dashboard">
             <Button
               variant="ghost"
-              className="border-[3px] border-border hover:bg-card"
+              className="text-white hover:bg-white/10 rounded-xl"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
           </Link>
-          <h1 className="font-mono text-2xl md:text-3xl font-bold uppercase">
-            Gift_Ideas
+          <h1 className="heading-1 text-white">
+            Gift Ideas
           </h1>
           <div className="w-20" />
         </div>
@@ -214,10 +212,12 @@ export default function GiftPlannerPage() {
 
       <div className="max-w-4xl mx-auto px-3 md:px-4 py-6">
         {/* Add New Person */}
-        <div className="brutal-card-static mb-6">
-          <div className="p-4 border-b-[3px] border-border bg-accent">
-            <h2 className="font-mono text-lg font-bold uppercase flex items-center gap-2">
-              <Plus className="w-5 h-5" />
+        <div className="card-elevated mb-6">
+          <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl">
+            <h2 className="font-semibold text-base flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center">
+                <Plus className="w-4 h-4 text-[var(--accent)]" />
+              </div>
               Add a Person
             </h2>
           </div>
@@ -227,9 +227,9 @@ export default function GiftPlannerPage() {
               value={newRecipientName}
               onChange={(e) => setNewRecipientName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addRecipient()}
-              className="brutal-input flex-1"
+              className="input-modern flex-1"
             />
-            <Button onClick={addRecipient} className="brutal-btn">
+            <Button onClick={addRecipient} className="btn-secondary">
               <Gift className="w-4 h-4 mr-2" />
               Add
             </Button>
@@ -238,12 +238,14 @@ export default function GiftPlannerPage() {
 
         {/* Recipients List */}
         {recipients.length === 0 ? (
-          <div className="brutal-card-static p-8 text-center">
-            <Gift className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="font-mono text-xl font-bold uppercase mb-2">
+          <div className="card-elevated p-8 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--accent)]/10 flex items-center justify-center">
+              <Gift className="w-8 h-8 text-[var(--accent)]" />
+            </div>
+            <h3 className="font-semibold text-lg mb-2">
               No people added yet
             </h3>
-            <p className="text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Add people you want to give gifts to, then assign gift ideas to
               them.
             </p>
@@ -251,8 +253,8 @@ export default function GiftPlannerPage() {
         ) : (
           <div className="space-y-4">
             {recipients.map((recipient) => (
-              <Card key={recipient.id} className="brutal-card-static overflow-hidden">
-                <CardHeader className="pb-2 border-b-[3px] border-border bg-card">
+              <Card key={recipient.id} className="card-elevated overflow-hidden">
+                <CardHeader className="pb-3 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl">
                   <div className="flex items-center justify-between">
                     {editingId === recipient.id ? (
                       <div className="flex gap-2 flex-1 mr-2">
@@ -262,13 +264,13 @@ export default function GiftPlannerPage() {
                           onKeyDown={(e) =>
                             e.key === "Enter" && updateRecipient(recipient.id)
                           }
-                          className="brutal-input flex-1"
+                          className="input-modern flex-1"
                           autoFocus
                         />
                         <Button
                           size="sm"
                           onClick={() => updateRecipient(recipient.id)}
-                          className="brutal-btn"
+                          className="btn-primary"
                         >
                           Save
                         </Button>
@@ -276,17 +278,19 @@ export default function GiftPlannerPage() {
                           size="sm"
                           variant="ghost"
                           onClick={() => setEditingId(null)}
-                          className="border-2 border-border"
+                          className="rounded-lg border border-[var(--border)]"
                         >
                           Cancel
                         </Button>
                       </div>
                     ) : (
                       <>
-                        <CardTitle className="text-xl flex items-center gap-2">
-                          <User className="w-5 h-5" />
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-[var(--muted)] flex items-center justify-center">
+                            <User className="w-4 h-4" />
+                          </div>
                           {recipient.name}
-                          <Badge className="brutal-badge ml-2">
+                          <Badge className="badge ml-2 bg-[var(--accent)]/10 text-[var(--accent)]">
                             {recipient.assignments.length} gift
                             {recipient.assignments.length !== 1 ? "s" : ""}
                           </Badge>
@@ -299,14 +303,14 @@ export default function GiftPlannerPage() {
                               setEditingId(recipient.id);
                               setEditName(recipient.name);
                             }}
-                            className="border-2 border-border"
+                            className="rounded-lg hover:bg-[var(--muted)]"
                           >
                             <Pencil className="w-4 h-4" />
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="border-2 border-destructive text-destructive"
+                            className="rounded-lg text-destructive hover:bg-red-50"
                             onClick={() => deleteRecipient(recipient.id)}
                           >
                             <Trash2 className="w-4 h-4" />
@@ -316,7 +320,7 @@ export default function GiftPlannerPage() {
                     )}
                   </div>
                 </CardHeader>
-                <CardContent className="pt-4">
+                <CardContent className="pt-4 bg-white rounded-b-2xl">
                   {/* Assigned Gifts */}
                   {recipient.assignments.length > 0 && (
                     <div className="space-y-2 mb-4">
@@ -327,21 +331,21 @@ export default function GiftPlannerPage() {
                           return (
                             <div
                               key={assignment.id}
-                              className="group flex items-center gap-3 brutal-card-static p-3"
+                              className="group flex items-center gap-3 bg-[var(--muted)] rounded-xl p-3"
                             >
                               {assignment.content?.thumbnail_url && (
                                 <img
                                   src={assignment.content.thumbnail_url}
                                   alt=""
-                                  className="w-12 h-12 object-cover shrink-0 border-2 border-border"
+                                  className="w-12 h-12 object-cover shrink-0 rounded-lg"
                                 />
                               )}
                               <div className="flex-1 min-w-0">
-                                <p className="font-medium line-clamp-1">
+                                <p className="font-medium text-sm line-clamp-1">
                                   {assignment.content?.title}
                                 </p>
                                 {giftData?.cost && (
-                                  <p className="text-sm font-mono text-gift font-bold">
+                                  <p className="text-sm text-[var(--accent)] font-semibold">
                                     {giftData.cost}
                                   </p>
                                 )}
@@ -352,7 +356,7 @@ export default function GiftPlannerPage() {
                                     href={giftData.amazon_link}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-xs text-orange-500 hover:underline flex items-center gap-1 font-mono"
+                                    className="text-xs text-orange-500 hover:underline flex items-center gap-1"
                                   >
                                     <ShoppingCart className="w-3 h-3" />
                                     Amazon
@@ -362,7 +366,7 @@ export default function GiftPlannerPage() {
                                   onClick={() =>
                                     removeAssignment(assignment.id)
                                   }
-                                  className="text-destructive hover:bg-destructive/20 p-1 text-xs opacity-0 group-hover:opacity-100 transition-opacity border border-destructive"
+                                  className="text-destructive hover:bg-red-50 p-1 rounded-lg text-xs opacity-0 group-hover:opacity-100 transition-opacity"
                                 >
                                   <X className="w-4 h-4" />
                                 </button>
@@ -378,7 +382,7 @@ export default function GiftPlannerPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full border-2 border-dashed border-border hover:bg-accent"
+                    className="w-full border-2 border-dashed border-[var(--border)] rounded-xl hover:bg-[var(--muted)]"
                     onClick={() => setAssigningTo(recipient.id)}
                   >
                     <Plus className="w-4 h-4 mr-2" />
@@ -392,8 +396,8 @@ export default function GiftPlannerPage() {
 
         {/* Empty State for Gift Ideas */}
         {giftIdeas.length === 0 && recipients.length > 0 && (
-          <div className="brutal-card-static p-6 mt-6 text-center">
-            <p className="text-muted-foreground">
+          <div className="card-elevated p-6 mt-6 text-center">
+            <p className="text-sm text-muted-foreground">
               No gift ideas saved yet. Text a TikTok or Instagram with product
               recommendations to save gift ideas!
             </p>
@@ -403,10 +407,10 @@ export default function GiftPlannerPage() {
 
       {/* Assign Gift Modal */}
       {assigningTo !== null && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
-          <div className="brutal-card-static w-full md:max-w-lg max-h-[80vh] flex flex-col">
-            <div className="p-4 border-b-[3px] border-border flex items-center justify-between bg-accent">
-              <h3 className="font-bold font-mono uppercase">
+        <div className="fixed inset-0 modal-backdrop z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+          <div className="bg-[var(--card)] w-full md:max-w-lg md:rounded-2xl rounded-t-2xl max-h-[80vh] flex flex-col shadow-xl">
+            <div className="p-4 border-b border-[var(--border)] flex items-center justify-between bg-gradient-to-r from-[var(--accent)] to-[var(--accent-dark)] md:rounded-t-2xl">
+              <h3 className="font-semibold text-white">
                 Add Gift for{" "}
                 {recipients.find((r) => r.id === assigningTo)?.name}
               </h3>
@@ -415,19 +419,19 @@ export default function GiftPlannerPage() {
                   setAssigningTo(null);
                   setSearchQuery("");
                 }}
-                className="text-muted-foreground hover:text-foreground p-1"
+                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-4 border-b-[3px] border-border">
+            <div className="p-4 border-b border-[var(--border)] bg-white">
               <Input
                 type="text"
                 placeholder="Search gift ideas..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="brutal-input w-full"
+                className="input-modern w-full"
                 autoFocus
               />
             </div>
@@ -439,19 +443,19 @@ export default function GiftPlannerPage() {
                   <button
                     key={gift.id}
                     onClick={() => assignGift(assigningTo, gift.id)}
-                    className="w-full brutal-card p-3 text-left flex items-center gap-3"
+                    className="w-full bg-white border border-[var(--border)] rounded-xl p-3 text-left flex items-center gap-3 hover:border-[var(--accent)]/30 hover:shadow-sm transition-all"
                   >
                     {gift.thumbnail_url && (
                       <img
                         src={gift.thumbnail_url}
                         alt=""
-                        className="w-16 h-16 object-cover shrink-0 border-2 border-border"
+                        className="w-14 h-14 object-cover shrink-0 rounded-lg"
                       />
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium line-clamp-1">{gift.title}</p>
+                      <p className="font-medium text-sm line-clamp-1">{gift.title}</p>
                       {giftData?.cost && (
-                        <p className="text-sm font-mono text-gift font-bold">
+                        <p className="text-sm text-[var(--accent)] font-semibold">
                           {giftData.cost}
                         </p>
                       )}
@@ -470,10 +474,12 @@ export default function GiftPlannerPage() {
 
               {getFilteredGifts(assigningTo).length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
-                  <Gift className="w-12 h-12 mx-auto mb-4" />
-                  <p className="font-mono uppercase">No gift ideas available</p>
+                  <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-[var(--muted)] flex items-center justify-center">
+                    <Gift className="w-6 h-6" />
+                  </div>
+                  <p className="font-medium text-sm">No gift ideas available</p>
                   {giftIdeas.length === 0 && (
-                    <p className="text-sm mt-2">
+                    <p className="text-xs mt-2">
                       Text product TikToks or Reels to save gift ideas!
                     </p>
                   )}

@@ -41,31 +41,37 @@ function ShareStatusContent() {
   }, [status, router]);
 
   return (
-    <div className="scrapbook-card p-8 max-w-md w-full text-center">
+    <div className="card-elevated p-8 max-w-md w-full text-center">
       {status === "processing" && (
         <>
-          <div className="text-5xl mb-4 animate-wiggle">✂️</div>
-          <h1 className="text-xl font-handwritten mb-2">Clipping...</h1>
-          <p className="text-muted-foreground">{message}</p>
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--primary)]/10 flex items-center justify-center">
+            <div className="loading-spinner" />
+          </div>
+          <h1 className="heading-2 mb-2">Processing...</h1>
+          <p className="text-muted-foreground text-sm">{message}</p>
         </>
       )}
 
       {status === "success" && (
         <>
-          <div className="text-5xl mb-4">✅</div>
-          <h1 className="text-xl font-handwritten mb-2">Saved!</h1>
-          <p className="text-muted-foreground">{message}</p>
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-green-50 flex items-center justify-center">
+            <span className="text-3xl">✓</span>
+          </div>
+          <h1 className="heading-2 mb-2">Saved!</h1>
+          <p className="text-muted-foreground text-sm">{message}</p>
         </>
       )}
 
       {status === "error" && (
         <>
-          <div className="text-5xl mb-4">😕</div>
-          <h1 className="text-xl font-handwritten mb-2">Oops!</h1>
-          <p className="text-muted-foreground mb-4">{message}</p>
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-red-50 flex items-center justify-center">
+            <span className="text-3xl">!</span>
+          </div>
+          <h1 className="heading-2 mb-2">Oops!</h1>
+          <p className="text-muted-foreground text-sm mb-4">{message}</p>
           <button
             onClick={() => router.push("/dashboard")}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg"
+            className="btn-primary"
           >
             Go to Dashboard
           </button>
@@ -77,16 +83,18 @@ function ShareStatusContent() {
 
 function LoadingFallback() {
   return (
-    <div className="scrapbook-card p-8 max-w-md w-full text-center">
-      <div className="text-5xl mb-4 animate-wiggle">✂️</div>
-      <h1 className="text-xl font-handwritten mb-2">Loading...</h1>
+    <div className="card-elevated p-8 max-w-md w-full text-center">
+      <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--primary)]/10 flex items-center justify-center">
+        <div className="loading-spinner" />
+      </div>
+      <h1 className="heading-2 mb-2">Loading...</h1>
     </div>
   );
 }
 
 export default function ShareTargetPage() {
   return (
-    <main className="min-h-screen flex items-center justify-center bg-paper p-4">
+    <main className="min-h-screen flex items-center justify-center bg-[var(--background)] p-4">
       <Suspense fallback={<LoadingFallback />}>
         <ShareStatusContent />
       </Suspense>
