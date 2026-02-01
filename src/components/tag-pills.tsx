@@ -65,14 +65,14 @@ export function TagPills({
   );
 
   const sizeClasses =
-    size === "sm" ? "text-[10px] px-2 py-0.5" : "text-xs px-3 py-1";
+    size === "sm" ? "text-[10px] px-2 py-0.5" : "text-xs px-3 py-1.5";
 
   return (
     <div className="flex flex-wrap gap-2 items-center">
       {tags.map((tag) => (
         <span
           key={tag.id}
-          className={`${sizeClasses} bg-accent border-2 border-border font-medium inline-flex items-center gap-1`}
+          className={`${sizeClasses} bg-[var(--accent-light)] rounded-full font-medium inline-flex items-center gap-1.5`}
         >
           {tag.name}
           {editable && onRemove && (
@@ -81,7 +81,7 @@ export function TagPills({
                 e.stopPropagation();
                 onRemove(tag.id);
               }}
-              className="hover:text-destructive"
+              className="hover:text-destructive transition-colors"
             >
               <X className="w-3 h-3" />
             </button>
@@ -92,7 +92,7 @@ export function TagPills({
       {editable && (
         <div className="relative">
           <button
-            className={`${sizeClasses} border-2 border-dashed border-border hover:bg-accent font-medium inline-flex items-center gap-1`}
+            className={`${sizeClasses} border-2 border-dashed border-[var(--border)] hover:bg-[var(--muted)] rounded-full font-medium inline-flex items-center gap-1 transition-colors`}
             onClick={() => setShowSuggestions(!showSuggestions)}
           >
             <Plus className="w-3 h-3" />
@@ -103,23 +103,23 @@ export function TagPills({
             <>
               {/* Backdrop for mobile */}
               <div
-                className="fixed inset-0 bg-black/30 z-40 md:hidden"
+                className="fixed inset-0 modal-backdrop z-40 md:hidden"
                 onClick={() => setShowSuggestions(false)}
               />
 
               {/* Tag picker */}
-              <div className="fixed inset-x-4 bottom-32 md:absolute md:inset-auto md:top-full md:right-0 md:bottom-auto mt-1 z-50 brutal-card-static p-4 md:p-3 md:min-w-[280px] md:max-w-[320px] max-h-[350px] md:max-h-[300px] overflow-y-auto">
+              <div className="fixed inset-x-4 bottom-32 md:absolute md:inset-auto md:top-full md:right-0 md:bottom-auto mt-1 z-50 bg-[var(--card)] rounded-2xl shadow-xl p-4 md:p-3 md:min-w-[280px] md:max-w-[320px] max-h-[350px] md:max-h-[300px] overflow-y-auto">
                 {/* Close button for mobile */}
                 <button
                   onClick={() => setShowSuggestions(false)}
-                  className="absolute top-2 right-3 text-muted-foreground hover:text-foreground md:hidden"
+                  className="absolute top-3 right-3 text-muted-foreground hover:text-foreground md:hidden"
                 >
                   <X className="w-5 h-5" />
                 </button>
 
                 {/* Custom tag input */}
                 <div className="mb-4">
-                  <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">
+                  <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
                     Create Tag
                   </p>
                   <div className="flex gap-2">
@@ -138,11 +138,11 @@ export function TagPills({
                         }
                       }}
                       placeholder="Tag name..."
-                      className="brutal-input h-9 md:h-8 text-sm md:text-xs flex-1"
+                      className="input-modern h-9 md:h-8 text-sm md:text-xs flex-1"
                     />
                     <Button
                       size="sm"
-                      className="brutal-btn h-9 md:h-8 px-3 text-xs"
+                      className="btn-primary h-9 md:h-8 px-3 text-xs"
                       onClick={handleAddCustom}
                       disabled={!newTag.trim()}
                     >
@@ -154,7 +154,7 @@ export function TagPills({
                 {/* Existing tags */}
                 {availableTags.length > 0 && (
                   <div className="mb-4">
-                    <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">
+                    <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
                       Your Tags
                     </p>
                     <div className="flex flex-wrap gap-2">
@@ -162,7 +162,7 @@ export function TagPills({
                         <button
                           key={tag.id}
                           onClick={() => handleAddExistingTag(tag.id)}
-                          className="text-sm md:text-xs px-3 md:px-2 py-1.5 md:py-1 border-2 border-border bg-card hover:bg-accent transition-colors"
+                          className="text-sm md:text-xs px-3 md:px-2.5 py-1.5 md:py-1 rounded-full bg-[var(--muted)] hover:bg-[var(--border)] transition-colors"
                         >
                           {tag.name}
                         </button>
@@ -174,7 +174,7 @@ export function TagPills({
                 {/* Suggestions */}
                 {availableSuggestions.length > 0 && (
                   <div>
-                    <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">
+                    <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
                       Suggestions
                     </p>
                     <div className="flex flex-wrap gap-2">
@@ -182,7 +182,7 @@ export function TagPills({
                         <button
                           key={name}
                           onClick={() => handleAddSuggestion(name)}
-                          className="text-sm md:text-xs px-3 md:px-2 py-1.5 md:py-1 border-2 border-primary bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
+                          className="text-sm md:text-xs px-3 md:px-2.5 py-1.5 md:py-1 rounded-full bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 text-[var(--primary)] transition-colors"
                         >
                           + {name}
                         </button>
@@ -192,10 +192,10 @@ export function TagPills({
                 )}
 
                 {/* Done button for mobile */}
-                <div className="mt-4 pt-3 border-t-[3px] border-border md:hidden">
+                <div className="mt-4 pt-3 border-t border-[var(--border)] md:hidden">
                   <Button
                     variant="outline"
-                    className="w-full border-[3px] border-border"
+                    className="w-full btn-outline"
                     onClick={() => setShowSuggestions(false)}
                   >
                     Done

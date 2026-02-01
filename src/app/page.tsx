@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AddContactButton } from "@/components/add-contact-button";
 import { formatPhoneNumber } from "@/lib/utils";
-import { ArrowRight, Calendar, MessageSquare, Sparkles, Target } from "lucide-react";
+import { ArrowRight, Calendar, MessageCircle, Sparkles, Compass, Heart, ChefHat } from "lucide-react";
 
 export default function Home() {
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -96,177 +96,229 @@ export default function Home() {
   if (checkingSession) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="brutal-loading w-32">
-          <div className="brutal-loading-bar" />
-        </div>
+        <div className="loading-spinner" />
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen flex flex-col bg-background">
+    <main className="min-h-screen flex flex-col bg-background overflow-hidden">
+      {/* Decorative background elements */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-32 -right-32 w-96 h-96 bg-[var(--primary-light)] opacity-20 blob" />
+        <div className="absolute top-1/3 -left-24 w-72 h-72 bg-[var(--secondary-light)] opacity-20 blob" style={{ animationDelay: '-2s' }} />
+        <div className="absolute bottom-32 right-1/4 w-48 h-48 bg-[var(--accent)] opacity-15 blob" style={{ animationDelay: '-4s' }} />
+      </div>
+
       {/* Hero Section */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-12 relative z-10">
         <div className="text-center mb-10 animate-slide-up">
-          {/* Logo */}
-          <div className="inline-block mb-8">
-            <div className="w-24 h-24 bg-accent border-[3px] border-border shadow-[6px_6px_0_#0a0a0a] flex items-center justify-center">
-              <Target className="w-12 h-12" />
+          {/* Logo/Icon */}
+          <div className="inline-flex items-center justify-center mb-8">
+            <div className="relative">
+              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] flex items-center justify-center shadow-lg animate-float">
+                <Compass className="w-10 h-10 text-white" />
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-xl bg-[var(--accent)] flex items-center justify-center shadow-md">
+                <Heart className="w-4 h-4 text-white" />
+              </div>
             </div>
           </div>
 
           {/* Title */}
-          <h1 className="font-mono text-5xl md:text-7xl font-bold mb-4 tracking-tight">
-            PLANNING
-            <br />
-            FRIEND
+          <h1 className="heading-1 mb-4 text-foreground">
+            Planning<br />
+            <span className="text-[var(--primary)]">Friend</span>
           </h1>
-          <p className="text-lg md:text-xl text-muted-foreground mb-2">
+          <p className="text-lg md:text-xl text-muted-foreground mb-2 font-medium">
             Save it. Plan it. Do it.
           </p>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto mt-4">
-            Your planning companion. Text links to{" "}
+          <p className="text-muted-foreground max-w-md mx-auto mt-4">
+            Your personal planning companion. Text links to{" "}
             <AddContactButton variant="link" /> to save meals, events, date
             ideas, and more.
           </p>
         </div>
 
         {/* Login Card */}
-        <div className="brutal-card-static w-full max-w-md animate-slide-up stagger-2">
-          <div className="bg-accent border-b-[3px] border-border px-6 py-4">
-            <h2 className="font-mono text-xl font-bold uppercase">
-              {step === "phone" ? "Sign In" : "Enter Code"}
-            </h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              {step === "phone"
-                ? "Enter the phone number you use to text links"
-                : `We sent a code to ${phoneNumber}`}
-            </p>
-          </div>
+        <div className="w-full max-w-md animate-slide-up stagger-2">
+          <div className="card-elevated overflow-hidden">
+            <div className="bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] px-6 py-5">
+              <h2 className="text-xl font-semibold text-white">
+                {step === "phone" ? "Welcome Back" : "Enter Code"}
+              </h2>
+              <p className="text-white/80 text-sm mt-1">
+                {step === "phone"
+                  ? "Sign in with your phone number"
+                  : `We sent a code to ${phoneNumber}`}
+              </p>
+            </div>
 
-          <div className="p-6">
-            {step === "phone" ? (
-              <form onSubmit={handleSendCode} className="space-y-4">
-                <Input
-                  type="tel"
-                  placeholder="(555) 123-4567"
-                  value={phoneNumber}
-                  onChange={handlePhoneChange}
-                  className="brutal-input text-center text-lg h-14"
-                  maxLength={14}
-                />
-                {error && (
-                  <p className="text-destructive text-sm text-center font-mono">
-                    {error}
-                  </p>
-                )}
-                <Button
-                  type="submit"
-                  className="brutal-btn w-full h-12 text-base"
-                  disabled={
-                    loading || phoneNumber.replace(/\D/g, "").length < 10
-                  }
-                >
-                  {loading ? "Sending..." : "Send Code"}
-                  <ArrowRight className="w-5 h-5 ml-2" />
-                </Button>
-              </form>
-            ) : (
-              <form onSubmit={handleVerify} className="space-y-4">
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  placeholder="123456"
-                  value={verificationCode}
-                  onChange={(e) => {
-                    setVerificationCode(
-                      e.target.value.replace(/\D/g, "").slice(0, 6)
-                    );
-                    setError("");
-                  }}
-                  className="brutal-input text-center text-2xl tracking-[0.3em] h-14 font-mono"
-                  maxLength={6}
-                />
-                {error && (
-                  <p className="text-destructive text-sm text-center font-mono">
-                    {error}
-                  </p>
-                )}
-                <Button
-                  type="submit"
-                  className="brutal-btn w-full h-12 text-base"
-                  disabled={loading || verificationCode.length < 6}
-                >
-                  {loading ? "Checking..." : "Let's Go"}
-                  <ArrowRight className="w-5 h-5 ml-2" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="w-full border-[3px] border-border hover:bg-accent"
-                  onClick={() => {
-                    setStep("phone");
-                    setVerificationCode("");
-                    setError("");
-                  }}
-                >
-                  Different Number
-                </Button>
-              </form>
-            )}
+            <div className="p-6">
+              {step === "phone" ? (
+                <form onSubmit={handleSendCode} className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block">
+                      Phone Number
+                    </label>
+                    <Input
+                      type="tel"
+                      placeholder="(555) 123-4567"
+                      value={phoneNumber}
+                      onChange={handlePhoneChange}
+                      className="input-modern text-center text-lg h-14"
+                      maxLength={14}
+                    />
+                  </div>
+                  {error && (
+                    <p className="text-destructive text-sm text-center">
+                      {error}
+                    </p>
+                  )}
+                  <Button
+                    type="submit"
+                    className="btn-primary w-full h-12 text-base"
+                    disabled={
+                      loading || phoneNumber.replace(/\D/g, "").length < 10
+                    }
+                  >
+                    {loading ? "Sending..." : "Send Code"}
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={handleVerify} className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block">
+                      Verification Code
+                    </label>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      placeholder="123456"
+                      value={verificationCode}
+                      onChange={(e) => {
+                        setVerificationCode(
+                          e.target.value.replace(/\D/g, "").slice(0, 6)
+                        );
+                        setError("");
+                      }}
+                      className="input-modern text-center text-2xl tracking-[0.3em] h-14"
+                      maxLength={6}
+                    />
+                  </div>
+                  {error && (
+                    <p className="text-destructive text-sm text-center">
+                      {error}
+                    </p>
+                  )}
+                  <Button
+                    type="submit"
+                    className="btn-primary w-full h-12 text-base"
+                    disabled={loading || verificationCode.length < 6}
+                  >
+                    {loading ? "Verifying..." : "Continue"}
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full btn-ghost"
+                    onClick={() => {
+                      setStep("phone");
+                      setVerificationCode("");
+                      setError("");
+                    }}
+                  >
+                    Use Different Number
+                  </Button>
+                </form>
+              )}
+            </div>
           </div>
         </div>
 
         {/* How it works */}
-        <div className="mt-16 w-full max-w-3xl animate-slide-up stagger-3 px-4">
-          <h2 className="font-mono text-2xl font-bold text-center mb-8 uppercase">
+        <div className="mt-20 w-full max-w-4xl animate-slide-up stagger-3 px-4">
+          <h2 className="heading-2 text-center mb-10">
             How It Works
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="brutal-card-static p-6 text-center">
-              <div className="font-mono text-4xl font-bold text-primary mb-2">
-                01
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Step 1 */}
+            <div className="card-elevated p-6 text-center group">
+              <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-[var(--secondary)] to-[var(--secondary-dark)] flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                <MessageCircle className="w-8 h-8 text-white" />
               </div>
-              <div className="w-12 h-12 mx-auto mb-4 bg-accent border-2 border-border flex items-center justify-center">
-                <MessageSquare className="w-6 h-6" />
-              </div>
-              <h3 className="font-bold uppercase mb-2">Text a Link</h3>
-              <p className="text-sm text-muted-foreground">
-                Send any TikTok, Instagram, or website link
+              <div className="text-sm font-semibold text-[var(--primary)] mb-2">Step 1</div>
+              <h3 className="heading-3 mb-2">Text a Link</h3>
+              <p className="text-muted-foreground text-sm">
+                Send any TikTok, Instagram, or website link via text message
               </p>
             </div>
-            <div className="brutal-card-static p-6 text-center">
-              <div className="font-mono text-4xl font-bold text-primary mb-2">
-                02
+
+            {/* Step 2 */}
+            <div className="card-elevated p-6 text-center group">
+              <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-[var(--accent)] to-[#E09048] flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                <Sparkles className="w-8 h-8 text-white" />
               </div>
-              <div className="w-12 h-12 mx-auto mb-4 bg-accent border-2 border-border flex items-center justify-center">
-                <Sparkles className="w-6 h-6" />
-              </div>
-              <h3 className="font-bold uppercase mb-2">AI Extracts</h3>
-              <p className="text-sm text-muted-foreground">
-                We pull out recipes, places, and ideas automatically
+              <div className="text-sm font-semibold text-[var(--primary)] mb-2">Step 2</div>
+              <h3 className="heading-3 mb-2">AI Extracts</h3>
+              <p className="text-muted-foreground text-sm">
+                We automatically pull out recipes, places, and ideas for you
               </p>
             </div>
-            <div className="brutal-card-static p-6 text-center">
-              <div className="font-mono text-4xl font-bold text-primary mb-2">
-                03
+
+            {/* Step 3 */}
+            <div className="card-elevated p-6 text-center group">
+              <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                <Calendar className="w-8 h-8 text-white" />
               </div>
-              <div className="w-12 h-12 mx-auto mb-4 bg-accent border-2 border-border flex items-center justify-center">
-                <Calendar className="w-6 h-6" />
-              </div>
-              <h3 className="font-bold uppercase mb-2">Plan Later</h3>
-              <p className="text-sm text-muted-foreground">
-                Browse and plan with your organized collection
+              <div className="text-sm font-semibold text-[var(--primary)] mb-2">Step 3</div>
+              <h3 className="heading-3 mb-2">Plan Later</h3>
+              <p className="text-muted-foreground text-sm">
+                Browse and plan with your organized collection anytime
               </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Feature highlights */}
+        <div className="mt-16 w-full max-w-4xl px-4 animate-slide-up stagger-4">
+          <div className="card-gradient p-8 md:p-10">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+              <div>
+                <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-[var(--meal-bg)] flex items-center justify-center">
+                  <ChefHat className="w-6 h-6 text-[var(--meal)]" />
+                </div>
+                <p className="text-sm font-medium">Recipes</p>
+              </div>
+              <div>
+                <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-[var(--event-bg)] flex items-center justify-center">
+                  <Calendar className="w-6 h-6 text-[var(--event)]" />
+                </div>
+                <p className="text-sm font-medium">Events</p>
+              </div>
+              <div>
+                <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-[var(--date-bg)] flex items-center justify-center">
+                  <Heart className="w-6 h-6 text-[var(--date)]" />
+                </div>
+                <p className="text-sm font-medium">Date Ideas</p>
+              </div>
+              <div>
+                <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-[var(--travel-bg)] flex items-center justify-center">
+                  <Compass className="w-6 h-6 text-[var(--travel)]" />
+                </div>
+                <p className="text-sm font-medium">Travel</p>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Footer */}
-      <footer className="text-center py-6 text-sm text-muted-foreground border-t-[3px] border-border">
-        <p className="font-mono">Made for collectors & planners</p>
+      <footer className="text-center py-8 text-sm text-muted-foreground relative z-10">
+        <p>Made with care for collectors & planners</p>
       </footer>
     </main>
   );

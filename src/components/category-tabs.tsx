@@ -80,14 +80,16 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
     const Icon = TABS.find((t) => t.id === category)?.icon || Smartphone;
 
     return (
-      <div className="col-span-full flex flex-col items-center justify-center py-16 text-center brutal-card-static">
-        <Icon className="w-16 h-16 mb-4 text-muted-foreground" />
-        <h3 className="text-xl font-bold mb-2 font-mono uppercase">
+      <div className="col-span-full flex flex-col items-center justify-center py-16 text-center card-elevated">
+        <div className="w-20 h-20 mx-auto mb-5 rounded-2xl bg-[var(--muted)] flex items-center justify-center">
+          <Icon className="w-10 h-10 text-muted-foreground" />
+        </div>
+        <h3 className="heading-3 mb-2">
           {selectedTags.length > 0
             ? `No ${category} match tags`
             : `No ${category} saved`}
         </h3>
-        <p className="text-muted-foreground max-w-md mb-4 text-sm">
+        <p className="text-muted-foreground max-w-md mb-5 text-sm">
           {selectedTags.length > 0
             ? "Try removing some tag filters."
             : "Text a TikTok or Instagram link to save it here."}
@@ -98,7 +100,7 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
   };
 
   const ContentGrid = ({ items }: { items: ContentWithTags[] }) => (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5">
       {items.map((item, index) => (
         <ContentCard key={item.id} content={item} index={index} />
       ))}
@@ -111,22 +113,21 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
   return (
     <div className="w-full">
       {/* Tabs */}
-      <div className="brutal-tabs mb-4 hide-scrollbar">
+      <div className="tabs-container mb-5 hide-scrollbar">
         {TABS.map((tab) => {
           const count = counts[tab.id as keyof typeof counts];
           const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
 
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`brutal-tab flex items-center gap-2 ${
-                activeTab === tab.id ? "active" : ""
-              }`}
+              className={`tab-item ${isActive ? "active" : ""}`}
             >
               {Icon && <Icon className="w-4 h-4" />}
               <span>{tab.label}</span>
-              <span className="font-mono">({count})</span>
+              <span className="text-xs opacity-70">({count})</span>
             </button>
           );
         })}
@@ -134,7 +135,7 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
 
       {/* Tag Filter */}
       {allTags.length > 0 && (
-        <div className="mb-6 brutal-card-static p-4">
+        <div className="mb-6 card-flat p-4">
           <TagFilter
             tags={allTags}
             selectedTags={selectedTags}

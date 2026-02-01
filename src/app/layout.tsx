@@ -2,19 +2,19 @@ import { BottomNav } from "@/components/bottom-nav";
 import { SWRProvider } from "@/lib/swr-config";
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
-import { Inter, Space_Mono } from "next/font/google";
+import { DM_Sans, Fraunces } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
+const dmSans = DM_Sans({
   variable: "--font-sans",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["400", "500", "600", "700"],
 });
 
-const spaceMono = Space_Mono({
-  variable: "--font-mono",
+const fraunces = Fraunces({
+  variable: "--font-display",
   subsets: ["latin"],
-  weight: ["400", "700"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -61,7 +61,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${spaceMono.variable} font-sans antialiased min-h-screen bg-background`}
+        className={`${dmSans.variable} ${fraunces.variable} font-sans antialiased min-h-screen bg-background`}
       >
         <SWRProvider>
           {children}

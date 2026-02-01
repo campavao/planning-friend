@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Utensils,
   X,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -152,11 +153,9 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <div className="brutal-loading w-32 mx-auto mb-4">
-            <div className="brutal-loading-bar" />
-          </div>
-          <p className="text-muted-foreground font-mono text-sm uppercase tracking-wider">
-            Loading...
+          <div className="loading-spinner mx-auto mb-4" />
+          <p className="text-muted-foreground text-sm">
+            Loading your collection...
           </p>
         </div>
       </div>
@@ -166,45 +165,87 @@ export default function Dashboard() {
   return (
     <main className="min-h-screen pb-28 md:pb-8 bg-background">
       {/* Header */}
-      <div className="brutal-header">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="font-mono text-3xl md:text-4xl font-bold tracking-tight">
-              MY_SAVES
-            </h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              {completedContent.length} items in collection
-            </p>
+      <div className="relative overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary-light)]/20 via-transparent to-[var(--accent)]/10" />
+        <div className="absolute -top-20 -right-20 w-64 h-64 bg-[var(--primary)] opacity-10 rounded-full blur-3xl" />
+        
+        <div className="relative max-w-7xl mx-auto px-4 md:px-6 pt-6 pb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="heading-1 text-2xl md:text-3xl">
+                My Collection
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                {completedContent.length} saved items
+              </p>
+            </div>
+
+            {/* Desktop Actions */}
+            <div className="hidden md:flex items-center gap-3">
+              <Link href="/dashboard/planner">
+                <Button className="btn-primary">
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Plan Week
+                </Button>
+              </Link>
+              <Link href="/dashboard/gifts">
+                <Button className="btn-outline">
+                  <Gift className="w-4 h-4 mr-2" />
+                  Gifts
+                </Button>
+              </Link>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleRefresh}
+                disabled={isValidating}
+                className="btn-ghost w-10 h-10 rounded-xl"
+              >
+                <RefreshCw
+                  className={`w-4 h-4 ${isValidating ? "animate-spin" : ""}`}
+                />
+              </Button>
+            </div>
           </div>
 
-          {/* Desktop Actions */}
-          <div className="hidden md:flex items-center gap-2">
-            <Link href="/dashboard/planner">
-              <Button className="brutal-btn">
-                <Calendar className="w-4 h-4 mr-2" />
-                Plan Week
-              </Button>
-            </Link>
-            <Link href="/dashboard/gifts">
-              <Button
-                variant="outline"
-                className="border-[3px] border-border hover:bg-accent"
-              >
-                <Gift className="w-4 h-4 mr-2" />
-                Gifts
-              </Button>
-            </Link>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={isValidating}
-              className="border-[3px] border-border hover:bg-accent"
-            >
-              <RefreshCw
-                className={`w-4 h-4 ${isValidating ? "animate-spin" : ""}`}
-              />
-            </Button>
+          {/* Stats Row */}
+          <div className="grid grid-cols-5 gap-3 animate-slide-up">
+            <div className="stat-card">
+              <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-[var(--meal-bg)] flex items-center justify-center">
+                <Utensils className="w-5 h-5 text-[var(--meal)]" />
+              </div>
+              <div className="stat-value text-xl">{mealCount}</div>
+              <div className="stat-label text-[10px]">Meals</div>
+            </div>
+            <div className="stat-card">
+              <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-[var(--drink-bg)] flex items-center justify-center">
+                <Coffee className="w-5 h-5 text-[var(--drink)]" />
+              </div>
+              <div className="stat-value text-xl">{drinkCount}</div>
+              <div className="stat-label text-[10px]">Drinks</div>
+            </div>
+            <div className="stat-card">
+              <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-[var(--event-bg)] flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-[var(--event)]" />
+              </div>
+              <div className="stat-value text-xl">{eventCount}</div>
+              <div className="stat-label text-[10px]">Events</div>
+            </div>
+            <div className="stat-card">
+              <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-[var(--date-bg)] flex items-center justify-center">
+                <Heart className="w-5 h-5 text-[var(--date)]" />
+              </div>
+              <div className="stat-value text-xl">{dateCount}</div>
+              <div className="stat-label text-[10px]">Dates</div>
+            </div>
+            <div className="stat-card">
+              <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-[var(--gift-bg)] flex items-center justify-center">
+                <Gift className="w-5 h-5 text-[var(--gift)]" />
+              </div>
+              <div className="stat-value text-xl">{giftCount}</div>
+              <div className="stat-label text-[10px]">Gifts</div>
+            </div>
           </div>
         </div>
       </div>
@@ -213,17 +254,17 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
         {/* Processing Banner */}
         {processingCount > 0 && (
-          <div className="brutal-card-static brutal-processing p-4 mb-6 border-l-[6px] border-l-primary">
+          <div className="card-flat state-processing p-4 mb-6 animate-slide-up">
             <div className="flex items-center gap-4">
-              <Loader2 className="w-8 h-8 animate-spin" />
+              <div className="w-12 h-12 rounded-xl bg-[var(--accent)] flex items-center justify-center">
+                <Sparkles className="w-6 h-6 text-white animate-pulse-soft" />
+              </div>
               <div className="flex-1">
-                <p className="font-bold font-mono uppercase">
+                <p className="font-semibold">
                   Processing {processingCount} item
                   {processingCount > 1 ? "s" : ""}
                 </p>
-                <div className="brutal-loading mt-2 w-48">
-                  <div className="brutal-loading-bar" />
-                </div>
+                <div className="loading-bar mt-2 w-48" />
               </div>
             </div>
           </div>
@@ -231,12 +272,14 @@ export default function Dashboard() {
 
         {/* Failed Items Banner */}
         {failedCount > 0 && (
-          <div className="brutal-card-static brutal-error p-4 mb-6 border-l-[6px] border-l-destructive">
+          <div className="card-flat state-error p-4 mb-6 animate-slide-up">
             <div className="flex items-center justify-between gap-4 mb-3">
               <div className="flex items-center gap-4">
-                <AlertCircle className="w-8 h-8 text-destructive" />
+                <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center">
+                  <AlertCircle className="w-6 h-6 text-destructive" />
+                </div>
                 <div>
-                  <p className="font-bold font-mono uppercase">
+                  <p className="font-semibold">
                     {failedCount} item{failedCount > 1 ? "s" : ""} failed
                   </p>
                   <p className="text-sm text-muted-foreground">
@@ -250,7 +293,7 @@ export default function Dashboard() {
                 onClick={() => {
                   failedItems.forEach((item) => handleDismissContent(item.id));
                 }}
-                className="text-destructive hover:bg-destructive/10 border-2 border-destructive"
+                className="text-destructive hover:bg-red-50"
               >
                 Dismiss All
               </Button>
@@ -259,16 +302,16 @@ export default function Dashboard() {
               {failedItems.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between gap-2 p-2 bg-white border-2 border-border"
+                  className="flex items-center justify-between gap-2 p-3 bg-white rounded-lg"
                 >
-                  <p className="text-sm truncate flex-1 text-muted-foreground font-mono">
+                  <p className="text-sm truncate flex-1 text-muted-foreground">
                     {item.tiktok_url}
                   </p>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleDismissContent(item.id)}
-                    className="text-destructive hover:bg-destructive/10 shrink-0 h-7 px-2"
+                    className="text-destructive hover:bg-red-50 shrink-0 h-7 px-2"
                   >
                     <X className="w-4 h-4" />
                   </Button>
@@ -278,54 +321,15 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Stats Row */}
-        <div className="brutal-card-static mb-6 animate-slide-up">
-          <div className="grid grid-cols-5 border-b-[3px] border-border">
-            <div className="stat-box">
-              <Utensils className="w-6 h-6 mx-auto mb-1" />
-              <div className="stat-count">
-                {String(mealCount).padStart(2, "0")}
-              </div>
-              <div className="stat-label">Meals</div>
-            </div>
-            <div className="stat-box">
-              <Coffee className="w-6 h-6 mx-auto mb-1" />
-              <div className="stat-count">
-                {String(drinkCount).padStart(2, "0")}
-              </div>
-              <div className="stat-label">Drinks</div>
-            </div>
-            <div className="stat-box">
-              <Calendar className="w-6 h-6 mx-auto mb-1" />
-              <div className="stat-count">
-                {String(eventCount).padStart(2, "0")}
-              </div>
-              <div className="stat-label">Events</div>
-            </div>
-            <div className="stat-box">
-              <Heart className="w-6 h-6 mx-auto mb-1" />
-              <div className="stat-count">
-                {String(dateCount).padStart(2, "0")}
-              </div>
-              <div className="stat-label">Dates</div>
-            </div>
-            <div className="stat-box border-r-0">
-              <Gift className="w-6 h-6 mx-auto mb-1" />
-              <div className="stat-count">
-                {String(giftCount).padStart(2, "0")}
-              </div>
-              <div className="stat-label">Gifts</div>
-            </div>
-          </div>
-        </div>
-
         {error ? (
-          <div className="text-center py-12 brutal-card-static">
-            <AlertCircle className="w-12 h-12 mx-auto mb-4 text-destructive" />
-            <p className="text-destructive mb-4 font-mono uppercase">
+          <div className="text-center py-16 card-elevated animate-scale-in">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-red-50 flex items-center justify-center">
+              <AlertCircle className="w-8 h-8 text-destructive" />
+            </div>
+            <p className="text-destructive mb-4 font-medium">
               Failed to load content
             </p>
-            <Button onClick={handleRefresh} className="brutal-btn">
+            <Button onClick={handleRefresh} className="btn-primary">
               Try Again
             </Button>
           </div>
@@ -339,21 +343,26 @@ export default function Dashboard() {
       {/* Dismissible Quick Tip */}
       {showTip && (
         <div className="hidden md:block fixed md:right-6 md:bottom-6 md:max-w-xs z-40">
-          <div className="brutal-card-static p-4 animate-slide-up">
+          <div className="card-elevated p-5 animate-slide-up">
             <button
               onClick={dismissTip}
-              className="absolute top-2 right-2 text-muted-foreground hover:text-foreground p-1"
+              className="absolute top-3 right-3 text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-muted transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
-            <p className="font-mono text-sm font-bold uppercase mb-2">
-              Quick Tip
-            </p>
-            <p className="text-sm text-muted-foreground mb-3">
-              Text any TikTok or Instagram link to{" "}
-              <AddContactButton variant="link" /> to add it here.
-            </p>
-            <AddContactButton variant="button" className="w-full text-sm h-8" />
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] flex items-center justify-center shrink-0">
+                <Sparkles className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="font-semibold mb-1">Quick Tip</p>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Text any TikTok or Instagram link to{" "}
+                  <AddContactButton variant="link" /> to add it here.
+                </p>
+                <AddContactButton variant="button" className="w-full text-sm h-9" />
+              </div>
+            </div>
           </div>
         </div>
       )}

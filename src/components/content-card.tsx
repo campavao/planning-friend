@@ -50,6 +50,17 @@ const CATEGORY_LABELS = {
   other: "Saved",
 };
 
+// Category colors for backgrounds
+const CATEGORY_COLORS = {
+  meal: { bg: "bg-[var(--meal-bg)]", text: "text-[var(--meal)]" },
+  drink: { bg: "bg-[var(--drink-bg)]", text: "text-[var(--drink)]" },
+  event: { bg: "bg-[var(--event-bg)]", text: "text-[var(--event)]" },
+  date_idea: { bg: "bg-[var(--date-bg)]", text: "text-[var(--date)]" },
+  gift_idea: { bg: "bg-[var(--gift-bg)]", text: "text-[var(--gift)]" },
+  travel: { bg: "bg-[var(--travel-bg)]", text: "text-[var(--travel)]" },
+  other: { bg: "bg-[var(--other-bg)]", text: "text-[var(--other)]" },
+};
+
 // Generate Google Maps URL from location string
 function getGoogleMapsUrl(location: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
@@ -65,7 +76,7 @@ function LocationLink({ location }: { location: string }) {
       target="_blank"
       rel="noopener noreferrer"
       onClick={(e) => e.stopPropagation()}
-      className="flex items-center gap-1.5 text-xs hover:text-primary transition-colors"
+      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[var(--primary)] transition-colors"
     >
       <MapPin className="w-3 h-3" />
       <span className="line-clamp-1 underline underline-offset-2">
@@ -86,17 +97,17 @@ function CardTags({ tags }: { tags?: Tag[] }) {
   if (!tags || tags.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap gap-1 mt-2">
+    <div className="flex flex-wrap gap-1.5 mt-2">
       {tags.slice(0, 2).map((tag) => (
         <span
           key={tag.id}
-          className="text-[10px] px-2 py-0.5 bg-accent border border-border font-medium"
+          className="text-[10px] px-2 py-0.5 bg-[var(--accent-light)] text-[var(--accent-foreground)] rounded-full font-medium"
         >
           {tag.name}
         </span>
       ))}
       {tags.length > 2 && (
-        <span className="text-[10px] text-muted-foreground font-mono">
+        <span className="text-[10px] text-muted-foreground">
           +{tags.length - 2}
         </span>
       )}
@@ -149,25 +160,26 @@ function ProcessingCard({
   return (
     <Link href={`/dashboard/${content.id}`}>
       <div
-        className={`brutal-card brutal-processing overflow-hidden cursor-pointer h-full animate-slide-in stagger-${Math.min(index + 1, 5)}`}
+        className={`card-elevated overflow-hidden cursor-pointer h-full animate-slide-up`}
+        style={{ animationDelay: `${Math.min(index, 5) * 0.1}s` }}
       >
-        <div className="aspect-square bg-accent flex items-center justify-center border-b-[3px] border-border">
+        <div className="aspect-square bg-[var(--accent-light)] flex items-center justify-center">
           <div className="text-center">
-            <Loader2 className="w-10 h-10 mx-auto mb-2 animate-spin" />
-            <p className="text-xs font-mono uppercase tracking-wider">
+            <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-[var(--accent)] flex items-center justify-center">
+              <Loader2 className="w-7 h-7 text-white animate-spin" />
+            </div>
+            <p className="text-sm font-medium text-[var(--accent-foreground)]">
               Processing
             </p>
           </div>
         </div>
-        <div className="p-3">
-          <p className="font-bold text-sm">Adding...</p>
-          <div className="brutal-loading mt-2">
-            <div className="brutal-loading-bar" />
-          </div>
+        <div className="p-4">
+          <p className="font-semibold text-sm mb-2">Adding...</p>
+          <div className="loading-bar" />
           <Button
             variant="secondary"
             size="sm"
-            className="w-full mt-3 text-xs brutal-btn bg-secondary text-secondary-foreground"
+            className="w-full mt-3 text-xs btn-secondary"
             onClick={handleRetry}
             disabled={isRetrying || retryState === "success"}
           >
@@ -178,7 +190,7 @@ function ProcessingCard({
                 : "Retry"}
           </Button>
           {retryState === "error" && (
-            <p className="text-[10px] text-destructive mt-1 font-mono">
+            <p className="text-[10px] text-destructive mt-1">
               {retryMessage}
             </p>
           )}
@@ -198,19 +210,22 @@ function FailedCard({
   return (
     <Link href={`/dashboard/${content.id}`}>
       <div
-        className={`brutal-card brutal-error overflow-hidden cursor-pointer h-full animate-slide-in stagger-${Math.min(index + 1, 5)}`}
+        className={`card-elevated overflow-hidden cursor-pointer h-full animate-slide-up state-error`}
+        style={{ animationDelay: `${Math.min(index, 5) * 0.1}s` }}
       >
-        <div className="aspect-square bg-red-50 flex items-center justify-center border-b-[3px] border-destructive">
+        <div className="aspect-square bg-red-50 flex items-center justify-center">
           <div className="text-center">
-            <XCircle className="w-10 h-10 mx-auto mb-2 text-destructive" />
-            <p className="text-xs font-mono uppercase tracking-wider text-destructive">
+            <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-red-100 flex items-center justify-center">
+              <XCircle className="w-7 h-7 text-destructive" />
+            </div>
+            <p className="text-sm font-medium text-destructive">
               Failed
             </p>
           </div>
         </div>
-        <div className="p-3">
-          <p className="font-bold text-sm">Error</p>
-          <p className="text-xs text-muted-foreground mt-1 font-mono">
+        <div className="p-4">
+          <p className="font-semibold text-sm">Error</p>
+          <p className="text-xs text-muted-foreground mt-1">
             Tap to retry
           </p>
         </div>
@@ -232,55 +247,46 @@ function ContentCardInner({
 }) {
   const Icon = CATEGORY_ICONS[content.category as keyof typeof CATEGORY_ICONS] || Pin;
   const label = CATEGORY_LABELS[content.category as keyof typeof CATEGORY_LABELS] || "Saved";
-  const bgClass = `bg-${content.category === "date_idea" ? "date" : content.category === "gift_idea" ? "gift" : content.category}-bg`;
+  const colors = CATEGORY_COLORS[content.category as keyof typeof CATEGORY_COLORS] || CATEGORY_COLORS.other;
 
   return (
     <Link href={`/dashboard/${content.id}`}>
       <div
-        className={`brutal-card overflow-hidden cursor-pointer h-full animate-slide-in stagger-${Math.min(index + 1, 5)}`}
+        className={`card-elevated overflow-hidden cursor-pointer h-full animate-slide-up`}
+        style={{ animationDelay: `${Math.min(index, 5) * 0.1}s` }}
       >
         {/* Image */}
-        <div className="border-b-[3px] border-border">
+        <div className="relative">
           {content.thumbnail_url ? (
             <div className="relative aspect-square overflow-hidden">
               <img
                 src={content.thumbnail_url}
                 alt={content.title}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
+              {/* Gradient overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
             </div>
           ) : (
-            <div
-              className={`aspect-square flex items-center justify-center ${
-                content.category === "meal"
-                  ? "bg-[#dcfce7]"
-                  : content.category === "drink"
-                    ? "bg-[#cffafe]"
-                    : content.category === "event"
-                      ? "bg-[#ede9fe]"
-                      : content.category === "date_idea"
-                        ? "bg-[#fce7f3]"
-                        : content.category === "gift_idea"
-                          ? "bg-[#ffedd5]"
-                          : content.category === "travel"
-                            ? "bg-[#dbeafe]"
-                            : "bg-[#f5f5f4]"
-              }`}
-            >
-              <Icon className="w-12 h-12 text-muted-foreground" />
+            <div className={`aspect-square flex items-center justify-center ${colors.bg}`}>
+              <div className="w-16 h-16 rounded-2xl bg-white/80 flex items-center justify-center">
+                <Icon className={`w-8 h-8 ${colors.text}`} />
+              </div>
             </div>
           )}
+          
+          {/* Category badge overlay */}
+          <div className="absolute top-3 left-3">
+            <span className={`badge ${colors.bg} ${colors.text} shadow-sm`}>
+              <Icon className="w-3 h-3" />
+              {label}
+            </span>
+          </div>
         </div>
 
         {/* Content */}
-        <div className="p-3">
-          {/* Badge */}
-          <span className={`brutal-badge brutal-badge-${content.category} mb-2`}>
-            <Icon className="w-3 h-3" />
-            {label}
-          </span>
-
-          <h3 className="font-bold text-sm line-clamp-2 leading-tight">
+        <div className="p-4">
+          <h3 className="font-semibold text-sm line-clamp-2 leading-snug mb-1">
             {content.title}
           </h3>
 
@@ -290,8 +296,8 @@ function ContentCardInner({
             <div className="mt-2 text-muted-foreground">{meta}</div>
           )}
 
-          <p className="text-xs text-primary mt-2 font-mono uppercase tracking-wider">
-            View →
+          <p className="text-xs text-[var(--primary)] mt-3 font-medium">
+            View details →
           </p>
         </div>
       </div>
@@ -316,12 +322,12 @@ function MealCard({
       tags={tags}
       index={index}
       meta={
-        <div className="hidden md:flex flex-wrap gap-2 text-xs font-mono">
+        <div className="hidden md:flex flex-wrap gap-2 text-xs">
           {data.ingredients && data.ingredients.length > 0 && (
-            <span>{data.ingredients.length} ing.</span>
+            <span className="text-muted-foreground">{data.ingredients.length} ingredients</span>
           )}
           {data.prep_time && (
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1 text-muted-foreground">
               <Clock className="w-3 h-3" />
               {data.prep_time}
             </span>
@@ -349,11 +355,11 @@ function DrinkCard({
       tags={tags}
       index={index}
       meta={
-        <div className="hidden md:flex flex-wrap gap-2 text-xs font-mono">
+        <div className="hidden md:flex flex-wrap gap-2 text-xs">
           {data.ingredients && data.ingredients.length > 0 && (
-            <span>{data.ingredients.length} ing.</span>
+            <span className="text-muted-foreground">{data.ingredients.length} ingredients</span>
           )}
-          {data.type && <span className="capitalize">{data.type}</span>}
+          {data.type && <span className="capitalize text-muted-foreground">{data.type}</span>}
         </div>
       }
     />
@@ -380,8 +386,8 @@ function EventCard({
         <div className="hidden md:block space-y-1 text-xs">
           {data.location && <LocationLink location={data.location} />}
           {data.date && (
-            <p className="font-mono">
-              {data.date} {data.time && `/ ${data.time}`}
+            <p className="text-muted-foreground">
+              {data.date} {data.time && `• ${data.time}`}
             </p>
           )}
         </div>
@@ -410,7 +416,7 @@ function DateIdeaCard({
         <div className="hidden md:block space-y-1 text-xs">
           {data.location && <LocationLink location={data.location} />}
           {data.price_range && (
-            <p className="font-mono">{data.price_range}</p>
+            <p className="text-muted-foreground">{data.price_range}</p>
           )}
         </div>
       }
@@ -436,7 +442,7 @@ function GiftIdeaCard({
       index={index}
       meta={
         data.cost && (
-          <p className="text-sm font-bold font-mono text-gift">{data.cost}</p>
+          <p className="text-sm font-semibold text-[var(--gift)]">{data.cost}</p>
         )
       }
     />
@@ -463,7 +469,7 @@ function TravelCard({
         <div className="hidden md:block space-y-1 text-xs">
           {data.location && <LocationLink location={data.location} />}
           {data.destination_country && (
-            <p className="font-mono flex items-center gap-1">
+            <p className="flex items-center gap-1 text-muted-foreground">
               <Plane className="w-3 h-3" />
               {data.destination_city && `${data.destination_city}, `}
               {data.destination_country}
@@ -493,7 +499,7 @@ function OtherCard({
       index={index}
       meta={
         data.description && (
-          <p className="hidden md:block text-xs line-clamp-2">
+          <p className="hidden md:block text-xs line-clamp-2 text-muted-foreground">
             {data.description}
           </p>
         )

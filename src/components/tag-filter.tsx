@@ -49,7 +49,7 @@ export function TagFilter({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-xs font-mono uppercase tracking-wider text-muted-foreground shrink-0">
+      <span className="text-xs font-medium text-muted-foreground shrink-0 uppercase tracking-wide">
         Filter:
       </span>
       {displayTags.map((tag) => {
@@ -58,10 +58,10 @@ export function TagFilter({
           <button
             key={tag.id}
             onClick={() => onToggle(tag.id)}
-            className={`text-xs px-3 py-1 border-2 border-border font-medium transition-colors ${
+            className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all ${
               isSelected
-                ? "bg-foreground text-background"
-                : "bg-card hover:bg-accent"
+                ? "bg-[var(--primary)] text-white shadow-sm"
+                : "bg-[var(--muted)] hover:bg-[var(--border)] text-[var(--foreground)]"
             }`}
           >
             {tag.name}
@@ -71,7 +71,7 @@ export function TagFilter({
       {hasMoreTags && (
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="text-xs px-3 py-1 border-2 border-border bg-accent hover:bg-accent/80 transition-colors font-mono flex items-center gap-1"
+          className="text-xs px-3 py-1.5 rounded-full bg-[var(--accent-light)] hover:bg-[var(--accent)] transition-colors font-medium flex items-center gap-1"
         >
           {isExpanded ? (
             <>
@@ -88,7 +88,7 @@ export function TagFilter({
         <Button
           size="sm"
           variant="ghost"
-          className="h-7 px-2 text-xs border-2 border-destructive text-destructive hover:bg-destructive/10"
+          className="h-7 px-2 text-xs text-destructive hover:bg-red-50"
           onClick={onClear}
         >
           <X className="w-3 h-3 mr-1" />

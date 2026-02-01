@@ -686,8 +686,9 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="brutal-loading w-32">
-          <div className="brutal-loading-bar" />
+        <div className="text-center">
+          <div className="loading-spinner mx-auto mb-4" />
+          <p className="text-muted-foreground text-sm">Loading your planner...</p>
         </div>
       </div>
     );
@@ -714,25 +715,22 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
   return (
     <main className="min-h-screen pb-28 md:pb-8 bg-background">
       {/* Header */}
-      <div className="brutal-header">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <div className="bg-[var(--card)] border-b border-[var(--border)] sticky top-0 z-20">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/dashboard">
-            <Button
-              variant="ghost"
-              className="border-[3px] border-border hover:bg-card"
-            >
+            <Button variant="ghost" className="btn-ghost">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
           </Link>
-          <h1 className="font-mono text-2xl md:text-3xl font-bold uppercase">
-            Weekly_Plan
+          <h1 className="heading-2 text-xl md:text-2xl">
+            Weekly Plan
           </h1>
           <Button
             variant="ghost"
             onClick={generateGroceryList}
             disabled={!hasMealOrDrinkItems}
-            className="border-[3px] border-border hover:bg-card"
+            className="btn-ghost"
             title={
               hasMealOrDrinkItems
                 ? "Generate grocery list"
@@ -745,31 +743,31 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-3 md:px-4 py-6">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
         {/* Week Navigation */}
-        <div className="brutal-card-static p-4 mb-6 flex items-center justify-between">
+        <div className="card-elevated p-4 mb-6 flex items-center justify-between">
           <Button
             variant="ghost"
             onClick={() => navigateWeek(-1)}
-            className="border-[3px] border-border hover:bg-accent"
+            className="btn-ghost"
             disabled={gridLoading}
           >
             <ArrowLeft className="w-4 h-4" />
             <span className="hidden sm:inline ml-2">Prev</span>
           </Button>
           <div className="text-center">
-            <h2 className="text-lg md:text-xl font-bold font-mono">
+            <h2 className="text-lg md:text-xl font-semibold">
               {formatWeekRange()}
             </h2>
-            <div className="flex items-center justify-center gap-2 mt-1 flex-wrap">
+            <div className="flex items-center justify-center gap-2 mt-2 flex-wrap">
               {isCurrentWeek() && (
-                <Badge className="brutal-badge bg-amber-200 text-amber-900 border-amber-400">
+                <Badge className="bg-[var(--accent-light)] text-[var(--accent-foreground)]">
                   This Week
                 </Badge>
               )}
               {data?.sharedItems && data.sharedItems.length > 0 && (
-                <Badge className="brutal-badge bg-pink-100 text-pink-800 border-pink-300">
-                  <Users className="w-3 h-3 mr-1" />
+                <Badge variant="date">
+                  <Users className="w-3 h-3" />
                   {data.sharedItems.length} shared
                 </Badge>
               )}
@@ -778,7 +776,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
           <Button
             variant="ghost"
             onClick={() => navigateWeek(1)}
-            className="border-[3px] border-border hover:bg-accent"
+            className="btn-ghost"
             disabled={gridLoading}
           >
             <span className="hidden sm:inline mr-2">Next</span>
@@ -789,16 +787,16 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
         {/* Week Grid */}
         <div className="relative">
           {gridLoading && (
-            <div className="absolute inset-0 bg-background/70 z-10 flex items-center justify-center">
-              <Loader2 className="w-8 h-8 animate-spin" />
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-2xl">
+              <div className="loading-spinner" />
             </div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
             {DAYS.map((day, dayIndex) => (
               <Card
                 key={day}
-                className={`brutal-card-static overflow-hidden ${
-                  isToday(dayIndex) ? "ring-2 ring-primary" : ""
+                className={`card-elevated overflow-hidden ${
+                  isToday(dayIndex) ? "ring-2 ring-[var(--primary)]" : ""
                 }`}
               >
                 {/* Mobile Layout */}
@@ -1201,17 +1199,19 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
         {/* Empty State */}
         {data?.availableContent.length === 0 && (
-          <div className="brutal-card-static p-8 mt-6 text-center">
-            <Calendar className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-lg font-bold uppercase mb-2">
-              No saved content yet!
+          <div className="card-elevated p-8 mt-6 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--muted)] flex items-center justify-center">
+              <Calendar className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <p className="text-lg font-semibold mb-2">
+              No saved content yet
             </p>
             <p className="text-sm text-muted-foreground mb-4">
               Text TikTok or Instagram links to save meals, events, and date
               ideas.
             </p>
             <Link href="/dashboard">
-              <Button className="brutal-btn">Go to Dashboard</Button>
+              <Button className="btn-primary">Go to Dashboard</Button>
             </Link>
           </div>
         )}
@@ -1219,15 +1219,15 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
       {/* Add Item Modal */}
       {addingToDay !== null && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
-          <div className="brutal-card-static w-full md:max-w-lg md:rounded-none rounded-t-none max-h-[80vh] flex flex-col">
-            <div className="p-4 border-b-[3px] border-border flex items-center justify-between bg-accent">
-              <h3 className="font-bold font-mono uppercase">
+        <div className="fixed inset-0 modal-backdrop z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+          <div className="bg-[var(--card)] w-full md:max-w-lg md:rounded-2xl rounded-t-2xl max-h-[85vh] flex flex-col shadow-xl">
+            <div className="p-4 border-b border-[var(--border)] flex items-center justify-between bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] md:rounded-t-2xl">
+              <h3 className="font-semibold text-white">
                 Add to {DAYS_FULL[addingToDay]}
               </h3>
               <button
                 onClick={() => setAddingToDay(null)}
-                className="text-muted-foreground hover:text-foreground p-1"
+                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1402,21 +1402,21 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
       {/* Grocery List Modal */}
       {groceryList.isOpen && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="brutal-card-static w-full max-w-lg max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b-[3px] border-border bg-accent">
+        <div className="fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--card)] w-full max-w-lg max-h-[85vh] flex flex-col rounded-2xl shadow-xl">
+            <div className="flex items-center justify-between p-4 border-b border-[var(--border)] bg-gradient-to-r from-[var(--secondary)] to-[var(--secondary-dark)] rounded-t-2xl">
               <div>
-                <h2 className="text-lg font-bold font-mono uppercase flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                   <ShoppingCart className="w-5 h-5" />
                   Grocery List
                 </h2>
-                <p className="text-xs text-muted-foreground font-mono">
+                <p className="text-xs text-white/80">
                   {formatWeekRange()}
                 </p>
               </div>
               <div className="flex gap-2">
                 <Button
-                  variant="secondary"
+                  variant="ghost"
                   size="sm"
                   onClick={saveGroceryScreenshot}
                   disabled={
@@ -1424,7 +1424,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     groceryList.loading ||
                     groceryList.items.length === 0
                   }
-                  className="border-2 border-border"
+                  className="text-white hover:bg-white/10"
                 >
                   <Camera className="w-4 h-4 mr-1" />
                   {groceryList.saving ? "..." : "Save"}
@@ -1435,7 +1435,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                   onClick={() =>
                     setGroceryList((s) => ({ ...s, isOpen: false }))
                   }
-                  className="border-2 border-border"
+                  className="text-white hover:bg-white/10"
                 >
                   <X className="w-4 h-4" />
                 </Button>
@@ -1603,14 +1603,14 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
       {/* Item Share Modal */}
       {itemShare.isOpen && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="brutal-card-static w-full max-w-md max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b-[3px] border-border bg-accent">
+        <div className="fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--card)] w-full max-w-md max-h-[80vh] flex flex-col rounded-2xl shadow-xl">
+            <div className="flex items-center justify-between p-4 border-b border-[var(--border)] bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] rounded-t-2xl">
               <div>
-                <h2 className="text-lg font-bold font-mono uppercase">
+                <h2 className="text-lg font-semibold text-white">
                   Share Item
                 </h2>
-                <p className="text-xs text-muted-foreground line-clamp-1">
+                <p className="text-xs text-white/80 line-clamp-1">
                   {itemShare.itemTitle}
                 </p>
               </div>
@@ -1618,7 +1618,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                 variant="ghost"
                 size="sm"
                 onClick={() => setItemShare((s) => ({ ...s, isOpen: false }))}
-                className="border-2 border-border"
+                className="text-white hover:bg-white/10"
               >
                 <X className="w-4 h-4" />
               </Button>
@@ -1814,8 +1814,9 @@ export default function PlannerPage() {
     <Suspense
       fallback={
         <div className="min-h-screen flex items-center justify-center bg-background">
-          <div className="brutal-loading w-32">
-            <div className="brutal-loading-bar" />
+          <div className="text-center">
+            <div className="loading-spinner mx-auto mb-4" />
+            <p className="text-muted-foreground text-sm">Loading planner...</p>
           </div>
         </div>
       }
