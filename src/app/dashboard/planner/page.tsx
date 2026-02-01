@@ -25,11 +25,13 @@ import {
   ArrowLeft,
   ArrowRight,
   Calendar,
+  CalendarSync,
   Camera,
   Check,
   ChevronDown,
   ChevronRight,
   Coffee,
+  Copy,
   FileText,
   Gift,
   Hand,
@@ -37,6 +39,7 @@ import {
   Loader2,
   Pin,
   Plus,
+  RefreshCw,
   ShoppingCart,
   Star,
   User,
@@ -102,6 +105,18 @@ interface GroceryListState {
   loading: boolean;
   saving: boolean;
   error: string | null;
+}
+
+// Calendar sync state
+interface CalendarSyncState {
+  isOpen: boolean;
+  loading: boolean;
+  regenerating: boolean;
+  token: string | null;
+  syncUrl: string | null;
+  copied: boolean;
+  error: string | null;
+  lastAccessedAt: string | null;
 }
 
 // Persistent filter state keys
@@ -186,6 +201,18 @@ function PlannerContent() {
     error: null,
   });
   const groceryListRef = useRef<HTMLDivElement>(null);
+
+  // Calendar sync state
+  const [calendarSync, setCalendarSync] = useState<CalendarSyncState>({
+    isOpen: false,
+    loading: false,
+    regenerating: false,
+    token: null,
+    syncUrl: null,
+    copied: false,
+    error: null,
+    lastAccessedAt: null,
+  });
 
   const searchParams = useSearchParams();
 
@@ -683,6 +710,92 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
     );
   }, [data?.plan?.items, data?.sharedItems]);
 
+  // Calendar sync functions
+  const openCalendarSync = async () => {
+    setCalendarSync((s) => ({
+      ...s,
+      isOpen: true,
+      loading: true,
+      error: null,
+      copied: false,
+    }));
+
+    try {
+      const res = await fetch("/api/planner/sync-token");
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result.error || "Failed to get sync URL");
+      }
+
+      const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+      const syncUrl = `${baseUrl}/api/planner/ical?token=${result.token}`;
+
+      setCalendarSync((s) => ({
+        ...s,
+        loading: false,
+        token: result.token,
+        syncUrl,
+        lastAccessedAt: result.lastAccessedAt,
+      }));
+    } catch (error) {
+      setCalendarSync((s) => ({
+        ...s,
+        loading: false,
+        error: error instanceof Error ? error.message : "Failed to get sync URL",
+      }));
+    }
+  };
+
+  const regenerateSyncToken = async () => {
+    setCalendarSync((s) => ({
+      ...s,
+      regenerating: true,
+      error: null,
+      copied: false,
+    }));
+
+    try {
+      const res = await fetch("/api/planner/sync-token", { method: "POST" });
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result.error || "Failed to regenerate sync URL");
+      }
+
+      const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+      const syncUrl = `${baseUrl}/api/planner/ical?token=${result.token}`;
+
+      setCalendarSync((s) => ({
+        ...s,
+        regenerating: false,
+        token: result.token,
+        syncUrl,
+        lastAccessedAt: null,
+      }));
+    } catch (error) {
+      setCalendarSync((s) => ({
+        ...s,
+        regenerating: false,
+        error: error instanceof Error ? error.message : "Failed to regenerate sync URL",
+      }));
+    }
+  };
+
+  const copySyncUrl = async () => {
+    if (!calendarSync.syncUrl) return;
+
+    try {
+      await navigator.clipboard.writeText(calendarSync.syncUrl);
+      setCalendarSync((s) => ({ ...s, copied: true }));
+      setTimeout(() => {
+        setCalendarSync((s) => ({ ...s, copied: false }));
+      }, 2000);
+    } catch (error) {
+      console.error("Failed to copy:", error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -728,20 +841,31 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
           <h1 className="font-mono text-2xl md:text-3xl font-bold uppercase">
             Weekly_Plan
           </h1>
-          <Button
-            variant="ghost"
-            onClick={generateGroceryList}
-            disabled={!hasMealOrDrinkItems}
-            className="border-[3px] border-border hover:bg-card"
-            title={
-              hasMealOrDrinkItems
-                ? "Generate grocery list"
-                : "Add meals to generate grocery list"
-            }
-          >
-            <ShoppingCart className="w-4 h-4" />
-            <span className="hidden sm:inline ml-2">Groceries</span>
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              onClick={openCalendarSync}
+              className="border-[3px] border-border hover:bg-card"
+              title="Sync with calendar"
+            >
+              <CalendarSync className="w-4 h-4" />
+              <span className="hidden sm:inline ml-2">Sync</span>
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={generateGroceryList}
+              disabled={!hasMealOrDrinkItems}
+              className="border-[3px] border-border hover:bg-card"
+              title={
+                hasMealOrDrinkItems
+                  ? "Generate grocery list"
+                  : "Add meals to generate grocery list"
+              }
+            >
+              <ShoppingCart className="w-4 h-4" />
+              <span className="hidden sm:inline ml-2">Groceries</span>
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -1595,6 +1719,137 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     </div>
                   )}
                 </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Calendar Sync Modal */}
+      {calendarSync.isOpen && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="brutal-card-static w-full max-w-md">
+            <div className="flex items-center justify-between p-4 border-b-[3px] border-border bg-accent">
+              <div>
+                <h2 className="text-lg font-bold font-mono uppercase flex items-center gap-2">
+                  <CalendarSync className="w-5 h-5" />
+                  Calendar Sync
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Subscribe in Google Calendar or iCal
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  setCalendarSync((s) => ({ ...s, isOpen: false }))
+                }
+                className="border-2 border-border"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              {calendarSync.loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-8 h-8 animate-spin" />
+                </div>
+              ) : calendarSync.error ? (
+                <div className="text-center py-4">
+                  <p className="text-destructive font-mono text-sm">
+                    {calendarSync.error}
+                  </p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={openCalendarSync}
+                    className="mt-2 border-2 border-border"
+                  >
+                    Try Again
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="text-sm font-bold uppercase mb-2 block font-mono">
+                      Sync URL
+                    </label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={calendarSync.syncUrl || ""}
+                        readOnly
+                        className="brutal-input flex-1 text-xs font-mono"
+                      />
+                      <Button
+                        variant="secondary"
+                        onClick={copySyncUrl}
+                        className="border-[3px] border-border shrink-0"
+                      >
+                        {calendarSync.copied ? (
+                          <Check className="w-4 h-4" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </div>
+                    {calendarSync.copied && (
+                      <p className="text-xs text-green-600 font-mono mt-1">
+                        Copied to clipboard!
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="bg-accent p-3 border-[3px] border-border">
+                    <p className="text-sm font-bold uppercase font-mono mb-2">
+                      How to Subscribe
+                    </p>
+                    <ul className="text-xs space-y-2 text-muted-foreground">
+                      <li>
+                        <strong>Google Calendar:</strong> Click + next to
+                        &quot;Other calendars&quot; → &quot;From URL&quot; →
+                        Paste the URL
+                      </li>
+                      <li>
+                        <strong>Apple Calendar:</strong> File → New Calendar
+                        Subscription → Paste the URL
+                      </li>
+                      <li>
+                        <strong>Outlook:</strong> Add calendar → Subscribe from
+                        web → Paste the URL
+                      </li>
+                    </ul>
+                  </div>
+
+                  {calendarSync.lastAccessedAt && (
+                    <p className="text-xs text-muted-foreground font-mono">
+                      Last synced:{" "}
+                      {new Date(calendarSync.lastAccessedAt).toLocaleDateString()}
+                    </p>
+                  )}
+
+                  <div className="pt-2 border-t-[3px] border-border">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={regenerateSyncToken}
+                      disabled={calendarSync.regenerating}
+                      className="w-full border-2 border-border text-destructive hover:text-destructive"
+                    >
+                      {calendarSync.regenerating ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : (
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                      )}
+                      Regenerate URL
+                    </Button>
+                    <p className="text-[10px] text-muted-foreground text-center mt-1">
+                      This will invalidate the current URL. Use if you think
+                      your URL was compromised.
+                    </p>
+                  </div>
+                </>
               )}
             </div>
           </div>

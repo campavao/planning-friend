@@ -2072,3 +2072,187 @@ export async function getPlanItemShares(
 
   return data as PlanItemShare[];
 }
+
+// ==================== Calendar Sync ====================
+
+export interface CalendarSyncToken {
+  id: string;
+  user_id: string;
+  token: string;
+  created_at: string;
+  last_accessed_at?: string;
+  is_active: boolean;
+}
+
+// Generate a secure random token
+function generateCalendarToken(): string {
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  for (let i = 0; i < 48; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+// Get or create calendar sync token for a user
+export async function getOrCreateCalendarSyncToken(
+  userId: string
+): Promise<CalendarSyncToken> {
+  const supabase = createServerClient();
+
+  // Try to find existing active token
+  const { data: existingToken, error: findError } = await supabase
+    .from("calendar_sync_tokens")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .single();
+
+  if (existingToken) {
+    return existingToken as CalendarSyncToken;
+  }
+
+  // Create new token if not found
+  if (findError && findError.code === "PGRST116") {
+    const token = generateCalendarToken();
+
+    const { data: newToken, error: createError } = await supabase
+      .from("calendar_sync_tokens")
+      .insert({
+        user_id: userId,
+        token,
+        is_active: true,
+      })
+      .select()
+      .single();
+
+    if (createError) {
+      throw new Error(
+        `Failed to create calendar sync token: ${createError.message}`
+      );
+    }
+
+    return newToken as CalendarSyncToken;
+  }
+
+  throw new Error(`Failed to get calendar sync token: ${findError?.message}`);
+}
+
+// Regenerate calendar sync token (invalidates old one)
+export async function regenerateCalendarSyncToken(
+  userId: string
+): Promise<CalendarSyncToken> {
+  const supabase = createServerClient();
+
+  // Deactivate existing tokens
+  await supabase
+    .from("calendar_sync_tokens")
+    .update({ is_active: false })
+    .eq("user_id", userId);
+
+  // Create new token
+  const token = generateCalendarToken();
+
+  const { data: newToken, error } = await supabase
+    .from("calendar_sync_tokens")
+    .insert({
+      user_id: userId,
+      token,
+      is_active: true,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to regenerate calendar sync token: ${error.message}`);
+  }
+
+  return newToken as CalendarSyncToken;
+}
+
+// Get user by calendar sync token (for iCal feed access)
+export async function getUserByCalendarToken(
+  token: string
+): Promise<User | null> {
+  const supabase = createServerClient();
+
+  const { data: tokenData, error: tokenError } = await supabase
+    .from("calendar_sync_tokens")
+    .select("user_id")
+    .eq("token", token)
+    .eq("is_active", true)
+    .single();
+
+  if (tokenError || !tokenData) {
+    return null;
+  }
+
+  // Update last accessed timestamp
+  await supabase
+    .from("calendar_sync_tokens")
+    .update({ last_accessed_at: new Date().toISOString() })
+    .eq("token", token);
+
+  // Get the user
+  const { data: user, error: userError } = await supabase
+    .from("users")
+    .select("*")
+    .eq("id", tokenData.user_id)
+    .single();
+
+  if (userError || !user) {
+    return null;
+  }
+
+  return user as User;
+}
+
+// Get all plan items for a date range (for iCal feed)
+export async function getPlanItemsForDateRange(
+  userId: string,
+  startDate: Date,
+  endDate: Date
+): Promise<(PlanItem & { week_start: string })[]> {
+  const supabase = createServerClient();
+
+  // Get all plans in the date range
+  const { data: plans, error: plansError } = await supabase
+    .from("weekly_plans")
+    .select("id, week_start")
+    .eq("user_id", userId)
+    .gte("week_start", formatDateString(startDate))
+    .lte("week_start", formatDateString(endDate));
+
+  if (plansError || !plans || plans.length === 0) {
+    return [];
+  }
+
+  const planIds = plans.map((p: { id: string }) => p.id);
+  const planWeekStarts = new Map(
+    plans.map((p: { id: string; week_start: string }) => [p.id, p.week_start])
+  );
+
+  // Get all items for these plans
+  const { data: items, error: itemsError } = await supabase
+    .from("plan_items")
+    .select(
+      `
+      *,
+      content:content_id (*)
+    `
+    )
+    .in("plan_id", planIds)
+    .order("day_of_week")
+    .order("slot_order");
+
+  if (itemsError) {
+    throw new Error(`Failed to get plan items: ${itemsError.message}`);
+  }
+
+  // Add week_start to each item
+  return (items || []).map((item: PlanItem) => ({
+    ...item,
+    week_start: planWeekStarts.get(item.plan_id) || "",
+  })) as (PlanItem & { week_start: string })[];
+}
