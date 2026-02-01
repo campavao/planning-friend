@@ -170,13 +170,13 @@ export default function Dashboard() {
         <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary-light)]/20 via-transparent to-[var(--accent)]/10" />
         <div className="absolute -top-20 -right-20 w-64 h-64 bg-[var(--primary)] opacity-10 rounded-full blur-3xl" />
         
-        <div className="relative max-w-7xl mx-auto px-4 md:px-6 pt-6 pb-8">
-          <div className="flex items-center justify-between mb-6">
+        <div className="relative max-w-7xl mx-auto px-4 md:px-6 pt-4 pb-6">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="heading-1 text-2xl md:text-3xl">
+              <h1 className="heading-1">
                 My Collection
               </h1>
-              <p className="text-muted-foreground mt-1">
+              <p className="text-sm text-muted-foreground mt-0.5">
                 {completedContent.length} saved items
               </p>
             </div>
@@ -210,41 +210,41 @@ export default function Dashboard() {
           </div>
 
           {/* Stats Row */}
-          <div className="grid grid-cols-5 gap-3 animate-slide-up">
+          <div className="grid grid-cols-5 gap-2 animate-slide-up">
             <div className="stat-card">
-              <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-[var(--meal-bg)] flex items-center justify-center">
-                <Utensils className="w-5 h-5 text-[var(--meal)]" />
+              <div className="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-[var(--meal-bg)] flex items-center justify-center">
+                <Utensils className="w-4 h-4 text-[var(--meal)]" />
               </div>
-              <div className="stat-value text-xl">{mealCount}</div>
-              <div className="stat-label text-[10px]">Meals</div>
+              <div className="stat-value">{mealCount}</div>
+              <div className="stat-label">Meals</div>
             </div>
             <div className="stat-card">
-              <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-[var(--drink-bg)] flex items-center justify-center">
-                <Coffee className="w-5 h-5 text-[var(--drink)]" />
+              <div className="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-[var(--drink-bg)] flex items-center justify-center">
+                <Coffee className="w-4 h-4 text-[var(--drink)]" />
               </div>
-              <div className="stat-value text-xl">{drinkCount}</div>
-              <div className="stat-label text-[10px]">Drinks</div>
+              <div className="stat-value">{drinkCount}</div>
+              <div className="stat-label">Drinks</div>
             </div>
             <div className="stat-card">
-              <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-[var(--event-bg)] flex items-center justify-center">
-                <Calendar className="w-5 h-5 text-[var(--event)]" />
+              <div className="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-[var(--event-bg)] flex items-center justify-center">
+                <Calendar className="w-4 h-4 text-[var(--event)]" />
               </div>
-              <div className="stat-value text-xl">{eventCount}</div>
-              <div className="stat-label text-[10px]">Events</div>
+              <div className="stat-value">{eventCount}</div>
+              <div className="stat-label">Events</div>
             </div>
             <div className="stat-card">
-              <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-[var(--date-bg)] flex items-center justify-center">
-                <Heart className="w-5 h-5 text-[var(--date)]" />
+              <div className="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-[var(--date-bg)] flex items-center justify-center">
+                <Heart className="w-4 h-4 text-[var(--date)]" />
               </div>
-              <div className="stat-value text-xl">{dateCount}</div>
-              <div className="stat-label text-[10px]">Dates</div>
+              <div className="stat-value">{dateCount}</div>
+              <div className="stat-label">Dates</div>
             </div>
             <div className="stat-card">
-              <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-[var(--gift-bg)] flex items-center justify-center">
-                <Gift className="w-5 h-5 text-[var(--gift)]" />
+              <div className="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-[var(--gift-bg)] flex items-center justify-center">
+                <Gift className="w-4 h-4 text-[var(--gift)]" />
               </div>
-              <div className="stat-value text-xl">{giftCount}</div>
-              <div className="stat-label text-[10px]">Gifts</div>
+              <div className="stat-value">{giftCount}</div>
+              <div className="stat-label">Gifts</div>
             </div>
           </div>
         </div>

@@ -804,14 +804,14 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                   <div className="p-3">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <span className="text-lg font-bold font-mono text-primary">
+                        <span className="text-base font-semibold text-[var(--primary)]">
                           {String(getDateForDay(dayIndex)).padStart(2, "0")}
                         </span>
-                        <span className="text-sm font-bold uppercase">
+                        <span className="text-sm font-medium">
                           {DAYS_FULL[dayIndex]}
                         </span>
                         {isToday(dayIndex) && (
-                          <Badge className="brutal-badge bg-primary text-primary-foreground text-[10px]">
+                          <Badge className="bg-[var(--primary)] text-white text-[10px]">
                             Today
                           </Badge>
                         )}
@@ -819,7 +819,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 px-2 text-xs border-2 border-border"
+                        className="h-7 px-2 text-xs rounded-lg hover:bg-[var(--muted)]"
                         onClick={() => setAddingToDay(dayIndex)}
                       >
                         <Plus className="w-3 h-3 mr-1" />
@@ -845,25 +845,21 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                             return (
                               <div
                                 key={item.id}
-                                className={`group relative brutal-card-static overflow-hidden p-3 ${
-                                  isShared
-                                    ? "border-l-4 border-l-pink-400 bg-pink-50"
-                                    : "bg-accent"
-                                }`}
+                                className="group relative bg-[var(--accent-light)] rounded-xl overflow-hidden p-3"
                               >
                                 <div className="flex items-center gap-2 pr-16">
-                                  <FileText className="w-4 h-4" />
+                                  <FileText className="w-4 h-4 text-[var(--accent)]" />
                                   <p className="font-medium text-sm flex-1">
                                     {item.note_title}
                                   </p>
                                   {isShared && (
-                                    <span className="text-[10px] bg-pink-100 text-pink-800 px-1.5 py-0.5 border border-pink-300 font-medium">
+                                    <span className="text-[10px] bg-[var(--muted)] px-1.5 py-0.5 rounded-full font-medium">
                                       from {sharedItem?.owner_name}
                                     </span>
                                   )}
                                   {ownItem?.shared_with &&
                                     ownItem.shared_with.length > 0 && (
-                                      <span className="text-[10px] bg-green-100 text-green-800 px-1.5 py-0.5 border border-green-300 font-medium">
+                                      <span className="text-[10px] bg-[var(--secondary-light)] text-[var(--secondary-dark)] px-1.5 py-0.5 rounded-full font-medium">
                                         <Users className="w-3 h-3 inline mr-0.5" />
                                         {ownItem.shared_with.length}
                                       </span>
@@ -873,7 +869,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                   {isShared ? (
                                     <button
                                       onClick={() => leaveSharedItem(item.id)}
-                                      className="bg-card border-2 border-border w-7 h-7 text-xs flex items-center justify-center shadow-[2px_2px_0_#0a0a0a]"
+                                      className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
                                       title="Leave"
                                     >
                                       <Hand className="w-3 h-3" />
@@ -882,14 +878,14 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                     <>
                                       <button
                                         onClick={() => openShareModal(ownItem!)}
-                                        className="bg-card border-2 border-border w-7 h-7 text-xs flex items-center justify-center shadow-[2px_2px_0_#0a0a0a]"
+                                        className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
                                         title="Share"
                                       >
                                         <Users className="w-3 h-3" />
                                       </button>
                                       <button
                                         onClick={() => removeFromDay(item.id)}
-                                        className="bg-destructive text-destructive-foreground border-2 border-border w-7 h-7 text-xs flex items-center justify-center shadow-[2px_2px_0_#0a0a0a]"
+                                        className="bg-[var(--destructive)] text-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm"
                                       >
                                         <X className="w-3 h-3" />
                                       </button>
@@ -908,11 +904,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                           return (
                             <div
                               key={item.id}
-                              className={`group relative brutal-card-static overflow-hidden ${
-                                isShared
-                                  ? "border-l-4 border-l-pink-400 bg-pink-50"
-                                  : ""
-                              }`}
+                              className="group relative bg-white rounded-xl overflow-hidden border border-[var(--border)]"
                             >
                               <Link
                                 href={`/dashboard/${item.content_id}?from=planner&week=${weekStart}`}
@@ -922,26 +914,23 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                   <img
                                     src={item.content.thumbnail_url}
                                     alt=""
-                                    className="w-20 h-20 object-cover shrink-0 border-r-[3px] border-border"
+                                    className="w-20 h-20 object-cover shrink-0 rounded-l-xl"
                                   />
                                 )}
                                 <div className="flex-1 py-2 pr-16 min-w-0">
-                                  <div className="flex items-center gap-1.5 mb-1">
-                                    <Icon className="w-4 h-4" />
-                                    <span className="text-xs font-mono uppercase text-muted-foreground">
-                                      {item.content?.category?.replace(
-                                        "_",
-                                        " "
-                                      )}
+                                  <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                    <Icon className="w-3.5 h-3.5 text-muted-foreground" />
+                                    <span className="text-xs text-muted-foreground capitalize">
+                                      {item.content?.category?.replace("_", " ")}
                                     </span>
                                     {isShared && (
-                                      <span className="text-[10px] bg-pink-100 text-pink-800 px-1.5 py-0.5 border border-pink-300 font-medium">
+                                      <span className="text-[10px] bg-[var(--muted)] px-1.5 py-0.5 rounded-full font-medium">
                                         from {sharedItem?.owner_name}
                                       </span>
                                     )}
                                     {ownItem?.shared_with &&
                                       ownItem.shared_with.length > 0 && (
-                                        <span className="text-[10px] bg-green-100 text-green-800 px-1.5 py-0.5 border border-green-300 font-medium">
+                                        <span className="text-[10px] bg-[var(--secondary-light)] text-[var(--secondary-dark)] px-1.5 py-0.5 rounded-full font-medium">
                                           <Users className="w-3 h-3 inline mr-0.5" />
                                           {ownItem.shared_with.length}
                                         </span>
@@ -960,7 +949,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                       e.stopPropagation();
                                       leaveSharedItem(item.id);
                                     }}
-                                    className="bg-card border-2 border-border w-7 h-7 text-xs flex items-center justify-center shadow-[2px_2px_0_#0a0a0a]"
+                                    className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
                                     title="Leave"
                                   >
                                     <Hand className="w-3 h-3" />
@@ -973,7 +962,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                         e.stopPropagation();
                                         openShareModal(ownItem!);
                                       }}
-                                      className="bg-card border-2 border-border w-7 h-7 text-xs flex items-center justify-center shadow-[2px_2px_0_#0a0a0a]"
+                                      className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
                                       title="Share"
                                     >
                                       <Users className="w-3 h-3" />
@@ -984,7 +973,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                         e.stopPropagation();
                                         removeFromDay(item.id);
                                       }}
-                                      className="bg-destructive text-destructive-foreground border-2 border-border w-7 h-7 text-xs flex items-center justify-center shadow-[2px_2px_0_#0a0a0a]"
+                                      className="bg-[var(--destructive)] text-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm"
                                     >
                                       <X className="w-3 h-3" />
                                     </button>
@@ -996,7 +985,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                         })}
                       </div>
                     ) : (
-                      <div className="text-center py-4 text-muted-foreground text-sm font-mono">
+                      <div className="text-center py-6 text-muted-foreground text-sm">
                         No plans yet
                       </div>
                     )}
@@ -1004,25 +993,25 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                 </div>
                 {/* Desktop Layout */}
                 <div className="hidden md:block">
-                  <div className="px-3 pt-3 pb-2 border-b-[3px] border-border bg-accent">
+                  <div className="px-3 py-2 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xl font-bold font-mono text-primary">
+                        <span className="text-lg font-semibold text-[var(--primary)]">
                           {String(getDateForDay(dayIndex)).padStart(2, "0")}
                         </span>
-                        <span className="text-xs font-bold uppercase">
+                        <span className="text-xs font-medium uppercase text-muted-foreground">
                           {DAYS[dayIndex]}
                         </span>
                       </div>
                       {isToday(dayIndex) && (
-                        <Badge className="brutal-badge bg-primary text-primary-foreground text-[10px]">
+                        <Badge className="bg-[var(--primary)] text-white text-[10px]">
                           Today
                         </Badge>
                       )}
                     </div>
                   </div>
 
-                  <CardContent className="p-2 space-y-2 min-h-[180px]">
+                  <CardContent className="p-2 space-y-2 min-h-[160px] bg-white rounded-b-2xl">
                     {itemsByDay[dayIndex].map((item) => {
                       const isShared = item.isSharedWithMe;
                       const sharedItem = isShared
@@ -1038,22 +1027,18 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                         return (
                           <div
                             key={item.id}
-                            className={`group relative brutal-card-static overflow-hidden p-2 ${
-                              isShared
-                                ? "border-l-4 border-l-pink-400 bg-pink-50"
-                                : "bg-accent"
-                            }`}
+                            className="group relative bg-[var(--accent-light)] rounded-lg overflow-hidden p-2"
                           >
                             <div className="flex items-center gap-1 mb-0.5 flex-wrap">
-                              <FileText className="w-3 h-3" />
+                              <FileText className="w-3 h-3 text-[var(--accent)]" />
                               {isShared && (
-                                <span className="text-[8px] bg-pink-100 text-pink-800 px-1 py-0.5 border border-pink-300 font-medium">
+                                <span className="text-[8px] bg-white/60 px-1 py-0.5 rounded font-medium">
                                   {sharedItem?.owner_name}
                                 </span>
                               )}
                               {ownItem?.shared_with &&
                                 ownItem.shared_with.length > 0 && (
-                                  <span className="text-[8px] bg-green-100 text-green-800 px-1 py-0.5 border border-green-300 font-medium">
+                                  <span className="text-[8px] bg-[var(--secondary-light)] text-[var(--secondary-dark)] px-1 py-0.5 rounded font-medium">
                                     <Users className="w-2 h-2 inline" />{" "}
                                     {ownItem.shared_with.length}
                                   </span>
@@ -1062,11 +1047,11 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                             <p className="text-xs font-medium line-clamp-2">
                               {item.note_title}
                             </p>
-                            <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                               {isShared ? (
                                 <button
                                   onClick={() => leaveSharedItem(item.id)}
-                                  className="bg-card border border-border w-5 h-5 text-[10px] flex items-center justify-center"
+                                  className="bg-white rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
                                   title="Leave"
                                 >
                                   <Hand className="w-3 h-3" />
@@ -1075,14 +1060,14 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                 <>
                                   <button
                                     onClick={() => openShareModal(ownItem!)}
-                                    className="bg-card border border-border w-5 h-5 text-[10px] flex items-center justify-center"
+                                    className="bg-white rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
                                     title="Share"
                                   >
                                     <Users className="w-3 h-3" />
                                   </button>
                                   <button
                                     onClick={() => removeFromDay(item.id)}
-                                    className="bg-destructive text-white border border-border w-5 h-5 text-[10px] flex items-center justify-center"
+                                    className="bg-[var(--destructive)] text-white rounded w-5 h-5 text-[10px] flex items-center justify-center"
                                   >
                                     <X className="w-3 h-3" />
                                   </button>
@@ -1101,11 +1086,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                       return (
                         <div
                           key={item.id}
-                          className={`group relative brutal-card-static overflow-hidden ${
-                            isShared
-                              ? "border-l-4 border-l-pink-400 bg-pink-50"
-                              : ""
-                          }`}
+                          className="group relative bg-white rounded-lg overflow-hidden border border-[var(--border)]"
                         >
                           <Link
                             href={`/dashboard/${item.content_id}?from=planner&week=${weekStart}`}
@@ -1115,20 +1096,20 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                               <img
                                 src={item.content.thumbnail_url}
                                 alt=""
-                                className="w-full h-24 object-cover border-b-[3px] border-border"
+                                className="w-full h-20 object-cover"
                               />
                             )}
                             <div className="p-2">
                               <div className="flex items-center gap-1 mb-0.5 flex-wrap">
-                                <Icon className="w-3 h-3" />
+                                <Icon className="w-3 h-3 text-muted-foreground" />
                                 {isShared && (
-                                  <span className="text-[8px] bg-pink-100 text-pink-800 px-1 py-0.5 border border-pink-300 font-medium">
+                                  <span className="text-[8px] bg-[var(--muted)] px-1 py-0.5 rounded font-medium">
                                     {sharedItem?.owner_name}
                                   </span>
                                 )}
                                 {ownItem?.shared_with &&
                                   ownItem.shared_with.length > 0 && (
-                                    <span className="text-[8px] bg-green-100 text-green-800 px-1 py-0.5 border border-green-300 font-medium">
+                                    <span className="text-[8px] bg-[var(--secondary-light)] text-[var(--secondary-dark)] px-1 py-0.5 rounded font-medium">
                                       <Users className="w-2 h-2 inline" />{" "}
                                       {ownItem.shared_with.length}
                                     </span>
@@ -1139,7 +1120,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                               </p>
                             </div>
                           </Link>
-                          <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                             {isShared ? (
                               <button
                                 onClick={(e) => {
@@ -1147,7 +1128,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                   e.stopPropagation();
                                   leaveSharedItem(item.id);
                                 }}
-                                className="bg-card border border-border w-5 h-5 text-[10px] flex items-center justify-center"
+                                className="bg-white/90 backdrop-blur rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
                                 title="Leave"
                               >
                                 <Hand className="w-3 h-3" />
@@ -1160,7 +1141,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                     e.stopPropagation();
                                     openShareModal(ownItem!);
                                   }}
-                                  className="bg-card border border-border w-5 h-5 text-[10px] flex items-center justify-center"
+                                  className="bg-white/90 backdrop-blur rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
                                   title="Share"
                                 >
                                   <Users className="w-3 h-3" />
@@ -1171,7 +1152,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                     e.stopPropagation();
                                     removeFromDay(item.id);
                                   }}
-                                  className="bg-destructive text-white border border-border w-5 h-5 text-[10px] flex items-center justify-center"
+                                  className="bg-[var(--destructive)] text-white rounded w-5 h-5 text-[10px] flex items-center justify-center"
                                 >
                                   <X className="w-3 h-3" />
                                 </button>
@@ -1185,7 +1166,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="w-full h-8 text-xs border-2 border-dashed border-border hover:bg-accent"
+                      className="w-full h-7 text-xs border border-dashed border-[var(--border)] rounded-lg hover:bg-[var(--muted)] text-muted-foreground"
                       onClick={() => setAddingToDay(dayIndex)}
                     >
                       <Plus className="w-3 h-3" />

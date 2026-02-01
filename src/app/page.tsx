@@ -112,49 +112,48 @@ export default function Home() {
 
       {/* Hero Section */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-12 relative z-10">
-        <div className="text-center mb-10 animate-slide-up">
+        <div className="text-center mb-8 animate-slide-up">
           {/* Logo/Icon */}
-          <div className="inline-flex items-center justify-center mb-8">
+          <div className="inline-flex items-center justify-center mb-6">
             <div className="relative">
-              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] flex items-center justify-center shadow-lg animate-float">
-                <Compass className="w-10 h-10 text-white" />
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] flex items-center justify-center shadow-lg animate-float">
+                <Compass className="w-8 h-8 text-white" />
               </div>
-              <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-xl bg-[var(--accent)] flex items-center justify-center shadow-md">
-                <Heart className="w-4 h-4 text-white" />
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-lg bg-[var(--accent)] flex items-center justify-center shadow-md">
+                <Heart className="w-3 h-3 text-white" />
               </div>
             </div>
           </div>
 
           {/* Title */}
-          <h1 className="heading-1 mb-4 text-foreground">
-            Planning<br />
-            <span className="text-[var(--primary)]">Friend</span>
+          <h1 className="heading-1 mb-3 text-foreground">
+            Planning <span className="text-[var(--primary)]">Friend</span>
           </h1>
-          <p className="text-lg md:text-xl text-muted-foreground mb-2 font-medium">
+          <p className="text-base text-muted-foreground mb-2 font-medium">
             Save it. Plan it. Do it.
           </p>
-          <p className="text-muted-foreground max-w-md mx-auto mt-4">
-            Your personal planning companion. Text links to{" "}
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto mt-3 px-4">
+            Your planning companion. Text links to{" "}
             <AddContactButton variant="link" /> to save meals, events, date
             ideas, and more.
           </p>
         </div>
 
         {/* Login Card */}
-        <div className="w-full max-w-md animate-slide-up stagger-2">
+        <div className="w-full max-w-sm px-4 animate-slide-up stagger-2">
           <div className="card-elevated overflow-hidden">
-            <div className="bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] px-6 py-5">
-              <h2 className="text-xl font-semibold text-white">
+            <div className="bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] px-5 py-4">
+              <h2 className="text-lg font-semibold text-white">
                 {step === "phone" ? "Welcome Back" : "Enter Code"}
               </h2>
-              <p className="text-white/80 text-sm mt-1">
+              <p className="text-white/80 text-sm mt-0.5">
                 {step === "phone"
                   ? "Sign in with your phone number"
                   : `We sent a code to ${phoneNumber}`}
               </p>
             </div>
 
-            <div className="p-6">
+            <div className="p-5">
               {step === "phone" ? (
                 <form onSubmit={handleSendCode} className="space-y-4">
                   <div>
@@ -240,76 +239,76 @@ export default function Home() {
         </div>
 
         {/* How it works */}
-        <div className="mt-20 w-full max-w-4xl animate-slide-up stagger-3 px-4">
-          <h2 className="heading-2 text-center mb-10">
+        <div className="mt-12 w-full max-w-3xl animate-slide-up stagger-3 px-4">
+          <h2 className="heading-2 text-center mb-6">
             How It Works
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Step 1 */}
-            <div className="card-elevated p-6 text-center group">
-              <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-[var(--secondary)] to-[var(--secondary-dark)] flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                <MessageCircle className="w-8 h-8 text-white" />
+            <div className="card-elevated p-4 text-center group">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-[var(--secondary)] to-[var(--secondary-dark)] flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                <MessageCircle className="w-6 h-6 text-white" />
               </div>
-              <div className="text-sm font-semibold text-[var(--primary)] mb-2">Step 1</div>
-              <h3 className="heading-3 mb-2">Text a Link</h3>
-              <p className="text-muted-foreground text-sm">
-                Send any TikTok, Instagram, or website link via text message
+              <div className="text-xs font-semibold text-[var(--primary)] mb-1">Step 1</div>
+              <h3 className="font-semibold mb-1">Text a Link</h3>
+              <p className="text-muted-foreground text-xs">
+                Send any TikTok, Instagram, or website link
               </p>
             </div>
 
             {/* Step 2 */}
-            <div className="card-elevated p-6 text-center group">
-              <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-[var(--accent)] to-[#E09048] flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                <Sparkles className="w-8 h-8 text-white" />
+            <div className="card-elevated p-4 text-center group">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-[var(--accent)] to-[#E09048] flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                <Sparkles className="w-6 h-6 text-white" />
               </div>
-              <div className="text-sm font-semibold text-[var(--primary)] mb-2">Step 2</div>
-              <h3 className="heading-3 mb-2">AI Extracts</h3>
-              <p className="text-muted-foreground text-sm">
-                We automatically pull out recipes, places, and ideas for you
+              <div className="text-xs font-semibold text-[var(--primary)] mb-1">Step 2</div>
+              <h3 className="font-semibold mb-1">AI Extracts</h3>
+              <p className="text-muted-foreground text-xs">
+                We pull out recipes, places, and ideas for you
               </p>
             </div>
 
             {/* Step 3 */}
-            <div className="card-elevated p-6 text-center group">
-              <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                <Calendar className="w-8 h-8 text-white" />
+            <div className="card-elevated p-4 text-center group">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                <Calendar className="w-6 h-6 text-white" />
               </div>
-              <div className="text-sm font-semibold text-[var(--primary)] mb-2">Step 3</div>
-              <h3 className="heading-3 mb-2">Plan Later</h3>
-              <p className="text-muted-foreground text-sm">
-                Browse and plan with your organized collection anytime
+              <div className="text-xs font-semibold text-[var(--primary)] mb-1">Step 3</div>
+              <h3 className="font-semibold mb-1">Plan Later</h3>
+              <p className="text-muted-foreground text-xs">
+                Browse and plan with your organized collection
               </p>
             </div>
           </div>
         </div>
 
         {/* Feature highlights */}
-        <div className="mt-16 w-full max-w-4xl px-4 animate-slide-up stagger-4">
-          <div className="card-gradient p-8 md:p-10">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+        <div className="mt-10 w-full max-w-lg px-4 animate-slide-up stagger-4">
+          <div className="card-gradient p-5 rounded-2xl">
+            <div className="grid grid-cols-4 gap-3 text-center">
               <div>
-                <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-[var(--meal-bg)] flex items-center justify-center">
-                  <ChefHat className="w-6 h-6 text-[var(--meal)]" />
+                <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-[var(--meal-bg)] flex items-center justify-center">
+                  <ChefHat className="w-5 h-5 text-[var(--meal)]" />
                 </div>
-                <p className="text-sm font-medium">Recipes</p>
+                <p className="text-xs font-medium">Recipes</p>
               </div>
               <div>
-                <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-[var(--event-bg)] flex items-center justify-center">
-                  <Calendar className="w-6 h-6 text-[var(--event)]" />
+                <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-[var(--event-bg)] flex items-center justify-center">
+                  <Calendar className="w-5 h-5 text-[var(--event)]" />
                 </div>
-                <p className="text-sm font-medium">Events</p>
+                <p className="text-xs font-medium">Events</p>
               </div>
               <div>
-                <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-[var(--date-bg)] flex items-center justify-center">
-                  <Heart className="w-6 h-6 text-[var(--date)]" />
+                <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-[var(--date-bg)] flex items-center justify-center">
+                  <Heart className="w-5 h-5 text-[var(--date)]" />
                 </div>
-                <p className="text-sm font-medium">Date Ideas</p>
+                <p className="text-xs font-medium">Dates</p>
               </div>
               <div>
-                <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-[var(--travel-bg)] flex items-center justify-center">
-                  <Compass className="w-6 h-6 text-[var(--travel)]" />
+                <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-[var(--travel-bg)] flex items-center justify-center">
+                  <Compass className="w-5 h-5 text-[var(--travel)]" />
                 </div>
-                <p className="text-sm font-medium">Travel</p>
+                <p className="text-xs font-medium">Travel</p>
               </div>
             </div>
           </div>
