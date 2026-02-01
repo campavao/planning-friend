@@ -717,12 +717,13 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
       {/* Header */}
       <div className="bg-[var(--card)] border-b border-[var(--border)] sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link href="/dashboard">
+          <Link href="/dashboard" className="hidden md:inline-flex">
             <Button variant="ghost" className="btn-ghost">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
           </Link>
+          <div className="md:hidden w-16" />
           <h1 className="heading-2 text-xl md:text-2xl">
             Weekly Plan
           </h1>

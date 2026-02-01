@@ -315,7 +315,7 @@ export default function FriendsPage() {
       {/* Header */}
       <div className="bg-gradient-to-br from-[var(--secondary)] to-[var(--secondary-dark)] px-4 py-5">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <Link href="/dashboard">
+          <Link href="/dashboard" className="hidden md:inline-flex">
             <Button
               variant="ghost"
               className="text-white hover:bg-white/10 rounded-xl"
@@ -324,10 +324,11 @@ export default function FriendsPage() {
               Back
             </Button>
           </Link>
+          <div className="md:hidden w-16" />
           <h1 className="heading-1 text-white">
             Friends
           </h1>
-          <div className="w-20" />
+          <div className="hidden md:block w-20" />
         </div>
       </div>
 
