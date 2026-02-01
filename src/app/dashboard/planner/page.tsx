@@ -1216,8 +1216,8 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
             <div className="flex-1 overflow-y-auto overscroll-contain">
               {/* Quick Note Input */}
-              <div className="p-4 border-b-[3px] border-border bg-accent/50">
-                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">
+              <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)]">
+                <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
                   Quick note
                 </p>
                 <form
@@ -1232,12 +1232,12 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     placeholder='e.g., "Salmon", "Date night"'
                     value={quickNoteInput}
                     onChange={(e) => setQuickNoteInput(e.target.value)}
-                    className="brutal-input flex-1"
+                    className="input-modern flex-1"
                     autoFocus
                   />
                   <Button
                     type="submit"
-                    className="brutal-btn"
+                    className="btn-primary"
                     disabled={!quickNoteInput.trim() || addingQuickNote}
                   >
                     {addingQuickNote ? "..." : "Add"}
@@ -1245,26 +1245,26 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                 </form>
               </div>
 
-              <div className="px-4 py-2 text-xs font-mono uppercase text-muted-foreground text-center bg-secondary border-b-[3px] border-border">
+              <div className="px-4 py-2 text-xs text-muted-foreground text-center bg-[var(--muted)] border-b border-[var(--border)]">
                 Or pick from saved items
               </div>
 
               {/* Search & Filters */}
-              <div className="p-4 border-b-[3px] border-border space-y-3 sticky top-0 bg-card z-10">
+              <div className="p-4 border-b border-[var(--border)] space-y-3 sticky top-0 bg-white z-10">
                 <div className="flex gap-2">
                   <Input
                     type="text"
                     placeholder="Search saved items..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="brutal-input flex-1"
+                    className="input-modern flex-1"
                   />
                   {hasActiveFilters && (
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={clearAllFilters}
-                      className="shrink-0 text-xs text-destructive hover:text-destructive border-2 border-destructive"
+                      className="shrink-0 text-xs text-destructive hover:bg-red-50 rounded-lg"
                     >
                       Clear
                     </Button>
@@ -1279,29 +1279,27 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     { id: "event", label: "Events", icon: Calendar },
                     { id: "date_idea", label: "Dates", icon: Heart },
                   ].map((cat) => (
-                    <Button
+                    <button
                       key={cat.id}
-                      variant={categoryFilter === cat.id ? "default" : "ghost"}
-                      size="sm"
                       onClick={() =>
                         setCategoryFilter(cat.id as ContentCategory | "all")
                       }
-                      className={`shrink-0 ${
+                      className={`shrink-0 px-3 py-1.5 text-xs font-medium rounded-full transition-colors flex items-center gap-1 ${
                         categoryFilter === cat.id
-                          ? "brutal-btn"
-                          : "border-2 border-border"
+                          ? "bg-[var(--primary)] text-white"
+                          : "bg-[var(--muted)] text-[var(--foreground)] hover:bg-[var(--border)]"
                       }`}
                     >
-                      {cat.icon && <cat.icon className="w-3 h-3 mr-1" />}
+                      {cat.icon && <cat.icon className="w-3 h-3" />}
                       {cat.label}
-                    </Button>
+                    </button>
                   ))}
                 </div>
               </div>
 
               {/* Tag filters */}
               {data?.allTags && data.allTags.length > 0 && (
-                <div className="px-4 py-2 border-b-[3px] border-border">
+                <div className="px-4 py-3 border-b border-[var(--border)]">
                   <TagFilter
                     tags={data.allTags}
                     selectedTags={selectedTagIds}
@@ -1319,23 +1317,23 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     <button
                       key={content.id}
                       onClick={() => addToDay(content.id, addingToDay)}
-                      className="w-full brutal-card p-3 text-left flex items-center gap-3"
+                      className="w-full bg-white border border-[var(--border)] rounded-xl p-3 text-left flex items-center gap-3 hover:border-[var(--primary)]/30 hover:shadow-sm transition-all"
                     >
                       {content.thumbnail_url && (
                         <img
                           src={content.thumbnail_url}
                           alt=""
-                          className="w-16 h-16 object-cover shrink-0 border-2 border-border"
+                          className="w-14 h-14 object-cover shrink-0 rounded-lg"
                         />
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <Icon className="w-4 h-4" />
+                          <Icon className="w-3.5 h-3.5 text-muted-foreground" />
                           <span className="text-sm font-medium line-clamp-1">
                             {content.title}
                           </span>
                         </div>
-                        <p className="text-xs text-muted-foreground uppercase font-mono">
+                        <p className="text-xs text-muted-foreground capitalize">
                           {content.category.replace("_", " ")}
                         </p>
                         {content.tags && content.tags.length > 0 && (
@@ -1343,13 +1341,13 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                             {content.tags.slice(0, 3).map((tag) => (
                               <span
                                 key={tag.id}
-                                className="text-[10px] px-1.5 py-0.5 bg-accent border border-border"
+                                className="text-[10px] px-1.5 py-0.5 bg-[var(--accent-light)] rounded-full"
                               >
                                 {tag.name}
                               </span>
                             ))}
                             {content.tags.length > 3 && (
-                              <span className="text-[10px] text-muted-foreground font-mono">
+                              <span className="text-[10px] text-muted-foreground">
                                 +{content.tags.length - 3}
                               </span>
                             )}
@@ -1362,13 +1360,13 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
                 {getFilteredContent().length === 0 && (
                   <div className="text-center py-8 text-muted-foreground">
-                    <p className="font-mono uppercase">No items found</p>
+                    <p className="text-sm font-medium">No items found</p>
                     {hasActiveFilters && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={clearAllFilters}
-                        className="mt-2 border-2 border-border"
+                        className="mt-2 btn-ghost text-xs"
                       >
                         Clear all filters
                       </Button>
@@ -1385,7 +1383,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
       {groceryList.isOpen && (
         <div className="fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
           <div className="bg-[var(--card)] w-full max-w-lg max-h-[85vh] flex flex-col rounded-2xl shadow-xl">
-            <div className="flex items-center justify-between p-4 border-b border-[var(--border)] bg-gradient-to-r from-[var(--secondary)] to-[var(--secondary-dark)] rounded-t-2xl">
+            <div className="flex items-center justify-between p-4 border-b border-[var(--border)] bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] rounded-t-2xl">
               <div>
                 <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                   <ShoppingCart className="w-5 h-5" />
@@ -1405,7 +1403,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     groceryList.loading ||
                     groceryList.items.length === 0
                   }
-                  className="text-white hover:bg-white/10"
+                  className="text-white hover:bg-white/10 rounded-lg"
                 >
                   <Camera className="w-4 h-4 mr-1" />
                   {groceryList.saving ? "..." : "Save"}
@@ -1416,7 +1414,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                   onClick={() =>
                     setGroceryList((s) => ({ ...s, isOpen: false }))
                   }
-                  className="text-white hover:bg-white/10"
+                  className="text-white hover:bg-white/10 rounded-lg"
                 >
                   <X className="w-4 h-4" />
                 </Button>
@@ -1426,8 +1424,8 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
             <div className="flex-1 overflow-y-auto">
               {groceryList.loading && (
                 <div className="flex flex-col items-center justify-center py-16">
-                  <Loader2 className="w-12 h-12 animate-spin mb-4" />
-                  <p className="text-muted-foreground font-mono uppercase">
+                  <div className="loading-spinner mb-4" />
+                  <p className="text-muted-foreground text-sm">
                     Generating list...
                   </p>
                 </div>
@@ -1435,14 +1433,16 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
               {groceryList.error && !groceryList.loading && (
                 <div className="flex flex-col items-center justify-center py-16 px-4">
-                  <X className="w-12 h-12 mb-4 text-destructive" />
-                  <p className="text-muted-foreground text-center">
+                  <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-4">
+                    <X className="w-6 h-6 text-destructive" />
+                  </div>
+                  <p className="text-muted-foreground text-center text-sm">
                     {groceryList.error}
                   </p>
                   <Button
-                    variant="secondary"
+                    variant="ghost"
                     size="sm"
-                    className="mt-4 border-2 border-border"
+                    className="mt-4 btn-ghost"
                     onClick={() =>
                       setGroceryList((s) => ({ ...s, isOpen: false }))
                     }
@@ -1453,7 +1453,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
               )}
 
               {!groceryList.loading && !groceryList.error && (
-                <div ref={groceryListRef} className="p-4 bg-white">
+                <div ref={groceryListRef} className="p-4">
                   {groceryList.items.length > 0 ? (
                     <>
                       {(() => {
@@ -1461,11 +1461,11 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                           ...new Set(groceryList.items.map((i) => i.category)),
                         ];
                         return categories.map((category) => (
-                          <div key={category} className="mb-4">
-                            <h4 className="font-bold text-sm uppercase font-mono text-primary mb-2 border-b-2 border-primary pb-1">
+                          <div key={category} className="mb-5">
+                            <h4 className="font-semibold text-sm text-[var(--primary)] mb-2 pb-1 border-b border-[var(--border)]">
                               {category}
                             </h4>
-                            <ul className="space-y-2">
+                            <ul className="space-y-1">
                               {groceryList.items
                                 .filter((item) => item.category === category)
                                 .map((item, index) => (
@@ -1481,53 +1481,50 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                               : item.ingredient,
                                         }))
                                       }
-                                      className="w-full text-left flex items-start gap-2 hover:bg-secondary p-1 -mx-1"
+                                      className="w-full text-left flex items-start gap-3 hover:bg-[var(--muted)] p-2 rounded-lg -mx-2 transition-colors"
                                     >
-                                      <span className="text-primary mt-0.5">
-                                        •
-                                      </span>
-                                      <div className="flex-1">
-                                        <div className="flex items-baseline gap-2">
-                                          <span className="font-medium">
+                                      <div className="w-5 h-5 rounded-full bg-[var(--primary)]/10 flex items-center justify-center shrink-0 mt-0.5">
+                                        <span className="text-[var(--primary)] text-xs">•</span>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-baseline gap-2 flex-wrap">
+                                          <span className="font-medium text-sm">
                                             {item.ingredient}
                                           </span>
                                           {item.quantity && (
-                                            <span className="text-sm text-muted-foreground font-mono">
+                                            <span className="text-xs text-muted-foreground">
                                               ({item.quantity})
                                             </span>
                                           )}
                                         </div>
                                         {item.notes && (
                                           <p className="text-xs text-muted-foreground italic mt-0.5">
-                                            Note: {item.notes}
+                                            {item.notes}
                                           </p>
                                         )}
-                                        <p className="text-xs text-muted-foreground mt-0.5 font-mono">
-                                          For:{" "}
-                                          {item.sources
-                                            .map((s) => s.title)
-                                            .join(", ")}
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                          For: {item.sources.map((s) => s.title).join(", ")}
                                         </p>
                                       </div>
                                       {groceryList.expandedIngredient ===
                                       item.ingredient ? (
-                                        <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                                        <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
                                       ) : (
-                                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                                        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
                                       )}
                                     </button>
 
                                     {groceryList.expandedIngredient ===
                                       item.ingredient && (
-                                      <div className="ml-5 mt-1 mb-2 space-y-1 bg-secondary p-2 border-2 border-border">
-                                        <p className="text-xs font-bold font-mono uppercase mb-1">
+                                      <div className="ml-8 mt-1 mb-2 p-3 bg-[var(--muted)] rounded-lg">
+                                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
                                           Used in:
                                         </p>
                                         {item.sources.map((source, sIndex) => (
                                           <Link
                                             key={sIndex}
                                             href={`/dashboard/${source.id}?from=planner&week=${weekStart}`}
-                                            className="block text-xs text-primary hover:underline"
+                                            className="block text-sm text-[var(--primary)] hover:underline py-0.5"
                                             onClick={() =>
                                               setGroceryList((s) => ({
                                                 ...s,
@@ -1548,17 +1545,18 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                       })()}
 
                       {groceryList.tips.length > 0 && (
-                        <div className="mt-6 pt-4 border-t-[3px] border-border">
-                          <h4 className="font-bold text-sm uppercase font-mono mb-2">
+                        <div className="mt-4 pt-4 border-t border-[var(--border)]">
+                          <h4 className="font-semibold text-sm mb-2">
                             Shopping Tips
                           </h4>
-                          <ul className="space-y-1">
+                          <ul className="space-y-1.5">
                             {groceryList.tips.map((tip, index) => (
                               <li
                                 key={index}
-                                className="text-xs text-muted-foreground"
+                                className="text-xs text-muted-foreground flex gap-2"
                               >
-                                • {tip}
+                                <span className="text-[var(--primary)]">•</span>
+                                <span>{tip}</span>
                               </li>
                             ))}
                           </ul>
@@ -1566,8 +1564,11 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                       )}
                     </>
                   ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <p className="font-mono uppercase">
+                    <div className="text-center py-12 text-muted-foreground">
+                      <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--muted)] flex items-center justify-center">
+                        <ShoppingCart className="w-6 h-6" />
+                      </div>
+                      <p className="font-medium text-sm">
                         No ingredients found
                       </p>
                       <p className="text-xs mt-1">
@@ -1623,33 +1624,33 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                           <button
                             key={friend.id}
                             onClick={() => toggleFriendSelection(friend.id)}
-                            className={`w-full p-3 text-left flex items-center gap-3 transition-colors brutal-card ${
+                            className={`w-full p-3 text-left flex items-center gap-3 transition-all rounded-xl border ${
                               isSelected
-                                ? "bg-primary/10 border-primary"
-                                : "bg-card"
+                                ? "bg-[var(--primary)]/5 border-[var(--primary)]"
+                                : "bg-white border-[var(--border)] hover:border-[var(--primary)]/30"
                             }`}
                           >
                             <div
-                              className={`w-10 h-10 flex items-center justify-center border-2 border-border ${
-                                isSelected ? "bg-primary/20" : "bg-accent"
+                              className={`w-10 h-10 flex items-center justify-center rounded-xl ${
+                                isSelected ? "bg-[var(--primary)]/10" : "bg-[var(--muted)]"
                               }`}
                             >
                               {friend.isFavorite ? (
-                                <Star className="w-5 h-5" />
+                                <Star className={`w-5 h-5 ${isSelected ? "text-[var(--primary)]" : ""}`} />
                               ) : (
-                                <User className="w-5 h-5" />
+                                <User className={`w-5 h-5 ${isSelected ? "text-[var(--primary)]" : ""}`} />
                               )}
                             </div>
                             <div className="flex-1">
                               <p className="font-medium text-sm">
                                 {friend.name}
                               </p>
-                              <p className="text-xs text-muted-foreground font-mono">
+                              <p className="text-xs text-muted-foreground">
                                 {isSelected ? "Selected" : "Tap to select"}
                               </p>
                             </div>
                             {isSelected && (
-                              <Check className="w-5 h-5 text-primary" />
+                              <Check className="w-5 h-5 text-[var(--primary)]" />
                             )}
                           </button>
                         );
@@ -1671,14 +1672,14 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     onClick={() =>
                       setItemShare((s) => ({ ...s, showAddFriend: true }))
                     }
-                    className="w-full p-3 text-left flex items-center gap-3 brutal-card border-dashed"
+                    className="w-full p-3 text-left flex items-center gap-3 rounded-xl border-2 border-dashed border-[var(--border)] hover:border-[var(--primary)]/30 hover:bg-[var(--muted)]/50 transition-colors"
                   >
-                    <div className="w-10 h-10 flex items-center justify-center border-2 border-dashed border-border bg-accent">
+                    <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-[var(--muted)]">
                       <Plus className="w-5 h-5" />
                     </div>
                     <div className="flex-1">
                       <p className="font-medium text-sm">Add a Friend</p>
-                      <p className="text-xs text-muted-foreground font-mono">
+                      <p className="text-xs text-muted-foreground">
                         Add someone new to share with
                       </p>
                     </div>
@@ -1698,7 +1699,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
                   <div className="space-y-3">
                     <div>
-                      <label className="text-sm font-bold uppercase mb-1 block font-mono">
+                      <label className="text-sm font-medium mb-1.5 block">
                         Name
                       </label>
                       <Input
@@ -1710,12 +1711,12 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                           }))
                         }
                         placeholder="Friend's name"
-                        className="brutal-input"
+                        className="input-modern"
                         autoFocus
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-bold uppercase mb-1 block font-mono">
+                      <label className="text-sm font-medium mb-1.5 block">
                         Phone{" "}
                         <span className="text-muted-foreground font-normal">
                           (optional)
@@ -1731,9 +1732,9 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                         }
                         placeholder="(555) 123-4567"
                         type="tel"
-                        className="brutal-input"
+                        className="input-modern"
                       />
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-xs text-muted-foreground mt-1.5">
                         If they have Planning Friend, they&apos;ll be linked
                         automatically.
                       </p>
@@ -1744,7 +1745,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                       disabled={
                         itemShare.loading || !itemShare.newFriendName.trim()
                       }
-                      className="brutal-btn w-full"
+                      className="btn-primary w-full"
                     >
                       {itemShare.loading ? "Adding..." : "Add Friend"}
                     </Button>
@@ -1754,14 +1755,14 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
             </div>
 
             {!itemShare.showAddFriend && (
-              <div className="p-4 border-t-[3px] border-border space-y-3">
+              <div className="p-4 border-t border-[var(--border)] space-y-3">
                 {itemShare.error && (
-                  <p className="text-sm text-destructive text-center font-mono">
+                  <p className="text-sm text-destructive text-center">
                     {itemShare.error}
                   </p>
                 )}
                 {itemShare.success && (
-                  <p className="text-sm text-primary text-center font-mono">
+                  <p className="text-sm text-[var(--primary)] text-center">
                     {itemShare.success}
                   </p>
                 )}
@@ -1771,7 +1772,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     itemShare.loading ||
                     itemShare.selectedFriendIds.length === 0
                   }
-                  className="brutal-btn w-full"
+                  className="btn-primary w-full"
                 >
                   {itemShare.loading
                     ? "Sharing..."
