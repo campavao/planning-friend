@@ -305,31 +305,28 @@ export default function FriendsPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="brutal-loading w-32">
-          <div className="brutal-loading-bar" />
-        </div>
+        <div className="loading-spinner" />
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen pb-28 md:pb-8 bg-background">
+    <main className="min-h-screen pb-28 md:pb-8 bg-[var(--background)]">
       {/* Header */}
-      <div className="brutal-header">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <Link href="/dashboard">
+      <div className="bg-[var(--secondary)] px-4 py-5">
+        <div className="max-w-4xl mx-auto flex items-center gap-4">
+          <Link href="/dashboard" className="hidden md:inline-flex">
             <Button
               variant="ghost"
-              className="border-[3px] border-border hover:bg-card"
+              className="text-white hover:bg-white/10 rounded-xl"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
           </Link>
-          <h1 className="font-mono text-2xl md:text-3xl font-bold uppercase">
+          <h1 className="heading-1 text-white">
             Friends
           </h1>
-          <div className="w-20" />
         </div>
       </div>
 
@@ -341,7 +338,7 @@ export default function FriendsPage() {
             placeholder="Search friends..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="brutal-input w-full"
+            className="input-modern w-full"
           />
         </div>
 
@@ -360,14 +357,14 @@ export default function FriendsPage() {
             onClick={handleImportContacts}
             disabled={importingContacts}
             variant="outline"
-            className="flex-1 border-[3px] border-border hover:bg-accent"
+            className="flex-1 rounded-xl border-[var(--border)] hover:bg-[var(--muted)]"
           >
             <Smartphone className="w-4 h-4 mr-2" />
             {importingContacts ? "Importing..." : "Import Contacts"}
           </Button>
           <Button
             onClick={() => setShowAddManual(!showAddManual)}
-            className="flex-1 brutal-btn"
+            className="flex-1 btn-secondary"
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Manually
@@ -376,10 +373,12 @@ export default function FriendsPage() {
 
         {/* Manual Add Form */}
         {showAddManual && (
-          <div className="brutal-card-static mb-6">
-            <div className="p-4 border-b-[3px] border-border bg-accent">
-              <h2 className="font-mono text-lg font-bold uppercase flex items-center gap-2">
-                <Plus className="w-5 h-5" />
+          <div className="card-elevated mb-6">
+            <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl">
+              <h2 className="font-semibold text-base flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-[var(--secondary)]/10 flex items-center justify-center">
+                  <Plus className="w-4 h-4 text-[var(--secondary)]" />
+                </div>
                 Add a Friend
               </h2>
             </div>
@@ -388,7 +387,7 @@ export default function FriendsPage() {
                 placeholder="Name *"
                 value={newFriendName}
                 onChange={(e) => setNewFriendName(e.target.value)}
-                className="brutal-input"
+                className="input-modern"
                 autoFocus
               />
               <Input
@@ -398,7 +397,7 @@ export default function FriendsPage() {
                 onChange={(e) =>
                   setNewFriendPhone(formatPhoneNumber(e.target.value))
                 }
-                className="brutal-input"
+                className="input-modern"
               />
               <div className="flex gap-2">
                 <Button
@@ -408,7 +407,7 @@ export default function FriendsPage() {
                     !newFriendName.trim() ||
                     newFriendPhone.replace(/\D/g, "").length < 10
                   }
-                  className="flex-1 brutal-btn"
+                  className="flex-1 btn-secondary"
                 >
                   {addingFriend ? "Adding..." : "Add Friend"}
                 </Button>
@@ -419,7 +418,7 @@ export default function FriendsPage() {
                     setNewFriendName("");
                     setNewFriendPhone("");
                   }}
-                  className="border-[3px] border-border"
+                  className="rounded-xl border border-[var(--border)]"
                 >
                   Cancel
                 </Button>
@@ -430,12 +429,14 @@ export default function FriendsPage() {
 
         {/* Friends List */}
         {filteredFriends.length === 0 ? (
-          <div className="brutal-card-static p-8 text-center">
-            <Users className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="font-mono text-xl font-bold uppercase mb-2">
+          <div className="card-elevated p-8 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--secondary)]/10 flex items-center justify-center">
+              <Users className="w-8 h-8 text-[var(--secondary)]" />
+            </div>
+            <h3 className="font-semibold text-lg mb-2">
               {searchQuery ? "No friends found" : "No friends yet"}
             </h3>
-            <p className="text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {searchQuery
                 ? "Try a different search term"
                 : "Add friends to share your plans with them!"}
@@ -446,7 +447,7 @@ export default function FriendsPage() {
             {filteredFriends.map((friend) => (
               <div
                 key={friend.id}
-                className="brutal-card-static p-4 flex items-center gap-3 group"
+                className="card-elevated p-4 flex items-center gap-3 group"
               >
                 {/* Favorite Star */}
                 <button
@@ -459,7 +460,7 @@ export default function FriendsPage() {
                   }
                 >
                   <Star
-                    className={`w-6 h-6 ${
+                    className={`w-5 h-5 ${
                       friend.is_favorite
                         ? "fill-yellow-400 text-yellow-400"
                         : "text-muted-foreground"
@@ -477,13 +478,13 @@ export default function FriendsPage() {
                         onKeyDown={(e) =>
                           e.key === "Enter" && handleUpdateName(friend.id)
                         }
-                        className="brutal-input flex-1"
+                        className="input-modern flex-1"
                         autoFocus
                       />
                       <Button
                         size="sm"
                         onClick={() => handleUpdateName(friend.id)}
-                        className="brutal-btn"
+                        className="btn-secondary"
                       >
                         Save
                       </Button>
@@ -491,21 +492,21 @@ export default function FriendsPage() {
                         size="sm"
                         variant="ghost"
                         onClick={() => setEditingId(null)}
-                        className="border-2 border-border"
+                        className="rounded-lg border border-[var(--border)]"
                       >
                         Cancel
                       </Button>
                     </div>
                   ) : (
                     <>
-                      <p className="font-bold truncate">{friend.name}</p>
+                      <p className="font-medium truncate">{friend.name}</p>
                       {friend.phone_number && (
-                        <p className="text-sm text-muted-foreground font-mono">
+                        <p className="text-sm text-muted-foreground">
                           {formatPhoneNumber(friend.phone_number)}
                         </p>
                       )}
                       {friend.linked_user_id && (
-                        <span className="inline-flex items-center gap-1 text-xs text-primary font-mono">
+                        <span className="inline-flex items-center gap-1 text-xs text-[var(--primary)]">
                           <Check className="w-3 h-3" />
                           Planning Friend user
                         </span>
@@ -524,7 +525,7 @@ export default function FriendsPage() {
                         setEditingId(friend.id);
                         setEditName(friend.name);
                       }}
-                      className="border-2 border-border"
+                      className="rounded-lg hover:bg-[var(--muted)]"
                     >
                       <Pencil className="w-4 h-4" />
                     </Button>
@@ -532,7 +533,7 @@ export default function FriendsPage() {
                       size="sm"
                       variant="ghost"
                       onClick={() => handleDeleteFriend(friend.id)}
-                      className="border-2 border-destructive text-destructive"
+                      className="rounded-lg text-destructive hover:bg-red-50"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>

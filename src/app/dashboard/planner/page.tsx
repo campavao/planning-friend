@@ -686,8 +686,9 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="brutal-loading w-32">
-          <div className="brutal-loading-bar" />
+        <div className="text-center">
+          <div className="loading-spinner mx-auto mb-4" />
+          <p className="text-muted-foreground text-sm">Loading your planner...</p>
         </div>
       </div>
     );
@@ -714,25 +715,23 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
   return (
     <main className="min-h-screen pb-28 md:pb-8 bg-background">
       {/* Header */}
-      <div className="brutal-header">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/dashboard">
-            <Button
-              variant="ghost"
-              className="border-[3px] border-border hover:bg-card"
-            >
+      <div className="bg-[var(--card)] border-b border-[var(--border)] sticky top-0 z-20">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+          <Link href="/dashboard" className="hidden md:inline-flex">
+            <Button variant="ghost" className="btn-ghost">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
           </Link>
-          <h1 className="font-mono text-2xl md:text-3xl font-bold uppercase">
-            Weekly_Plan
+          <div className="md:hidden w-16" />
+          <h1 className="heading-2 text-xl md:text-2xl">
+            Weekly Plan
           </h1>
           <Button
             variant="ghost"
             onClick={generateGroceryList}
             disabled={!hasMealOrDrinkItems}
-            className="border-[3px] border-border hover:bg-card"
+            className="btn-ghost"
             title={
               hasMealOrDrinkItems
                 ? "Generate grocery list"
@@ -745,31 +744,31 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-3 md:px-4 py-6">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
         {/* Week Navigation */}
-        <div className="brutal-card-static p-4 mb-6 flex items-center justify-between">
+        <div className="card-elevated p-4 mb-6 flex items-center justify-between">
           <Button
             variant="ghost"
             onClick={() => navigateWeek(-1)}
-            className="border-[3px] border-border hover:bg-accent"
+            className="btn-ghost"
             disabled={gridLoading}
           >
             <ArrowLeft className="w-4 h-4" />
             <span className="hidden sm:inline ml-2">Prev</span>
           </Button>
           <div className="text-center">
-            <h2 className="text-lg md:text-xl font-bold font-mono">
+            <h2 className="text-lg md:text-xl font-semibold">
               {formatWeekRange()}
             </h2>
-            <div className="flex items-center justify-center gap-2 mt-1 flex-wrap">
+            <div className="flex items-center justify-center gap-2 mt-2 flex-wrap">
               {isCurrentWeek() && (
-                <Badge className="brutal-badge bg-amber-200 text-amber-900 border-amber-400">
+                <Badge className="bg-[var(--accent-light)] text-[var(--accent-foreground)]">
                   This Week
                 </Badge>
               )}
               {data?.sharedItems && data.sharedItems.length > 0 && (
-                <Badge className="brutal-badge bg-pink-100 text-pink-800 border-pink-300">
-                  <Users className="w-3 h-3 mr-1" />
+                <Badge variant="date">
+                  <Users className="w-3 h-3" />
                   {data.sharedItems.length} shared
                 </Badge>
               )}
@@ -778,7 +777,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
           <Button
             variant="ghost"
             onClick={() => navigateWeek(1)}
-            className="border-[3px] border-border hover:bg-accent"
+            className="btn-ghost"
             disabled={gridLoading}
           >
             <span className="hidden sm:inline mr-2">Next</span>
@@ -789,16 +788,16 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
         {/* Week Grid */}
         <div className="relative">
           {gridLoading && (
-            <div className="absolute inset-0 bg-background/70 z-10 flex items-center justify-center">
-              <Loader2 className="w-8 h-8 animate-spin" />
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-2xl">
+              <div className="loading-spinner" />
             </div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
             {DAYS.map((day, dayIndex) => (
               <Card
                 key={day}
-                className={`brutal-card-static overflow-hidden ${
-                  isToday(dayIndex) ? "ring-2 ring-primary" : ""
+                className={`card-elevated overflow-hidden ${
+                  isToday(dayIndex) ? "ring-2 ring-[var(--primary)]" : ""
                 }`}
               >
                 {/* Mobile Layout */}
@@ -806,14 +805,14 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                   <div className="p-3">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <span className="text-lg font-bold font-mono text-primary">
+                        <span className="text-base font-semibold text-[var(--primary)]">
                           {String(getDateForDay(dayIndex)).padStart(2, "0")}
                         </span>
-                        <span className="text-sm font-bold uppercase">
+                        <span className="text-sm font-medium">
                           {DAYS_FULL[dayIndex]}
                         </span>
                         {isToday(dayIndex) && (
-                          <Badge className="brutal-badge bg-primary text-primary-foreground text-[10px]">
+                          <Badge className="bg-[var(--primary)] text-white text-[10px]">
                             Today
                           </Badge>
                         )}
@@ -821,7 +820,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 px-2 text-xs border-2 border-border"
+                        className="h-7 px-2 text-xs rounded-lg hover:bg-[var(--muted)]"
                         onClick={() => setAddingToDay(dayIndex)}
                       >
                         <Plus className="w-3 h-3 mr-1" />
@@ -847,25 +846,21 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                             return (
                               <div
                                 key={item.id}
-                                className={`group relative brutal-card-static overflow-hidden p-3 ${
-                                  isShared
-                                    ? "border-l-4 border-l-pink-400 bg-pink-50"
-                                    : "bg-accent"
-                                }`}
+                                className="group relative bg-[var(--accent-light)] rounded-xl overflow-hidden p-3"
                               >
                                 <div className="flex items-center gap-2 pr-16">
-                                  <FileText className="w-4 h-4" />
+                                  <FileText className="w-4 h-4 text-[var(--accent)]" />
                                   <p className="font-medium text-sm flex-1">
                                     {item.note_title}
                                   </p>
                                   {isShared && (
-                                    <span className="text-[10px] bg-pink-100 text-pink-800 px-1.5 py-0.5 border border-pink-300 font-medium">
+                                    <span className="text-[10px] bg-[var(--muted)] px-1.5 py-0.5 rounded-full font-medium">
                                       from {sharedItem?.owner_name}
                                     </span>
                                   )}
                                   {ownItem?.shared_with &&
                                     ownItem.shared_with.length > 0 && (
-                                      <span className="text-[10px] bg-green-100 text-green-800 px-1.5 py-0.5 border border-green-300 font-medium">
+                                      <span className="text-[10px] bg-[var(--secondary-light)] text-[var(--secondary-dark)] px-1.5 py-0.5 rounded-full font-medium">
                                         <Users className="w-3 h-3 inline mr-0.5" />
                                         {ownItem.shared_with.length}
                                       </span>
@@ -875,7 +870,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                   {isShared ? (
                                     <button
                                       onClick={() => leaveSharedItem(item.id)}
-                                      className="bg-card border-2 border-border w-7 h-7 text-xs flex items-center justify-center shadow-[2px_2px_0_#0a0a0a]"
+                                      className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
                                       title="Leave"
                                     >
                                       <Hand className="w-3 h-3" />
@@ -884,14 +879,14 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                     <>
                                       <button
                                         onClick={() => openShareModal(ownItem!)}
-                                        className="bg-card border-2 border-border w-7 h-7 text-xs flex items-center justify-center shadow-[2px_2px_0_#0a0a0a]"
+                                        className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
                                         title="Share"
                                       >
                                         <Users className="w-3 h-3" />
                                       </button>
                                       <button
                                         onClick={() => removeFromDay(item.id)}
-                                        className="bg-destructive text-destructive-foreground border-2 border-border w-7 h-7 text-xs flex items-center justify-center shadow-[2px_2px_0_#0a0a0a]"
+                                        className="bg-[var(--destructive)] text-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm"
                                       >
                                         <X className="w-3 h-3" />
                                       </button>
@@ -910,11 +905,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                           return (
                             <div
                               key={item.id}
-                              className={`group relative brutal-card-static overflow-hidden ${
-                                isShared
-                                  ? "border-l-4 border-l-pink-400 bg-pink-50"
-                                  : ""
-                              }`}
+                              className="group relative bg-white rounded-xl overflow-hidden border border-[var(--border)]"
                             >
                               <Link
                                 href={`/dashboard/${item.content_id}?from=planner&week=${weekStart}`}
@@ -924,26 +915,23 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                   <img
                                     src={item.content.thumbnail_url}
                                     alt=""
-                                    className="w-20 h-20 object-cover shrink-0 border-r-[3px] border-border"
+                                    className="w-20 h-20 object-cover shrink-0 rounded-l-xl"
                                   />
                                 )}
                                 <div className="flex-1 py-2 pr-16 min-w-0">
-                                  <div className="flex items-center gap-1.5 mb-1">
-                                    <Icon className="w-4 h-4" />
-                                    <span className="text-xs font-mono uppercase text-muted-foreground">
-                                      {item.content?.category?.replace(
-                                        "_",
-                                        " "
-                                      )}
+                                  <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                    <Icon className="w-3.5 h-3.5 text-muted-foreground" />
+                                    <span className="text-xs text-muted-foreground capitalize">
+                                      {item.content?.category?.replace("_", " ")}
                                     </span>
                                     {isShared && (
-                                      <span className="text-[10px] bg-pink-100 text-pink-800 px-1.5 py-0.5 border border-pink-300 font-medium">
+                                      <span className="text-[10px] bg-[var(--muted)] px-1.5 py-0.5 rounded-full font-medium">
                                         from {sharedItem?.owner_name}
                                       </span>
                                     )}
                                     {ownItem?.shared_with &&
                                       ownItem.shared_with.length > 0 && (
-                                        <span className="text-[10px] bg-green-100 text-green-800 px-1.5 py-0.5 border border-green-300 font-medium">
+                                        <span className="text-[10px] bg-[var(--secondary-light)] text-[var(--secondary-dark)] px-1.5 py-0.5 rounded-full font-medium">
                                           <Users className="w-3 h-3 inline mr-0.5" />
                                           {ownItem.shared_with.length}
                                         </span>
@@ -962,7 +950,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                       e.stopPropagation();
                                       leaveSharedItem(item.id);
                                     }}
-                                    className="bg-card border-2 border-border w-7 h-7 text-xs flex items-center justify-center shadow-[2px_2px_0_#0a0a0a]"
+                                    className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
                                     title="Leave"
                                   >
                                     <Hand className="w-3 h-3" />
@@ -975,7 +963,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                         e.stopPropagation();
                                         openShareModal(ownItem!);
                                       }}
-                                      className="bg-card border-2 border-border w-7 h-7 text-xs flex items-center justify-center shadow-[2px_2px_0_#0a0a0a]"
+                                      className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
                                       title="Share"
                                     >
                                       <Users className="w-3 h-3" />
@@ -986,7 +974,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                         e.stopPropagation();
                                         removeFromDay(item.id);
                                       }}
-                                      className="bg-destructive text-destructive-foreground border-2 border-border w-7 h-7 text-xs flex items-center justify-center shadow-[2px_2px_0_#0a0a0a]"
+                                      className="bg-[var(--destructive)] text-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm"
                                     >
                                       <X className="w-3 h-3" />
                                     </button>
@@ -998,7 +986,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                         })}
                       </div>
                     ) : (
-                      <div className="text-center py-4 text-muted-foreground text-sm font-mono">
+                      <div className="text-center py-6 text-muted-foreground text-sm">
                         No plans yet
                       </div>
                     )}
@@ -1006,25 +994,25 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                 </div>
                 {/* Desktop Layout */}
                 <div className="hidden md:block">
-                  <div className="px-3 pt-3 pb-2 border-b-[3px] border-border bg-accent">
+                  <div className="px-3 py-2 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xl font-bold font-mono text-primary">
+                        <span className="text-lg font-semibold text-[var(--primary)]">
                           {String(getDateForDay(dayIndex)).padStart(2, "0")}
                         </span>
-                        <span className="text-xs font-bold uppercase">
+                        <span className="text-xs font-medium uppercase text-muted-foreground">
                           {DAYS[dayIndex]}
                         </span>
                       </div>
                       {isToday(dayIndex) && (
-                        <Badge className="brutal-badge bg-primary text-primary-foreground text-[10px]">
+                        <Badge className="bg-[var(--primary)] text-white text-[10px]">
                           Today
                         </Badge>
                       )}
                     </div>
                   </div>
 
-                  <CardContent className="p-2 space-y-2 min-h-[180px]">
+                  <CardContent className="p-2 space-y-2 min-h-[160px] bg-white rounded-b-2xl">
                     {itemsByDay[dayIndex].map((item) => {
                       const isShared = item.isSharedWithMe;
                       const sharedItem = isShared
@@ -1040,22 +1028,18 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                         return (
                           <div
                             key={item.id}
-                            className={`group relative brutal-card-static overflow-hidden p-2 ${
-                              isShared
-                                ? "border-l-4 border-l-pink-400 bg-pink-50"
-                                : "bg-accent"
-                            }`}
+                            className="group relative bg-[var(--accent-light)] rounded-lg overflow-hidden p-2"
                           >
                             <div className="flex items-center gap-1 mb-0.5 flex-wrap">
-                              <FileText className="w-3 h-3" />
+                              <FileText className="w-3 h-3 text-[var(--accent)]" />
                               {isShared && (
-                                <span className="text-[8px] bg-pink-100 text-pink-800 px-1 py-0.5 border border-pink-300 font-medium">
+                                <span className="text-[8px] bg-white/60 px-1 py-0.5 rounded font-medium">
                                   {sharedItem?.owner_name}
                                 </span>
                               )}
                               {ownItem?.shared_with &&
                                 ownItem.shared_with.length > 0 && (
-                                  <span className="text-[8px] bg-green-100 text-green-800 px-1 py-0.5 border border-green-300 font-medium">
+                                  <span className="text-[8px] bg-[var(--secondary-light)] text-[var(--secondary-dark)] px-1 py-0.5 rounded font-medium">
                                     <Users className="w-2 h-2 inline" />{" "}
                                     {ownItem.shared_with.length}
                                   </span>
@@ -1064,11 +1048,11 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                             <p className="text-xs font-medium line-clamp-2">
                               {item.note_title}
                             </p>
-                            <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                               {isShared ? (
                                 <button
                                   onClick={() => leaveSharedItem(item.id)}
-                                  className="bg-card border border-border w-5 h-5 text-[10px] flex items-center justify-center"
+                                  className="bg-white rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
                                   title="Leave"
                                 >
                                   <Hand className="w-3 h-3" />
@@ -1077,14 +1061,14 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                 <>
                                   <button
                                     onClick={() => openShareModal(ownItem!)}
-                                    className="bg-card border border-border w-5 h-5 text-[10px] flex items-center justify-center"
+                                    className="bg-white rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
                                     title="Share"
                                   >
                                     <Users className="w-3 h-3" />
                                   </button>
                                   <button
                                     onClick={() => removeFromDay(item.id)}
-                                    className="bg-destructive text-white border border-border w-5 h-5 text-[10px] flex items-center justify-center"
+                                    className="bg-[var(--destructive)] text-white rounded w-5 h-5 text-[10px] flex items-center justify-center"
                                   >
                                     <X className="w-3 h-3" />
                                   </button>
@@ -1103,11 +1087,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                       return (
                         <div
                           key={item.id}
-                          className={`group relative brutal-card-static overflow-hidden ${
-                            isShared
-                              ? "border-l-4 border-l-pink-400 bg-pink-50"
-                              : ""
-                          }`}
+                          className="group relative bg-white rounded-lg overflow-hidden border border-[var(--border)]"
                         >
                           <Link
                             href={`/dashboard/${item.content_id}?from=planner&week=${weekStart}`}
@@ -1117,20 +1097,20 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                               <img
                                 src={item.content.thumbnail_url}
                                 alt=""
-                                className="w-full h-24 object-cover border-b-[3px] border-border"
+                                className="w-full h-20 object-cover"
                               />
                             )}
                             <div className="p-2">
                               <div className="flex items-center gap-1 mb-0.5 flex-wrap">
-                                <Icon className="w-3 h-3" />
+                                <Icon className="w-3 h-3 text-muted-foreground" />
                                 {isShared && (
-                                  <span className="text-[8px] bg-pink-100 text-pink-800 px-1 py-0.5 border border-pink-300 font-medium">
+                                  <span className="text-[8px] bg-[var(--muted)] px-1 py-0.5 rounded font-medium">
                                     {sharedItem?.owner_name}
                                   </span>
                                 )}
                                 {ownItem?.shared_with &&
                                   ownItem.shared_with.length > 0 && (
-                                    <span className="text-[8px] bg-green-100 text-green-800 px-1 py-0.5 border border-green-300 font-medium">
+                                    <span className="text-[8px] bg-[var(--secondary-light)] text-[var(--secondary-dark)] px-1 py-0.5 rounded font-medium">
                                       <Users className="w-2 h-2 inline" />{" "}
                                       {ownItem.shared_with.length}
                                     </span>
@@ -1141,7 +1121,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                               </p>
                             </div>
                           </Link>
-                          <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                             {isShared ? (
                               <button
                                 onClick={(e) => {
@@ -1149,7 +1129,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                   e.stopPropagation();
                                   leaveSharedItem(item.id);
                                 }}
-                                className="bg-card border border-border w-5 h-5 text-[10px] flex items-center justify-center"
+                                className="bg-white/90 backdrop-blur rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
                                 title="Leave"
                               >
                                 <Hand className="w-3 h-3" />
@@ -1162,7 +1142,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                     e.stopPropagation();
                                     openShareModal(ownItem!);
                                   }}
-                                  className="bg-card border border-border w-5 h-5 text-[10px] flex items-center justify-center"
+                                  className="bg-white/90 backdrop-blur rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
                                   title="Share"
                                 >
                                   <Users className="w-3 h-3" />
@@ -1173,7 +1153,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                     e.stopPropagation();
                                     removeFromDay(item.id);
                                   }}
-                                  className="bg-destructive text-white border border-border w-5 h-5 text-[10px] flex items-center justify-center"
+                                  className="bg-[var(--destructive)] text-white rounded w-5 h-5 text-[10px] flex items-center justify-center"
                                 >
                                   <X className="w-3 h-3" />
                                 </button>
@@ -1187,7 +1167,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="w-full h-8 text-xs border-2 border-dashed border-border hover:bg-accent"
+                      className="w-full h-7 text-xs border border-dashed border-[var(--border)] rounded-lg hover:bg-[var(--muted)] text-muted-foreground"
                       onClick={() => setAddingToDay(dayIndex)}
                     >
                       <Plus className="w-3 h-3" />
@@ -1201,17 +1181,19 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
         {/* Empty State */}
         {data?.availableContent.length === 0 && (
-          <div className="brutal-card-static p-8 mt-6 text-center">
-            <Calendar className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-lg font-bold uppercase mb-2">
-              No saved content yet!
+          <div className="card-elevated p-8 mt-6 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--muted)] flex items-center justify-center">
+              <Calendar className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <p className="text-lg font-semibold mb-2">
+              No saved content yet
             </p>
             <p className="text-sm text-muted-foreground mb-4">
               Text TikTok or Instagram links to save meals, events, and date
               ideas.
             </p>
             <Link href="/dashboard">
-              <Button className="brutal-btn">Go to Dashboard</Button>
+              <Button className="btn-primary">Go to Dashboard</Button>
             </Link>
           </div>
         )}
@@ -1219,15 +1201,15 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
       {/* Add Item Modal */}
       {addingToDay !== null && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
-          <div className="brutal-card-static w-full md:max-w-lg md:rounded-none rounded-t-none max-h-[80vh] flex flex-col">
-            <div className="p-4 border-b-[3px] border-border flex items-center justify-between bg-accent">
-              <h3 className="font-bold font-mono uppercase">
+        <div className="fixed inset-0 modal-backdrop z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+          <div className="bg-[var(--card)] w-full md:max-w-lg md:rounded-2xl rounded-t-2xl max-h-[85vh] flex flex-col shadow-xl">
+            <div className="p-4 border-b border-[var(--border)] flex items-center justify-between bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] md:rounded-t-2xl">
+              <h3 className="font-semibold text-white">
                 Add to {DAYS_FULL[addingToDay]}
               </h3>
               <button
                 onClick={() => setAddingToDay(null)}
-                className="text-muted-foreground hover:text-foreground p-1"
+                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1235,8 +1217,8 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
             <div className="flex-1 overflow-y-auto overscroll-contain">
               {/* Quick Note Input */}
-              <div className="p-4 border-b-[3px] border-border bg-accent/50">
-                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">
+              <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)]">
+                <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
                   Quick note
                 </p>
                 <form
@@ -1251,12 +1233,12 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     placeholder='e.g., "Salmon", "Date night"'
                     value={quickNoteInput}
                     onChange={(e) => setQuickNoteInput(e.target.value)}
-                    className="brutal-input flex-1"
+                    className="input-modern flex-1"
                     autoFocus
                   />
                   <Button
                     type="submit"
-                    className="brutal-btn"
+                    className="btn-primary"
                     disabled={!quickNoteInput.trim() || addingQuickNote}
                   >
                     {addingQuickNote ? "..." : "Add"}
@@ -1264,26 +1246,26 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                 </form>
               </div>
 
-              <div className="px-4 py-2 text-xs font-mono uppercase text-muted-foreground text-center bg-secondary border-b-[3px] border-border">
+              <div className="px-4 py-2 text-xs text-muted-foreground text-center bg-[var(--muted)] border-b border-[var(--border)]">
                 Or pick from saved items
               </div>
 
               {/* Search & Filters */}
-              <div className="p-4 border-b-[3px] border-border space-y-3 sticky top-0 bg-card z-10">
+              <div className="p-4 border-b border-[var(--border)] space-y-3 sticky top-0 bg-white z-10">
                 <div className="flex gap-2">
                   <Input
                     type="text"
                     placeholder="Search saved items..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="brutal-input flex-1"
+                    className="input-modern flex-1"
                   />
                   {hasActiveFilters && (
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={clearAllFilters}
-                      className="shrink-0 text-xs text-destructive hover:text-destructive border-2 border-destructive"
+                      className="shrink-0 text-xs text-destructive hover:bg-red-50 rounded-lg"
                     >
                       Clear
                     </Button>
@@ -1298,29 +1280,27 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     { id: "event", label: "Events", icon: Calendar },
                     { id: "date_idea", label: "Dates", icon: Heart },
                   ].map((cat) => (
-                    <Button
+                    <button
                       key={cat.id}
-                      variant={categoryFilter === cat.id ? "default" : "ghost"}
-                      size="sm"
                       onClick={() =>
                         setCategoryFilter(cat.id as ContentCategory | "all")
                       }
-                      className={`shrink-0 ${
+                      className={`shrink-0 px-3 py-1.5 text-xs font-medium rounded-full transition-colors flex items-center gap-1 ${
                         categoryFilter === cat.id
-                          ? "brutal-btn"
-                          : "border-2 border-border"
+                          ? "bg-[var(--primary)] text-white"
+                          : "bg-[var(--muted)] text-[var(--foreground)] hover:bg-[var(--border)]"
                       }`}
                     >
-                      {cat.icon && <cat.icon className="w-3 h-3 mr-1" />}
+                      {cat.icon && <cat.icon className="w-3 h-3" />}
                       {cat.label}
-                    </Button>
+                    </button>
                   ))}
                 </div>
               </div>
 
               {/* Tag filters */}
               {data?.allTags && data.allTags.length > 0 && (
-                <div className="px-4 py-2 border-b-[3px] border-border">
+                <div className="px-4 py-3 border-b border-[var(--border)]">
                   <TagFilter
                     tags={data.allTags}
                     selectedTags={selectedTagIds}
@@ -1338,23 +1318,23 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     <button
                       key={content.id}
                       onClick={() => addToDay(content.id, addingToDay)}
-                      className="w-full brutal-card p-3 text-left flex items-center gap-3"
+                      className="w-full bg-white border border-[var(--border)] rounded-xl p-3 text-left flex items-center gap-3 hover:border-[var(--primary)]/30 hover:shadow-sm transition-all"
                     >
                       {content.thumbnail_url && (
                         <img
                           src={content.thumbnail_url}
                           alt=""
-                          className="w-16 h-16 object-cover shrink-0 border-2 border-border"
+                          className="w-14 h-14 object-cover shrink-0 rounded-lg"
                         />
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <Icon className="w-4 h-4" />
+                          <Icon className="w-3.5 h-3.5 text-muted-foreground" />
                           <span className="text-sm font-medium line-clamp-1">
                             {content.title}
                           </span>
                         </div>
-                        <p className="text-xs text-muted-foreground uppercase font-mono">
+                        <p className="text-xs text-muted-foreground capitalize">
                           {content.category.replace("_", " ")}
                         </p>
                         {content.tags && content.tags.length > 0 && (
@@ -1362,13 +1342,13 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                             {content.tags.slice(0, 3).map((tag) => (
                               <span
                                 key={tag.id}
-                                className="text-[10px] px-1.5 py-0.5 bg-accent border border-border"
+                                className="text-[10px] px-1.5 py-0.5 bg-[var(--accent-light)] rounded-full"
                               >
                                 {tag.name}
                               </span>
                             ))}
                             {content.tags.length > 3 && (
-                              <span className="text-[10px] text-muted-foreground font-mono">
+                              <span className="text-[10px] text-muted-foreground">
                                 +{content.tags.length - 3}
                               </span>
                             )}
@@ -1381,13 +1361,13 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
                 {getFilteredContent().length === 0 && (
                   <div className="text-center py-8 text-muted-foreground">
-                    <p className="font-mono uppercase">No items found</p>
+                    <p className="text-sm font-medium">No items found</p>
                     {hasActiveFilters && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={clearAllFilters}
-                        className="mt-2 border-2 border-border"
+                        className="mt-2 btn-ghost text-xs"
                       >
                         Clear all filters
                       </Button>
@@ -1402,21 +1382,21 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
       {/* Grocery List Modal */}
       {groceryList.isOpen && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="brutal-card-static w-full max-w-lg max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b-[3px] border-border bg-accent">
+        <div className="fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--card)] w-full max-w-lg max-h-[85vh] flex flex-col rounded-2xl shadow-xl">
+            <div className="flex items-center justify-between p-4 border-b border-[var(--border)] bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] rounded-t-2xl">
               <div>
-                <h2 className="text-lg font-bold font-mono uppercase flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                   <ShoppingCart className="w-5 h-5" />
                   Grocery List
                 </h2>
-                <p className="text-xs text-muted-foreground font-mono">
+                <p className="text-xs text-white/80">
                   {formatWeekRange()}
                 </p>
               </div>
               <div className="flex gap-2">
                 <Button
-                  variant="secondary"
+                  variant="ghost"
                   size="sm"
                   onClick={saveGroceryScreenshot}
                   disabled={
@@ -1424,7 +1404,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     groceryList.loading ||
                     groceryList.items.length === 0
                   }
-                  className="border-2 border-border"
+                  className="text-white hover:bg-white/10 rounded-lg"
                 >
                   <Camera className="w-4 h-4 mr-1" />
                   {groceryList.saving ? "..." : "Save"}
@@ -1435,7 +1415,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                   onClick={() =>
                     setGroceryList((s) => ({ ...s, isOpen: false }))
                   }
-                  className="border-2 border-border"
+                  className="text-white hover:bg-white/10 rounded-lg"
                 >
                   <X className="w-4 h-4" />
                 </Button>
@@ -1445,8 +1425,8 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
             <div className="flex-1 overflow-y-auto">
               {groceryList.loading && (
                 <div className="flex flex-col items-center justify-center py-16">
-                  <Loader2 className="w-12 h-12 animate-spin mb-4" />
-                  <p className="text-muted-foreground font-mono uppercase">
+                  <div className="loading-spinner mb-4" />
+                  <p className="text-muted-foreground text-sm">
                     Generating list...
                   </p>
                 </div>
@@ -1454,14 +1434,16 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
               {groceryList.error && !groceryList.loading && (
                 <div className="flex flex-col items-center justify-center py-16 px-4">
-                  <X className="w-12 h-12 mb-4 text-destructive" />
-                  <p className="text-muted-foreground text-center">
+                  <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-4">
+                    <X className="w-6 h-6 text-destructive" />
+                  </div>
+                  <p className="text-muted-foreground text-center text-sm">
                     {groceryList.error}
                   </p>
                   <Button
-                    variant="secondary"
+                    variant="ghost"
                     size="sm"
-                    className="mt-4 border-2 border-border"
+                    className="mt-4 btn-ghost"
                     onClick={() =>
                       setGroceryList((s) => ({ ...s, isOpen: false }))
                     }
@@ -1472,7 +1454,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
               )}
 
               {!groceryList.loading && !groceryList.error && (
-                <div ref={groceryListRef} className="p-4 bg-white">
+                <div ref={groceryListRef} className="p-4">
                   {groceryList.items.length > 0 ? (
                     <>
                       {(() => {
@@ -1480,11 +1462,11 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                           ...new Set(groceryList.items.map((i) => i.category)),
                         ];
                         return categories.map((category) => (
-                          <div key={category} className="mb-4">
-                            <h4 className="font-bold text-sm uppercase font-mono text-primary mb-2 border-b-2 border-primary pb-1">
+                          <div key={category} className="mb-5">
+                            <h4 className="font-semibold text-sm text-[var(--primary)] mb-2 pb-1 border-b border-[var(--border)]">
                               {category}
                             </h4>
-                            <ul className="space-y-2">
+                            <ul className="space-y-1">
                               {groceryList.items
                                 .filter((item) => item.category === category)
                                 .map((item, index) => (
@@ -1500,53 +1482,50 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                               : item.ingredient,
                                         }))
                                       }
-                                      className="w-full text-left flex items-start gap-2 hover:bg-secondary p-1 -mx-1"
+                                      className="w-full text-left flex items-start gap-3 hover:bg-[var(--muted)] p-2 rounded-lg -mx-2 transition-colors"
                                     >
-                                      <span className="text-primary mt-0.5">
-                                        •
-                                      </span>
-                                      <div className="flex-1">
-                                        <div className="flex items-baseline gap-2">
-                                          <span className="font-medium">
+                                      <div className="w-5 h-5 rounded-full bg-[var(--primary)]/10 flex items-center justify-center shrink-0 mt-0.5">
+                                        <span className="text-[var(--primary)] text-xs">•</span>
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-baseline gap-2 flex-wrap">
+                                          <span className="font-medium text-sm">
                                             {item.ingredient}
                                           </span>
                                           {item.quantity && (
-                                            <span className="text-sm text-muted-foreground font-mono">
+                                            <span className="text-xs text-muted-foreground">
                                               ({item.quantity})
                                             </span>
                                           )}
                                         </div>
                                         {item.notes && (
                                           <p className="text-xs text-muted-foreground italic mt-0.5">
-                                            Note: {item.notes}
+                                            {item.notes}
                                           </p>
                                         )}
-                                        <p className="text-xs text-muted-foreground mt-0.5 font-mono">
-                                          For:{" "}
-                                          {item.sources
-                                            .map((s) => s.title)
-                                            .join(", ")}
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                          For: {item.sources.map((s) => s.title).join(", ")}
                                         </p>
                                       </div>
                                       {groceryList.expandedIngredient ===
                                       item.ingredient ? (
-                                        <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                                        <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
                                       ) : (
-                                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                                        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
                                       )}
                                     </button>
 
                                     {groceryList.expandedIngredient ===
                                       item.ingredient && (
-                                      <div className="ml-5 mt-1 mb-2 space-y-1 bg-secondary p-2 border-2 border-border">
-                                        <p className="text-xs font-bold font-mono uppercase mb-1">
+                                      <div className="ml-8 mt-1 mb-2 p-3 bg-[var(--muted)] rounded-lg">
+                                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
                                           Used in:
                                         </p>
                                         {item.sources.map((source, sIndex) => (
                                           <Link
                                             key={sIndex}
                                             href={`/dashboard/${source.id}?from=planner&week=${weekStart}`}
-                                            className="block text-xs text-primary hover:underline"
+                                            className="block text-sm text-[var(--primary)] hover:underline py-0.5"
                                             onClick={() =>
                                               setGroceryList((s) => ({
                                                 ...s,
@@ -1567,17 +1546,18 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                       })()}
 
                       {groceryList.tips.length > 0 && (
-                        <div className="mt-6 pt-4 border-t-[3px] border-border">
-                          <h4 className="font-bold text-sm uppercase font-mono mb-2">
+                        <div className="mt-4 pt-4 border-t border-[var(--border)]">
+                          <h4 className="font-semibold text-sm mb-2">
                             Shopping Tips
                           </h4>
-                          <ul className="space-y-1">
+                          <ul className="space-y-1.5">
                             {groceryList.tips.map((tip, index) => (
                               <li
                                 key={index}
-                                className="text-xs text-muted-foreground"
+                                className="text-xs text-muted-foreground flex gap-2"
                               >
-                                • {tip}
+                                <span className="text-[var(--primary)]">•</span>
+                                <span>{tip}</span>
                               </li>
                             ))}
                           </ul>
@@ -1585,8 +1565,11 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                       )}
                     </>
                   ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <p className="font-mono uppercase">
+                    <div className="text-center py-12 text-muted-foreground">
+                      <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--muted)] flex items-center justify-center">
+                        <ShoppingCart className="w-6 h-6" />
+                      </div>
+                      <p className="font-medium text-sm">
                         No ingredients found
                       </p>
                       <p className="text-xs mt-1">
@@ -1603,14 +1586,14 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
       {/* Item Share Modal */}
       {itemShare.isOpen && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="brutal-card-static w-full max-w-md max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b-[3px] border-border bg-accent">
+        <div className="fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--card)] w-full max-w-md max-h-[80vh] flex flex-col rounded-2xl shadow-xl">
+            <div className="flex items-center justify-between p-4 border-b border-[var(--border)] bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] rounded-t-2xl">
               <div>
-                <h2 className="text-lg font-bold font-mono uppercase">
+                <h2 className="text-lg font-semibold text-white">
                   Share Item
                 </h2>
-                <p className="text-xs text-muted-foreground line-clamp-1">
+                <p className="text-xs text-white/80 line-clamp-1">
                   {itemShare.itemTitle}
                 </p>
               </div>
@@ -1618,7 +1601,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                 variant="ghost"
                 size="sm"
                 onClick={() => setItemShare((s) => ({ ...s, isOpen: false }))}
-                className="border-2 border-border"
+                className="text-white hover:bg-white/10"
               >
                 <X className="w-4 h-4" />
               </Button>
@@ -1642,33 +1625,33 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                           <button
                             key={friend.id}
                             onClick={() => toggleFriendSelection(friend.id)}
-                            className={`w-full p-3 text-left flex items-center gap-3 transition-colors brutal-card ${
+                            className={`w-full p-3 text-left flex items-center gap-3 transition-all rounded-xl border ${
                               isSelected
-                                ? "bg-primary/10 border-primary"
-                                : "bg-card"
+                                ? "bg-[var(--primary)]/5 border-[var(--primary)]"
+                                : "bg-white border-[var(--border)] hover:border-[var(--primary)]/30"
                             }`}
                           >
                             <div
-                              className={`w-10 h-10 flex items-center justify-center border-2 border-border ${
-                                isSelected ? "bg-primary/20" : "bg-accent"
+                              className={`w-10 h-10 flex items-center justify-center rounded-xl ${
+                                isSelected ? "bg-[var(--primary)]/10" : "bg-[var(--muted)]"
                               }`}
                             >
                               {friend.isFavorite ? (
-                                <Star className="w-5 h-5" />
+                                <Star className={`w-5 h-5 ${isSelected ? "text-[var(--primary)]" : ""}`} />
                               ) : (
-                                <User className="w-5 h-5" />
+                                <User className={`w-5 h-5 ${isSelected ? "text-[var(--primary)]" : ""}`} />
                               )}
                             </div>
                             <div className="flex-1">
                               <p className="font-medium text-sm">
                                 {friend.name}
                               </p>
-                              <p className="text-xs text-muted-foreground font-mono">
+                              <p className="text-xs text-muted-foreground">
                                 {isSelected ? "Selected" : "Tap to select"}
                               </p>
                             </div>
                             {isSelected && (
-                              <Check className="w-5 h-5 text-primary" />
+                              <Check className="w-5 h-5 text-[var(--primary)]" />
                             )}
                           </button>
                         );
@@ -1690,14 +1673,14 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     onClick={() =>
                       setItemShare((s) => ({ ...s, showAddFriend: true }))
                     }
-                    className="w-full p-3 text-left flex items-center gap-3 brutal-card border-dashed"
+                    className="w-full p-3 text-left flex items-center gap-3 rounded-xl border-2 border-dashed border-[var(--border)] hover:border-[var(--primary)]/30 hover:bg-[var(--muted)]/50 transition-colors"
                   >
-                    <div className="w-10 h-10 flex items-center justify-center border-2 border-dashed border-border bg-accent">
+                    <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-[var(--muted)]">
                       <Plus className="w-5 h-5" />
                     </div>
                     <div className="flex-1">
                       <p className="font-medium text-sm">Add a Friend</p>
-                      <p className="text-xs text-muted-foreground font-mono">
+                      <p className="text-xs text-muted-foreground">
                         Add someone new to share with
                       </p>
                     </div>
@@ -1717,7 +1700,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
                   <div className="space-y-3">
                     <div>
-                      <label className="text-sm font-bold uppercase mb-1 block font-mono">
+                      <label className="text-sm font-medium mb-1.5 block">
                         Name
                       </label>
                       <Input
@@ -1729,12 +1712,12 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                           }))
                         }
                         placeholder="Friend's name"
-                        className="brutal-input"
+                        className="input-modern"
                         autoFocus
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-bold uppercase mb-1 block font-mono">
+                      <label className="text-sm font-medium mb-1.5 block">
                         Phone{" "}
                         <span className="text-muted-foreground font-normal">
                           (optional)
@@ -1750,9 +1733,9 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                         }
                         placeholder="(555) 123-4567"
                         type="tel"
-                        className="brutal-input"
+                        className="input-modern"
                       />
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-xs text-muted-foreground mt-1.5">
                         If they have Planning Friend, they&apos;ll be linked
                         automatically.
                       </p>
@@ -1763,7 +1746,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                       disabled={
                         itemShare.loading || !itemShare.newFriendName.trim()
                       }
-                      className="brutal-btn w-full"
+                      className="btn-primary w-full"
                     >
                       {itemShare.loading ? "Adding..." : "Add Friend"}
                     </Button>
@@ -1773,14 +1756,14 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
             </div>
 
             {!itemShare.showAddFriend && (
-              <div className="p-4 border-t-[3px] border-border space-y-3">
+              <div className="p-4 border-t border-[var(--border)] space-y-3">
                 {itemShare.error && (
-                  <p className="text-sm text-destructive text-center font-mono">
+                  <p className="text-sm text-destructive text-center">
                     {itemShare.error}
                   </p>
                 )}
                 {itemShare.success && (
-                  <p className="text-sm text-primary text-center font-mono">
+                  <p className="text-sm text-[var(--primary)] text-center">
                     {itemShare.success}
                   </p>
                 )}
@@ -1790,7 +1773,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     itemShare.loading ||
                     itemShare.selectedFriendIds.length === 0
                   }
-                  className="brutal-btn w-full"
+                  className="btn-primary w-full"
                 >
                   {itemShare.loading
                     ? "Sharing..."
@@ -1814,8 +1797,9 @@ export default function PlannerPage() {
     <Suspense
       fallback={
         <div className="min-h-screen flex items-center justify-center bg-background">
-          <div className="brutal-loading w-32">
-            <div className="brutal-loading-bar" />
+          <div className="text-center">
+            <div className="loading-spinner mx-auto mb-4" />
+            <p className="text-muted-foreground text-sm">Loading planner...</p>
           </div>
         </div>
       }

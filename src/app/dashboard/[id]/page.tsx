@@ -33,6 +33,7 @@ import {
   Trash2,
   Utensils,
   XCircle,
+  Check,
 } from "lucide-react";
 import Image from "next/image";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -42,15 +43,15 @@ import { useSession } from "../useSession";
 // Category config
 const CATEGORY_CONFIG: Record<
   string,
-  { icon: React.ElementType; label: string; badgeClass: string }
+  { icon: React.ElementType; label: string; color: string; bg: string }
 > = {
-  meal: { icon: Utensils, label: "Recipe", badgeClass: "brutal-badge-meal" },
-  drink: { icon: Coffee, label: "Drink", badgeClass: "brutal-badge-drink" },
-  event: { icon: Calendar, label: "Event", badgeClass: "brutal-badge-event" },
-  date_idea: { icon: Heart, label: "Date", badgeClass: "brutal-badge-date_idea" },
-  gift_idea: { icon: Gift, label: "Gift", badgeClass: "brutal-badge-gift_idea" },
-  travel: { icon: Plane, label: "Travel", badgeClass: "brutal-badge-travel" },
-  other: { icon: Pin, label: "Saved", badgeClass: "brutal-badge-other" },
+  meal: { icon: Utensils, label: "Recipe", color: "text-[var(--meal)]", bg: "bg-[var(--meal-bg)]" },
+  drink: { icon: Coffee, label: "Drink", color: "text-[var(--drink)]", bg: "bg-[var(--drink-bg)]" },
+  event: { icon: Calendar, label: "Event", color: "text-[var(--event)]", bg: "bg-[var(--event-bg)]" },
+  date_idea: { icon: Heart, label: "Date", color: "text-[var(--date)]", bg: "bg-[var(--date-bg)]" },
+  gift_idea: { icon: Gift, label: "Gift", color: "text-[var(--gift)]", bg: "bg-[var(--gift-bg)]" },
+  travel: { icon: Plane, label: "Travel", color: "text-[var(--travel)]", bg: "bg-[var(--travel-bg)]" },
+  other: { icon: Pin, label: "Saved", color: "text-[var(--other)]", bg: "bg-[var(--other-bg)]" },
 };
 
 // Generate Google Maps URL from location string
@@ -260,9 +261,7 @@ export default function ContentDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="brutal-loading w-32">
-          <div className="brutal-loading-bar" />
-        </div>
+        <div className="loading-spinner" />
       </div>
     );
   }
@@ -270,9 +269,11 @@ export default function ContentDetailPage() {
   if (!content) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="brutal-card-static p-8 text-center">
-          <XCircle className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-          <p className="font-mono uppercase">Content not found</p>
+        <div className="card-elevated p-8 text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--muted)] flex items-center justify-center">
+            <XCircle className="w-8 h-8 text-muted-foreground" />
+          </div>
+          <p className="font-medium">Content not found</p>
         </div>
       </div>
     );
@@ -284,12 +285,12 @@ export default function ContentDetailPage() {
   return (
     <main className="min-h-screen pb-28 md:pb-8 bg-background">
       {/* Header */}
-      <div className="border-b-[3px] border-border bg-card">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div className="bg-[var(--card)] border-b border-[var(--border)] sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <Button
             variant="ghost"
             onClick={handleBack}
-            className="border-[3px] border-border hover:bg-accent"
+            className="btn-ghost"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
@@ -299,10 +300,10 @@ export default function ContentDetailPage() {
               <>
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size="icon"
                   onClick={handleRetryProcessing}
                   disabled={retrying}
-                  className="border-[3px] border-border hover:bg-accent"
+                  className="btn-ghost"
                 >
                   <RefreshCw
                     className={`w-4 h-4 ${retrying ? "animate-spin" : ""}`}
@@ -310,18 +311,18 @@ export default function ContentDetailPage() {
                 </Button>
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size="icon"
                   onClick={() => setEditing(!editing)}
-                  className="border-[3px] border-border hover:bg-accent"
+                  className="btn-ghost"
                 >
                   <Pencil className="w-4 h-4" />
                 </Button>
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size="icon"
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="border-[3px] border-destructive text-destructive hover:bg-destructive/10"
+                  className="text-destructive hover:bg-red-50"
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -334,21 +335,19 @@ export default function ContentDetailPage() {
       <div className="max-w-4xl mx-auto px-4 py-6">
         {/* Processing State */}
         {content.status === "processing" && (
-          <div className="brutal-card-static brutal-processing p-8 text-center mb-8">
-            <Loader2 className="w-16 h-16 mx-auto mb-4 animate-spin" />
-            <h2 className="font-mono text-xl font-bold uppercase mb-2">
-              Processing
-            </h2>
-            <p className="text-muted-foreground mb-4">Almost done...</p>
-            <div className="brutal-loading w-48 mx-auto mb-4">
-              <div className="brutal-loading-bar" />
+          <div className="card-elevated state-processing p-8 text-center mb-8 animate-slide-up">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-[var(--accent)] flex items-center justify-center">
+              <Loader2 className="w-10 h-10 text-white animate-spin" />
             </div>
+            <h2 className="heading-2 mb-2">Processing</h2>
+            <p className="text-muted-foreground mb-4">Almost done...</p>
+            <div className="loading-bar w-48 mx-auto mb-4" />
             <Button
               variant="secondary"
               size="sm"
               onClick={handleRetryProcessing}
               disabled={retrying}
-              className="brutal-btn bg-secondary text-secondary-foreground"
+              className="btn-secondary"
             >
               {retrying ? "..." : "Retry"}
             </Button>
@@ -357,11 +356,11 @@ export default function ContentDetailPage() {
 
         {/* Failed State */}
         {content.status === "failed" && (
-          <div className="brutal-card-static brutal-error p-8 text-center mb-8">
-            <XCircle className="w-16 h-16 mx-auto mb-4 text-destructive" />
-            <h2 className="font-mono text-xl font-bold uppercase mb-2">
-              Failed
-            </h2>
+          <div className="card-elevated state-error p-8 text-center mb-8 animate-slide-up">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-red-100 flex items-center justify-center">
+              <XCircle className="w-10 h-10 text-destructive" />
+            </div>
+            <h2 className="heading-2 mb-2">Failed</h2>
             <p className="text-muted-foreground mb-4">
               Couldn&apos;t process this link
             </p>
@@ -369,7 +368,7 @@ export default function ContentDetailPage() {
               <Button
                 onClick={handleRetryProcessing}
                 disabled={retrying}
-                className="brutal-btn"
+                className="btn-primary"
               >
                 {retrying ? "..." : "Retry"}
               </Button>
@@ -377,7 +376,7 @@ export default function ContentDetailPage() {
                 variant="outline"
                 onClick={handleDelete}
                 disabled={deleting}
-                className="border-[3px] border-destructive text-destructive hover:bg-destructive/10"
+                className="btn-outline border-destructive text-destructive hover:bg-destructive hover:text-white"
               >
                 Delete
               </Button>
@@ -386,15 +385,16 @@ export default function ContentDetailPage() {
         )}
 
         {/* Main Content Card */}
-        <div className="brutal-card-static overflow-hidden">
+        <div className="card-elevated overflow-hidden animate-slide-up">
           {content.thumbnail_url && (
-            <div className="relative h-56 md:h-72 border-b-[3px] border-border">
+            <div className="relative h-56 md:h-80">
               <Image
                 src={content.thumbnail_url}
                 alt={content.title}
                 fill
                 className="object-cover"
               />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
             </div>
           )}
 
@@ -405,7 +405,7 @@ export default function ContentDetailPage() {
                 <select
                   value={editCategory}
                   onChange={(e) => setEditCategory(e.target.value)}
-                  className="brutal-input text-sm pl-4 pr-10 py-2 font-bold uppercase appearance-none cursor-pointer"
+                  className="input-modern text-sm pl-4 pr-10 py-2 font-semibold appearance-none cursor-pointer"
                 >
                   <option value="meal">Recipe</option>
                   <option value="drink">Drink</option>
@@ -418,8 +418,8 @@ export default function ContentDetailPage() {
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" />
               </div>
             ) : (
-              <span className={`brutal-badge ${config.badgeClass}`}>
-                <Icon className="w-3 h-3" />
+              <span className={`badge ${config.bg} ${config.color}`}>
+                <Icon className="w-3.5 h-3.5" />
                 {config.label}
               </span>
             )}
@@ -431,25 +431,25 @@ export default function ContentDetailPage() {
                 <Input
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
-                  className="brutal-input text-xl font-bold"
+                  className="input-modern text-xl font-semibold"
                   placeholder="Title"
                 />
                 <Button
                   onClick={handleSave}
                   disabled={saving}
-                  className="brutal-btn"
+                  className="btn-primary"
                 >
                   {saving ? "..." : "Save"}
                 </Button>
               </div>
             ) : (
-              <h1 className="text-xl md:text-2xl font-bold">{content.title}</h1>
+              <h1 className="heading-2">{content.title}</h1>
             )}
 
             {/* Tags */}
             {isEditable && (
               <div className="mt-4">
-                <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">
+                <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
                   Tags
                 </p>
                 <TagPills
@@ -491,12 +491,12 @@ export default function ContentDetailPage() {
 
             {/* Source Link */}
             {!isImageOnlyContent(content.tiktok_url) && (
-              <div className="pt-6 border-t-[3px] border-border">
+              <div className="pt-6 border-t border-[var(--border)]">
                 <a
                   href={content.tiktok_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="brutal-btn inline-flex items-center gap-2 px-6 py-3"
+                  className="btn-primary inline-flex items-center gap-2 px-6 py-3 rounded-xl"
                 >
                   {getSourceLinkText(content.tiktok_url)}
                   <ExternalLink className="w-4 h-4" />
@@ -505,7 +505,7 @@ export default function ContentDetailPage() {
             )}
 
             {/* Metadata */}
-            <p className="text-sm text-muted-foreground font-mono">
+            <p className="text-sm text-muted-foreground">
               Saved {new Date(content.created_at).toLocaleDateString()}
             </p>
           </div>
@@ -549,24 +549,26 @@ function MealContent({ data }: { data: MealData }) {
     <div className="space-y-6">
       {data.ingredients && data.ingredients.length > 0 && (
         <div>
-          <h3 className="text-lg font-bold uppercase mb-3">Ingredients</h3>
-          <div className="brutal-card-static divide-y-2 divide-border">
+          <h3 className="heading-3 mb-3">Ingredients</h3>
+          <div className="card-flat overflow-hidden divide-y divide-[var(--border)]">
             {data.ingredients.map((ingredient, i) => {
               const isChecked = checkedIngredients.has(i);
               return (
                 <button
                   key={i}
                   onClick={() => toggleIngredient(i)}
-                  className={`w-full flex items-center gap-3 p-3 text-left transition-colors ${
-                    isChecked ? "bg-green-50" : "hover:bg-accent/50"
+                  className={`w-full flex items-center gap-3 p-4 text-left transition-colors ${
+                    isChecked ? "bg-[var(--meal-bg)]" : "hover:bg-[var(--muted)]"
                   }`}
                 >
                   <span
-                    className={`shrink-0 w-5 h-5 border-2 border-border flex items-center justify-center text-xs font-bold ${
-                      isChecked ? "bg-green-500 text-white" : "bg-white"
+                    className={`shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors ${
+                      isChecked
+                        ? "bg-[var(--meal)] border-[var(--meal)] text-white"
+                        : "border-[var(--border)]"
                     }`}
                   >
-                    {isChecked && "✓"}
+                    {isChecked && <Check className="w-4 h-4" />}
                   </span>
                   <span
                     className={
@@ -584,21 +586,25 @@ function MealContent({ data }: { data: MealData }) {
 
       {data.recipe && data.recipe.length > 0 && (
         <div>
-          <h3 className="text-lg font-bold uppercase mb-3">Instructions</h3>
-          <ol className="space-y-3">
+          <h3 className="heading-3 mb-3">Instructions</h3>
+          <ol className="space-y-4">
             {data.recipe.map((step, i) => (
-              <li key={i} className="flex items-start gap-3">
+              <li key={i} className="flex items-start gap-4">
                 <button
                   onClick={() => toggleStep(i)}
-                  className={`shrink-0 w-8 h-8 flex items-center justify-center font-mono font-bold border-2 border-border transition-colors ${
+                  className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center font-semibold transition-colors ${
                     completedSteps.has(i)
-                      ? "bg-green-500 text-white"
-                      : "bg-primary text-primary-foreground"
+                      ? "bg-[var(--meal)] text-white"
+                      : "bg-[var(--primary)] text-white"
                   }`}
                 >
-                  {String(i + 1).padStart(2, "0")}
+                  {completedSteps.has(i) ? (
+                    <Check className="w-5 h-5" />
+                  ) : (
+                    i + 1
+                  )}
                 </button>
-                <span className="pt-1">{step}</span>
+                <span className="pt-2 flex-1">{step}</span>
               </li>
             ))}
           </ol>
@@ -606,35 +612,35 @@ function MealContent({ data }: { data: MealData }) {
       )}
 
       {(data.prep_time || data.cook_time || data.servings) && (
-        <div className="flex flex-wrap gap-4 pt-4">
+        <div className="flex flex-wrap gap-3 pt-4">
           {data.prep_time && (
-            <div className="brutal-card-static px-4 py-2">
-              <p className="text-xs font-mono uppercase text-muted-foreground">
+            <div className="card-flat px-4 py-3 rounded-xl">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">
                 Prep
               </p>
-              <p className="font-bold flex items-center gap-1">
-                <Clock className="w-4 h-4" />
+              <p className="font-semibold flex items-center gap-1.5 mt-1">
+                <Clock className="w-4 h-4 text-[var(--primary)]" />
                 {data.prep_time}
               </p>
             </div>
           )}
           {data.cook_time && (
-            <div className="brutal-card-static px-4 py-2">
-              <p className="text-xs font-mono uppercase text-muted-foreground">
+            <div className="card-flat px-4 py-3 rounded-xl">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">
                 Cook
               </p>
-              <p className="font-bold flex items-center gap-1">
-                <Clock className="w-4 h-4" />
+              <p className="font-semibold flex items-center gap-1.5 mt-1">
+                <Clock className="w-4 h-4 text-[var(--primary)]" />
                 {data.cook_time}
               </p>
             </div>
           )}
           {data.servings && (
-            <div className="brutal-card-static px-4 py-2">
-              <p className="text-xs font-mono uppercase text-muted-foreground">
+            <div className="card-flat px-4 py-3 rounded-xl">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">
                 Servings
               </p>
-              <p className="font-bold">{data.servings}</p>
+              <p className="font-semibold mt-1">{data.servings}</p>
             </div>
           )}
         </div>
@@ -651,29 +657,33 @@ function EventContent({ data }: { data: EventData }) {
           href={getGoogleMapsUrl(data.location)}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-start gap-3 p-4 brutal-card hover:bg-accent"
+          className="flex items-start gap-4 p-4 card-flat rounded-xl hover:bg-[var(--muted)] transition-colors"
         >
-          <MapPin className="w-6 h-6 text-primary" />
+          <div className="w-12 h-12 rounded-xl bg-[var(--event-bg)] flex items-center justify-center">
+            <MapPin className="w-6 h-6 text-[var(--event)]" />
+          </div>
           <div className="flex-1">
-            <p className="text-xs font-mono uppercase text-muted-foreground">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">
               Location
             </p>
-            <p className="font-bold">{data.location}</p>
+            <p className="font-semibold">{data.location}</p>
           </div>
-          <ExternalLink className="w-4 h-4 text-muted-foreground" />
+          <ExternalLink className="w-4 h-4 text-muted-foreground mt-1" />
         </a>
       )}
 
       {(data.date || data.time) && (
-        <div className="flex items-start gap-3 p-4 brutal-card-static">
-          <Calendar className="w-6 h-6 text-primary" />
+        <div className="flex items-start gap-4 p-4 card-flat rounded-xl">
+          <div className="w-12 h-12 rounded-xl bg-[var(--event-bg)] flex items-center justify-center">
+            <Calendar className="w-6 h-6 text-[var(--event)]" />
+          </div>
           <div>
-            <p className="text-xs font-mono uppercase text-muted-foreground">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">
               When
             </p>
-            <p className="font-bold">
+            <p className="font-semibold">
               {data.date}
-              {data.date && data.time && " / "}
+              {data.date && data.time && " • "}
               {data.time}
             </p>
           </div>
@@ -682,17 +692,17 @@ function EventContent({ data }: { data: EventData }) {
 
       {data.description && (
         <div>
-          <h3 className="text-lg font-bold uppercase mb-2">About</h3>
+          <h3 className="heading-3 mb-2">About</h3>
           <p className="text-muted-foreground">{data.description}</p>
         </div>
       )}
 
       <div className="flex flex-wrap gap-2">
         {data.requires_reservation && (
-          <Badge className="brutal-badge">Reservation Required</Badge>
+          <Badge variant="outline">Reservation Required</Badge>
         )}
         {data.requires_ticket && (
-          <Badge className="brutal-badge">Ticket Required</Badge>
+          <Badge variant="outline">Ticket Required</Badge>
         )}
       </div>
     </div>
@@ -707,33 +717,33 @@ function DateIdeaContent({ data }: { data: DateIdeaData }) {
           href={getGoogleMapsUrl(data.location)}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-start gap-3 p-4 brutal-card hover:bg-accent"
+          className="flex items-start gap-4 p-4 card-flat rounded-xl hover:bg-[var(--muted)] transition-colors"
         >
-          <MapPin className="w-6 h-6 text-primary" />
+          <div className="w-12 h-12 rounded-xl bg-[var(--date-bg)] flex items-center justify-center">
+            <MapPin className="w-6 h-6 text-[var(--date)]" />
+          </div>
           <div className="flex-1">
-            <p className="text-xs font-mono uppercase text-muted-foreground">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">
               Location
             </p>
-            <p className="font-bold">{data.location}</p>
+            <p className="font-semibold">{data.location}</p>
           </div>
-          <ExternalLink className="w-4 h-4 text-muted-foreground" />
+          <ExternalLink className="w-4 h-4 text-muted-foreground mt-1" />
         </a>
       )}
 
       <div className="flex flex-wrap gap-2">
         {data.type && (
-          <Badge className="brutal-badge capitalize">{data.type}</Badge>
+          <Badge variant="date" className="capitalize">{data.type}</Badge>
         )}
         {data.price_range && (
-          <Badge className="brutal-badge">{data.price_range}</Badge>
+          <Badge variant="outline">{data.price_range}</Badge>
         )}
       </div>
 
       {data.description && (
         <div>
-          <h3 className="text-lg font-bold uppercase mb-2">
-            Why it&apos;s great
-          </h3>
+          <h3 className="heading-3 mb-2">Why it&apos;s great</h3>
           <p className="text-muted-foreground">{data.description}</p>
         </div>
       )}
@@ -745,13 +755,15 @@ function GiftIdeaContent({ data }: { data: GiftIdeaData }) {
   return (
     <div className="space-y-4">
       {data.cost && (
-        <div className="flex items-start gap-3 p-4 brutal-card-static bg-gift-bg">
-          <Gift className="w-6 h-6 text-gift" />
+        <div className="flex items-start gap-4 p-4 card-flat rounded-xl bg-[var(--gift-bg)]">
+          <div className="w-12 h-12 rounded-xl bg-[var(--gift)] flex items-center justify-center">
+            <Gift className="w-6 h-6 text-white" />
+          </div>
           <div>
-            <p className="text-xs font-mono uppercase text-muted-foreground">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">
               Price
             </p>
-            <p className="text-2xl font-bold font-mono text-gift">
+            <p className="text-2xl font-bold text-[var(--gift)]">
               {data.cost}
             </p>
           </div>
@@ -760,7 +772,7 @@ function GiftIdeaContent({ data }: { data: GiftIdeaData }) {
 
       {data.description && (
         <div>
-          <h3 className="text-lg font-bold uppercase mb-2">About this gift</h3>
+          <h3 className="heading-3 mb-2">About this gift</h3>
           <p className="text-muted-foreground">{data.description}</p>
         </div>
       )}
@@ -771,7 +783,7 @@ function GiftIdeaContent({ data }: { data: GiftIdeaData }) {
             href={data.amazon_link}
             target="_blank"
             rel="noopener noreferrer"
-            className="brutal-btn bg-orange-500 inline-flex items-center gap-2 px-4 py-2"
+            className="btn-secondary inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-500 text-white hover:bg-orange-600"
           >
             <ShoppingCart className="w-4 h-4" />
             Amazon
@@ -782,7 +794,7 @@ function GiftIdeaContent({ data }: { data: GiftIdeaData }) {
             href={data.purchase_link}
             target="_blank"
             rel="noopener noreferrer"
-            className="brutal-btn inline-flex items-center gap-2 px-4 py-2"
+            className="btn-primary inline-flex items-center gap-2 px-5 py-2.5 rounded-xl"
           >
             <ExternalLink className="w-4 h-4" />
             Buy Now
@@ -827,13 +839,13 @@ function DrinkContent({ data }: { data: DrinkData }) {
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2">
         {data.type && (
-          <Badge className="brutal-badge capitalize">{data.type}</Badge>
+          <Badge variant="drink" className="capitalize">{data.type}</Badge>
         )}
         {data.difficulty && (
-          <Badge className="brutal-badge capitalize">{data.difficulty}</Badge>
+          <Badge variant="outline" className="capitalize">{data.difficulty}</Badge>
         )}
         {data.prep_time && (
-          <Badge className="brutal-badge flex items-center gap-1">
+          <Badge variant="outline" className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
             {data.prep_time}
           </Badge>
@@ -842,24 +854,26 @@ function DrinkContent({ data }: { data: DrinkData }) {
 
       {data.ingredients && data.ingredients.length > 0 && (
         <div>
-          <h3 className="text-lg font-bold uppercase mb-3">Ingredients</h3>
-          <div className="brutal-card-static divide-y-2 divide-border">
+          <h3 className="heading-3 mb-3">Ingredients</h3>
+          <div className="card-flat overflow-hidden divide-y divide-[var(--border)]">
             {data.ingredients.map((ingredient, i) => {
               const isChecked = checkedIngredients.has(i);
               return (
                 <button
                   key={i}
                   onClick={() => toggleIngredient(i)}
-                  className={`w-full flex items-center gap-3 p-3 text-left transition-colors ${
-                    isChecked ? "bg-green-50" : "hover:bg-accent/50"
+                  className={`w-full flex items-center gap-3 p-4 text-left transition-colors ${
+                    isChecked ? "bg-[var(--drink-bg)]" : "hover:bg-[var(--muted)]"
                   }`}
                 >
                   <span
-                    className={`shrink-0 w-5 h-5 border-2 border-border flex items-center justify-center text-xs font-bold ${
-                      isChecked ? "bg-green-500 text-white" : "bg-white"
+                    className={`shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors ${
+                      isChecked
+                        ? "bg-[var(--drink)] border-[var(--drink)] text-white"
+                        : "border-[var(--border)]"
                     }`}
                   >
-                    {isChecked && "✓"}
+                    {isChecked && <Check className="w-4 h-4" />}
                   </span>
                   <span
                     className={
@@ -877,21 +891,25 @@ function DrinkContent({ data }: { data: DrinkData }) {
 
       {data.recipe && data.recipe.length > 0 && (
         <div>
-          <h3 className="text-lg font-bold uppercase mb-3">Instructions</h3>
-          <ol className="space-y-3">
+          <h3 className="heading-3 mb-3">Instructions</h3>
+          <ol className="space-y-4">
             {data.recipe.map((step, i) => (
-              <li key={i} className="flex items-start gap-3">
+              <li key={i} className="flex items-start gap-4">
                 <button
                   onClick={() => toggleStep(i)}
-                  className={`shrink-0 w-8 h-8 flex items-center justify-center font-mono font-bold border-2 border-border transition-colors ${
+                  className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center font-semibold transition-colors ${
                     completedSteps.has(i)
-                      ? "bg-green-500 text-white"
-                      : "bg-primary text-primary-foreground"
+                      ? "bg-[var(--drink)] text-white"
+                      : "bg-[var(--primary)] text-white"
                   }`}
                 >
-                  {String(i + 1).padStart(2, "0")}
+                  {completedSteps.has(i) ? (
+                    <Check className="w-5 h-5" />
+                  ) : (
+                    i + 1
+                  )}
                 </button>
-                <span className="pt-1">{step}</span>
+                <span className="pt-2 flex-1">{step}</span>
               </li>
             ))}
           </ol>
@@ -909,27 +927,31 @@ function TravelContent({ data }: { data: TravelData }) {
           href={getGoogleMapsUrl(data.location)}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-start gap-3 p-4 brutal-card hover:bg-accent"
+          className="flex items-start gap-4 p-4 card-flat rounded-xl hover:bg-[var(--muted)] transition-colors"
         >
-          <MapPin className="w-6 h-6 text-primary" />
+          <div className="w-12 h-12 rounded-xl bg-[var(--travel-bg)] flex items-center justify-center">
+            <MapPin className="w-6 h-6 text-[var(--travel)]" />
+          </div>
           <div className="flex-1">
-            <p className="text-xs font-mono uppercase text-muted-foreground">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">
               Location
             </p>
-            <p className="font-bold">{data.location}</p>
+            <p className="font-semibold">{data.location}</p>
           </div>
-          <ExternalLink className="w-4 h-4 text-muted-foreground" />
+          <ExternalLink className="w-4 h-4 text-muted-foreground mt-1" />
         </a>
       )}
 
       {(data.destination_city || data.destination_country) && (
-        <div className="flex items-start gap-3 p-4 brutal-card-static">
-          <Plane className="w-6 h-6 text-primary" />
+        <div className="flex items-start gap-4 p-4 card-flat rounded-xl">
+          <div className="w-12 h-12 rounded-xl bg-[var(--travel-bg)] flex items-center justify-center">
+            <Plane className="w-6 h-6 text-[var(--travel)]" />
+          </div>
           <div>
-            <p className="text-xs font-mono uppercase text-muted-foreground">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">
               Destination
             </p>
-            <p className="font-bold">
+            <p className="font-semibold">
               {data.destination_city}
               {data.destination_city && data.destination_country && ", "}
               {data.destination_country}
@@ -940,16 +962,16 @@ function TravelContent({ data }: { data: TravelData }) {
 
       <div className="flex flex-wrap gap-2">
         {data.type && (
-          <Badge className="brutal-badge capitalize">{data.type}</Badge>
+          <Badge variant="travel" className="capitalize">{data.type}</Badge>
         )}
         {data.price_range && (
-          <Badge className="brutal-badge">{data.price_range}</Badge>
+          <Badge variant="outline">{data.price_range}</Badge>
         )}
       </div>
 
       {data.description && (
         <div>
-          <h3 className="text-lg font-bold uppercase mb-2">About</h3>
+          <h3 className="heading-3 mb-2">About</h3>
           <p className="text-muted-foreground">{data.description}</p>
         </div>
       )}

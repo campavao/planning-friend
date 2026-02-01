@@ -70,7 +70,7 @@ END:VCARD`;
     return (
       <button
         onClick={handleAddContact}
-        className={`text-primary font-bold hover:underline font-mono ${className}`}
+        className={`text-[var(--primary)] font-semibold hover:underline font-mono ${className}`}
       >
         {formatPhoneNumber(phoneNumber)}
       </button>
@@ -80,12 +80,12 @@ END:VCARD`;
   if (variant === "inline") {
     return (
       <span className={`inline-flex items-center gap-2 ${className}`}>
-        <span className="text-primary font-bold font-mono">
+        <span className="text-[var(--primary)] font-semibold font-mono">
           {formatPhoneNumber(phoneNumber)}
         </span>
         <button
           onClick={handleAddContact}
-          className="text-xs text-muted-foreground hover:text-primary underline font-mono"
+          className="text-xs text-muted-foreground hover:text-[var(--primary)] underline"
         >
           (add)
         </button>
@@ -97,7 +97,7 @@ END:VCARD`;
     <Button
       variant="outline"
       onClick={handleAddContact}
-      className={`border-[3px] border-border hover:bg-accent ${className}`}
+      className={`rounded-xl border-[var(--border)] hover:bg-[var(--muted)] ${className}`}
     >
       <Smartphone className="w-4 h-4 mr-2" />
       Add to Contacts

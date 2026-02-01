@@ -61,7 +61,7 @@ export function AddToHomeScreenButton({
       {variant === "link" ? (
         <button
           onClick={handleClick}
-          className={`text-primary font-medium hover:underline ${className}`}
+          className={`text-[var(--primary)] font-medium hover:underline ${className}`}
         >
           {buttonContent}
         </button>
@@ -69,7 +69,7 @@ export function AddToHomeScreenButton({
         <Button
           variant='outline'
           onClick={handleClick}
-          className={`hover:bg-washi-pink/20 ${className}`}
+          className={`rounded-xl border-[var(--border)] hover:bg-[var(--muted)] ${className}`}
         >
           {buttonContent}
         </Button>
@@ -130,30 +130,32 @@ function HomeScreenModal({
 }) {
   return (
     <div
-      className='fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-4'
+      className='fixed inset-0 modal-backdrop z-50 flex items-end md:items-center justify-center p-4'
       onClick={onDismiss}
     >
       <div
-        className='bg-card rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-border animate-fade-in-up'
+        className='bg-[var(--card)] rounded-2xl p-6 max-w-sm w-full shadow-xl border border-[var(--border)]'
         onClick={(e) => e.stopPropagation()}
       >
         <div className='text-center mb-4'>
-          <span className='text-4xl'>📲</span>
-          <h3 className='font-semibold text-lg mt-2'>Add to Home Screen</h3>
+          <div className='w-14 h-14 mx-auto rounded-2xl bg-[var(--primary)]/10 flex items-center justify-center mb-3'>
+            <span className='text-2xl'>📲</span>
+          </div>
+          <h3 className='font-semibold text-lg'>Add to Home Screen</h3>
           <p className='text-sm text-muted-foreground mt-1'>
             Get quick access like a real app!
           </p>
         </div>
 
         {isIOS ? (
-          <div className='space-y-3'>
-            <div className='flex items-start gap-3 p-3 bg-secondary/50 rounded-lg'>
-              <span className='text-2xl'>1️⃣</span>
+          <div className='space-y-2'>
+            <div className='flex items-start gap-3 p-3 bg-[var(--muted)] rounded-xl'>
+              <span className='text-xl'>1️⃣</span>
               <div>
                 <p className='font-medium text-sm'>Tap the Share button</p>
                 <p className='text-xs text-muted-foreground mt-0.5'>
                   Look for{" "}
-                  <span className='inline-flex items-center justify-center w-6 h-6 bg-muted rounded'>
+                  <span className='inline-flex items-center justify-center w-6 h-6 bg-white rounded-lg'>
                     <ShareIcon />
                   </span>{" "}
                   at the bottom of Safari
@@ -161,15 +163,15 @@ function HomeScreenModal({
               </div>
             </div>
 
-            <div className='flex items-start gap-3 p-3 bg-secondary/50 rounded-lg'>
-              <span className='text-2xl'>2️⃣</span>
+            <div className='flex items-start gap-3 p-3 bg-[var(--muted)] rounded-xl'>
+              <span className='text-xl'>2️⃣</span>
               <div>
                 <p className='font-medium text-sm'>
                   Scroll down and tap &quot;More&quot;
                 </p>
                 <p className='text-xs text-muted-foreground mt-0.5'>
                   Look for{" "}
-                  <span className='inline-flex items-center justify-center px-2 py-0.5 bg-muted rounded text-[10px] font-medium'>
+                  <span className='inline-flex items-center justify-center px-2 py-0.5 bg-white rounded-lg text-[10px] font-medium'>
                     ••• More
                   </span>{" "}
                   at the bottom of the share menu
@@ -177,15 +179,15 @@ function HomeScreenModal({
               </div>
             </div>
 
-            <div className='flex items-start gap-3 p-3 bg-secondary/50 rounded-lg'>
-              <span className='text-2xl'>3️⃣</span>
+            <div className='flex items-start gap-3 p-3 bg-[var(--muted)] rounded-xl'>
+              <span className='text-xl'>3️⃣</span>
               <div>
                 <p className='font-medium text-sm'>
                   Tap &quot;Add to Home Screen&quot;
                 </p>
                 <p className='text-xs text-muted-foreground mt-0.5'>
                   It has a{" "}
-                  <span className='inline-flex items-center justify-center w-5 h-5 bg-muted rounded'>
+                  <span className='inline-flex items-center justify-center w-5 h-5 bg-white rounded-lg'>
                     <PlusSquareIcon />
                   </span>{" "}
                   icon next to it
@@ -193,8 +195,8 @@ function HomeScreenModal({
               </div>
             </div>
 
-            <div className='flex items-start gap-3 p-3 bg-secondary/50 rounded-lg'>
-              <span className='text-2xl'>4️⃣</span>
+            <div className='flex items-start gap-3 p-3 bg-[var(--muted)] rounded-xl'>
+              <span className='text-xl'>4️⃣</span>
               <div>
                 <p className='font-medium text-sm'>Tap &quot;Add&quot;</p>
                 <p className='text-xs text-muted-foreground mt-0.5'>
@@ -204,9 +206,9 @@ function HomeScreenModal({
             </div>
           </div>
         ) : (
-          <div className='space-y-4'>
-            <div className='flex items-start gap-3 p-3 bg-secondary/50 rounded-lg'>
-              <span className='text-2xl'>💡</span>
+          <div className='space-y-2'>
+            <div className='flex items-start gap-3 p-3 bg-[var(--muted)] rounded-xl'>
+              <span className='text-xl'>💡</span>
               <div>
                 <p className='font-medium text-sm'>On iPhone Safari</p>
                 <p className='text-xs text-muted-foreground mt-0.5'>
@@ -215,8 +217,8 @@ function HomeScreenModal({
               </div>
             </div>
 
-            <div className='flex items-start gap-3 p-3 bg-secondary/50 rounded-lg'>
-              <span className='text-2xl'>🤖</span>
+            <div className='flex items-start gap-3 p-3 bg-[var(--muted)] rounded-xl'>
+              <span className='text-xl'>🤖</span>
               <div>
                 <p className='font-medium text-sm'>On Android Chrome</p>
                 <p className='text-xs text-muted-foreground mt-0.5'>
@@ -225,8 +227,8 @@ function HomeScreenModal({
               </div>
             </div>
 
-            <div className='flex items-start gap-3 p-3 bg-secondary/50 rounded-lg'>
-              <span className='text-2xl'>🖥️</span>
+            <div className='flex items-start gap-3 p-3 bg-[var(--muted)] rounded-xl'>
+              <span className='text-xl'>🖥️</span>
               <div>
                 <p className='font-medium text-sm'>On Desktop Chrome</p>
                 <p className='text-xs text-muted-foreground mt-0.5'>
@@ -240,7 +242,7 @@ function HomeScreenModal({
 
         <button
           onClick={onDismiss}
-          className='w-full mt-5 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity'
+          className='w-full mt-5 btn-primary'
         >
           Got it!
         </button>

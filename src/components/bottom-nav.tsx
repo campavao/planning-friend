@@ -9,7 +9,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/planner", icon: Calendar, label: "Plan" },
   { href: "/dashboard/gifts", icon: Gift, label: "Gifts" },
   { href: "/dashboard/friends", icon: Users, label: "Friends" },
-  { href: "/dashboard/settings", icon: Settings, label: "Config" },
+  { href: "/dashboard/settings", icon: Settings, label: "Settings" },
 ];
 
 export function BottomNav() {
@@ -29,8 +29,8 @@ export function BottomNav() {
         backfaceVisibility: "hidden",
       }}
     >
-      <div className="bg-card border-t-[3px] border-border">
-        <div className="flex">
+      <div className="bg-white/95 backdrop-blur-lg border-t border-[var(--border)] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+        <div className="flex justify-around items-center px-2 py-1">
           {NAV_ITEMS.map((item) => {
             const isActive =
               item.href === "/dashboard"
@@ -43,16 +43,29 @@ export function BottomNav() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex-1 flex flex-col items-center py-3 border-r-[3px] border-border last:border-r-0 transition-colors ${
-                  isActive
-                    ? "bg-foreground text-background"
-                    : "bg-card text-foreground hover:bg-accent"
-                }`}
+                className="nav-item flex-1"
               >
-                <Icon
-                  className={`w-6 h-6 mb-1 ${isActive ? "stroke-[2.5px]" : "stroke-[2px]"}`}
-                />
-                <span className="text-[9px] font-bold uppercase tracking-wider">
+                <div
+                  className={`nav-icon ${
+                    isActive
+                      ? "bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] shadow-md"
+                      : ""
+                  }`}
+                >
+                  <Icon
+                    className={`w-5 h-5 ${
+                      isActive ? "text-white" : "text-[var(--muted-foreground)]"
+                    }`}
+                    strokeWidth={isActive ? 2.5 : 2}
+                  />
+                </div>
+                <span
+                  className={`text-[10px] font-medium ${
+                    isActive
+                      ? "text-[var(--primary)]"
+                      : "text-[var(--muted-foreground)]"
+                  }`}
+                >
                   {item.label}
                 </span>
               </Link>
@@ -60,7 +73,7 @@ export function BottomNav() {
           })}
         </div>
         {/* Safe area padding for notched phones */}
-        <div className="safe-area-bottom bg-card" />
+        <div className="safe-area-bottom bg-white/95" />
       </div>
     </nav>
   );
