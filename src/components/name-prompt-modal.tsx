@@ -53,22 +53,21 @@ export function NamePromptModal({ onComplete }: NamePromptModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="scrapbook-card w-full max-w-md relative overflow-visible animate-fade-in-up">
-        {/* Washi tape decorations */}
-        <div className="absolute -top-3 left-8 w-20 h-6 bg-washi-mint/80 transform -rotate-2 z-10" />
-        <div className="absolute -top-3 right-12 w-16 h-6 bg-washi-pink/80 transform rotate-1 z-10" />
+    <div className="fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+      <div className="card-elevated w-full max-w-md relative overflow-hidden">
+        {/* Gradient header accent */}
+        <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-[var(--primary)] via-[var(--accent)] to-[var(--secondary)]" />
 
         <div className="p-6 pt-8">
           {/* Header */}
           <div className="text-center mb-6">
-            <div className="text-5xl mb-3">
-              <span role="img" aria-label="wave">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--primary)]/10 flex items-center justify-center">
+              <span className="text-3xl" role="img" aria-label="wave">
                 👋
               </span>
             </div>
-            <h2 className="font-handwritten text-3xl mb-2">Welcome!</h2>
-            <p className="text-muted-foreground">
+            <h2 className="heading-1 mb-2">Welcome!</h2>
+            <p className="text-sm text-muted-foreground">
               What should we call you? Your friends will see this name when you
               share plans with them.
             </p>
@@ -85,7 +84,7 @@ export function NamePromptModal({ onComplete }: NamePromptModalProps) {
                   setName(e.target.value);
                   setError("");
                 }}
-                className="text-center text-lg h-14 bg-white border-border"
+                className="input-modern text-center text-lg h-14"
                 maxLength={100}
                 autoFocus
               />
@@ -97,7 +96,7 @@ export function NamePromptModal({ onComplete }: NamePromptModalProps) {
 
             <Button
               type="submit"
-              className="w-full h-12 text-lg font-medium bg-primary hover:bg-primary/90"
+              className="btn-primary w-full h-12 text-base"
               disabled={saving || !name.trim()}
             >
               {saving ? "Saving..." : "Continue"}
