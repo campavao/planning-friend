@@ -45,8 +45,10 @@ interface ProcessRequest {
   };
 }
 
-// Maximum video size to process with full video analysis (20MB)
-const MAX_VIDEO_SIZE_FOR_FULL_ANALYSIS = 20 * 1024 * 1024;
+// Maximum video size to process with full video analysis (50MB)
+// Note: Larger videos use more memory, take longer to process, and cost more.
+// Videos exceeding this limit will fall back to thumbnail-based analysis.
+const MAX_VIDEO_SIZE_FOR_FULL_ANALYSIS = 50 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
   console.log("Process API called");
