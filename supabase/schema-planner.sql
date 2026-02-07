@@ -19,11 +19,11 @@ CREATE TABLE plan_items (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   plan_id UUID NOT NULL REFERENCES weekly_plans(id) ON DELETE CASCADE,
   content_id UUID NOT NULL REFERENCES content(id) ON DELETE CASCADE,
-  day_of_week INTEGER NOT NULL CHECK (day_of_week >= 0 AND day_of_week <= 6), -- 0=Monday, 6=Sunday
+  planned_date TIMESTAMP WITH TIME ZONE NOT NULL, -- Actual calendar date/time for this item
   slot_order INTEGER NOT NULL DEFAULT 0, -- For multiple items on same day
   notes TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(plan_id, content_id, day_of_week)
+  UNIQUE(plan_id, content_id, planned_date)
 );
 
 CREATE INDEX idx_plan_items_plan ON plan_items(plan_id);

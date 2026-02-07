@@ -5,13 +5,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { usePlanner } from "@/hooks/usePlanner";
+import { usePlanner, type PlannerData } from "@/hooks/usePlanner";
 import type {
+  Content,
   ContentCategory,
   DrinkData,
   MealData,
   PlanItem,
   SharedPlanItem,
+  Tag,
 } from "@/lib/supabase";
 import {
   formatDateString,
@@ -85,6 +87,9 @@ interface ItemShareState {
   newFriendPhone: string;
 }
 
+type ShareableFriend = PlannerData["shareableFriends"][number];
+type ContentWithTags = Content & { tags?: Tag[] };
+
 // Grocery list types (from Gemini AI)
 interface GroceryItem {
   ingredient: string;
@@ -142,6 +147,7 @@ function PlannerContent() {
   const [addingToDay, setAddingToDay] = useState<number | null>(null);
   const [quickNoteInput, setQuickNoteInput] = useState("");
   const [addingQuickNote, setAddingQuickNote] = useState(false);
+  const [plannedTime, setPlannedTime] = useState("19:00");
 
   // Week start day preference (0=Sunday, 1=Monday, etc.)
   const weekStartDay = useMemo(() => getWeekStartDay(), []);
@@ -252,12 +258,35 @@ function PlannerContent() {
     setWeekStart(newWeek);
   };
 
+  const openAddModal = (dayIndex: number) => {
+    setPlannedTime("19:00");
+    setAddingToDay(dayIndex);
+  };
+
+  const getPlannedDateTime = (dayIndex: number, timeValue: string) => {
+    if (!weekStart) return null;
+    const date = parseDateString(weekStart);
+    date.setDate(date.getDate() + dayIndex);
+
+    const [hours, minutes] = timeValue.split(":").map(Number);
+    if (!Number.isNaN(hours)) {
+      date.setHours(hours, minutes || 0, 0, 0);
+    }
+
+    return date.toISOString();
+  };
+
   const addToDay = async (contentId: string, dayOfWeek: number) => {
     try {
+      const plannedDate = getPlannedDateTime(dayOfWeek, plannedTime);
       const res = await fetch("/api/planner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ weekStart, contentId, dayOfWeek }),
+        body: JSON.stringify({
+          weekStart,
+          contentId,
+          plannedDate,
+        }),
       });
 
       if (res.ok) {
@@ -274,13 +303,14 @@ function PlannerContent() {
 
     setAddingQuickNote(true);
     try {
+      const plannedDate = getPlannedDateTime(dayOfWeek, plannedTime);
       const res = await fetch("/api/planner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           weekStart,
           noteTitle: quickNoteInput.trim(),
-          dayOfWeek,
+          plannedDate,
         }),
       });
 
@@ -315,10 +345,13 @@ function PlannerContent() {
     let preSelectedFriendIds: string[] = [];
 
     if (currentlySharedUserIds.length > 0) {
+      const shareableFriends: ShareableFriend[] = data?.shareableFriends || [];
       preSelectedFriendIds =
-        data?.shareableFriends
-          .filter((f) => currentlySharedUserIds.includes(f.linkedUserId))
-          .map((f) => f.id) || [];
+        shareableFriends
+          .filter((f: ShareableFriend) =>
+            currentlySharedUserIds.includes(f.linkedUserId)
+          )
+          .map((f: ShareableFriend) => f.id) || [];
     } else {
       preSelectedFriendIds = getLastSharedFriendIds();
     }
@@ -479,6 +512,37 @@ function PlannerContent() {
     return today.toDateString() === dayDate.toDateString();
   };
 
+  const getDayDateKey = (dayIndex: number) => {
+    if (!weekStart) return null;
+    const date = parseDateString(weekStart);
+    date.setDate(date.getDate() + dayIndex);
+    return formatDateString(date);
+  };
+
+  const getItemDateKey = (item: DisplayItem) => {
+    if (item.planned_date) {
+      const planned = new Date(item.planned_date);
+      if (!Number.isNaN(planned.getTime())) {
+        return formatDateString(planned);
+      }
+    }
+
+    if ("shared_date" in item && item.shared_date) {
+      return item.shared_date;
+    }
+    return null;
+  };
+
+  const formatItemTime = (item: DisplayItem) => {
+    if (!item.planned_date) return null;
+    const planned = new Date(item.planned_date);
+    if (Number.isNaN(planned.getTime())) return null;
+    return planned.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  };
+
   const clearAllFilters = () => {
     setSearchQuery("");
     setCategoryFilter("all");
@@ -499,16 +563,18 @@ function PlannerContent() {
   const getFilteredContent = () => {
     if (!data?.availableContent) return [];
 
-    const usedIds = new Set(data.plan?.items.map((i) => i.content_id) || []);
+    const planItems: PlanItemWithSharing[] = data.plan?.items || [];
+    const availableContent: ContentWithTags[] = data.availableContent || [];
+    const usedIds = new Set(planItems.map((i: PlanItemWithSharing) => i.content_id) || []);
 
-    return data.availableContent.filter((c) => {
+    return availableContent.filter((c: ContentWithTags) => {
       if (usedIds.has(c.id)) return false;
       if (c.category === "gift_idea") return false;
       if (categoryFilter !== "all" && c.category !== categoryFilter)
         return false;
 
       if (selectedTagIds.length > 0) {
-        const contentTagIds = c.tags?.map((t) => t.id) || [];
+        const contentTagIds = c.tags?.map((t: Tag) => t.id) || [];
         const hasMatchingTag = selectedTagIds.some((tagId) =>
           contentTagIds.includes(tagId)
         );
@@ -527,7 +593,10 @@ function PlannerContent() {
   const generateGroceryList = async () => {
     if (!data?.plan?.items) return;
 
-    const allItems = [...(data.plan.items || []), ...(data.sharedItems || [])];
+    const allItems: (PlanItemWithSharing | SharedPlanItem)[] = [
+      ...(data.plan.items || []),
+      ...(data.sharedItems || []),
+    ];
 
     const recipes: {
       id: string;
@@ -676,9 +745,12 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
   const hasMealOrDrinkItems = useMemo(() => {
     if (!data?.plan?.items && !data?.sharedItems) return false;
-    const allItems = [...(data.plan?.items || []), ...(data.sharedItems || [])];
+    const allItems: (PlanItemWithSharing | SharedPlanItem)[] = [
+      ...(data.plan?.items || []),
+      ...(data.sharedItems || []),
+    ];
     return allItems.some(
-      (item) =>
+      (item: PlanItemWithSharing | SharedPlanItem) =>
         item.content?.category === "meal" || item.content?.category === "drink"
     );
   }, [data?.plan?.items, data?.sharedItems]);
@@ -699,15 +771,30 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
     isSharedWithMe?: boolean;
   };
 
+  const planItems: PlanItemWithSharing[] = data?.plan?.items || [];
+  const sharedItemsList: SharedPlanItem[] = data?.sharedItems || [];
   const itemsByDay: Record<number, DisplayItem[]> = {};
   for (let i = 0; i <= 6; i++) {
+    const dayKey = getDayDateKey(i);
     const ownItems: DisplayItem[] = (
-      data?.plan?.items.filter((item) => item.day_of_week === i) || []
-    ).map((item) => ({ ...item, isSharedWithMe: false }));
+      planItems.filter(
+        (item: PlanItemWithSharing) =>
+          dayKey && getItemDateKey(item as DisplayItem) === dayKey
+      ) || []
+    ).map((item: PlanItemWithSharing) => ({
+      ...item,
+      isSharedWithMe: false,
+    }));
 
     const sharedItems: DisplayItem[] = (
-      data?.sharedItems?.filter((item) => item.day_of_week === i) || []
-    ).map((item) => ({ ...item, isSharedWithMe: true }));
+      sharedItemsList.filter(
+        (item: SharedPlanItem) =>
+          dayKey && getItemDateKey(item as DisplayItem) === dayKey
+      ) || []
+    ).map((item: SharedPlanItem) => ({
+      ...item,
+      isSharedWithMe: true,
+    }));
 
     itemsByDay[i] = [...ownItems, ...sharedItems];
   }
@@ -821,7 +908,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                         variant="ghost"
                         size="sm"
                         className="h-7 px-2 text-xs rounded-lg hover:bg-[var(--muted)]"
-                        onClick={() => setAddingToDay(dayIndex)}
+                        onClick={() => openAddModal(dayIndex)}
                       >
                         <Plus className="w-3 h-3 mr-1" />
                         Add
@@ -840,6 +927,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                             : null;
                           const isQuickNote =
                             !item.content_id && item.note_title;
+                          const plannedTimeLabel = formatItemTime(item);
 
                           // Quick note display (mobile)
                           if (isQuickNote) {
@@ -853,6 +941,11 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                   <p className="font-medium text-sm flex-1">
                                     {item.note_title}
                                   </p>
+                                  {plannedTimeLabel && (
+                                    <span className="text-[10px] bg-white/70 px-2 py-0.5 rounded-full font-semibold text-[var(--accent)]">
+                                      {plannedTimeLabel}
+                                    </span>
+                                  )}
                                   {isShared && (
                                     <span className="text-[10px] bg-[var(--muted)] px-1.5 py-0.5 rounded-full font-medium">
                                       from {sharedItem?.owner_name}
@@ -924,6 +1017,11 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                     <span className="text-xs text-muted-foreground capitalize">
                                       {item.content?.category?.replace("_", " ")}
                                     </span>
+                                  {plannedTimeLabel && (
+                                    <span className="text-[10px] bg-[var(--accent-light)] text-[var(--accent-foreground)] px-2 py-0.5 rounded-full font-semibold">
+                                      {plannedTimeLabel}
+                                    </span>
+                                  )}
                                     {isShared && (
                                       <span className="text-[10px] bg-[var(--muted)] px-1.5 py-0.5 rounded-full font-medium">
                                         from {sharedItem?.owner_name}
@@ -1022,6 +1120,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                         ? (item as PlanItemWithSharing)
                         : null;
                       const isQuickNote = !item.content_id && item.note_title;
+                      const plannedTimeLabel = formatItemTime(item);
 
                       // Quick note (desktop)
                       if (isQuickNote) {
@@ -1032,6 +1131,11 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                           >
                             <div className="flex items-center gap-1 mb-0.5 flex-wrap">
                               <FileText className="w-3 h-3 text-[var(--accent)]" />
+                              {plannedTimeLabel && (
+                                <span className="text-[8px] bg-white/70 px-1.5 py-0.5 rounded-full font-semibold text-[var(--accent)]">
+                                  {plannedTimeLabel}
+                                </span>
+                              )}
                               {isShared && (
                                 <span className="text-[8px] bg-white/60 px-1 py-0.5 rounded font-medium">
                                   {sharedItem?.owner_name}
@@ -1103,6 +1207,11 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                             <div className="p-2">
                               <div className="flex items-center gap-1 mb-0.5 flex-wrap">
                                 <Icon className="w-3 h-3 text-muted-foreground" />
+                                {plannedTimeLabel && (
+                                  <span className="text-[8px] bg-[var(--accent-light)] text-[var(--accent-foreground)] px-1.5 py-0.5 rounded-full font-semibold">
+                                    {plannedTimeLabel}
+                                  </span>
+                                )}
                                 {isShared && (
                                   <span className="text-[8px] bg-[var(--muted)] px-1 py-0.5 rounded font-medium">
                                     {sharedItem?.owner_name}
@@ -1168,7 +1277,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                       variant="ghost"
                       size="sm"
                       className="w-full h-7 text-xs border border-dashed border-[var(--border)] rounded-lg hover:bg-[var(--muted)] text-muted-foreground"
-                      onClick={() => setAddingToDay(dayIndex)}
+                      onClick={() => openAddModal(dayIndex)}
                     >
                       <Plus className="w-3 h-3" />
                     </Button>
@@ -1244,6 +1353,20 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     {addingQuickNote ? "..." : "Add"}
                   </Button>
                 </form>
+                <div className="mt-3 flex items-center gap-3">
+                  <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    Time
+                  </div>
+                  <Input
+                    type="time"
+                    value={plannedTime}
+                    onChange={(e) => setPlannedTime(e.target.value)}
+                    className="input-modern max-w-[140px]"
+                  />
+                  <span className="text-[10px] text-muted-foreground">
+                    Default 7:00 PM
+                  </span>
+                </div>
               </div>
 
               <div className="px-4 py-2 text-xs text-muted-foreground text-center bg-[var(--muted)] border-b border-[var(--border)]">
@@ -1312,7 +1435,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
               {/* Content List */}
               <div className="p-4 space-y-2">
-                {getFilteredContent().map((content) => {
+                {getFilteredContent().map((content: ContentWithTags) => {
                   const Icon = CATEGORY_ICONS[content.category] || Pin;
                   return (
                     <button
@@ -1339,7 +1462,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                         </p>
                         {content.tags && content.tags.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
-                            {content.tags.slice(0, 3).map((tag) => (
+                          {content.tags.slice(0, 3).map((tag: Tag) => (
                               <span
                                 key={tag.id}
                                 className="text-[10px] px-1.5 py-0.5 bg-[var(--accent-light)] rounded-full"
@@ -1617,7 +1740,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                   {data?.shareableFriends &&
                   data.shareableFriends.length > 0 ? (
                     <>
-                      {data.shareableFriends.map((friend) => {
+                      {data.shareableFriends.map((friend: ShareableFriend) => {
                         const isSelected = itemShare.selectedFriendIds.includes(
                           friend.id
                         );

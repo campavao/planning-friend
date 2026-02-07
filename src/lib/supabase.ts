@@ -501,7 +501,7 @@ export interface PlanItem {
   id: string;
   plan_id: string;
   content_id?: string; // Optional for quick notes
-  day_of_week: number; // 0=Monday, 6=Sunday
+  planned_date: string; // ISO timestamp for the actual calendar day/time
   slot_order: number;
   notes?: string;
   note_title?: string; // For quick notes without linked content
@@ -592,7 +592,7 @@ export async function getWeeklyPlanWithItems(
     `
     )
     .eq("plan_id", plan.id)
-    .order("day_of_week")
+    .order("planned_date")
     .order("slot_order");
 
   if (itemsError) {
@@ -608,21 +608,27 @@ export async function getWeeklyPlanWithItems(
 // Add item to plan (either content or quick note)
 export async function addPlanItem(
   planId: string,
-  dayOfWeek: number,
-  options: { contentId?: string; noteTitle?: string; notes?: string }
+  options: {
+    contentId?: string;
+    noteTitle?: string;
+    notes?: string;
+    plannedDate: string;
+  }
 ): Promise<PlanItem> {
   const supabase = createServerClient();
 
   if (!options.contentId && !options.noteTitle) {
     throw new Error("Either contentId or noteTitle must be provided");
   }
+  if (!options.plannedDate) {
+    throw new Error("plannedDate is required");
+  }
 
-  // Get the highest slot order for this day
+  // Get the highest slot order for this plan
   const { data: existingItems } = await supabase
     .from("plan_items")
     .select("slot_order")
     .eq("plan_id", planId)
-    .eq("day_of_week", dayOfWeek)
     .order("slot_order", { ascending: false })
     .limit(1);
 
@@ -632,12 +638,12 @@ export async function addPlanItem(
     plan_id: string;
     content_id?: string;
     note_title?: string;
-    day_of_week: number;
+    planned_date: string;
     slot_order: number;
     notes?: string;
   } = {
     plan_id: planId,
-    day_of_week: dayOfWeek,
+    planned_date: options.plannedDate,
     slot_order: slotOrder + 1,
   };
 
@@ -691,7 +697,7 @@ export async function getUsagePatterns(
     .from("plan_items")
     .select(
       `
-      day_of_week,
+      planned_date,
       content:content_id (category)
     `
     )
@@ -705,7 +711,11 @@ export async function getUsagePatterns(
   // Aggregate by day
   const patterns = new Map<number, ContentCategory[]>();
   for (const item of data || []) {
-    const day = item.day_of_week;
+    const plannedDate = (item as { planned_date?: string }).planned_date;
+    if (!plannedDate) continue;
+    const planned = new Date(plannedDate);
+    if (Number.isNaN(planned.getTime())) continue;
+    const day = (planned.getDay() + 6) % 7; // Monday=0
     // Handle the joined content which comes as an object
     const contentData = item.content as unknown as {
       category: ContentCategory;
@@ -1895,7 +1905,7 @@ export async function getSharedItemsForUser(
         plan_id,
         content_id,
         note_title,
-        day_of_week,
+        planned_date,
         slot_order,
         notes,
         created_at,
@@ -1927,35 +1937,26 @@ export async function getSharedItemsForUser(
     };
     const owner = share.users as unknown as User;
 
-    // Get the owner's plan to get their week_start
-    const { data: plan } = await supabase
-      .from("weekly_plans")
-      .select("week_start")
-      .eq("id", planItem.plan_id)
-      .single();
+    const parsePlannedDate = (value: string): Date => {
+      return value.includes("T") ? new Date(value) : parseDateString(value);
+    };
 
-    if (plan) {
+    if (planItem.planned_date) {
       // Calculate the actual calendar date of this item
-      // using the owner's week_start + day_of_week offset
-      const ownerWeekStart = parseDateString(plan.week_start);
-      const itemDate = new Date(ownerWeekStart);
-      itemDate.setDate(itemDate.getDate() + planItem.day_of_week);
+      const itemDate = parsePlannedDate(planItem.planned_date);
+
+      const normalizedItemDate = parseDateString(formatDateString(itemDate));
 
       // Check if this date falls within the recipient's requested week
-      if (itemDate >= recipientWeekStart && itemDate <= recipientWeekEnd) {
-        // Calculate the day slot for the recipient's week view
-        const recipientDayOfWeek = Math.round(
-          (itemDate.getTime() - recipientWeekStart.getTime()) /
-            (1000 * 60 * 60 * 24)
-        );
-
+      if (
+        normalizedItemDate >= recipientWeekStart &&
+        normalizedItemDate <= recipientWeekEnd
+      ) {
         sharedItems.push({
           ...planItem,
-          // Override day_of_week with the recipient's slot position
-          day_of_week: recipientDayOfWeek,
           owner_user_id: share.owner_user_id,
           owner_name: owner?.name || owner?.phone_number?.slice(-4) || "Friend",
-          shared_date: formatDateString(itemDate),
+          shared_date: formatDateString(normalizedItemDate),
           is_shared: true,
         });
       }

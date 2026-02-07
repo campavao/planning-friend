@@ -14,6 +14,7 @@ import {
   type PlanItem,
   type SharedPlanItem,
 } from "@/lib/supabase";
+import { parseDateString } from "@/lib/utils";
 import { cookies } from "next/headers";
 
 interface SessionData {
@@ -32,7 +33,7 @@ async function getSessionUser(): Promise<SessionData | null> {
 
   try {
     const decoded = JSON.parse(
-      Buffer.from(sessionCookie.value, "base64").toString()
+      Buffer.from(sessionCookie.value, "base64").toString(),
     ) as SessionData;
 
     if (decoded.exp < Date.now()) {
@@ -104,7 +105,7 @@ export async function GET(request: NextRequest) {
           // Map shared_with_user_id to friend names
           const sharedWith = shares.map((share) => {
             const friend = friends.find(
-              (f) => f.linked_user_id === share.shared_with_user_id
+              (f) => f.linked_user_id === share.shared_with_user_id,
             );
             return {
               userId: share.shared_with_user_id,
@@ -130,7 +131,7 @@ export async function GET(request: NextRequest) {
     // Generate suggestions based on patterns (using own items only)
     const suggestions = generateSuggestions(
       plan?.items || [],
-      availableContent
+      availableContent,
     );
 
     return NextResponse.json({
@@ -151,7 +152,7 @@ export async function GET(request: NextRequest) {
     console.error("Error getting planner:", error);
     return NextResponse.json(
       { error: "Failed to get planner" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -165,34 +166,40 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { weekStart, contentId, noteTitle, dayOfWeek, notes } = body;
-
-    // Require dayOfWeek and either contentId or noteTitle
-    if (dayOfWeek === undefined) {
-      return NextResponse.json(
-        { error: "dayOfWeek is required" },
-        { status: 400 }
-      );
-    }
+    const { weekStart, contentId, noteTitle, dayOfWeek, notes, plannedDate } =
+      body;
 
     if (!contentId && !noteTitle) {
       return NextResponse.json(
         { error: "Either contentId or noteTitle is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Get or create the plan
-    const plan = await getOrCreateWeeklyPlan(
-      session.userId,
-      weekStart || getWeekStart()
-    );
+    const resolvedWeekStart = weekStart || getWeekStart();
+    const plan = await getOrCreateWeeklyPlan(session.userId, resolvedWeekStart);
+
+    let resolvedPlannedDate: string | undefined = plannedDate;
+    if (!resolvedPlannedDate && dayOfWeek !== undefined) {
+      const plannedDateObj = parseDateString(plan.week_start);
+      plannedDateObj.setDate(plannedDateObj.getDate() + dayOfWeek);
+      plannedDateObj.setHours(19, 0, 0, 0); // Default to 7:00 PM local time
+      resolvedPlannedDate = plannedDateObj.toISOString();
+    }
+    if (!resolvedPlannedDate) {
+      return NextResponse.json(
+        { error: "plannedDate is required" },
+        { status: 400 },
+      );
+    }
 
     // Add the item (either content or quick note)
-    const item = await addPlanItem(plan.id, dayOfWeek, {
+    const item = await addPlanItem(plan.id, {
       contentId,
       noteTitle,
       notes,
+      plannedDate: resolvedPlannedDate,
     });
 
     return NextResponse.json({ success: true, item });
@@ -200,19 +207,19 @@ export async function POST(request: NextRequest) {
     console.error("Error adding plan item:", error);
     return NextResponse.json(
       { error: "Failed to add item to plan" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 // Generate smart suggestions based on content and patterns
 function generateSuggestions(
-  existingItems: { day_of_week: number; content?: Content }[],
-  availableContent: Content[]
+  existingItems: { planned_date: string; content?: Content }[],
+  availableContent: Content[],
 ): Record<number, Content[]> {
   const suggestions: Record<number, Content[]> = {};
   const usedContentIds = new Set(
-    existingItems.map((item) => item.content?.id).filter(Boolean)
+    existingItems.map((item) => item.content?.id).filter(Boolean),
   );
 
   // Day name patterns - what categories typically go on each day
@@ -226,8 +233,17 @@ function generateSuggestions(
     6: ["meal"], // Sunday - home cooking
   };
 
+  const getMondayIndex = (value: string) => {
+    const planned = new Date(value);
+    if (Number.isNaN(planned.getTime())) return null;
+    return (planned.getDay() + 6) % 7;
+  };
+
   for (let day = 0; day <= 6; day++) {
-    const dayItems = existingItems.filter((item) => item.day_of_week === day);
+    const dayItems = existingItems.filter((item) => {
+      const dayIndex = getMondayIndex(item.planned_date);
+      return dayIndex === day;
+    });
 
     // If day is empty, suggest content
     if (dayItems.length === 0) {

@@ -12,11 +12,11 @@ ALTER TABLE plan_items ADD CONSTRAINT plan_item_has_content_or_note
   CHECK (content_id IS NOT NULL OR note_title IS NOT NULL);
 
 -- Drop the unique constraint that includes content_id since it can now be null
--- and we want to allow multiple notes on the same day
-ALTER TABLE plan_items DROP CONSTRAINT IF EXISTS plan_items_plan_id_content_id_day_of_week_key;
+-- and we want to allow multiple notes
+ALTER TABLE plan_items DROP CONSTRAINT IF EXISTS plan_items_plan_id_content_id_planned_date_key;
 
 -- Add a new unique constraint only for content items (when content_id is not null)
 CREATE UNIQUE INDEX IF NOT EXISTS plan_items_unique_content_per_day 
-  ON plan_items (plan_id, content_id, day_of_week) 
+  ON plan_items (plan_id, content_id, planned_date) 
   WHERE content_id IS NOT NULL;
 
