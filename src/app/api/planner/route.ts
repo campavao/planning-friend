@@ -236,7 +236,7 @@ function generateSuggestions(
   const getMondayIndex = (value: string) => {
     const planned = new Date(value);
     if (Number.isNaN(planned.getTime())) return null;
-    return (planned.getDay() + 6) % 7;
+    return (planned.getUTCDay() + 6) % 7;
   };
 
   for (let day = 0; day <= 6; day++) {

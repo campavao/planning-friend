@@ -269,11 +269,21 @@ function PlannerContent() {
     date.setDate(date.getDate() + dayIndex);
 
     const [hours, minutes] = timeValue.split(":").map(Number);
-    if (!Number.isNaN(hours)) {
-      date.setHours(hours, minutes || 0, 0, 0);
-    }
+    if (Number.isNaN(hours)) return null;
 
-    return date.toISOString();
+    const plannedUtc = new Date(
+      Date.UTC(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        hours,
+        minutes || 0,
+        0,
+        0,
+      ),
+    );
+
+    return plannedUtc.toISOString();
   };
 
   const addToDay = async (contentId: string, dayOfWeek: number) => {
@@ -519,11 +529,18 @@ function PlannerContent() {
     return formatDateString(date);
   };
 
+  const formatUtcDateString = (date: Date) => {
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   const getItemDateKey = (item: DisplayItem) => {
     if (item.planned_date) {
       const planned = new Date(item.planned_date);
       if (!Number.isNaN(planned.getTime())) {
-        return formatDateString(planned);
+        return formatUtcDateString(planned);
       }
     }
 
@@ -540,6 +557,7 @@ function PlannerContent() {
     return planned.toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
+      timeZone: "UTC",
     });
   };
 
@@ -936,28 +954,30 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                 key={item.id}
                                 className="group relative bg-[var(--accent-light)] rounded-xl overflow-hidden p-3"
                               >
-                                <div className="flex items-center gap-2 pr-16">
-                                  <FileText className="w-4 h-4 text-[var(--accent)]" />
-                                  <p className="font-medium text-sm flex-1">
-                                    {item.note_title}
-                                  </p>
-                                  {plannedTimeLabel && (
-                                    <span className="text-[10px] bg-white/70 px-2 py-0.5 rounded-full font-semibold text-[var(--accent)]">
-                                      {plannedTimeLabel}
-                                    </span>
-                                  )}
-                                  {isShared && (
-                                    <span className="text-[10px] bg-[var(--muted)] px-1.5 py-0.5 rounded-full font-medium">
-                                      from {sharedItem?.owner_name}
-                                    </span>
-                                  )}
-                                  {ownItem?.shared_with &&
-                                    ownItem.shared_with.length > 0 && (
-                                      <span className="text-[10px] bg-[var(--secondary-light)] text-[var(--secondary-dark)] px-1.5 py-0.5 rounded-full font-medium">
-                                        <Users className="w-3 h-3 inline mr-0.5" />
-                                        {ownItem.shared_with.length}
+                                <div className="flex flex-col gap-1 pr-16">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <FileText className="w-4 h-4 text-[var(--accent)]" />
+                                    {plannedTimeLabel && (
+                                      <span className="text-[10px] bg-white/70 px-2 py-0.5 rounded-full font-semibold text-[var(--accent)]">
+                                        {plannedTimeLabel}
                                       </span>
                                     )}
+                                    {isShared && (
+                                      <span className="text-[10px] bg-[var(--muted)] px-1.5 py-0.5 rounded-full font-medium">
+                                        from {sharedItem?.owner_name}
+                                      </span>
+                                    )}
+                                    {ownItem?.shared_with &&
+                                      ownItem.shared_with.length > 0 && (
+                                        <span className="text-[10px] bg-[var(--secondary-light)] text-[var(--secondary-dark)] px-1.5 py-0.5 rounded-full font-medium">
+                                          <Users className="w-3 h-3 inline mr-0.5" />
+                                          {ownItem.shared_with.length}
+                                        </span>
+                                      )}
+                                  </div>
+                                  <p className="font-medium text-sm">
+                                    {item.note_title}
+                                  </p>
                                 </div>
                                 <div className="absolute top-2 right-2 flex gap-1">
                                   {isShared ? (
@@ -1012,16 +1032,17 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                   />
                                 )}
                                 <div className="flex-1 py-2 pr-16 min-w-0">
-                                  <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                <div className="flex flex-col gap-1 mb-1">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
                                     <Icon className="w-3.5 h-3.5 text-muted-foreground" />
                                     <span className="text-xs text-muted-foreground capitalize">
                                       {item.content?.category?.replace("_", " ")}
                                     </span>
-                                  {plannedTimeLabel && (
-                                    <span className="text-[10px] bg-[var(--accent-light)] text-[var(--accent-foreground)] px-2 py-0.5 rounded-full font-semibold">
-                                      {plannedTimeLabel}
-                                    </span>
-                                  )}
+                                    {plannedTimeLabel && (
+                                      <span className="text-[10px] bg-[var(--accent-light)] text-[var(--accent-foreground)] px-2 py-0.5 rounded-full font-semibold">
+                                        {plannedTimeLabel}
+                                      </span>
+                                    )}
                                     {isShared && (
                                       <span className="text-[10px] bg-[var(--muted)] px-1.5 py-0.5 rounded-full font-medium">
                                         from {sharedItem?.owner_name}
@@ -1038,6 +1059,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                   <p className="font-medium text-sm line-clamp-2">
                                     {item.content?.title}
                                   </p>
+                                </div>
                                 </div>
                               </Link>
                               <div className="absolute top-2 right-2 flex gap-1">
@@ -1129,29 +1151,31 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                             key={item.id}
                             className="group relative bg-[var(--accent-light)] rounded-lg overflow-hidden p-2"
                           >
-                            <div className="flex items-center gap-1 mb-0.5 flex-wrap">
-                              <FileText className="w-3 h-3 text-[var(--accent)]" />
-                              {plannedTimeLabel && (
-                                <span className="text-[8px] bg-white/70 px-1.5 py-0.5 rounded-full font-semibold text-[var(--accent)]">
-                                  {plannedTimeLabel}
-                                </span>
-                              )}
-                              {isShared && (
-                                <span className="text-[8px] bg-white/60 px-1 py-0.5 rounded font-medium">
-                                  {sharedItem?.owner_name}
-                                </span>
-                              )}
-                              {ownItem?.shared_with &&
-                                ownItem.shared_with.length > 0 && (
-                                  <span className="text-[8px] bg-[var(--secondary-light)] text-[var(--secondary-dark)] px-1 py-0.5 rounded font-medium">
-                                    <Users className="w-2 h-2 inline" />{" "}
-                                    {ownItem.shared_with.length}
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-1 flex-wrap">
+                                <FileText className="w-3 h-3 text-[var(--accent)]" />
+                                {plannedTimeLabel && (
+                                  <span className="text-[8px] bg-white/70 px-1.5 py-0.5 rounded-full font-semibold text-[var(--accent)]">
+                                    {plannedTimeLabel}
                                   </span>
                                 )}
+                                {isShared && (
+                                  <span className="text-[8px] bg-white/60 px-1 py-0.5 rounded font-medium">
+                                    {sharedItem?.owner_name}
+                                  </span>
+                                )}
+                                {ownItem?.shared_with &&
+                                  ownItem.shared_with.length > 0 && (
+                                    <span className="text-[8px] bg-[var(--secondary-light)] text-[var(--secondary-dark)] px-1 py-0.5 rounded font-medium">
+                                      <Users className="w-2 h-2 inline" />{" "}
+                                      {ownItem.shared_with.length}
+                                    </span>
+                                  )}
+                              </div>
+                              <p className="text-xs font-medium line-clamp-2">
+                                {item.note_title}
+                              </p>
                             </div>
-                            <p className="text-xs font-medium line-clamp-2">
-                              {item.note_title}
-                            </p>
                             <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                               {isShared ? (
                                 <button
@@ -1205,29 +1229,31 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                               />
                             )}
                             <div className="p-2">
-                              <div className="flex items-center gap-1 mb-0.5 flex-wrap">
-                                <Icon className="w-3 h-3 text-muted-foreground" />
-                                {plannedTimeLabel && (
-                                  <span className="text-[8px] bg-[var(--accent-light)] text-[var(--accent-foreground)] px-1.5 py-0.5 rounded-full font-semibold">
-                                    {plannedTimeLabel}
-                                  </span>
-                                )}
-                                {isShared && (
-                                  <span className="text-[8px] bg-[var(--muted)] px-1 py-0.5 rounded font-medium">
-                                    {sharedItem?.owner_name}
-                                  </span>
-                                )}
-                                {ownItem?.shared_with &&
-                                  ownItem.shared_with.length > 0 && (
-                                    <span className="text-[8px] bg-[var(--secondary-light)] text-[var(--secondary-dark)] px-1 py-0.5 rounded font-medium">
-                                      <Users className="w-2 h-2 inline" />{" "}
-                                      {ownItem.shared_with.length}
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  <Icon className="w-3 h-3 text-muted-foreground" />
+                                  {plannedTimeLabel && (
+                                    <span className="text-[8px] bg-[var(--accent-light)] text-[var(--accent-foreground)] px-1.5 py-0.5 rounded-full font-semibold">
+                                      {plannedTimeLabel}
                                     </span>
                                   )}
+                                  {isShared && (
+                                    <span className="text-[8px] bg-[var(--muted)] px-1 py-0.5 rounded font-medium">
+                                      {sharedItem?.owner_name}
+                                    </span>
+                                  )}
+                                  {ownItem?.shared_with &&
+                                    ownItem.shared_with.length > 0 && (
+                                      <span className="text-[8px] bg-[var(--secondary-light)] text-[var(--secondary-dark)] px-1 py-0.5 rounded font-medium">
+                                        <Users className="w-2 h-2 inline" />{" "}
+                                        {ownItem.shared_with.length}
+                                      </span>
+                                    )}
+                                </div>
+                                <p className="text-xs font-medium line-clamp-2">
+                                  {item.content?.title}
+                                </p>
                               </div>
-                              <p className="text-xs font-medium line-clamp-2">
-                                {item.content?.title}
-                              </p>
                             </div>
                           </Link>
                           <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">

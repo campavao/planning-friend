@@ -715,7 +715,7 @@ export async function getUsagePatterns(
     if (!plannedDate) continue;
     const planned = new Date(plannedDate);
     if (Number.isNaN(planned.getTime())) continue;
-    const day = (planned.getDay() + 6) % 7; // Monday=0
+    const day = (planned.getUTCDay() + 6) % 7; // Monday=0
     // Handle the joined content which comes as an object
     const contentData = item.content as unknown as {
       category: ContentCategory;
