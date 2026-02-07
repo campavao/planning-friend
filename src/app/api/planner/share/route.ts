@@ -5,7 +5,7 @@ import {
   claimShareInvite,
   getSharedPlans,
   removePlanShare,
-  getWeeklyPlanWithItems,
+  getWeeklyPlan,
 } from "@/lib/supabase";
 
 interface SessionData {
@@ -24,7 +24,7 @@ async function getSessionUser(): Promise<SessionData | null> {
 
   try {
     const decoded = JSON.parse(
-      Buffer.from(sessionCookie.value, "base64").toString()
+      Buffer.from(sessionCookie.value, "base64").toString(),
     ) as SessionData;
 
     if (decoded.exp < Date.now()) {
@@ -53,7 +53,7 @@ export async function GET() {
     console.error("Error fetching shared plans:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
       if (!planId && !weekStart) {
         return NextResponse.json(
           { error: "planId or weekStart required" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -82,11 +82,11 @@ export async function POST(request: NextRequest) {
 
       // If weekStart provided, get or create the plan for that week
       if (weekStart && !planId) {
-        const plan = await getWeeklyPlanWithItems(session.userId, weekStart);
+        const plan = await getWeeklyPlan(session.userId, weekStart);
         if (!plan) {
           return NextResponse.json(
             { error: "No plan found for that week" },
-            { status: 404 }
+            { status: 404 },
           );
         }
         targetPlanId = plan.id;
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
       if (!shareCode) {
         return NextResponse.json(
           { error: "shareCode required" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -146,7 +146,7 @@ export async function DELETE(request: NextRequest) {
     console.error("Error removing share:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

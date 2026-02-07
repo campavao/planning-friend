@@ -15,7 +15,7 @@ export async function sendPhoneOtp(phoneNumber: string): Promise<void> {
 // Verify phone OTP code via Twilio Verify
 export async function verifyPhoneOtp(
   phoneNumber: string,
-  code: string
+  code: string,
 ): Promise<{ success: boolean; userId?: string }> {
   const result = await checkVerifyOtp(phoneNumber, code);
   return {
@@ -259,7 +259,7 @@ export async function getOrCreateUser(phoneNumber: string): Promise<User> {
 }
 
 export async function getUserByPhone(
-  phoneNumber: string
+  phoneNumber: string,
 ): Promise<User | null> {
   const supabase = createServerClient();
 
@@ -282,7 +282,7 @@ export async function getUserByPhone(
 // Create content with processing status
 export async function createProcessingContent(
   userId: string,
-  tiktokUrl: string
+  tiktokUrl: string,
 ): Promise<Content> {
   const supabase = createServerClient();
 
@@ -309,7 +309,7 @@ export async function createProcessingContent(
 // Update content after processing
 export async function updateContent(
   contentId: string,
-  updates: Partial<Omit<Content, "id" | "created_at" | "user_id">>
+  updates: Partial<Omit<Content, "id" | "created_at" | "user_id">>,
 ): Promise<Content> {
   const supabase = createServerClient();
 
@@ -332,7 +332,7 @@ export async function updateContent(
 
 // Legacy save function (for backwards compatibility)
 export async function saveContent(
-  content: Omit<Content, "id" | "created_at" | "status" | "updated_at">
+  content: Omit<Content, "id" | "created_at" | "status" | "updated_at">,
 ): Promise<Content> {
   const supabase = createServerClient();
 
@@ -353,7 +353,7 @@ export async function saveContent(
 }
 
 export async function getContentById(
-  contentId: string
+  contentId: string,
 ): Promise<Content | null> {
   const supabase = createServerClient();
 
@@ -391,7 +391,7 @@ export async function getContentByUser(userId: string): Promise<Content[]> {
 
 export async function getContentByCategory(
   userId: string,
-  category: ContentCategory
+  category: ContentCategory,
 ): Promise<Content[]> {
   const supabase = createServerClient();
 
@@ -411,7 +411,7 @@ export async function getContentByCategory(
 
 export async function deleteContent(
   contentId: string,
-  userId: string
+  userId: string,
 ): Promise<void> {
   const supabase = createServerClient();
 
@@ -428,7 +428,7 @@ export async function deleteContent(
 
 // Verification code helpers
 export async function createVerificationCode(
-  phoneNumber: string
+  phoneNumber: string,
 ): Promise<string> {
   const supabase = createServerClient();
 
@@ -461,7 +461,7 @@ export async function createVerificationCode(
 
 export async function verifyCode(
   phoneNumber: string,
-  code: string
+  code: string,
 ): Promise<boolean> {
   const supabase = createServerClient();
 
@@ -523,10 +523,35 @@ export function getWeekStart(date: Date = new Date()): string {
   return formatDateString(d);
 }
 
+function getUtcRangeForDates(startDate: string, endDate: string) {
+  const start = parseDateString(startDate);
+  const end = parseDateString(endDate);
+
+  const startUtc = new Date(
+    Date.UTC(
+      start.getFullYear(),
+      start.getMonth(),
+      start.getDate(),
+      0,
+      0,
+      0,
+      0,
+    ),
+  );
+  const endUtc = new Date(
+    Date.UTC(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59, 999),
+  );
+
+  return {
+    startUtc: startUtc.toISOString(),
+    endUtc: endUtc.toISOString(),
+  };
+}
+
 // Get or create a weekly plan
 export async function getOrCreateWeeklyPlan(
   userId: string,
-  weekStart: string
+  weekStart: string,
 ): Promise<WeeklyPlan> {
   const supabase = createServerClient();
 
@@ -560,10 +585,33 @@ export async function getOrCreateWeeklyPlan(
   throw new Error(`Failed to get weekly plan: ${findError?.message}`);
 }
 
+export async function getWeeklyPlan(
+  userId: string,
+  weekStart: string,
+): Promise<WeeklyPlan | null> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("weekly_plans")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("week_start", weekStart)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") {
+      return null;
+    }
+    throw new Error(`Failed to get weekly plan: ${error.message}`);
+  }
+
+  return data as WeeklyPlan;
+}
+
 // Get weekly plan with items and content
 export async function getWeeklyPlanWithItems(
   userId: string,
-  weekStart: string
+  weekStart: string,
 ): Promise<WeeklyPlanWithItems | null> {
   const supabase = createServerClient();
 
@@ -575,23 +623,31 @@ export async function getWeeklyPlanWithItems(
     .eq("week_start", weekStart)
     .single();
 
-  if (planError) {
-    if (planError.code === "PGRST116") {
-      return null;
-    }
+  if (planError && planError.code !== "PGRST116") {
     throw new Error(`Failed to get weekly plan: ${planError.message}`);
   }
 
-  // Get items with content
+  const startDate = parseDateString(weekStart);
+  const endDate = new Date(startDate);
+  endDate.setDate(endDate.getDate() + 6);
+  const { startUtc, endUtc } = getUtcRangeForDates(
+    weekStart,
+    formatDateString(endDate),
+  );
+
+  // Get items with content in the requested week range
   const { data: items, error: itemsError } = await supabase
     .from("plan_items")
     .select(
       `
       *,
-      content:content_id (*)
-    `
+      content:content_id (*),
+      weekly_plans!inner(user_id)
+    `,
     )
-    .eq("plan_id", plan.id)
+    .eq("weekly_plans.user_id", userId)
+    .gte("planned_date", startUtc)
+    .lte("planned_date", endUtc)
     .order("planned_date")
     .order("slot_order");
 
@@ -600,8 +656,13 @@ export async function getWeeklyPlanWithItems(
   }
 
   return {
-    ...plan,
-    items: items as PlanItem[],
+    ...(plan || {
+      id: `range-${weekStart}`,
+      user_id: userId,
+      week_start: weekStart,
+      created_at: new Date().toISOString(),
+    }),
+    items: (items || []) as PlanItem[],
   } as WeeklyPlanWithItems;
 }
 
@@ -613,7 +674,7 @@ export async function addPlanItem(
     noteTitle?: string;
     notes?: string;
     plannedDate: string;
-  }
+  },
 ): Promise<PlanItem> {
   const supabase = createServerClient();
 
@@ -664,7 +725,7 @@ export async function addPlanItem(
       `
       *,
       content:content_id (*)
-    `
+    `,
     )
     .single();
 
@@ -688,7 +749,7 @@ export async function removePlanItem(itemId: string): Promise<void> {
 
 // Get usage patterns for suggestions
 export async function getUsagePatterns(
-  userId: string
+  userId: string,
 ): Promise<Map<number, ContentCategory[]>> {
   const supabase = createServerClient();
 
@@ -699,7 +760,7 @@ export async function getUsagePatterns(
       `
       planned_date,
       content:content_id (category)
-    `
+    `,
     )
     .eq("plan_id.user_id", userId);
 
@@ -734,7 +795,7 @@ export async function getUsagePatterns(
 // Get past weekly plans
 export async function getPastWeeklyPlans(
   userId: string,
-  limit: number = 4
+  limit: number = 4,
 ): Promise<WeeklyPlan[]> {
   const supabase = createServerClient();
 
@@ -775,7 +836,7 @@ export interface GiftRecipientWithAssignments extends GiftRecipient {
 
 // Get all gift recipients for a user
 export async function getGiftRecipients(
-  userId: string
+  userId: string,
 ): Promise<GiftRecipient[]> {
   const supabase = createServerClient();
 
@@ -794,7 +855,7 @@ export async function getGiftRecipients(
 
 // Get recipients with their assigned gifts
 export async function getRecipientsWithAssignments(
-  userId: string
+  userId: string,
 ): Promise<GiftRecipientWithAssignments[]> {
   const supabase = createServerClient();
 
@@ -821,7 +882,7 @@ export async function getRecipientsWithAssignments(
       `
       *,
       content:content_id (*)
-    `
+    `,
     )
     .in("recipient_id", recipientIds);
 
@@ -846,7 +907,7 @@ export async function getRecipientsWithAssignments(
 // Create a gift recipient
 export async function createGiftRecipient(
   userId: string,
-  name: string
+  name: string,
 ): Promise<GiftRecipient> {
   const supabase = createServerClient();
 
@@ -866,7 +927,7 @@ export async function createGiftRecipient(
 // Update a gift recipient
 export async function updateGiftRecipient(
   recipientId: string,
-  name: string
+  name: string,
 ): Promise<GiftRecipient> {
   const supabase = createServerClient();
 
@@ -901,7 +962,7 @@ export async function deleteGiftRecipient(recipientId: string): Promise<void> {
 // Assign a gift to a recipient
 export async function assignGiftToRecipient(
   recipientId: string,
-  contentId: string
+  contentId: string,
 ): Promise<GiftAssignment> {
   const supabase = createServerClient();
 
@@ -912,7 +973,7 @@ export async function assignGiftToRecipient(
       `
       *,
       content:content_id (*)
-    `
+    `,
     )
     .single();
 
@@ -925,7 +986,7 @@ export async function assignGiftToRecipient(
 
 // Remove a gift assignment
 export async function removeGiftAssignment(
-  assignmentId: string
+  assignmentId: string,
 ): Promise<void> {
   const supabase = createServerClient();
 
@@ -1027,7 +1088,7 @@ export async function getContentTags(contentId: string): Promise<Tag[]> {
     .select(
       `
       tag:tag_id (*)
-    `
+    `,
     )
     .eq("content_id", contentId);
 
@@ -1042,7 +1103,7 @@ export async function getContentTags(contentId: string): Promise<Tag[]> {
 // Add a tag to content
 export async function addTagToContent(
   contentId: string,
-  tagId: string
+  tagId: string,
 ): Promise<void> {
   const supabase = createServerClient();
 
@@ -1059,7 +1120,7 @@ export async function addTagToContent(
 // Remove a tag from content
 export async function removeTagFromContent(
   contentId: string,
-  tagId: string
+  tagId: string,
 ): Promise<void> {
   const supabase = createServerClient();
 
@@ -1077,7 +1138,7 @@ export async function removeTagFromContent(
 // Get or create multiple tags by name (for AI-suggested tags)
 export async function getOrCreateTags(
   userId: string,
-  tagNames: string[]
+  tagNames: string[],
 ): Promise<Tag[]> {
   const tags: Tag[] = [];
   for (const name of tagNames) {
@@ -1090,7 +1151,7 @@ export async function getOrCreateTags(
 // Add multiple tags to content
 export async function addTagsToContent(
   contentId: string,
-  tagIds: string[]
+  tagIds: string[],
 ): Promise<void> {
   for (const tagId of tagIds) {
     await addTagToContent(contentId, tagId);
@@ -1099,7 +1160,7 @@ export async function addTagsToContent(
 
 // Get content with tags
 export async function getContentWithTags(
-  userId: string
+  userId: string,
 ): Promise<ContentWithTags[]> {
   const supabase = createServerClient();
 
@@ -1124,7 +1185,7 @@ export async function getContentWithTags(
       `
       content_id,
       tag:tag_id (*)
-    `
+    `,
     )
     .in("content_id", contentIds);
 
@@ -1152,7 +1213,7 @@ export async function getContentWithTags(
 
 // Get user settings
 export async function getUserSettings(
-  userId: string
+  userId: string,
 ): Promise<UserSettings | null> {
   const supabase = createServerClient();
 
@@ -1173,7 +1234,7 @@ export async function getUserSettings(
 // Create or update user settings
 export async function upsertUserSettings(
   userId: string,
-  settings: { home_region?: string; home_country?: string }
+  settings: { home_region?: string; home_country?: string },
 ): Promise<UserSettings> {
   const supabase = createServerClient();
 
@@ -1219,7 +1280,7 @@ export async function getUserById(userId: string): Promise<User | null> {
 // Update user name
 export async function updateUserName(
   userId: string,
-  name: string
+  name: string,
 ): Promise<User> {
   const supabase = createServerClient();
 
@@ -1261,7 +1322,7 @@ export async function getFriends(userId: string): Promise<Friend[]> {
 export async function addFriend(
   userId: string,
   name: string,
-  phoneNumber?: string
+  phoneNumber?: string,
 ): Promise<Friend> {
   const supabase = createServerClient();
 
@@ -1306,7 +1367,7 @@ export async function addFriend(
 // Update a friend (name or favorite status)
 export async function updateFriend(
   friendId: string,
-  updates: { name?: string; is_favorite?: boolean }
+  updates: { name?: string; is_favorite?: boolean },
 ): Promise<Friend> {
   const supabase = createServerClient();
 
@@ -1338,7 +1399,7 @@ export async function updateFriend(
 // Delete a friend
 export async function deleteFriend(
   friendId: string,
-  userId: string
+  userId: string,
 ): Promise<void> {
   const supabase = createServerClient();
 
@@ -1356,7 +1417,7 @@ export async function deleteFriend(
 // Add multiple friends (from contacts import)
 export async function addFriendsFromContacts(
   userId: string,
-  contacts: Array<{ name: string; phoneNumber?: string }>
+  contacts: Array<{ name: string; phoneNumber?: string }>,
 ): Promise<Friend[]> {
   const friends: Friend[] = [];
 
@@ -1406,7 +1467,7 @@ function generateShareCode(): string {
 // Create a share invite for a plan
 export async function createShareInvite(
   planId: string,
-  ownerUserId: string
+  ownerUserId: string,
 ): Promise<ShareInvite> {
   const supabase = createServerClient();
 
@@ -1433,7 +1494,7 @@ export async function createShareInvite(
 
 // Get share invite by code
 export async function getShareInvite(
-  shareCode: string
+  shareCode: string,
 ): Promise<ShareInvite | null> {
   const supabase = createServerClient();
 
@@ -1453,7 +1514,7 @@ export async function getShareInvite(
 // Claim a share invite (accept sharing)
 export async function claimShareInvite(
   shareCode: string,
-  userId: string
+  userId: string,
 ): Promise<PlanShare> {
   const supabase = createServerClient();
 
@@ -1534,7 +1595,7 @@ export interface SharedPlanDetails {
 
 // Get plans shared with user with full details (including owner and week info)
 export async function getSharedPlansWithDetails(
-  userId: string
+  userId: string,
 ): Promise<SharedPlanDetails[]> {
   const supabase = createServerClient();
 
@@ -1582,13 +1643,13 @@ export async function getSharedPlansWithDetails(
     plans.map((p: { id: string; user_id: string; week_start: string }) => [
       p.id,
       p,
-    ])
+    ]),
   );
   const ownerMap = new Map(
     owners.map((o: { id: string; phone_number: string }) => [
       o.id,
       o.phone_number,
-    ])
+    ]),
   );
 
   // Combine all the data
@@ -1606,7 +1667,7 @@ export async function getSharedPlansWithDetails(
 // Check if a specific plan is shared with anyone
 export async function getPlanShareInfo(
   planId: string,
-  userId: string
+  userId: string,
 ): Promise<{ isShared: boolean; sharedWith: string[] }> {
   const supabase = createServerClient();
 
@@ -1642,7 +1703,7 @@ export async function getPlanShareInfo(
 
   // Get phone numbers for shared users
   const sharedUserIds = shares.map(
-    (s: { shared_with_user_id: string }) => s.shared_with_user_id
+    (s: { shared_with_user_id: string }) => s.shared_with_user_id,
   );
   const { data: users, error: usersError } = await supabase
     .from("users")
@@ -1662,7 +1723,7 @@ export async function getPlanShareInfo(
 // Remove plan share
 export async function removePlanShare(
   planId: string,
-  sharedWithUserId: string
+  sharedWithUserId: string,
 ): Promise<void> {
   const supabase = createServerClient();
 
@@ -1684,7 +1745,7 @@ const THUMBNAILS_BUCKET = "thumbnails";
 // Download image from URL and upload to Supabase Storage
 export async function uploadThumbnailFromUrl(
   imageUrl: string,
-  contentId: string
+  contentId: string,
 ): Promise<string | null> {
   try {
     // Check if this is an Instagram/Facebook CDN URL (requires special handling)
@@ -1710,7 +1771,7 @@ export async function uploadThumbnailFromUrl(
       for (const userAgent of userAgents) {
         try {
           console.log(
-            `Trying thumbnail download with UA: ${userAgent.slice(0, 30)}...`
+            `Trying thumbnail download with UA: ${userAgent.slice(0, 30)}...`,
           );
           const tryResponse = await fetch(imageUrl, {
             headers: {
@@ -1744,7 +1805,7 @@ export async function uploadThumbnailFromUrl(
       console.log(
         "Thumbnail download response:",
         response.status,
-        response.statusText
+        response.statusText,
       );
 
       if (!response.ok) {
@@ -1841,7 +1902,7 @@ export interface PlanItemWithSharing extends PlanItem {
 export async function shareItemWithFriends(
   itemId: string,
   ownerUserId: string,
-  friendUserIds: string[]
+  friendUserIds: string[],
 ): Promise<void> {
   const supabase = createServerClient();
 
@@ -1864,7 +1925,7 @@ export async function shareItemWithFriends(
 // Remove sharing for specific friends
 export async function unshareItemWithFriends(
   itemId: string,
-  friendUserIds: string[]
+  friendUserIds: string[],
 ): Promise<void> {
   const supabase = createServerClient();
 
@@ -1882,7 +1943,7 @@ export async function unshareItemWithFriends(
 // Get items shared with a user for a specific week
 export async function getSharedItemsForUser(
   userId: string,
-  weekStart: string
+  weekStart: string,
 ): Promise<SharedPlanItem[]> {
   const supabase = createServerClient();
 
@@ -1916,7 +1977,7 @@ export async function getSharedItemsForUser(
         name,
         phone_number
       )
-    `
+    `,
     )
     .eq("shared_with_user_id", userId);
 
@@ -1969,7 +2030,7 @@ export async function getSharedItemsForUser(
 // Leave a shared item (remove yourself from the share)
 export async function leaveSharedItem(
   itemId: string,
-  userId: string
+  userId: string,
 ): Promise<void> {
   const supabase = createServerClient();
 
@@ -1986,7 +2047,7 @@ export async function leaveSharedItem(
 
 // Get share info for an item (who it's shared with)
 export async function getItemShareInfo(
-  itemId: string
+  itemId: string,
 ): Promise<{ sharedWith: { userId: string; name: string }[] }> {
   const supabase = createServerClient();
 
@@ -2000,7 +2061,7 @@ export async function getItemShareInfo(
         name,
         phone_number
       )
-    `
+    `,
     )
     .eq("plan_item_id", itemId);
 
@@ -2024,7 +2085,7 @@ export async function getItemShareInfo(
 export async function updateItemSharing(
   itemId: string,
   ownerUserId: string,
-  friendUserIds: string[]
+  friendUserIds: string[],
 ): Promise<void> {
   const supabase = createServerClient();
 
@@ -2035,14 +2096,14 @@ export async function updateItemSharing(
     .eq("plan_item_id", itemId);
 
   const currentUserIds = new Set(
-    currentShares?.map((s) => s.shared_with_user_id) || []
+    currentShares?.map((s) => s.shared_with_user_id) || [],
   );
   const newUserIds = new Set(friendUserIds);
 
   // Find users to add and remove
   const toAdd = friendUserIds.filter((id) => !currentUserIds.has(id));
   const toRemove = Array.from(currentUserIds).filter(
-    (id) => !newUserIds.has(id)
+    (id) => !newUserIds.has(id),
   );
 
   // Add new shares
@@ -2058,7 +2119,7 @@ export async function updateItemSharing(
 
 // Get all shares for a plan item (for the owner to see who it's shared with)
 export async function getPlanItemShares(
-  itemId: string
+  itemId: string,
 ): Promise<PlanItemShare[]> {
   const supabase = createServerClient();
 

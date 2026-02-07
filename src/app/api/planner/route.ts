@@ -63,9 +63,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const weekStart = searchParams.get("week") || getWeekStart();
 
-    // Get or create the plan
-    await getOrCreateWeeklyPlan(session.userId, weekStart);
-
     // Get plan with items
     const plan = await getWeeklyPlanWithItems(session.userId, weekStart);
 
@@ -176,13 +173,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get or create the plan
-    const resolvedWeekStart = weekStart || getWeekStart();
-    const plan = await getOrCreateWeeklyPlan(session.userId, resolvedWeekStart);
-
     let resolvedPlannedDate: string | undefined = plannedDate;
     if (!resolvedPlannedDate && dayOfWeek !== undefined) {
-      const plannedDateObj = parseDateString(plan.week_start);
+      const plannedDateObj = parseDateString(weekStart || getWeekStart());
       plannedDateObj.setDate(plannedDateObj.getDate() + dayOfWeek);
       plannedDateObj.setHours(19, 0, 0, 0); // Default to 7:00 PM local time
       resolvedPlannedDate = plannedDateObj.toISOString();
@@ -193,6 +186,12 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+
+    const plannedDateOnly = resolvedPlannedDate.split("T")[0];
+    const planWeekStart = getWeekStart(parseDateString(plannedDateOnly));
+
+    // Get or create the plan
+    const plan = await getOrCreateWeeklyPlan(session.userId, planWeekStart);
 
     // Add the item (either content or quick note)
     const item = await addPlanItem(plan.id, {
