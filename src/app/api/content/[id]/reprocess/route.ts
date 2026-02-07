@@ -1,36 +1,7 @@
 import { detectPlatform } from "@/lib/social-media";
 import { getContentById, updateContent } from "@/lib/supabase";
-import { cookies } from "next/headers";
 import { after, NextRequest, NextResponse } from "next/server";
-
-interface SessionData {
-  userId: string;
-  phoneNumber: string;
-  exp: number;
-}
-
-async function getSessionUser(): Promise<SessionData | null> {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("session");
-
-  if (!sessionCookie) {
-    return null;
-  }
-
-  try {
-    const decoded = JSON.parse(
-      Buffer.from(sessionCookie.value, "base64").toString()
-    ) as SessionData;
-
-    if (decoded.exp < Date.now()) {
-      return null;
-    }
-
-    return decoded;
-  } catch {
-    return null;
-  }
-}
+import { requireSession } from "@/lib/auth";
 
 function getBaseUrl(request: NextRequest): string {
   if (
@@ -53,11 +24,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getSessionUser();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const { id } = await params;
     const content = await getContentById(id);

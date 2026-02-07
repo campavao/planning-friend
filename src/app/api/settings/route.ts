@@ -1,44 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { getUserSettings, upsertUserSettings } from "@/lib/supabase";
-
-interface SessionData {
-  userId: string;
-  phoneNumber: string;
-  exp: number;
-}
-
-async function getSessionUser(): Promise<SessionData | null> {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("session");
-
-  if (!sessionCookie) {
-    return null;
-  }
-
-  try {
-    const decoded = JSON.parse(
-      Buffer.from(sessionCookie.value, "base64").toString()
-    ) as SessionData;
-
-    if (decoded.exp < Date.now()) {
-      return null;
-    }
-
-    return decoded;
-  } catch {
-    return null;
-  }
-}
+import { requireSession } from "@/lib/auth";
 
 // GET - Get user settings
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const settings = await getUserSettings(session.userId);
 
@@ -55,11 +23,8 @@ export async function GET() {
 // POST - Update user settings
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const { home_region, home_country } = await request.json();
 

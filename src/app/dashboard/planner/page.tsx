@@ -21,7 +21,7 @@ import {
   getWeekStartDay,
   getWeekStartForDate,
   parseDateString,
-} from "@/lib/utils";
+} from "@/lib/date-utils";
 import html2canvas from "html2canvas";
 import {
   ArrowLeft,
@@ -109,38 +109,8 @@ interface GroceryListState {
   error: string | null;
 }
 
-// Persistent filter state keys
-const FILTER_STORAGE_KEY = "planner_item_filter";
-
-function getStoredFilters(): {
-  searchQuery: string;
-  categoryFilter: ContentCategory | "all";
-  selectedTagIds: string[];
-} {
-  if (typeof window === "undefined")
-    return { searchQuery: "", categoryFilter: "all", selectedTagIds: [] };
-  try {
-    const stored = localStorage.getItem(FILTER_STORAGE_KEY);
-    return stored
-      ? JSON.parse(stored)
-      : { searchQuery: "", categoryFilter: "all", selectedTagIds: [] };
-  } catch {
-    return { searchQuery: "", categoryFilter: "all", selectedTagIds: [] };
-  }
-}
-
-function saveFilters(filters: {
-  searchQuery: string;
-  categoryFilter: ContentCategory | "all";
-  selectedTagIds: string[];
-}) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(filters));
-  } catch {
-    // Ignore storage errors
-  }
-}
+import { WeekNavigation } from "./components/WeekNavigation";
+import { usePlannerFilters } from "./hooks/usePlannerFilters";
 
 function PlannerContent() {
   const [weekStart, setWeekStart] = useState<string>("");
@@ -161,15 +131,16 @@ function PlannerContent() {
     [weekStartDay],
   );
 
-  // Persistent filter state
-  const storedFilters = useMemo(() => getStoredFilters(), []);
-  const [searchQuery, setSearchQuery] = useState(storedFilters.searchQuery);
-  const [categoryFilter, setCategoryFilter] = useState<ContentCategory | "all">(
-    storedFilters.categoryFilter,
-  );
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
-    storedFilters.selectedTagIds,
-  );
+  const {
+    searchQuery,
+    setSearchQuery,
+    categoryFilter,
+    setCategoryFilter,
+    selectedTagIds,
+    setSelectedTagIds,
+    clearAllFilters,
+    toggleTagSelection,
+  } = usePlannerFilters();
 
   const [itemShare, setItemShare] = useState<ItemShareState>({
     isOpen: false,
@@ -211,11 +182,6 @@ function PlannerContent() {
 
   // Combined loading state
   const loading = sessionLoading || (!!weekStart && plannerLoading && !data);
-
-  // Save filters when they change
-  useEffect(() => {
-    saveFilters({ searchQuery, categoryFilter, selectedTagIds });
-  }, [searchQuery, categoryFilter, selectedTagIds]);
 
   // Get last shared friend from localStorage for convenience
   const getLastSharedFriendIds = (): string[] => {
@@ -656,22 +622,8 @@ function PlannerContent() {
     }
   };
 
-  const clearAllFilters = () => {
-    setSearchQuery("");
-    setCategoryFilter("all");
-    setSelectedTagIds([]);
-  };
-
   const hasActiveFilters =
     searchQuery || categoryFilter !== "all" || selectedTagIds.length > 0;
-
-  const toggleTagSelection = (tagId: string) => {
-    setSelectedTagIds((prev) =>
-      prev.includes(tagId)
-        ? prev.filter((id) => id !== tagId)
-        : [...prev, tagId],
-    );
-  };
 
   const getFilteredContent = () => {
     if (!data?.availableContent) return [];
@@ -948,44 +900,14 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
         {/* Week Navigation */}
-        <div className="card-elevated p-4 mb-6 flex items-center justify-between">
-          <Button
-            variant="ghost"
-            onClick={() => navigateWeek(-1)}
-            className="btn-ghost"
-            disabled={gridLoading}
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline ml-2">Prev</span>
-          </Button>
-          <div className="text-center">
-            <h2 className="text-lg md:text-xl font-semibold">
-              {formatWeekRange()}
-            </h2>
-            <div className="flex items-center justify-center gap-2 mt-2 flex-wrap">
-              {isCurrentWeek() && (
-                <Badge className="bg-[var(--accent-light)] text-[var(--accent-foreground)]">
-                  This Week
-                </Badge>
-              )}
-              {data?.sharedItems && data.sharedItems.length > 0 && (
-                <Badge variant="date">
-                  <Users className="w-3 h-3" />
-                  {data.sharedItems.length} shared
-                </Badge>
-              )}
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            onClick={() => navigateWeek(1)}
-            className="btn-ghost"
-            disabled={gridLoading}
-          >
-            <span className="hidden sm:inline mr-2">Next</span>
-            <ArrowRight className="w-4 h-4" />
-          </Button>
-        </div>
+        <WeekNavigation
+          weekRangeLabel={formatWeekRange()}
+          isCurrentWeek={isCurrentWeek()}
+          sharedCount={data?.sharedItems?.length ?? 0}
+          onPrev={() => navigateWeek(-1)}
+          onNext={() => navigateWeek(1)}
+          loading={gridLoading}
+        />
 
         {/* Week Grid */}
         <div className="relative">

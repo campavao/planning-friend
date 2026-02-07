@@ -39,6 +39,8 @@ import Image from "next/image";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "../useSession";
+import { RecipeSteps } from "./components/RecipeSteps";
+import { LocationCard } from "./components/LocationCard";
 
 // Category config
 const CATEGORY_CONFIG: Record<
@@ -53,13 +55,6 @@ const CATEGORY_CONFIG: Record<
   travel: { icon: Plane, label: "Travel", color: "text-[var(--travel)]", bg: "bg-[var(--travel-bg)]" },
   other: { icon: Pin, label: "Saved", color: "text-[var(--other)]", bg: "bg-[var(--other-bg)]" },
 };
-
-// Generate Google Maps URL from location string
-function getGoogleMapsUrl(location: string): string {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-    location
-  )}`;
-}
 
 // Check if the URL is an image-only placeholder (not a real URL)
 function isImageOnlyContent(url: string): boolean {
@@ -516,100 +511,13 @@ export default function ContentDetailPage() {
 }
 
 function MealContent({ data }: { data: MealData }) {
-  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
-  const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(
-    new Set()
-  );
-
-  const toggleStep = (stepIndex: number) => {
-    setCompletedSteps((prev) => {
-      const next = new Set(prev);
-      if (next.has(stepIndex)) {
-        next.delete(stepIndex);
-      } else {
-        next.add(stepIndex);
-      }
-      return next;
-    });
-  };
-
-  const toggleIngredient = (index: number) => {
-    setCheckedIngredients((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) {
-        next.delete(index);
-      } else {
-        next.add(index);
-      }
-      return next;
-    });
-  };
-
   return (
     <div className="space-y-6">
-      {data.ingredients && data.ingredients.length > 0 && (
-        <div>
-          <h3 className="heading-3 mb-3">Ingredients</h3>
-          <div className="card-flat overflow-hidden divide-y divide-[var(--border)]">
-            {data.ingredients.map((ingredient, i) => {
-              const isChecked = checkedIngredients.has(i);
-              return (
-                <button
-                  key={i}
-                  onClick={() => toggleIngredient(i)}
-                  className={`w-full flex items-center gap-3 p-4 text-left transition-colors ${
-                    isChecked ? "bg-[var(--meal-bg)]" : "hover:bg-[var(--muted)]"
-                  }`}
-                >
-                  <span
-                    className={`shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors ${
-                      isChecked
-                        ? "bg-[var(--meal)] border-[var(--meal)] text-white"
-                        : "border-[var(--border)]"
-                    }`}
-                  >
-                    {isChecked && <Check className="w-4 h-4" />}
-                  </span>
-                  <span
-                    className={
-                      isChecked ? "line-through text-muted-foreground" : ""
-                    }
-                  >
-                    {ingredient}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {data.recipe && data.recipe.length > 0 && (
-        <div>
-          <h3 className="heading-3 mb-3">Instructions</h3>
-          <ol className="space-y-4">
-            {data.recipe.map((step, i) => (
-              <li key={i} className="flex items-start gap-4">
-                <button
-                  onClick={() => toggleStep(i)}
-                  className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center font-semibold transition-colors ${
-                    completedSteps.has(i)
-                      ? "bg-[var(--meal)] text-white"
-                      : "bg-[var(--primary)] text-white"
-                  }`}
-                >
-                  {completedSteps.has(i) ? (
-                    <Check className="w-5 h-5" />
-                  ) : (
-                    i + 1
-                  )}
-                </button>
-                <span className="pt-2 flex-1">{step}</span>
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
+      <RecipeSteps
+        ingredients={data.ingredients}
+        recipe={data.recipe}
+        variant="meal"
+      />
 
       {(data.prep_time || data.cook_time || data.servings) && (
         <div className="flex flex-wrap gap-3 pt-4">
@@ -653,23 +561,7 @@ function EventContent({ data }: { data: EventData }) {
   return (
     <div className="space-y-4">
       {data.location && (
-        <a
-          href={getGoogleMapsUrl(data.location)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-start gap-4 p-4 card-flat rounded-xl hover:bg-[var(--muted)] transition-colors"
-        >
-          <div className="w-12 h-12 rounded-xl bg-[var(--event-bg)] flex items-center justify-center">
-            <MapPin className="w-6 h-6 text-[var(--event)]" />
-          </div>
-          <div className="flex-1">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">
-              Location
-            </p>
-            <p className="font-semibold">{data.location}</p>
-          </div>
-          <ExternalLink className="w-4 h-4 text-muted-foreground mt-1" />
-        </a>
+        <LocationCard location={data.location} label="Location" />
       )}
 
       {(data.date || data.time) && (
@@ -713,23 +605,7 @@ function DateIdeaContent({ data }: { data: DateIdeaData }) {
   return (
     <div className="space-y-4">
       {data.location && (
-        <a
-          href={getGoogleMapsUrl(data.location)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-start gap-4 p-4 card-flat rounded-xl hover:bg-[var(--muted)] transition-colors"
-        >
-          <div className="w-12 h-12 rounded-xl bg-[var(--date-bg)] flex items-center justify-center">
-            <MapPin className="w-6 h-6 text-[var(--date)]" />
-          </div>
-          <div className="flex-1">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">
-              Location
-            </p>
-            <p className="font-semibold">{data.location}</p>
-          </div>
-          <ExternalLink className="w-4 h-4 text-muted-foreground mt-1" />
-        </a>
+        <LocationCard location={data.location} label="Location" />
       )}
 
       <div className="flex flex-wrap gap-2">
@@ -806,35 +682,6 @@ function GiftIdeaContent({ data }: { data: GiftIdeaData }) {
 }
 
 function DrinkContent({ data }: { data: DrinkData }) {
-  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
-  const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(
-    new Set()
-  );
-
-  const toggleStep = (stepIndex: number) => {
-    setCompletedSteps((prev) => {
-      const next = new Set(prev);
-      if (next.has(stepIndex)) {
-        next.delete(stepIndex);
-      } else {
-        next.add(stepIndex);
-      }
-      return next;
-    });
-  };
-
-  const toggleIngredient = (index: number) => {
-    setCheckedIngredients((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) {
-        next.delete(index);
-      } else {
-        next.add(index);
-      }
-      return next;
-    });
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2">
@@ -852,69 +699,11 @@ function DrinkContent({ data }: { data: DrinkData }) {
         )}
       </div>
 
-      {data.ingredients && data.ingredients.length > 0 && (
-        <div>
-          <h3 className="heading-3 mb-3">Ingredients</h3>
-          <div className="card-flat overflow-hidden divide-y divide-[var(--border)]">
-            {data.ingredients.map((ingredient, i) => {
-              const isChecked = checkedIngredients.has(i);
-              return (
-                <button
-                  key={i}
-                  onClick={() => toggleIngredient(i)}
-                  className={`w-full flex items-center gap-3 p-4 text-left transition-colors ${
-                    isChecked ? "bg-[var(--drink-bg)]" : "hover:bg-[var(--muted)]"
-                  }`}
-                >
-                  <span
-                    className={`shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors ${
-                      isChecked
-                        ? "bg-[var(--drink)] border-[var(--drink)] text-white"
-                        : "border-[var(--border)]"
-                    }`}
-                  >
-                    {isChecked && <Check className="w-4 h-4" />}
-                  </span>
-                  <span
-                    className={
-                      isChecked ? "line-through text-muted-foreground" : ""
-                    }
-                  >
-                    {ingredient}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {data.recipe && data.recipe.length > 0 && (
-        <div>
-          <h3 className="heading-3 mb-3">Instructions</h3>
-          <ol className="space-y-4">
-            {data.recipe.map((step, i) => (
-              <li key={i} className="flex items-start gap-4">
-                <button
-                  onClick={() => toggleStep(i)}
-                  className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center font-semibold transition-colors ${
-                    completedSteps.has(i)
-                      ? "bg-[var(--drink)] text-white"
-                      : "bg-[var(--primary)] text-white"
-                  }`}
-                >
-                  {completedSteps.has(i) ? (
-                    <Check className="w-5 h-5" />
-                  ) : (
-                    i + 1
-                  )}
-                </button>
-                <span className="pt-2 flex-1">{step}</span>
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
+      <RecipeSteps
+        ingredients={data.ingredients}
+        recipe={data.recipe}
+        variant="drink"
+      />
     </div>
   );
 }
@@ -923,23 +712,7 @@ function TravelContent({ data }: { data: TravelData }) {
   return (
     <div className="space-y-4">
       {data.location && (
-        <a
-          href={getGoogleMapsUrl(data.location)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-start gap-4 p-4 card-flat rounded-xl hover:bg-[var(--muted)] transition-colors"
-        >
-          <div className="w-12 h-12 rounded-xl bg-[var(--travel-bg)] flex items-center justify-center">
-            <MapPin className="w-6 h-6 text-[var(--travel)]" />
-          </div>
-          <div className="flex-1">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">
-              Location
-            </p>
-            <p className="font-semibold">{data.location}</p>
-          </div>
-          <ExternalLink className="w-4 h-4 text-muted-foreground mt-1" />
-        </a>
+        <LocationCard location={data.location} label="Location" />
       )}
 
       {(data.destination_city || data.destination_country) && (

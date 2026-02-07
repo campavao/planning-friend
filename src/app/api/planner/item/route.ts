@@ -1,43 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { removePlanItem, updatePlanItem } from "@/lib/supabase";
-import { cookies } from "next/headers";
-
-interface SessionData {
-  userId: string;
-  phoneNumber: string;
-  exp: number;
-}
-
-async function getSessionUser(): Promise<SessionData | null> {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("session");
-
-  if (!sessionCookie) {
-    return null;
-  }
-
-  try {
-    const decoded = JSON.parse(
-      Buffer.from(sessionCookie.value, "base64").toString(),
-    ) as SessionData;
-
-    if (decoded.exp < Date.now()) {
-      return null;
-    }
-
-    return decoded;
-  } catch {
-    return null;
-  }
-}
+import { requireSession } from "@/lib/auth";
 
 // DELETE remove item from plan
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const { searchParams } = new URL(request.url);
     const itemId = searchParams.get("id");
@@ -61,10 +30,8 @@ export async function DELETE(request: NextRequest) {
 // PUT update item in plan
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const body = await request.json();
     const { id, contentId, noteTitle, notes, plannedDate } = body;

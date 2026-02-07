@@ -5,37 +5,8 @@ import {
   getContentTags,
   updateContent,
 } from "@/lib/supabase";
-import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-
-interface SessionData {
-  userId: string;
-  phoneNumber: string;
-  exp: number;
-}
-
-async function getSessionUser(): Promise<SessionData | null> {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("session");
-
-  if (!sessionCookie) {
-    return null;
-  }
-
-  try {
-    const decoded = JSON.parse(
-      Buffer.from(sessionCookie.value, "base64").toString()
-    ) as SessionData;
-
-    if (decoded.exp < Date.now()) {
-      return null;
-    }
-
-    return decoded;
-  } catch {
-    return null;
-  }
-}
+import { requireSession } from "@/lib/auth";
 
 // GET single content
 export async function GET(
@@ -43,10 +14,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getSessionUser();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const { id } = await params;
     const content = await getContentById(id);
@@ -79,10 +48,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getSessionUser();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const { id } = await params;
     const content = await getContentById(id);
@@ -122,10 +89,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getSessionUser();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const { id } = await params;
     const content = await getContentById(id);

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import {
   createShareInvite,
   claimShareInvite,
@@ -7,44 +6,13 @@ import {
   removePlanShare,
   getWeeklyPlan,
 } from "@/lib/supabase";
-
-interface SessionData {
-  userId: string;
-  phoneNumber: string;
-  exp: number;
-}
-
-async function getSessionUser(): Promise<SessionData | null> {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("session");
-
-  if (!sessionCookie) {
-    return null;
-  }
-
-  try {
-    const decoded = JSON.parse(
-      Buffer.from(sessionCookie.value, "base64").toString(),
-    ) as SessionData;
-
-    if (decoded.exp < Date.now()) {
-      return null;
-    }
-
-    return decoded;
-  } catch {
-    return null;
-  }
-}
+import { requireSession } from "@/lib/auth";
 
 // GET - Get shared plans for user
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const sharedPlans = await getSharedPlans(session.userId);
 
@@ -61,11 +29,8 @@ export async function GET() {
 // POST - Create share invite or claim share code
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const { action, planId, weekStart, shareCode } = await request.json();
 
@@ -127,11 +92,8 @@ export async function POST(request: NextRequest) {
 // DELETE - Remove a share (leave shared plan)
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const planId = request.nextUrl.searchParams.get("planId");
 

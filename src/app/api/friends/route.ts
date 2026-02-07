@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import {
   getFriends,
   addFriend,
@@ -7,44 +6,13 @@ import {
   deleteFriend,
   addFriendsFromContacts,
 } from "@/lib/supabase";
-
-interface SessionData {
-  userId: string;
-  phoneNumber: string;
-  exp: number;
-}
-
-async function getSessionUser(): Promise<SessionData | null> {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("session");
-
-  if (!sessionCookie) {
-    return null;
-  }
-
-  try {
-    const decoded = JSON.parse(
-      Buffer.from(sessionCookie.value, "base64").toString()
-    ) as SessionData;
-
-    if (decoded.exp < Date.now()) {
-      return null;
-    }
-
-    return decoded;
-  } catch {
-    return null;
-  }
-}
+import { requireSession } from "@/lib/auth";
 
 // GET - Get all friends (sorted: favorites first, then alphabetically)
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const friends = await getFriends(session.userId);
 
@@ -61,11 +29,8 @@ export async function GET() {
 // POST - Add friend (manual or from contacts)
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const body = await request.json();
 
@@ -116,11 +81,8 @@ export async function POST(request: NextRequest) {
 // PATCH - Update friend (name or favorite status)
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const { id, name, is_favorite } = await request.json();
 
@@ -175,11 +137,8 @@ export async function PATCH(request: NextRequest) {
 // DELETE - Remove friend
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
