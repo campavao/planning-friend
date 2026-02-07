@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z, type ZodSchema } from "zod";
+import type { ZodSchema, ZodIssue } from "zod";
 import { requireSession, type SessionData } from "@/lib/auth";
 import { apiError, API_ERROR_CODES } from "./api-response";
 
@@ -36,7 +36,7 @@ export function createHandler(config: CreateHandlerConfig) {
           const parsed = config.schema.safeParse(body);
           if (!parsed.success) {
             return apiError(
-              parsed.error.errors.map((e) => e.message).join("; ") ||
+              parsed.error.issues.map((e: ZodIssue) => e.message).join("; ") ||
                 "Validation failed",
               400,
               API_ERROR_CODES.VALIDATION_ERROR
@@ -62,7 +62,7 @@ export function createHandler(config: CreateHandlerConfig) {
         const parsed = config.schema.safeParse(body);
         if (!parsed.success) {
           return apiError(
-            parsed.error.errors.map((e) => e.message).join("; ") ||
+            parsed.error.issues.map((e: ZodIssue) => e.message).join("; ") ||
               "Validation failed",
             400,
             API_ERROR_CODES.VALIDATION_ERROR

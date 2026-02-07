@@ -1,4 +1,5 @@
 import type { SocialPlatform } from "@/lib/social-media";
+import type { Content } from "@/lib/db/types";
 
 export type ProcessPlatform = SocialPlatform | "image";
 
@@ -18,13 +19,13 @@ export interface ProcessInput {
 
 export interface ProcessSuccessSingle {
   success: true;
-  content: { id: string; [key: string]: unknown };
+  content: Content;
 }
 
 export interface ProcessSuccessMulti {
   success: true;
   multiItem: true;
-  contents: { id: string; [key: string]: unknown }[];
+  contents: Content[];
 }
 
 export type ProcessSuccess = ProcessSuccessSingle | ProcessSuccessMulti;
