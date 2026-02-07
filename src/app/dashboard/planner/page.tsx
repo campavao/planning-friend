@@ -36,7 +36,7 @@ import {
   Gift,
   Hand,
   Heart,
-  Loader2,
+  Pencil,
   Pin,
   Plus,
   ShoppingCart,
@@ -148,6 +148,9 @@ function PlannerContent() {
   const [quickNoteInput, setQuickNoteInput] = useState("");
   const [addingQuickNote, setAddingQuickNote] = useState(false);
   const [plannedTime, setPlannedTime] = useState("19:00");
+  const [editingItem, setEditingItem] = useState<PlanItemWithSharing | null>(
+    null,
+  );
 
   // Week start day preference (0=Sunday, 1=Monday, etc.)
   const weekStartDay = useMemo(() => getWeekStartDay(), []);
@@ -155,17 +158,17 @@ function PlannerContent() {
   // Dynamic day name arrays based on user's week start preference
   const { days: DAYS, daysFull: DAYS_FULL } = useMemo(
     () => getOrderedDays(weekStartDay),
-    [weekStartDay]
+    [weekStartDay],
   );
 
   // Persistent filter state
   const storedFilters = useMemo(() => getStoredFilters(), []);
   const [searchQuery, setSearchQuery] = useState(storedFilters.searchQuery);
   const [categoryFilter, setCategoryFilter] = useState<ContentCategory | "all">(
-    storedFilters.categoryFilter
+    storedFilters.categoryFilter,
   );
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
-    storedFilters.selectedTagIds
+    storedFilters.selectedTagIds,
   );
 
   const [itemShare, setItemShare] = useState<ItemShareState>({
@@ -260,6 +263,36 @@ function PlannerContent() {
 
   const openAddModal = (dayIndex: number) => {
     setPlannedTime("19:00");
+    setEditingItem(null);
+    setQuickNoteInput("");
+    setAddingToDay(dayIndex);
+  };
+
+  const closeAddModal = () => {
+    setAddingToDay(null);
+    setEditingItem(null);
+    setAddingQuickNote(false);
+  };
+
+  const deleteEditingItem = async () => {
+    if (!editingItem) return;
+    await removeFromDay(editingItem.id);
+    closeAddModal();
+  };
+
+  const getTimeInputValue = (plannedDate?: string | null) => {
+    if (!plannedDate) return "19:00";
+    const planned = new Date(plannedDate);
+    if (Number.isNaN(planned.getTime())) return "19:00";
+    const hours = String(planned.getUTCHours()).padStart(2, "0");
+    const minutes = String(planned.getUTCMinutes()).padStart(2, "0");
+    return `${hours}:${minutes}`;
+  };
+
+  const openEditModal = (item: PlanItemWithSharing, dayIndex: number) => {
+    setEditingItem(item);
+    setPlannedTime(getTimeInputValue(item.planned_date));
+    setQuickNoteInput(item.note_title || "");
     setAddingToDay(dayIndex);
   };
 
@@ -289,6 +322,24 @@ function PlannerContent() {
   const addToDay = async (contentId: string, dayOfWeek: number) => {
     try {
       const plannedDate = getPlannedDateTime(dayOfWeek, plannedTime);
+      if (!plannedDate) return;
+      if (editingItem) {
+        const res = await fetch("/api/planner/item", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: editingItem.id,
+            contentId,
+            plannedDate,
+          }),
+        });
+
+        if (res.ok) {
+          mutatePlanner();
+        }
+        closeAddModal();
+        return;
+      }
       const res = await fetch("/api/planner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -314,6 +365,25 @@ function PlannerContent() {
     setAddingQuickNote(true);
     try {
       const plannedDate = getPlannedDateTime(dayOfWeek, plannedTime);
+      if (!plannedDate) return;
+      if (editingItem) {
+        const res = await fetch("/api/planner/item", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: editingItem.id,
+            noteTitle: quickNoteInput.trim(),
+            plannedDate,
+          }),
+        });
+
+        if (res.ok) {
+          setQuickNoteInput("");
+          mutatePlanner();
+          closeAddModal();
+        }
+        return;
+      }
       const res = await fetch("/api/planner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -359,7 +429,7 @@ function PlannerContent() {
       preSelectedFriendIds =
         shareableFriends
           .filter((f: ShareableFriend) =>
-            currentlySharedUserIds.includes(f.linkedUserId)
+            currentlySharedUserIds.includes(f.linkedUserId),
           )
           .map((f: ShareableFriend) => f.id) || [];
     } else {
@@ -561,6 +631,31 @@ function PlannerContent() {
     });
   };
 
+  const saveEditingContent = async () => {
+    if (!editingItem || !editingItem.content_id) return;
+    if (addingToDay === null) return;
+    try {
+      const plannedDate = getPlannedDateTime(addingToDay, plannedTime);
+      if (!plannedDate) return;
+      const res = await fetch("/api/planner/item", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingItem.id,
+          contentId: editingItem.content_id,
+          plannedDate,
+        }),
+      });
+
+      if (res.ok) {
+        mutatePlanner();
+        closeAddModal();
+      }
+    } catch (error) {
+      console.error("Failed to update item:", error);
+    }
+  };
+
   const clearAllFilters = () => {
     setSearchQuery("");
     setCategoryFilter("all");
@@ -574,7 +669,7 @@ function PlannerContent() {
     setSelectedTagIds((prev) =>
       prev.includes(tagId)
         ? prev.filter((id) => id !== tagId)
-        : [...prev, tagId]
+        : [...prev, tagId],
     );
   };
 
@@ -583,7 +678,9 @@ function PlannerContent() {
 
     const planItems: PlanItemWithSharing[] = data.plan?.items || [];
     const availableContent: ContentWithTags[] = data.availableContent || [];
-    const usedIds = new Set(planItems.map((i: PlanItemWithSharing) => i.content_id) || []);
+    const usedIds = new Set(
+      planItems.map((i: PlanItemWithSharing) => i.content_id) || [],
+    );
 
     return availableContent.filter((c: ContentWithTags) => {
       if (usedIds.has(c.id)) return false;
@@ -594,7 +691,7 @@ function PlannerContent() {
       if (selectedTagIds.length > 0) {
         const contentTagIds = c.tags?.map((t: Tag) => t.id) || [];
         const hasMatchingTag = selectedTagIds.some((tagId) =>
-          contentTagIds.includes(tagId)
+          contentTagIds.includes(tagId),
         );
         if (!hasMatchingTag) return false;
       }
@@ -769,7 +866,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
     ];
     return allItems.some(
       (item: PlanItemWithSharing | SharedPlanItem) =>
-        item.content?.category === "meal" || item.content?.category === "drink"
+        item.content?.category === "meal" || item.content?.category === "drink",
     );
   }, [data?.plan?.items, data?.sharedItems]);
 
@@ -778,7 +875,9 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="loading-spinner mx-auto mb-4" />
-          <p className="text-muted-foreground text-sm">Loading your planner...</p>
+          <p className="text-muted-foreground text-sm">
+            Loading your planner...
+          </p>
         </div>
       </div>
     );
@@ -797,7 +896,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
     const ownItems: DisplayItem[] = (
       planItems.filter(
         (item: PlanItemWithSharing) =>
-          dayKey && getItemDateKey(item as DisplayItem) === dayKey
+          dayKey && getItemDateKey(item as DisplayItem) === dayKey,
       ) || []
     ).map((item: PlanItemWithSharing) => ({
       ...item,
@@ -807,7 +906,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
     const sharedItems: DisplayItem[] = (
       sharedItemsList.filter(
         (item: SharedPlanItem) =>
-          dayKey && getItemDateKey(item as DisplayItem) === dayKey
+          dayKey && getItemDateKey(item as DisplayItem) === dayKey,
       ) || []
     ).map((item: SharedPlanItem) => ({
       ...item,
@@ -829,9 +928,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
             </Button>
           </Link>
           <div className="md:hidden w-16" />
-          <h1 className="heading-2 text-xl md:text-2xl">
-            Weekly Plan
-          </h1>
+          <h1 className="heading-2 text-xl md:text-2xl">Weekly Plan</h1>
           <Button
             variant="ghost"
             onClick={generateGroceryList}
@@ -967,13 +1064,6 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                         from {sharedItem?.owner_name}
                                       </span>
                                     )}
-                                    {ownItem?.shared_with &&
-                                      ownItem.shared_with.length > 0 && (
-                                        <span className="text-[10px] bg-[var(--secondary-light)] text-[var(--secondary-dark)] px-1.5 py-0.5 rounded-full font-medium">
-                                          <Users className="w-3 h-3 inline mr-0.5" />
-                                          {ownItem.shared_with.length}
-                                        </span>
-                                      )}
                                   </div>
                                   <p className="font-medium text-sm">
                                     {item.note_title}
@@ -992,16 +1082,22 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                     <>
                                       <button
                                         onClick={() => openShareModal(ownItem!)}
-                                        className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
+                                        className="bg-white rounded-lg h-7 px-2 text-[10px] font-semibold flex items-center gap-1 shadow-sm hover:bg-[var(--muted)]"
                                         title="Share"
                                       >
                                         <Users className="w-3 h-3" />
+                                        {ownItem?.shared_with?.length
+                                          ? ownItem.shared_with.length
+                                          : "Share"}
                                       </button>
                                       <button
-                                        onClick={() => removeFromDay(item.id)}
-                                        className="bg-[var(--destructive)] text-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm"
+                                        onClick={() =>
+                                          openEditModal(ownItem!, dayIndex)
+                                        }
+                                        className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
+                                        title="Edit"
                                       >
-                                        <X className="w-3 h-3" />
+                                        <Pencil className="w-3 h-3" />
                                       </button>
                                     </>
                                   )}
@@ -1018,25 +1114,26 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                           return (
                             <div
                               key={item.id}
-                              className="group relative bg-white rounded-xl overflow-hidden border border-[var(--border)]"
+                              className="group relative bg-white rounded-xl overflow-hidden border border-[var(--border)] flex items-stretch min-h-20"
                             >
-                              <Link
-                                href={`/dashboard/${item.content_id}?from=planner&week=${weekStart}`}
-                                className="flex gap-3"
-                              >
-                                {item.content?.thumbnail_url && (
+                              {item.content?.thumbnail_url && (
+                                <div className="w-20 shrink-0 relative overflow-hidden">
                                   <img
                                     src={item.content.thumbnail_url}
                                     alt=""
-                                    className="w-20 h-20 object-cover shrink-0 rounded-l-xl"
+                                    className="absolute inset-0 w-full h-full object-cover rounded-l-xl"
                                   />
-                                )}
-                                <div className="flex-1 py-2 pr-16 min-w-0">
-                                <div className="flex flex-col gap-1 mb-1">
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0 p-2 flex flex-col gap-1.5">
+                                <div className="flex items-center justify-between gap-2">
                                   <div className="flex items-center gap-1.5 flex-wrap">
                                     <Icon className="w-3.5 h-3.5 text-muted-foreground" />
                                     <span className="text-xs text-muted-foreground capitalize">
-                                      {item.content?.category?.replace("_", " ")}
+                                      {item.content?.category?.replace(
+                                        "_",
+                                        " ",
+                                      )}
                                     </span>
                                     {plannedTimeLabel && (
                                       <span className="text-[10px] bg-[var(--accent-light)] text-[var(--accent-foreground)] px-2 py-0.5 rounded-full font-semibold">
@@ -1048,58 +1145,51 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                         from {sharedItem?.owner_name}
                                       </span>
                                     )}
-                                    {ownItem?.shared_with &&
-                                      ownItem.shared_with.length > 0 && (
-                                        <span className="text-[10px] bg-[var(--secondary-light)] text-[var(--secondary-dark)] px-1.5 py-0.5 rounded-full font-medium">
-                                          <Users className="w-3 h-3 inline mr-0.5" />
-                                          {ownItem.shared_with.length}
-                                        </span>
-                                      )}
                                   </div>
+                                  <div className="flex gap-1 shrink-0">
+                                    {isShared ? (
+                                      <button
+                                        onClick={() => leaveSharedItem(item.id)}
+                                        className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
+                                        title="Leave"
+                                      >
+                                        <Hand className="w-3 h-3" />
+                                      </button>
+                                    ) : (
+                                      <>
+                                        <button
+                                          onClick={() =>
+                                            openShareModal(ownItem!)
+                                          }
+                                          className="bg-white rounded-lg h-7 px-2 text-[10px] font-semibold flex items-center gap-1 shadow-sm hover:bg-[var(--muted)]"
+                                          title="Share"
+                                        >
+                                          <Users className="w-3 h-3" />
+                                          {ownItem?.shared_with?.length
+                                            ? ownItem.shared_with.length
+                                            : "Share"}
+                                        </button>
+                                        <button
+                                          onClick={() =>
+                                            openEditModal(ownItem!, dayIndex)
+                                          }
+                                          className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
+                                          title="Edit"
+                                        >
+                                          <Pencil className="w-3 h-3" />
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                                <Link
+                                  href={`/dashboard/${item.content_id}?from=planner&week=${weekStart}`}
+                                  className="block"
+                                >
                                   <p className="font-medium text-sm line-clamp-2">
                                     {item.content?.title}
                                   </p>
-                                </div>
-                                </div>
-                              </Link>
-                              <div className="absolute top-2 right-2 flex gap-1">
-                                {isShared ? (
-                                  <button
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      leaveSharedItem(item.id);
-                                    }}
-                                    className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
-                                    title="Leave"
-                                  >
-                                    <Hand className="w-3 h-3" />
-                                  </button>
-                                ) : (
-                                  <>
-                                    <button
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        openShareModal(ownItem!);
-                                      }}
-                                      className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
-                                      title="Share"
-                                    >
-                                      <Users className="w-3 h-3" />
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        removeFromDay(item.id);
-                                      }}
-                                      className="bg-[var(--destructive)] text-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm"
-                                    >
-                                      <X className="w-3 h-3" />
-                                    </button>
-                                  </>
-                                )}
+                                </Link>
                               </div>
                             </div>
                           );
@@ -1164,13 +1254,6 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                     {sharedItem?.owner_name}
                                   </span>
                                 )}
-                                {ownItem?.shared_with &&
-                                  ownItem.shared_with.length > 0 && (
-                                    <span className="text-[8px] bg-[var(--secondary-light)] text-[var(--secondary-dark)] px-1 py-0.5 rounded font-medium">
-                                      <Users className="w-2 h-2 inline" />{" "}
-                                      {ownItem.shared_with.length}
-                                    </span>
-                                  )}
                               </div>
                               <p className="text-xs font-medium line-clamp-2">
                                 {item.note_title}
@@ -1189,16 +1272,22 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                 <>
                                   <button
                                     onClick={() => openShareModal(ownItem!)}
-                                    className="bg-white rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
+                                    className="bg-white rounded h-5 px-1.5 text-[9px] font-semibold flex items-center gap-0.5 shadow-sm"
                                     title="Share"
                                   >
                                     <Users className="w-3 h-3" />
+                                    {ownItem?.shared_with?.length
+                                      ? ownItem.shared_with.length
+                                      : "Share"}
                                   </button>
                                   <button
-                                    onClick={() => removeFromDay(item.id)}
-                                    className="bg-[var(--destructive)] text-white rounded w-5 h-5 text-[10px] flex items-center justify-center"
+                                    onClick={() =>
+                                      openEditModal(ownItem!, dayIndex)
+                                    }
+                                    className="bg-white rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
+                                    title="Edit"
                                   >
-                                    <X className="w-3 h-3" />
+                                    <Pencil className="w-3 h-3" />
                                   </button>
                                 </>
                               )}
@@ -1217,6 +1306,64 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                           key={item.id}
                           className="group relative bg-white rounded-lg overflow-hidden border border-[var(--border)]"
                         >
+                          <div className="flex items-center justify-between px-2 pt-2">
+                            <div className="flex items-center gap-1 flex-wrap">
+                              <Icon className="w-3 h-3 text-muted-foreground" />
+                              {plannedTimeLabel && (
+                                <span className="text-[8px] bg-[var(--accent-light)] text-[var(--accent-foreground)] px-1.5 py-0.5 rounded-full font-semibold">
+                                  {plannedTimeLabel}
+                                </span>
+                              )}
+                              {isShared && (
+                                <span className="text-[8px] bg-[var(--muted)] px-1 py-0.5 rounded font-medium">
+                                  {sharedItem?.owner_name}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex gap-0.5">
+                              {isShared ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    leaveSharedItem(item.id);
+                                  }}
+                                  className="bg-white/90 backdrop-blur rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
+                                  title="Leave"
+                                >
+                                  <Hand className="w-3 h-3" />
+                                </button>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      openShareModal(ownItem!);
+                                    }}
+                                    className="bg-white/90 backdrop-blur rounded h-5 px-1.5 text-[9px] font-semibold flex items-center gap-0.5 shadow-sm"
+                                    title="Share"
+                                  >
+                                    <Users className="w-3 h-3" />
+                                    {ownItem?.shared_with?.length
+                                      ? ownItem.shared_with.length
+                                      : "Share"}
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      openEditModal(ownItem!, dayIndex);
+                                    }}
+                                    className="bg-white/90 backdrop-blur rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
+                                    title="Edit"
+                                  >
+                                    <Pencil className="w-3 h-3" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
                           <Link
                             href={`/dashboard/${item.content_id}?from=planner&week=${weekStart}`}
                             className="block"
@@ -1228,73 +1375,14 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                 className="w-full h-20 object-cover"
                               />
                             )}
-                            <div className="p-2">
+                            <div className="p-2 pt-1">
                               <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-1 flex-wrap">
-                                  <Icon className="w-3 h-3 text-muted-foreground" />
-                                  {plannedTimeLabel && (
-                                    <span className="text-[8px] bg-[var(--accent-light)] text-[var(--accent-foreground)] px-1.5 py-0.5 rounded-full font-semibold">
-                                      {plannedTimeLabel}
-                                    </span>
-                                  )}
-                                  {isShared && (
-                                    <span className="text-[8px] bg-[var(--muted)] px-1 py-0.5 rounded font-medium">
-                                      {sharedItem?.owner_name}
-                                    </span>
-                                  )}
-                                  {ownItem?.shared_with &&
-                                    ownItem.shared_with.length > 0 && (
-                                      <span className="text-[8px] bg-[var(--secondary-light)] text-[var(--secondary-dark)] px-1 py-0.5 rounded font-medium">
-                                        <Users className="w-2 h-2 inline" />{" "}
-                                        {ownItem.shared_with.length}
-                                      </span>
-                                    )}
-                                </div>
                                 <p className="text-xs font-medium line-clamp-2">
                                   {item.content?.title}
                                 </p>
                               </div>
                             </div>
                           </Link>
-                          <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {isShared ? (
-                              <button
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  leaveSharedItem(item.id);
-                                }}
-                                className="bg-white/90 backdrop-blur rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
-                                title="Leave"
-                              >
-                                <Hand className="w-3 h-3" />
-                              </button>
-                            ) : (
-                              <>
-                                <button
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    openShareModal(ownItem!);
-                                  }}
-                                  className="bg-white/90 backdrop-blur rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
-                                  title="Share"
-                                >
-                                  <Users className="w-3 h-3" />
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    removeFromDay(item.id);
-                                  }}
-                                  className="bg-[var(--destructive)] text-white rounded w-5 h-5 text-[10px] flex items-center justify-center"
-                                >
-                                  <X className="w-3 h-3" />
-                                </button>
-                              </>
-                            )}
-                          </div>
                         </div>
                       );
                     })}
@@ -1320,9 +1408,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--muted)] flex items-center justify-center">
               <Calendar className="w-8 h-8 text-muted-foreground" />
             </div>
-            <p className="text-lg font-semibold mb-2">
-              No saved content yet
-            </p>
+            <p className="text-lg font-semibold mb-2">No saved content yet</p>
             <p className="text-sm text-muted-foreground mb-4">
               Text TikTok or Instagram links to save meals, events, and date
               ideas.
@@ -1339,15 +1425,44 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
         <div className="fixed inset-0 modal-backdrop z-50 flex items-end md:items-center justify-center p-0 md:p-4">
           <div className="bg-[var(--card)] w-full md:max-w-lg md:rounded-2xl rounded-t-2xl max-h-[85vh] flex flex-col shadow-xl">
             <div className="p-4 border-b border-[var(--border)] flex items-center justify-between bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] md:rounded-t-2xl">
-              <h3 className="font-semibold text-white">
-                Add to {DAYS_FULL[addingToDay]}
-              </h3>
-              <button
-                onClick={() => setAddingToDay(null)}
-                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div>
+                <h3 className="font-semibold text-white">
+                  {editingItem ? "Edit" : "Add to"} {DAYS_FULL[addingToDay]}
+                </h3>
+                {editingItem?.content_id && (
+                  <p className="text-[11px] text-white/80 mt-1">
+                    Update time or choose a new item below
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {editingItem?.content_id && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={saveEditingContent}
+                    className="text-white hover:bg-white/15 rounded-lg"
+                  >
+                    Save
+                  </Button>
+                )}
+                {editingItem && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={deleteEditingItem}
+                    className="text-white/90 hover:bg-white/15 rounded-lg"
+                  >
+                    Delete
+                  </Button>
+                )}
+                <button
+                  onClick={closeAddModal}
+                  className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto overscroll-contain">
@@ -1376,7 +1491,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     className="btn-primary"
                     disabled={!quickNoteInput.trim() || addingQuickNote}
                   >
-                    {addingQuickNote ? "..." : "Add"}
+                    {addingQuickNote ? "..." : editingItem ? "Save" : "Add"}
                   </Button>
                 </form>
                 <div className="mt-3 flex items-center gap-3">
@@ -1488,7 +1603,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                         </p>
                         {content.tags && content.tags.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
-                          {content.tags.slice(0, 3).map((tag: Tag) => (
+                            {content.tags.slice(0, 3).map((tag: Tag) => (
                               <span
                                 key={tag.id}
                                 className="text-[10px] px-1.5 py-0.5 bg-[var(--accent-light)] rounded-full"
@@ -1539,9 +1654,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                   <ShoppingCart className="w-5 h-5" />
                   Grocery List
                 </h2>
-                <p className="text-xs text-white/80">
-                  {formatWeekRange()}
-                </p>
+                <p className="text-xs text-white/80">{formatWeekRange()}</p>
               </div>
               <div className="flex gap-2">
                 <Button
@@ -1634,7 +1747,9 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                       className="w-full text-left flex items-start gap-3 hover:bg-[var(--muted)] p-2 rounded-lg -mx-2 transition-colors"
                                     >
                                       <div className="w-5 h-5 rounded-full bg-[var(--primary)]/10 flex items-center justify-center shrink-0 mt-0.5">
-                                        <span className="text-[var(--primary)] text-xs">•</span>
+                                        <span className="text-[var(--primary)] text-xs">
+                                          •
+                                        </span>
                                       </div>
                                       <div className="flex-1 min-w-0">
                                         <div className="flex items-baseline gap-2 flex-wrap">
@@ -1653,7 +1768,10 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                           </p>
                                         )}
                                         <p className="text-xs text-muted-foreground mt-0.5">
-                                          For: {item.sources.map((s) => s.title).join(", ")}
+                                          For:{" "}
+                                          {item.sources
+                                            .map((s) => s.title)
+                                            .join(", ")}
                                         </p>
                                       </div>
                                       {groceryList.expandedIngredient ===
@@ -1739,9 +1857,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
           <div className="bg-[var(--card)] w-full max-w-md max-h-[80vh] flex flex-col rounded-2xl shadow-xl">
             <div className="flex items-center justify-between p-4 border-b border-[var(--border)] bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] rounded-t-2xl">
               <div>
-                <h2 className="text-lg font-semibold text-white">
-                  Share Item
-                </h2>
+                <h2 className="text-lg font-semibold text-white">Share Item</h2>
                 <p className="text-xs text-white/80 line-clamp-1">
                   {itemShare.itemTitle}
                 </p>
@@ -1768,7 +1884,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     <>
                       {data.shareableFriends.map((friend: ShareableFriend) => {
                         const isSelected = itemShare.selectedFriendIds.includes(
-                          friend.id
+                          friend.id,
                         );
                         return (
                           <button
@@ -1782,13 +1898,19 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                           >
                             <div
                               className={`w-10 h-10 flex items-center justify-center rounded-xl ${
-                                isSelected ? "bg-[var(--primary)]/10" : "bg-[var(--muted)]"
+                                isSelected
+                                  ? "bg-[var(--primary)]/10"
+                                  : "bg-[var(--muted)]"
                               }`}
                             >
                               {friend.isFavorite ? (
-                                <Star className={`w-5 h-5 ${isSelected ? "text-[var(--primary)]" : ""}`} />
+                                <Star
+                                  className={`w-5 h-5 ${isSelected ? "text-[var(--primary)]" : ""}`}
+                                />
                               ) : (
-                                <User className={`w-5 h-5 ${isSelected ? "text-[var(--primary)]" : ""}`} />
+                                <User
+                                  className={`w-5 h-5 ${isSelected ? "text-[var(--primary)]" : ""}`}
+                                />
                               )}
                             </div>
                             <div className="flex-1">
@@ -1927,10 +2049,10 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                   {itemShare.loading
                     ? "Sharing..."
                     : itemShare.selectedFriendIds.length === 0
-                    ? "Select friends to share"
-                    : `Share with ${itemShare.selectedFriendIds.length} friend${
-                        itemShare.selectedFriendIds.length !== 1 ? "s" : ""
-                      }`}
+                      ? "Select friends to share"
+                      : `Share with ${itemShare.selectedFriendIds.length} friend${
+                          itemShare.selectedFriendIds.length !== 1 ? "s" : ""
+                        }`}
                 </Button>
               </div>
             )}

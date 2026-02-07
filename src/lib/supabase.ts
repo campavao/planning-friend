@@ -736,6 +736,56 @@ export async function addPlanItem(
   return data as PlanItem;
 }
 
+export async function updatePlanItem(
+  itemId: string,
+  updates: {
+    contentId?: string | null;
+    noteTitle?: string | null;
+    notes?: string | null;
+    plannedDate?: string;
+  },
+): Promise<PlanItem> {
+  const supabase = createServerClient();
+
+  const updateData: {
+    content_id?: string | null;
+    note_title?: string | null;
+    notes?: string | null;
+    planned_date?: string;
+  } = {};
+
+  if (updates.contentId !== undefined) {
+    updateData.content_id = updates.contentId;
+  }
+  if (updates.noteTitle !== undefined) {
+    updateData.note_title = updates.noteTitle;
+  }
+  if (updates.notes !== undefined) {
+    updateData.notes = updates.notes;
+  }
+  if (updates.plannedDate) {
+    updateData.planned_date = updates.plannedDate;
+  }
+
+  const { data, error } = await supabase
+    .from("plan_items")
+    .update(updateData)
+    .eq("id", itemId)
+    .select(
+      `
+      *,
+      content:content_id (*)
+    `,
+    )
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to update plan item: ${error.message}`);
+  }
+
+  return data as PlanItem;
+}
+
 // Remove item from plan
 export async function removePlanItem(itemId: string): Promise<void> {
   const supabase = createServerClient();
