@@ -1,36 +1,11 @@
-import { createServerClient } from "@/lib/supabase";
+import {
+  getGroceryListCache,
+  upsertGroceryListCache,
+  type CachedGroceryItem,
+} from "@/lib/supabase";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-
-interface SessionData {
-  userId: string;
-  phoneNumber: string;
-  exp: number;
-}
-
-async function getSessionUser(): Promise<SessionData | null> {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("session");
-
-  if (!sessionCookie) {
-    return null;
-  }
-
-  try {
-    const decoded = JSON.parse(
-      Buffer.from(sessionCookie.value, "base64").toString()
-    ) as SessionData;
-
-    if (decoded.exp < Date.now()) {
-      return null;
-    }
-
-    return decoded;
-  } catch {
-    return null;
-  }
-}
+import { requireSession } from "@/lib/auth";
 
 interface RecipeInput {
   id: string;
@@ -50,17 +25,6 @@ interface GroceryItem {
 interface GroceryListResponse {
   items: GroceryItem[];
   tips?: string[];
-}
-
-interface CachedGroceryList {
-  id: string;
-  user_id: string;
-  week_start: string;
-  recipe_ids: string[];
-  items: GroceryItem[];
-  tips: string[];
-  created_at: string;
-  updated_at: string;
 }
 
 const GROCERY_LIST_PROMPT = `You are a helpful meal planning assistant. I'm going to give you a list of recipes with their ingredients. Your job is to create a consolidated, organized grocery list.
@@ -126,11 +90,8 @@ function recipeIdsMatch(cached: string[], current: string[]): boolean {
 // POST - Generate grocery list from recipes (with database caching)
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const { recipes, weekStart } = (await request.json()) as {
       recipes: RecipeInput[];
@@ -166,36 +127,24 @@ export async function POST(request: NextRequest) {
     // Get the current recipe IDs (sorted for consistent comparison)
     const currentRecipeIds = recipesWithIngredients.map((r) => r.id).sort();
 
-    const supabase = createServerClient();
+    const cachedList = await getGroceryListCache(session.userId, weekStart);
 
-    // Check for cached grocery list in database
-    const { data: cached, error: cacheError } = await supabase
-      .from("grocery_list_cache")
-      .select("*")
-      .eq("user_id", session.userId)
-      .eq("week_start", weekStart)
-      .single();
+    if (cachedList && recipeIdsMatch(cachedList.recipe_ids, currentRecipeIds)) {
+      console.log("Grocery list cache hit for week:", weekStart);
+      return NextResponse.json({
+        success: true,
+        items: cachedList.items,
+        tips: cachedList.tips,
+        recipeCount: currentRecipeIds.length,
+        cached: true,
+      });
+    }
 
-    if (!cacheError && cached) {
-      const cachedList = cached as CachedGroceryList;
-
-      // Check if the recipe IDs match
-      if (recipeIdsMatch(cachedList.recipe_ids, currentRecipeIds)) {
-        // Cache hit! Return the cached list
-        console.log("Grocery list cache hit for week:", weekStart);
-        return NextResponse.json({
-          success: true,
-          items: cachedList.items,
-          tips: cachedList.tips,
-          recipeCount: currentRecipeIds.length,
-          cached: true,
-        });
-      } else {
-        console.log(
-          "Grocery list cache miss - recipes changed for week:",
-          weekStart
-        );
-      }
+    if (cachedList) {
+      console.log(
+        "Grocery list cache miss - recipes changed for week:",
+        weekStart
+      );
     }
 
     // Cache miss - generate new list with AI
@@ -263,28 +212,17 @@ ${recipe.ingredients.map((ing) => `- ${ing}`).join("\n")}
 
     const tips = groceryList.tips || [];
 
-    // Save to database cache (upsert)
-    const { error: upsertError } = await supabase
-      .from("grocery_list_cache")
-      .upsert(
-        {
-          user_id: session.userId,
-          week_start: weekStart,
-          recipe_ids: currentRecipeIds,
-          items: cleanedItems,
-          tips: tips,
-          updated_at: new Date().toISOString(),
-        },
-        {
-          onConflict: "user_id,week_start",
-        }
+    try {
+      await upsertGroceryListCache(
+        session.userId,
+        weekStart,
+        currentRecipeIds,
+        cleanedItems as CachedGroceryItem[],
+        tips
       );
-
-    if (upsertError) {
-      console.error("Failed to cache grocery list:", upsertError);
-      // Don't fail the request, just log the error
-    } else {
       console.log("Grocery list cached for week:", weekStart);
+    } catch (err) {
+      console.error("Failed to cache grocery list:", err);
     }
 
     return NextResponse.json({

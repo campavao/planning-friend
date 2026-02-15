@@ -15,36 +15,7 @@ import {
   type SharedPlanItem,
 } from "@/lib/supabase";
 import { parseDateString } from "@/lib/utils";
-import { cookies } from "next/headers";
-
-interface SessionData {
-  userId: string;
-  phoneNumber: string;
-  exp: number;
-}
-
-async function getSessionUser(): Promise<SessionData | null> {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("session");
-
-  if (!sessionCookie) {
-    return null;
-  }
-
-  try {
-    const decoded = JSON.parse(
-      Buffer.from(sessionCookie.value, "base64").toString(),
-    ) as SessionData;
-
-    if (decoded.exp < Date.now()) {
-      return null;
-    }
-
-    return decoded;
-  } catch {
-    return null;
-  }
-}
+import { requireSession } from "@/lib/auth";
 
 // Extended plan item with sharing info
 interface PlanItemWithSharing extends PlanItem {
@@ -55,10 +26,8 @@ interface PlanItemWithSharing extends PlanItem {
 // GET weekly plan
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const { searchParams } = new URL(request.url);
     const weekStart = searchParams.get("week") || getWeekStart();
@@ -157,10 +126,8 @@ export async function GET(request: NextRequest) {
 // POST add item to plan (content or quick note)
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const body = await request.json();
     const { weekStart, contentId, noteTitle, dayOfWeek, notes, plannedDate } =

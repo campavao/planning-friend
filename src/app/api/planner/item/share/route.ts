@@ -10,46 +10,14 @@ import {
   shareItemWithFriends,
   updateItemSharing,
 } from "@/lib/supabase";
-import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-
-interface SessionData {
-  userId: string;
-  phoneNumber: string;
-  exp: number;
-}
-
-async function getSessionUser(): Promise<SessionData | null> {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("session");
-
-  if (!sessionCookie) {
-    return null;
-  }
-
-  try {
-    const decoded = JSON.parse(
-      Buffer.from(sessionCookie.value, "base64").toString()
-    ) as SessionData;
-
-    if (decoded.exp < Date.now()) {
-      return null;
-    }
-
-    return decoded;
-  } catch {
-    return null;
-  }
-}
+import { requireSession } from "@/lib/auth";
 
 // GET - Get share info for a plan item
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const { searchParams } = new URL(request.url);
     const itemId = searchParams.get("itemId");
@@ -88,11 +56,8 @@ export async function GET(request: NextRequest) {
 // POST - Share a plan item with friends
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const { itemId, friendIds } = await request.json();
 
@@ -151,11 +116,8 @@ export async function POST(request: NextRequest) {
 // PUT - Update sharing (set exact list of people to share with)
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const { itemId, friendIds } = await request.json();
 
@@ -261,11 +223,8 @@ export async function PUT(request: NextRequest) {
 // DELETE - Leave a shared item (remove yourself from the share)
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const { searchParams } = new URL(request.url);
     const itemId = searchParams.get("itemId");

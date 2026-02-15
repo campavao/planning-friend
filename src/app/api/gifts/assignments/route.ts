@@ -1,49 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import {
   assignGiftToRecipient,
   removeGiftAssignment,
   getGiftIdeas,
 } from "@/lib/supabase";
-
-interface SessionData {
-  userId: string;
-  phoneNumber: string;
-  exp: number;
-}
-
-async function getSessionUser(): Promise<SessionData | null> {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("session");
-
-  if (!sessionCookie) {
-    return null;
-  }
-
-  try {
-    const decoded = JSON.parse(
-      Buffer.from(sessionCookie.value, "base64").toString()
-    ) as SessionData;
-
-    // Check if session is expired
-    if (decoded.exp < Date.now()) {
-      return null;
-    }
-
-    return decoded;
-  } catch {
-    return null;
-  }
-}
+import { requireSession } from "@/lib/auth";
 
 // GET - Get all gift ideas for the picker
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const giftIdeas = await getGiftIdeas(session.userId);
     return NextResponse.json({ giftIdeas });
@@ -59,11 +26,8 @@ export async function GET() {
 // POST - Assign a gift to a recipient
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const { recipientId, contentId } = await request.json();
 
@@ -88,11 +52,8 @@ export async function POST(request: NextRequest) {
 // DELETE - Remove a gift assignment
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const id = request.nextUrl.searchParams.get("id");
 

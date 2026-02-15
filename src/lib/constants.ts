@@ -1,3 +1,13 @@
+// Session duration (7 days)
+export const SESSION_EXPIRATION_MS = 7 * 24 * 60 * 60 * 1000;
+export const SESSION_EXPIRATION_SECONDS = 7 * 24 * 60 * 60;
+
+// Planner defaults
+export const DEFAULT_PLANNED_TIME = "19:00"; // HH:mm for new plan items
+
+// Share invite expiry (7 days)
+export const SHARE_INVITE_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
+
 // Default tags that can be suggested to users
 // This file is safe to import on both client and server
 export const DEFAULT_TAGS = [

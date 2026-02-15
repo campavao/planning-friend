@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import {
   getGiftRecipients,
   getRecipientsWithAssignments,
@@ -7,45 +6,13 @@ import {
   updateGiftRecipient,
   deleteGiftRecipient,
 } from "@/lib/supabase";
-
-interface SessionData {
-  userId: string;
-  phoneNumber: string;
-  exp: number;
-}
-
-async function getSessionUser(): Promise<SessionData | null> {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("session");
-
-  if (!sessionCookie) {
-    return null;
-  }
-
-  try {
-    const decoded = JSON.parse(
-      Buffer.from(sessionCookie.value, "base64").toString()
-    ) as SessionData;
-
-    // Check if session is expired
-    if (decoded.exp < Date.now()) {
-      return null;
-    }
-
-    return decoded;
-  } catch {
-    return null;
-  }
-}
+import { requireSession } from "@/lib/auth";
 
 // GET - List all recipients for the user
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const includeAssignments =
       request.nextUrl.searchParams.get("include") === "assignments";
@@ -69,11 +36,8 @@ export async function GET(request: NextRequest) {
 // POST - Create a new recipient
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const { name } = await request.json();
 
@@ -95,11 +59,8 @@ export async function POST(request: NextRequest) {
 // PATCH - Update a recipient
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const { id, name } = await request.json();
 
@@ -124,11 +85,8 @@ export async function PATCH(request: NextRequest) {
 // DELETE - Delete a recipient
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getSessionUser();
-
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const id = request.nextUrl.searchParams.get("id");
 

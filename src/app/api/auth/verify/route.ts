@@ -5,6 +5,8 @@ import {
   normalizePhoneNumber,
 } from "@/lib/supabase";
 import { cookies } from "next/headers";
+import { createSessionToken } from "@/lib/auth";
+import { SESSION_EXPIRATION_MS, SESSION_EXPIRATION_SECONDS } from "@/lib/constants";
 
 interface VerifyRequest {
   phoneNumber: string;
@@ -42,22 +44,18 @@ export async function POST(request: NextRequest) {
     // Check if this is a new user (no name set)
     const isNewUser = !user.name;
 
-    // Create a simple session token (in production, use a proper JWT)
-    const sessionToken = Buffer.from(
-      JSON.stringify({
-        userId: user.id,
-        phoneNumber: normalizedPhone,
-        exp: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
-      })
-    ).toString("base64");
+    const sessionToken = await createSessionToken({
+      userId: user.id,
+      phoneNumber: normalizedPhone,
+      exp: Date.now() + SESSION_EXPIRATION_MS,
+    });
 
-    // Set the session cookie
     const cookieStore = await cookies();
     cookieStore.set("session", sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60, // 7 days
+      maxAge: SESSION_EXPIRATION_SECONDS,
       path: "/",
     });
 

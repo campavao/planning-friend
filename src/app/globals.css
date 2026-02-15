@@ -52,6 +52,14 @@
 
 /* ===== WARM WANDERLUST DESIGN SYSTEM ===== */
 /* A modern, organic aesthetic inspired by travel & planning */
+/*
+  Structure:
+  - :root / .dark: CSS custom properties (colors, radius, category badges)
+  - Base: body, typography
+  - Utilities: card, badge, button, form, loading, bottom nav
+  - Component overrides: shadcn/ui, planner, content detail
+  Audit: Remove unused classes when refactoring; prefer Tailwind utilities where possible.
+*/
 
 :root {
   --radius: 16px;
