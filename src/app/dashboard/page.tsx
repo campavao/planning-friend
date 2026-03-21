@@ -34,12 +34,16 @@ export default function Dashboard() {
   const [showTip, setShowTip] = useState(getInitialTipVisibility);
   const [showNamePrompt, setShowNamePrompt] = useState(false);
 
-  // Redirect to last active tab if user is returning to the app
+  // Redirect to last active tab only on fresh app open (not on in-session navigation)
   useEffect(() => {
     try {
-      const lastTab = localStorage.getItem("lastTab");
-      if (lastTab && lastTab !== "/dashboard") {
-        router.replace(lastTab);
+      const sessionActive = sessionStorage.getItem("sessionActive");
+      if (!sessionActive) {
+        sessionStorage.setItem("sessionActive", "true");
+        const lastTab = localStorage.getItem("lastTab");
+        if (lastTab && lastTab !== "/dashboard") {
+          router.replace(lastTab);
+        }
       }
     } catch {
       // Ignore storage errors
