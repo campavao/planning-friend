@@ -57,7 +57,7 @@ export function usePlanner(
       {
         revalidateOnFocus: true,
         keepPreviousData: true,
-        dedupingInterval: 2000,
+        dedupingInterval: 5000,
       }
     );
 

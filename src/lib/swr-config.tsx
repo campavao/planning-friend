@@ -117,7 +117,7 @@ export function SWRProvider({ children }: SWRProviderProps) {
         fetcher,
         revalidateOnFocus: true,
         revalidateOnReconnect: true,
-        dedupingInterval: 2000,
+        dedupingInterval: 5000,
         // Keep previous data while revalidating for smoother UX
         keepPreviousData: true,
         // Error retry configuration

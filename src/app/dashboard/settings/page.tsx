@@ -178,7 +178,7 @@ export default function SettingsPage() {
   return (
     <main className="min-h-screen pb-28 md:pb-8 bg-[var(--background)]">
       {/* Header */}
-      <div className="bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] px-4 py-5">
+      <div className="bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] px-4 py-5 sticky top-0 z-20">
         <div className="max-w-4xl mx-auto">
           <h1 className="heading-1 text-white">
             Settings

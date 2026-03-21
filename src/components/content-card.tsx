@@ -290,15 +290,9 @@ function ContentCardInner({
             {content.title}
           </h3>
 
-          <CardTags tags={tags} />
-
           {meta && (
             <div className="mt-2 text-muted-foreground">{meta}</div>
           )}
-
-          <p className="text-xs text-[var(--primary)] mt-3 font-medium">
-            View details →
-          </p>
         </div>
       </div>
     </Link>

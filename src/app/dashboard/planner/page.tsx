@@ -906,12 +906,12 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
           sharedCount={data?.sharedItems?.length ?? 0}
           onPrev={() => navigateWeek(-1)}
           onNext={() => navigateWeek(1)}
-          loading={gridLoading}
+          loading={gridLoading && !data}
         />
 
         {/* Week Grid */}
         <div className="relative">
-          {gridLoading && (
+          {gridLoading && !data && (
             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-2xl">
               <div className="loading-spinner" />
             </div>
