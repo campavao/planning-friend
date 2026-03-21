@@ -184,6 +184,7 @@ export interface GiftAssignment {
   recipient_id: string;
   content_id: string;
   created_at: string;
+  given_at?: string | null;
   content?: Content;
 }
 

@@ -19,6 +19,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSession } from "./useSession";
 
@@ -29,8 +30,21 @@ function getInitialTipVisibility() {
 }
 
 export default function Dashboard() {
+  const router = useRouter();
   const [showTip, setShowTip] = useState(getInitialTipVisibility);
   const [showNamePrompt, setShowNamePrompt] = useState(false);
+
+  // Redirect to last active tab if user is returning to the app
+  useEffect(() => {
+    try {
+      const lastTab = localStorage.getItem("lastTab");
+      if (lastTab && lastTab !== "/dashboard") {
+        router.replace(lastTab);
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  }, [router]);
 
   // Session management with SWR
   const { user, isLoading: sessionLoading } = useSession();
@@ -164,52 +178,54 @@ export default function Dashboard() {
 
   return (
     <main className="min-h-screen pb-28 md:pb-8 bg-background">
-      {/* Header */}
-      <div className="relative overflow-hidden">
-        {/* Background decoration */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary-light)]/20 via-transparent to-[var(--accent)]/10" />
-        <div className="absolute -top-20 -right-20 w-64 h-64 bg-[var(--primary)] opacity-10 rounded-full blur-3xl" />
-        
-        <div className="relative max-w-7xl mx-auto px-4 md:px-6 pt-4 pb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="heading-1">
-                My Collection
-              </h1>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {completedContent.length} saved items
-              </p>
-            </div>
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-20 bg-[var(--background)]">
+        <div className="relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary-light)]/20 via-transparent to-[var(--accent)]/10" />
+          <div className="relative max-w-7xl mx-auto px-4 md:px-6 pt-4 pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="heading-1">
+                  My Collection
+                </h1>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {completedContent.length} saved items
+                </p>
+              </div>
 
-            {/* Desktop Actions */}
-            <div className="hidden md:flex items-center gap-3">
-              <Link href="/dashboard/planner">
-                <Button className="btn-primary">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Plan Week
+              {/* Desktop Actions */}
+              <div className="hidden md:flex items-center gap-3">
+                <Link href="/dashboard/planner">
+                  <Button className="btn-primary">
+                    <Calendar className="w-4 h-4 mr-2" />
+                    Plan Week
+                  </Button>
+                </Link>
+                <Link href="/dashboard/gifts">
+                  <Button className="btn-outline">
+                    <Gift className="w-4 h-4 mr-2" />
+                    Gifts
+                  </Button>
+                </Link>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleRefresh}
+                  disabled={isValidating}
+                  className="btn-ghost w-10 h-10 rounded-xl"
+                >
+                  <RefreshCw
+                    className={`w-4 h-4 ${isValidating ? "animate-spin" : ""}`}
+                  />
                 </Button>
-              </Link>
-              <Link href="/dashboard/gifts">
-                <Button className="btn-outline">
-                  <Gift className="w-4 h-4 mr-2" />
-                  Gifts
-                </Button>
-              </Link>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleRefresh}
-                disabled={isValidating}
-                className="btn-ghost w-10 h-10 rounded-xl"
-              >
-                <RefreshCw
-                  className={`w-4 h-4 ${isValidating ? "animate-spin" : ""}`}
-                />
-              </Button>
+              </div>
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* Stats Row */}
+      {/* Stats Row */}
+      <div className="max-w-7xl mx-auto px-4 md:px-6 pb-4">
           <div className="grid grid-cols-5 gap-2 animate-slide-up">
             <div className="stat-card">
               <div className="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-[var(--meal-bg)] flex items-center justify-center">
@@ -247,7 +263,6 @@ export default function Dashboard() {
               <div className="stat-label">Gifts</div>
             </div>
           </div>
-        </div>
       </div>
 
       {/* Main Content */}

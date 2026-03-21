@@ -166,6 +166,32 @@ export async function removeGiftAssignment(
   }
 }
 
+export async function markGiftAsGiven(assignmentId: string): Promise<void> {
+  const supabase = createServerClient();
+
+  const { error } = await supabase
+    .from("gift_assignments")
+    .update({ given_at: new Date().toISOString() })
+    .eq("id", assignmentId);
+
+  if (error) {
+    throw new Error(`Failed to mark gift as given: ${error.message}`);
+  }
+}
+
+export async function unmarkGiftAsGiven(assignmentId: string): Promise<void> {
+  const supabase = createServerClient();
+
+  const { error } = await supabase
+    .from("gift_assignments")
+    .update({ given_at: null })
+    .eq("id", assignmentId);
+
+  if (error) {
+    throw new Error(`Failed to unmark gift as given: ${error.message}`);
+  }
+}
+
 export async function getGiftIdeas(userId: string): Promise<Content[]> {
   const supabase = createServerClient();
 

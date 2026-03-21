@@ -3,6 +3,7 @@
 import { Calendar, Gift, Home, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 
 const NAV_ITEMS = [
   { href: "/dashboard", icon: Home, label: "Home" },
@@ -12,8 +13,21 @@ const NAV_ITEMS = [
   { href: "/dashboard/settings", icon: Settings, label: "Settings" },
 ];
 
+const TAB_PATHS = new Set(NAV_ITEMS.map((item) => item.href));
+
 export function BottomNav() {
   const pathname = usePathname();
+
+  // Save current tab to localStorage for persistence across app restarts
+  useEffect(() => {
+    if (pathname && TAB_PATHS.has(pathname)) {
+      try {
+        localStorage.setItem("lastTab", pathname);
+      } catch {
+        // Ignore storage errors
+      }
+    }
+  }, [pathname]);
 
   // Don't show on login page
   if (pathname === "/") return null;

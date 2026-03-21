@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   assignGiftToRecipient,
   removeGiftAssignment,
+  markGiftAsGiven,
+  unmarkGiftAsGiven,
   getGiftIdeas,
 } from "@/lib/supabase";
 import { requireSession } from "@/lib/auth";
@@ -42,6 +44,34 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ assignment });
   } catch (error) {
     console.error("Error assigning gift:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH - Mark/unmark a gift as given
+export async function PATCH(request: NextRequest) {
+  try {
+    const { errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
+
+    const { id, given } = await request.json();
+
+    if (!id) {
+      return NextResponse.json({ error: "ID is required" }, { status: 400 });
+    }
+
+    if (given) {
+      await markGiftAsGiven(id);
+    } else {
+      await unmarkGiftAsGiven(id);
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error updating gift status:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
