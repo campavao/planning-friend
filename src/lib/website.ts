@@ -151,8 +151,36 @@ function extractStructuredData(html: string): Record<string, unknown> | null {
   return null;
 }
 
+// Check if a URL is a Google Maps short link
+export function isGoogleMapsShortUrl(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    return hostname === "maps.app.goo.gl" || hostname === "goo.gl";
+  } catch {
+    return false;
+  }
+}
+
+// Check if a URL is any Google Maps URL (short or full)
+export function isGoogleMapsUrl(url: string): boolean {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.toLowerCase();
+    return (
+      isGoogleMapsShortUrl(url) ||
+      ((hostname.includes("google.com") || hostname.includes("google.co")) &&
+        urlObj.pathname.startsWith("/maps"))
+    );
+  } catch {
+    return false;
+  }
+}
+
 // Extract place name from a resolved Google Maps URL
-// e.g. https://www.google.com/maps/place/Joe's+Pizza/@40.73,-73.99,...
+// Handles multiple URL patterns:
+//   /maps/place/Joe's+Pizza/@40.73,-73.99,...
+//   /maps?q=Joe's+Pizza
+//   /maps/search/Joe's+Pizza
 function extractGoogleMapsPlaceName(resolvedUrl: string): string | null {
   try {
     const urlObj = new URL(resolvedUrl);
@@ -162,10 +190,25 @@ function extractGoogleMapsPlaceName(resolvedUrl: string): string | null {
     ) {
       return null;
     }
+
+    // Pattern 1: /maps/place/NAME/@coords
     const placeMatch = urlObj.pathname.match(/\/maps\/place\/([^/@]+)/);
     if (placeMatch) {
       return decodeURIComponent(placeMatch[1].replace(/\+/g, " "));
     }
+
+    // Pattern 2: /maps/search/NAME
+    const searchMatch = urlObj.pathname.match(/\/maps\/search\/([^/@]+)/);
+    if (searchMatch) {
+      return decodeURIComponent(searchMatch[1].replace(/\+/g, " "));
+    }
+
+    // Pattern 3: ?q=NAME query parameter
+    const qParam = urlObj.searchParams.get("q");
+    if (qParam && urlObj.pathname.includes("/maps")) {
+      return qParam.replace(/\+/g, " ");
+    }
+
     return null;
   } catch {
     return null;
@@ -211,13 +254,16 @@ export async function getWebsiteInfo(url: string): Promise<WebsiteInfo> {
     // Extract text content for AI analysis
     const pageContent = extractTextContent(html);
 
+    // Try to extract place name from the resolved URL (or original if it's a full Maps URL)
+    const urlToCheck = resolvedUrl !== url ? resolvedUrl : url;
+    const mapsPlaceName = extractGoogleMapsPlaceName(urlToCheck);
+
     // When a shortened URL redirected, enrich sparse metadata with info
     // from the resolved URL so downstream AI analysis has useful context
     if (resolvedUrl !== url) {
       console.log(`URL redirected: ${url} -> ${resolvedUrl}`);
 
       // Google Maps: extract the place name from the URL path
-      const mapsPlaceName = extractGoogleMapsPlaceName(resolvedUrl);
       if (mapsPlaceName) {
         console.log(`Google Maps place detected: "${mapsPlaceName}"`);
         if (!meta.title || meta.title === "Google Maps") {
@@ -241,6 +287,21 @@ export async function getWebsiteInfo(url: string): Promise<WebsiteInfo> {
         if (!meta.description) {
           meta.description = `Redirected to: ${resolvedUrl}`;
         }
+      }
+    }
+
+    // For Google Maps URLs (short or full), always ensure we pass useful context
+    // even if the page content is sparse (Maps is a JS app with minimal HTML)
+    if (isGoogleMapsUrl(url) || isGoogleMapsUrl(resolvedUrl)) {
+      const effectiveTitle = mapsPlaceName || meta.title;
+      if (!effectiveTitle || effectiveTitle === "Google Maps") {
+        // No place name extracted - tell downstream to search the original URL
+        meta.title = "Google Maps Location";
+        meta.description = `Google Maps link (original URL: ${url}). Use Google Search to look up this URL and find the place name, address, and details.`;
+      }
+      // Mark as Google Maps in siteName so downstream can handle appropriately
+      if (!meta.siteName) {
+        meta.siteName = "Google Maps";
       }
     }
 
@@ -317,6 +378,21 @@ export async function getWebsiteInfo(url: string): Promise<WebsiteInfo> {
     return result;
   } catch (error) {
     console.error("Failed to scrape website:", error);
+
+    // If this is a Google Maps URL that failed to fetch, provide useful context
+    // so Gemini can still look up the place via Google Search
+    if (isGoogleMapsShortUrl(url) || isGoogleMapsUrl(url)) {
+      console.log(
+        "Google Maps URL failed to fetch, providing search context for AI"
+      );
+      return {
+        url,
+        title: "Google Maps Location",
+        description: `Google Maps link (original URL: ${url}). The page could not be fetched directly. Use Google Search to look up this URL and find the place name, address, hours, website, and other details.`,
+        siteName: "Google Maps",
+      };
+    }
+
     return {
       url,
       title: "Website content",

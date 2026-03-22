@@ -392,6 +392,16 @@ export async function analyzeWebpage(
   if (options?.description) {
     contextInfo += `Page description: ${options.description}\n`;
   }
+
+  // For Google Maps links, add explicit instructions to search for the place
+  const isGoogleMaps =
+    options?.siteName === "Google Maps" ||
+    url.includes("maps.app.goo.gl") ||
+    url.includes("google.com/maps") ||
+    (options?.resolvedUrl && options.resolvedUrl.includes("google.com/maps"));
+  if (isGoogleMaps) {
+    contextInfo += `\n**THIS IS A GOOGLE MAPS LINK.** The page content will be sparse because Google Maps is a JavaScript app. You MUST use Google Search to:\n1. Search for the original URL "${url}" to identify the place\n2. Then search for that place by name to find its website, address, hours, menu, and reservation links\n3. Categorize this as "date_idea" (for restaurants/bars/cafes) or "event" (for venues) or "travel" (for tourist attractions)\n`;
+  }
   if (options?.structuredData) {
     contextInfo += `\nStructured data (JSON-LD/Schema.org):\n${JSON.stringify(
       options.structuredData,
@@ -421,7 +431,9 @@ Based on this website content, determine what category it belongs to and extract
   - A photo/image URL of the location
   - Menu link (for restaurants)
   - Reservation link (check OpenTable, Resy, or the restaurant's own site)
-  - Full address, phone number, hours, cuisine type, price range`;
+  - Full address, phone number, hours, cuisine type, price range
+- **Google Maps short links (maps.app.goo.gl):** If the URL is a Google Maps short link, use Google Search to search for the URL itself to find which place it refers to. Then search for that place's details (website, menu, reservations, address, hours, etc.).
+- **IMPORTANT:** Even if page content is empty or just says "Google Maps", the URL itself and any place name in the page description are critical clues. Always use Google Search to find the actual business details.`;
 
   // Google Search grounding lets Gemini look up details when page content is thin
   // (e.g. JS-heavy SPAs like Google Maps, Yelp, Airbnb that don't yield

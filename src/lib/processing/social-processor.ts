@@ -82,10 +82,13 @@ export async function processSocialContent(
 
   let analysisResult: MultiItemAnalysisResult | undefined;
 
-  if (platform === "website" && videoInfo.pageContent) {
+  if (platform === "website") {
+    // Always use analyzeWebpage for websites — even if pageContent is sparse/empty,
+    // analyzeWebpage uses Google Search grounding to look up details (critical for
+    // Google Maps and other JS-heavy sites that don't return useful HTML)
     try {
       analysisResult = await analyzeWebpage(
-        videoInfo.pageContent,
+        videoInfo.pageContent || "",
         socialUrl,
         {
           thumbnailUrl: videoInfo.thumbnailUrl,
