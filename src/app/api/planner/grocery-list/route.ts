@@ -3,7 +3,7 @@ import {
   upsertGroceryListCache,
   type CachedGroceryItem,
 } from "@/lib/supabase";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth";
 
@@ -172,14 +172,15 @@ ${recipe.ingredients.map((ing) => `- ${ing}`).join("\n")}
       );
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const ai = new GoogleGenAI({ apiKey });
 
     const prompt = GROCERY_LIST_PROMPT + recipesText;
 
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+    const text = response.text!;
 
     // Parse the JSON response
     const jsonMatch = text.match(/\{[\s\S]*\}/);

@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI, type Part } from "@google/genai";
 import type {
   ContentCategory,
   DateIdeaData,
@@ -151,6 +151,8 @@ For MULTIPLE items (lists, top 5s, etc.), respond with:
 
 Respond ONLY with valid JSON. If you cannot determine the content, use category "other".`;
 
+const MODEL = "gemini-2.5-flash";
+
 function getGeminiClient() {
   const apiKey = process.env.GOOGLE_AI_API_KEY;
 
@@ -158,7 +160,7 @@ function getGeminiClient() {
     throw new Error("Missing GOOGLE_AI_API_KEY environment variable");
   }
 
-  return new GoogleGenerativeAI(apiKey);
+  return new GoogleGenAI({ apiKey });
 }
 
 function parseAnalysisResponse(text: string): MultiItemAnalysisResult {
@@ -224,10 +226,7 @@ export async function analyzeVideoWithGemini(
   videoBase64: string,
   videoDescription?: string
 ): Promise<MultiItemAnalysisResult> {
-  const genAI = getGeminiClient();
-
-  // Use Gemini 2.5 Flash for video analysis
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const ai = getGeminiClient();
 
   // Prepare the prompt with optional description context
   let prompt = ANALYSIS_PROMPT;
@@ -236,20 +235,20 @@ export async function analyzeVideoWithGemini(
   }
 
   try {
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          mimeType: "video/mp4",
-          data: videoBase64,
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: [
+        {
+          inlineData: {
+            mimeType: "video/mp4",
+            data: videoBase64,
+          },
         },
-      },
-      { text: prompt },
-    ]);
+        { text: prompt },
+      ],
+    });
 
-    const response = result.response;
-    const text = response.text();
-
-    return parseAnalysisResponse(text);
+    return parseAnalysisResponse(response.text!);
   } catch (error) {
     console.error("Error analyzing video with Gemini:", error);
 
@@ -274,10 +273,7 @@ export async function analyzeWithThumbnail(
   thumbnailUrl: string,
   description: string
 ): Promise<MultiItemAnalysisResult> {
-  const genAI = getGeminiClient();
-
-  // Use Gemini 2.5 Flash for image analysis
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const ai = getGeminiClient();
 
   // Fetch the thumbnail
   const imageResponse = await fetch(thumbnailUrl);
@@ -295,20 +291,20 @@ Video caption/description: "${description}"
 Based on the thumbnail and description, analyze what this content is about.`;
 
   try {
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          mimeType,
-          data: imageBase64,
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: [
+        {
+          inlineData: {
+            mimeType,
+            data: imageBase64,
+          },
         },
-      },
-      { text: prompt },
-    ]);
+        { text: prompt },
+      ],
+    });
 
-    const response = result.response;
-    const text = response.text();
-
-    return parseAnalysisResponse(text);
+    return parseAnalysisResponse(response.text!);
   } catch (error) {
     console.error("Error analyzing with thumbnail:", error);
 
@@ -332,10 +328,7 @@ export async function analyzeWithDescription(
   description: string,
   tiktokUrl: string
 ): Promise<MultiItemAnalysisResult> {
-  const genAI = getGeminiClient();
-
-  // Use Gemini 2.5 Flash for text-only analysis
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const ai = getGeminiClient();
 
   const prompt = `${ANALYSIS_PROMPT}
 
@@ -347,12 +340,12 @@ Video caption/description: "${description}"
 Based on this information, determine what category this content belongs to and extract any relevant details you can infer.`;
 
   try {
-    const result = await model.generateContent([{ text: prompt }]);
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: prompt,
+    });
 
-    const response = result.response;
-    const text = response.text();
-
-    return parseAnalysisResponse(text);
+    return parseAnalysisResponse(response.text!);
   } catch (error) {
     console.error("Error analyzing with description:", error);
 
@@ -382,21 +375,7 @@ export async function analyzeWebpage(
     siteName?: string;
   }
 ): Promise<MultiItemAnalysisResult> {
-  const genAI = getGeminiClient();
-
-  // Use Gemini 2.5 Flash with Google Search grounding for text analysis
-  // Search grounding lets Gemini look up details when page content is thin
-  // (e.g. JS-heavy SPAs like Google Maps, Yelp, Airbnb that don't yield
-  // useful content from simple HTML fetching)
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
-    tools: [
-      {
-        googleSearch: {},
-      },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ] as any,
-  });
+  const ai = getGeminiClient();
 
   // Build context from available data
   let contextInfo = `Website URL: ${url}\n`;
@@ -432,6 +411,13 @@ Based on this website content, determine what category it belongs to and extract
 - Use the structured data if available as it's usually the most accurate source
 - **If the page content above is sparse, generic, or appears to be from a JavaScript app that didn't render properly, use Google Search to look up the URL or business/place name to find the actual details (address, hours, phone, cuisine, reservation links, etc.)**`;
 
+  // Google Search grounding lets Gemini look up details when page content is thin
+  // (e.g. JS-heavy SPAs like Google Maps, Yelp, Airbnb that don't yield
+  // useful content from simple HTML fetching)
+  const config = {
+    tools: [{ googleSearch: {} }],
+  };
+
   try {
     // If we have a thumbnail, include it
     if (options?.thumbnailUrl) {
@@ -444,19 +430,21 @@ Based on this website content, determine what category it belongs to and extract
             ? "image/png"
             : "image/jpeg";
 
-          const result = await model.generateContent([
-            {
-              inlineData: {
-                mimeType,
-                data: imageBase64,
+          const response = await ai.models.generateContent({
+            model: MODEL,
+            contents: [
+              {
+                inlineData: {
+                  mimeType,
+                  data: imageBase64,
+                },
               },
-            },
-            { text: prompt },
-          ]);
+              { text: prompt },
+            ],
+            config,
+          });
 
-          const response = result.response;
-          const text = response.text();
-          return parseAnalysisResponse(text);
+          return parseAnalysisResponse(response.text!);
         }
       } catch (imgError) {
         console.log("Failed to include thumbnail in analysis:", imgError);
@@ -465,11 +453,13 @@ Based on this website content, determine what category it belongs to and extract
     }
 
     // Text-only analysis
-    const result = await model.generateContent([{ text: prompt }]);
-    const response = result.response;
-    const text = response.text();
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: prompt,
+      config,
+    });
 
-    return parseAnalysisResponse(text);
+    return parseAnalysisResponse(response.text!);
   } catch (error) {
     console.error("Error analyzing webpage with Gemini:", error);
 
@@ -544,20 +534,7 @@ export async function analyzeImage(
     messageText?: string; // Any text sent with the image
   }
 ): Promise<MultiItemAnalysisResult> {
-  const genAI = getGeminiClient();
-
-  // Use Gemini 2.5 Flash with Google Search grounding enabled
-  // Note: googleSearch is a valid tool but not yet in the TypeScript types
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
-    tools: [
-      {
-        // Enable Google Search grounding for looking up restaurants, products, etc.
-        googleSearch: {},
-      },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ] as any,
-  });
+  const ai = getGeminiClient();
 
   // Build context from available metadata
   let contextInfo = "";
@@ -603,23 +580,27 @@ Return as JSON with this format:
   }]
 }`;
 
+  const imagePart: Part = {
+    inlineData: {
+      mimeType,
+      data: imageBase64,
+    },
+  };
+
+  const config = {
+    tools: [{ googleSearch: {} }],
+  };
+
   try {
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          mimeType,
-          data: imageBase64,
-        },
-      },
-      { text: prompt },
-    ]);
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: [imagePart, { text: prompt }],
+      config,
+    });
 
-    const response = result.response;
-    const text = response.text();
+    console.log("Image analysis response:", response.text?.slice(0, 500));
 
-    console.log("Image analysis response:", text.slice(0, 500));
-
-    return parseAnalysisResponse(text);
+    return parseAnalysisResponse(response.text!);
   } catch (error) {
     // Check if this is a RECITATION error (content blocked due to similarity to copyrighted content)
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -630,22 +611,18 @@ Return as JSON with this format:
 
       try {
         // Retry with the fallback prompt that emphasizes paraphrasing
-        const retryResult = await model.generateContent([
-          {
-            inlineData: {
-              mimeType,
-              data: imageBase64,
-            },
-          },
-          { text: fallbackPrompt },
-        ]);
+        const retryResponse = await ai.models.generateContent({
+          model: MODEL,
+          contents: [imagePart, { text: fallbackPrompt }],
+          config,
+        });
 
-        const retryResponse = retryResult.response;
-        const retryText = retryResponse.text();
+        console.log(
+          "Retry analysis response:",
+          retryResponse.text?.slice(0, 500)
+        );
 
-        console.log("Retry analysis response:", retryText.slice(0, 500));
-
-        return parseAnalysisResponse(retryText);
+        return parseAnalysisResponse(retryResponse.text!);
       } catch (retryError) {
         console.error("Retry also failed:", retryError);
       }
