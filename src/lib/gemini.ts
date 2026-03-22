@@ -373,12 +373,16 @@ export async function analyzeWebpage(
     structuredData?: Record<string, unknown>;
     description?: string;
     siteName?: string;
+    resolvedUrl?: string;
   }
 ): Promise<MultiItemAnalysisResult> {
   const ai = getGeminiClient();
 
   // Build context from available data
   let contextInfo = `Website URL: ${url}\n`;
+  if (options?.resolvedUrl) {
+    contextInfo += `Resolved URL (after redirects): ${options.resolvedUrl}\n`;
+  }
   if (options?.siteName) {
     contextInfo += `Site name: ${options.siteName}\n`;
   }

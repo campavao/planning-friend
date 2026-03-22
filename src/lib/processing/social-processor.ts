@@ -92,6 +92,7 @@ export async function processSocialContent(
           structuredData: videoInfo.structuredData,
           description: videoInfo.description,
           siteName: videoInfo.siteName,
+          resolvedUrl: videoInfo.resolvedUrl,
         }
       );
     } catch {
