@@ -371,88 +371,6 @@ Based on this information, determine what category this content belongs to and e
   }
 }
 
-// Analyze a Google Maps link using Google Search grounding
-export async function analyzeGoogleMapsLink(
-  url: string,
-  parsedInfo: {
-    placeName?: string;
-    coordinates?: { lat: number; lng: number };
-    query?: string;
-  }
-): Promise<MultiItemAnalysisResult> {
-  const genAI = getGeminiClient();
-
-  // Use Gemini 2.5 Flash with Google Search grounding to look up the place
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
-    tools: [
-      {
-        googleSearch: {},
-      },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ] as any,
-  });
-
-  let placeContext = "";
-  if (parsedInfo.placeName) {
-    placeContext += `Place name from URL: ${parsedInfo.placeName}\n`;
-  }
-  if (parsedInfo.query) {
-    placeContext += `Search query from URL: ${parsedInfo.query}\n`;
-  }
-  if (parsedInfo.coordinates) {
-    placeContext += `Coordinates: ${parsedInfo.coordinates.lat}, ${parsedInfo.coordinates.lng}\n`;
-  }
-
-  const prompt = `${ANALYSIS_PROMPT}
-
-The user shared a Google Maps link. Use Google Search to look up this place and extract all relevant details.
-
-Google Maps URL: ${url}
-${placeContext}
-
-Use Google Search to find:
-- The full name of this place/business
-- Address and location
-- What type of place it is (restaurant, bar, attraction, hotel, park, etc.)
-- Phone number, website, hours of operation
-- Reservation links (OpenTable, Resy, etc.) if it's a restaurant
-- Notable features, cuisine type, price range
-- Any other relevant details
-
-Based on what you find, categorize this as:
-- "date_idea" if it's a restaurant, bar, cafe, activity, or place to visit
-- "event" if it's a venue primarily for events
-- "travel" if it's a tourist attraction, landmark, or travel destination
-- "meal" if it's specifically about a dish/food item
-- "other" if none of the above fit
-
-Return your analysis as JSON.`;
-
-  try {
-    const result = await model.generateContent([{ text: prompt }]);
-    const response = result.response;
-    const text = response.text();
-    return parseAnalysisResponse(text);
-  } catch (error) {
-    console.error("Error analyzing Google Maps link:", error);
-
-    return {
-      isMultiItem: false,
-      items: [
-        {
-          category: "date_idea",
-          title: parsedInfo.placeName || parsedInfo.query || "Saved Location",
-          data: {
-            location: parsedInfo.placeName || parsedInfo.query || url,
-            website: url,
-          },
-        },
-      ],
-    };
-  }
-}
-
 // Analyze a webpage with its content and structured data
 export async function analyzeWebpage(
   pageContent: string,
@@ -466,8 +384,19 @@ export async function analyzeWebpage(
 ): Promise<MultiItemAnalysisResult> {
   const genAI = getGeminiClient();
 
-  // Use Gemini 2.5 Flash for text analysis
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  // Use Gemini 2.5 Flash with Google Search grounding for text analysis
+  // Search grounding lets Gemini look up details when page content is thin
+  // (e.g. JS-heavy SPAs like Google Maps, Yelp, Airbnb that don't yield
+  // useful content from simple HTML fetching)
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.5-flash",
+    tools: [
+      {
+        googleSearch: {},
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ] as any,
+  });
 
   // Build context from available data
   let contextInfo = `Website URL: ${url}\n`;
@@ -500,7 +429,8 @@ Based on this website content, determine what category it belongs to and extract
 - If it's a recipe page, extract the FULL recipe with ALL ingredients and ALL steps
 - If it's a restaurant, extract location, hours, contact info, and reservation links
 - If it's a product, extract the name, price, and purchase link
-- Use the structured data if available as it's usually the most accurate source`;
+- Use the structured data if available as it's usually the most accurate source
+- **If the page content above is sparse, generic, or appears to be from a JavaScript app that didn't render properly, use Google Search to look up the URL or business/place name to find the actual details (address, hours, phone, cuisine, reservation links, etc.)**`;
 
   try {
     // If we have a thumbnail, include it

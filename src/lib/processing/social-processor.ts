@@ -1,5 +1,4 @@
 import {
-  analyzeGoogleMapsLink,
   analyzeVideoWithGemini,
   analyzeWebpage,
   analyzeWithDescription,
@@ -20,7 +19,6 @@ import {
   getSocialMediaVideoAsBase64,
   type SocialPlatform,
 } from "@/lib/social-media";
-import { isGoogleMapsUrl, parseGoogleMapsUrl } from "@/lib/website";
 import { notifyContentReady } from "@/lib/push-notifications";
 import type { ProcessResult } from "./types";
 
@@ -84,17 +82,7 @@ export async function processSocialContent(
 
   let analysisResult: MultiItemAnalysisResult | undefined;
 
-  // Handle Google Maps links specially - they're JS SPAs that don't yield useful content from scraping
-  if (platform === "website" && isGoogleMapsUrl(socialUrl)) {
-    try {
-      const parsedMaps = parseGoogleMapsUrl(socialUrl);
-      analysisResult = await analyzeGoogleMapsLink(socialUrl, parsedMaps);
-    } catch {
-      // fall through to other methods
-    }
-  }
-
-  if (!analysisResult && platform === "website" && videoInfo.pageContent) {
+  if (platform === "website" && videoInfo.pageContent) {
     try {
       analysisResult = await analyzeWebpage(
         videoInfo.pageContent,
