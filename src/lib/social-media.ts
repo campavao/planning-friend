@@ -21,6 +21,7 @@ export interface SocialMediaInfo {
   pageContent?: string;
   structuredData?: Record<string, unknown>;
   siteName?: string;
+  resolvedUrl?: string;
 }
 
 // Detect which platform a URL belongs to
@@ -87,6 +88,7 @@ export async function getSocialMediaInfo(
         pageContent: info.pageContent,
         structuredData: info.structuredData,
         siteName: info.siteName,
+        resolvedUrl: info.resolvedUrl,
       };
     }
 
