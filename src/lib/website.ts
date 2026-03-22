@@ -205,26 +205,44 @@ export async function getWebsiteInfo(url: string): Promise<WebsiteInfo> {
     // Extract metadata
     const meta = extractMetaTags(html);
 
-    // If this is a Google Maps URL, extract the place name from the resolved URL
-    const mapsPlaceName = extractGoogleMapsPlaceName(resolvedUrl);
-    if (mapsPlaceName) {
-      console.log(
-        `Google Maps place detected: "${mapsPlaceName}" from ${resolvedUrl}`
-      );
-      // Override sparse metadata with the place name from the URL
-      if (!meta.title || meta.title === "Google Maps") {
-        meta.title = mapsPlaceName;
-      }
-      if (!meta.description || meta.description.startsWith("Find local businesses")) {
-        meta.description = `Google Maps link for: ${mapsPlaceName}`;
-      }
-    }
-
     // Extract structured data (JSON-LD)
     const structuredData = extractStructuredData(html);
 
     // Extract text content for AI analysis
     const pageContent = extractTextContent(html);
+
+    // When a shortened URL redirected, enrich sparse metadata with info
+    // from the resolved URL so downstream AI analysis has useful context
+    if (resolvedUrl !== url) {
+      console.log(`URL redirected: ${url} -> ${resolvedUrl}`);
+
+      // Google Maps: extract the place name from the URL path
+      const mapsPlaceName = extractGoogleMapsPlaceName(resolvedUrl);
+      if (mapsPlaceName) {
+        console.log(`Google Maps place detected: "${mapsPlaceName}"`);
+        if (!meta.title || meta.title === "Google Maps") {
+          meta.title = mapsPlaceName;
+        }
+        if (
+          !meta.description ||
+          meta.description.startsWith("Find local businesses")
+        ) {
+          meta.description = `Google Maps link for: ${mapsPlaceName}`;
+        }
+      }
+
+      // For any shortened link with sparse page content, note the final
+      // destination so the AI has something meaningful to search for
+      if (!pageContent || pageContent.length < 100) {
+        const resolvedHost = new URL(resolvedUrl).hostname;
+        if (!meta.title) {
+          meta.title = `Content from ${resolvedHost}`;
+        }
+        if (!meta.description) {
+          meta.description = `Redirected to: ${resolvedUrl}`;
+        }
+      }
+    }
 
     // Build the result
     const result: WebsiteInfo = {
