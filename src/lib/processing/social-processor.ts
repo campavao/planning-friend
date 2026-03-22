@@ -171,13 +171,22 @@ async function applySocialAnalysisResult(
     await deleteContent(contentId, userId);
     const createdContents = [];
     for (const item of analysisResult.items) {
+      // Use image_url from analysis as thumbnail fallback
+      let itemThumbnail = persistentThumbnailUrl;
+      const dataImageUrl = (item.data as Record<string, unknown>)
+        ?.image_url as string | undefined;
+      if (dataImageUrl && !persistentThumbnailUrl) {
+        const uploaded = await uploadThumbnailFromUrl(dataImageUrl, contentId);
+        itemThumbnail = uploaded || dataImageUrl;
+      }
+
       const content = await saveContent({
         user_id: userId,
         tiktok_url: socialUrl,
         category: item.category,
         title: item.title,
         data: item.data,
-        thumbnail_url: persistentThumbnailUrl,
+        thumbnail_url: itemThumbnail,
       });
       if (originalThumbnailUrl && persistentThumbnailUrl) {
         const itemUrl = await uploadThumbnailFromUrl(
@@ -213,11 +222,23 @@ async function applySocialAnalysisResult(
   }
 
   const item = analysisResult.items[0];
+
+  // If Gemini found an image_url via Google Search and we don't have a good thumbnail,
+  // use it as the thumbnail (common for Google Maps links where og:image is broken)
+  let thumbnailToUse = persistentThumbnailUrl;
+  const dataImageUrl = (item.data as Record<string, unknown>)?.image_url as
+    | string
+    | undefined;
+  if (dataImageUrl && !persistentThumbnailUrl) {
+    const uploaded = await uploadThumbnailFromUrl(dataImageUrl, contentId);
+    thumbnailToUse = uploaded || dataImageUrl;
+  }
+
   const updatedContent = await updateContent(contentId, {
     category: item.category,
     title: item.title,
     data: item.data,
-    thumbnail_url: persistentThumbnailUrl,
+    thumbnail_url: thumbnailToUse,
     status: "completed",
   });
   if (item.suggested_tags?.length) {

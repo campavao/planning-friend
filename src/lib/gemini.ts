@@ -73,18 +73,20 @@ For **event**:
 - requires_ticket: true/false
 - ticket_link: URL to buy tickets if mentioned
 - description: Brief description of the event
-- website: Official website URL (use your knowledge to find the likely URL based on the event/venue name)
+- website: Official website URL (use your knowledge or Google Search to find the actual URL)
 - reservation_link: URL to make reservations (OpenTable, Resy, etc.) if applicable
+- image_url: A photo URL of the venue/event (use Google Search to find one if not available in the page content)
 
 For **date_idea**:
 - title: Name of the place or activity
-- location: Where it is located (city, address, or general area)
+- location: Where it is located (full address if possible, otherwise city or general area)
 - type: One of "dinner", "activity", "entertainment", "outdoors", "other"
 - price_range: One of "$", "$$", "$$$", "$$$$" if you can estimate
 - description: Brief description of why it's a good date idea
-- website: Official website URL (use your knowledge to find the likely URL based on the venue name)
-- menu_link: Link to the menu if it's a restaurant (often /menu on the website)
-- reservation_link: URL to make reservations (OpenTable, Resy, etc.) if applicable
+- website: Official website URL (use Google Search to find the actual URL for the business)
+- menu_link: Link to the menu if it's a restaurant (use Google Search to find it - often /menu on the restaurant's website, or on services like Yelp)
+- reservation_link: URL to make reservations if applicable (search for the business on OpenTable, Resy, etc.)
+- image_url: A photo URL of the place (use Google Search to find one if not available in the page content)
 
 For **gift_idea**:
 - title: Name of the product/item
@@ -108,11 +110,12 @@ For **travel**:
 - location: Where it is located (city, country)
 - type: One of "restaurant", "attraction", "hotel", "activity", "other"
 - description: Brief description of why it's worth visiting
-- website: Official website URL if known
+- website: Official website URL (use Google Search to find the actual URL)
 - booking_link: Link to book/reserve if applicable
 - price_range: One of "$", "$$", "$$$", "$$$$" if you can estimate
 - destination_city: The city name
 - destination_country: The country name
+- image_url: A photo URL of the place (use Google Search to find one if not available in the page content)
 
 For **other**:
 - title: Brief description of the content
@@ -410,10 +413,15 @@ ${pageContent}
 
 Based on this website content, determine what category it belongs to and extract all relevant details. Pay special attention to:
 - If it's a recipe page, extract the FULL recipe with ALL ingredients and ALL steps
-- If it's a restaurant, extract location, hours, contact info, and reservation links
+- If it's a restaurant or place, extract location, hours, contact info, website, menu links, and reservation links
 - If it's a product, extract the name, price, and purchase link
 - Use the structured data if available as it's usually the most accurate source
-- **If the page content above is sparse, generic, or appears to be from a JavaScript app that didn't render properly, use Google Search to look up the URL or business/place name to find the actual details (address, hours, phone, cuisine, reservation links, etc.)**`;
+- **If the page content above is sparse, generic, or appears to be from a JavaScript app that didn't render properly (e.g. Google Maps, Yelp, Airbnb), you MUST use Google Search to look up the business/place name and find ALL of the following:**
+  - The business's own website URL (not the Google Maps or Yelp link)
+  - A photo/image URL of the location
+  - Menu link (for restaurants)
+  - Reservation link (check OpenTable, Resy, or the restaurant's own site)
+  - Full address, phone number, hours, cuisine type, price range`;
 
   // Google Search grounding lets Gemini look up details when page content is thin
   // (e.g. JS-heavy SPAs like Google Maps, Yelp, Airbnb that don't yield
