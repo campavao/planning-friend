@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test -- --ci --coverage
+
+      - name: Build
+        run: npm run build
+        env:
+          # Provide dummy env vars so Next.js build doesn't fail on missing secrets
+          SESSION_SECRET: ci-dummy-session-secret-at-least-16-chars
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
+          GOOGLE_AI_API_KEY: placeholder-google-ai-key
+          TWILIO_ACCOUNT_SID: placeholder-twilio-sid
+          TWILIO_AUTH_TOKEN: placeholder-twilio-token
+          TWILIO_PHONE_NUMBER: "+10000000000"
