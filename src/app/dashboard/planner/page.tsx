@@ -118,6 +118,7 @@ function PlannerContent() {
   const [addingToDay, setAddingToDay] = useState<number | null>(null);
   const [quickNoteInput, setQuickNoteInput] = useState("");
   const [addingQuickNote, setAddingQuickNote] = useState(false);
+  const [hiddenAutoEvents, setHiddenAutoEvents] = useState<Set<string>>(new Set());
   const [plannedTime, setPlannedTime] = useState("19:00");
   const [editingItem, setEditingItem] = useState<PlanItemWithSharing | null>(
     null,
@@ -226,6 +227,67 @@ function PlannerContent() {
     window.history.pushState({}, "", newUrl.toString());
 
     setWeekStart(newWeek);
+    // Load hidden auto-events for new week
+    try {
+      const stored = localStorage.getItem(`hidden-auto-events-${newWeek}`);
+      setHiddenAutoEvents(stored ? new Set(JSON.parse(stored)) : new Set());
+    } catch {
+      setHiddenAutoEvents(new Set());
+    }
+  };
+
+  // Load hidden auto-events on initial mount
+  useEffect(() => {
+    if (!weekStart) return;
+    try {
+      const stored = localStorage.getItem(`hidden-auto-events-${weekStart}`);
+      setHiddenAutoEvents(stored ? new Set(JSON.parse(stored)) : new Set());
+    } catch {
+      setHiddenAutoEvents(new Set());
+    }
+  }, [weekStart]);
+
+  const hideAutoEvent = (contentId: string) => {
+    setHiddenAutoEvents((prev) => {
+      const next = new Set(prev);
+      next.add(contentId);
+      try {
+        localStorage.setItem(
+          `hidden-auto-events-${weekStart}`,
+          JSON.stringify([...next]),
+        );
+      } catch {}
+      return next;
+    });
+  };
+
+  const materializeAutoEvent = async (
+    item: PlanItemWithSharing,
+  ): Promise<PlanItemWithSharing | null> => {
+    if (!item.is_auto_event || !item.content_id) return item;
+    try {
+      const res = await fetch("/api/planner", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          weekStart,
+          contentId: item.content_id,
+          plannedDate: item.planned_date,
+        }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        await mutatePlanner();
+        return {
+          ...result.item,
+          is_owner: true,
+          is_auto_event: false,
+        } as PlanItemWithSharing;
+      }
+    } catch (error) {
+      console.error("Failed to materialize auto-event:", error);
+    }
+    return null;
   };
 
   const openAddModal = (dayIndex: number) => {
@@ -841,7 +903,9 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
     isSharedWithMe?: boolean;
   };
 
-  const planItems: PlanItemWithSharing[] = data?.plan?.items || [];
+  const planItems: PlanItemWithSharing[] = (data?.plan?.items || []).filter(
+    (item) => !item.is_auto_event || !hiddenAutoEvents.has(item.content_id || ""),
+  );
   const sharedItemsList: SharedPlanItem[] = data?.sharedItems || [];
   const itemsByDay: Record<number, DisplayItem[]> = {};
   for (let i = 0; i <= 6; i++) {
@@ -1072,9 +1136,26 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                   </div>
                                   <div className="flex gap-1 shrink-0">
                                     {isAutoEvent ? (
-                                      <span className="text-[10px] bg-[var(--event-bg,#FFF4E5)] text-[var(--accent-foreground)] px-2 py-0.5 rounded-full font-medium">
-                                        Auto
-                                      </span>
+                                      <>
+                                        <button
+                                          onClick={async () => {
+                                            const real = await materializeAutoEvent(ownItem!);
+                                            if (real) openShareModal(real);
+                                          }}
+                                          className="bg-white rounded-lg h-7 px-2 text-[10px] font-semibold flex items-center gap-1 shadow-sm hover:bg-[var(--muted)]"
+                                          title="Share"
+                                        >
+                                          <Users className="w-3 h-3" />
+                                          Share
+                                        </button>
+                                        <button
+                                          onClick={() => hideAutoEvent(item.content_id!)}
+                                          className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
+                                          title="Hide from plan"
+                                        >
+                                          <X className="w-3 h-3" />
+                                        </button>
+                                      </>
                                     ) : isShared ? (
                                       <button
                                         onClick={() => leaveSharedItem(item.id)}
@@ -1251,9 +1332,32 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                             </div>
                             <div className="flex gap-0.5">
                               {isAutoEvent ? (
-                                <span className="text-[8px] bg-[var(--event-bg,#FFF4E5)] text-[var(--accent-foreground)] px-1.5 py-0.5 rounded-full font-medium">
-                                  Auto
-                                </span>
+                                <>
+                                  <button
+                                    onClick={async (e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      const real = await materializeAutoEvent(ownItem!);
+                                      if (real) openShareModal(real);
+                                    }}
+                                    className="bg-white/90 backdrop-blur rounded h-5 px-1.5 text-[9px] font-semibold flex items-center gap-0.5 shadow-sm"
+                                    title="Share"
+                                  >
+                                    <Users className="w-3 h-3" />
+                                    Share
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      hideAutoEvent(item.content_id!);
+                                    }}
+                                    className="bg-white/90 backdrop-blur rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
+                                    title="Hide from plan"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </>
                               ) : isShared ? (
                                 <button
                                   onClick={(e) => {
