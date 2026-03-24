@@ -11,6 +11,7 @@ import useSWR from "swr";
 // Extended plan item with sharing info from API
 interface PlanItemWithSharing extends PlanItem {
   is_owner: boolean;
+  is_auto_event?: boolean;
   shared_with?: { userId: string; name: string }[];
 }
 

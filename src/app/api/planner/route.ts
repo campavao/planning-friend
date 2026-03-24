@@ -11,6 +11,8 @@ import {
   getUserTags,
   type Content,
   type ContentCategory,
+  type ContentWithTags,
+  type EventData,
   type PlanItem,
   type SharedPlanItem,
 } from "@/lib/supabase";
@@ -20,6 +22,7 @@ import { requireSession } from "@/lib/auth";
 // Extended plan item with sharing info
 interface PlanItemWithSharing extends PlanItem {
   is_owner: boolean;
+  is_auto_event?: boolean;
   shared_with?: { userId: string; name: string }[];
 }
 
@@ -94,6 +97,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Auto-add events that have dates falling within this week
+    const autoEventItems = getAutoEventItems(
+      availableContent,
+      weekStart,
+      ownItemsWithSharing,
+    );
+    const allOwnItems = [...ownItemsWithSharing, ...autoEventItems];
+
     // Generate suggestions based on patterns (using own items only)
     const suggestions = generateSuggestions(
       plan?.items || [],
@@ -105,7 +116,7 @@ export async function GET(request: NextRequest) {
       plan: plan
         ? {
             ...plan,
-            items: ownItemsWithSharing,
+            items: allOwnItems,
           }
         : null,
       sharedItems,
@@ -176,6 +187,93 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
+}
+
+// Parse a free-form event date string (e.g. "Saturday, April 18, 2026") into a Date
+function parseEventDate(dateStr?: string, timeStr?: string): Date | null {
+  if (!dateStr) return null;
+
+  // Try parsing the date string directly - works for many natural formats
+  // Remove day-of-week prefix like "Saturday, " if present
+  const cleaned = dateStr.replace(/^[A-Za-z]+,\s*/, "");
+  const parsed = new Date(cleaned);
+  if (!Number.isNaN(parsed.getTime())) {
+    // Apply time if provided
+    if (timeStr) {
+      const timeMatch = timeStr.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM|am|pm)?/);
+      if (timeMatch) {
+        let hours = parseInt(timeMatch[1], 10);
+        const minutes = parseInt(timeMatch[2] || "0", 10);
+        const period = timeMatch[3]?.toUpperCase();
+        if (period === "PM" && hours < 12) hours += 12;
+        if (period === "AM" && hours === 12) hours = 0;
+        parsed.setHours(hours, minutes, 0, 0);
+      }
+    }
+    return parsed;
+  }
+
+  return null;
+}
+
+// Create synthetic plan items for events with dates in the current week
+function getAutoEventItems(
+  availableContent: ContentWithTags[],
+  weekStart: string,
+  existingItems: PlanItemWithSharing[],
+): PlanItemWithSharing[] {
+  const weekStartDate = parseDateString(weekStart);
+  const weekEndDate = new Date(weekStartDate);
+  weekEndDate.setDate(weekEndDate.getDate() + 6);
+  weekEndDate.setHours(23, 59, 59, 999);
+
+  // Content IDs already in the plan (to avoid duplicates)
+  const existingContentIds = new Set(
+    existingItems
+      .filter((item) => item.content_id)
+      .map((item) => item.content_id),
+  );
+
+  const autoItems: PlanItemWithSharing[] = [];
+
+  for (const content of availableContent) {
+    if (content.category !== "event") continue;
+    if (existingContentIds.has(content.id)) continue;
+
+    const eventData = content.data as EventData;
+    const eventDate = parseEventDate(eventData.date, eventData.time);
+    if (!eventDate) continue;
+
+    // Check if event falls within this week
+    if (eventDate >= weekStartDate && eventDate <= weekEndDate) {
+      // Create a synthetic plan item
+      const plannedDate = new Date(
+        Date.UTC(
+          eventDate.getFullYear(),
+          eventDate.getMonth(),
+          eventDate.getDate(),
+          eventDate.getHours(),
+          eventDate.getMinutes(),
+          0,
+          0,
+        ),
+      );
+
+      autoItems.push({
+        id: `auto-event-${content.id}`,
+        plan_id: "",
+        content_id: content.id,
+        planned_date: plannedDate.toISOString(),
+        slot_order: 999, // Show after manually added items
+        created_at: content.created_at,
+        content: content,
+        is_owner: true,
+        is_auto_event: true,
+      });
+    }
+  }
+
+  return autoItems;
 }
 
 // Generate smart suggestions based on content and patterns

@@ -71,6 +71,7 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
 // Extended plan item with sharing info from API
 interface PlanItemWithSharing extends PlanItem {
   is_owner: boolean;
+  is_auto_event?: boolean;
   shared_with?: { userId: string; name: string }[];
 }
 
@@ -956,6 +957,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                       <div className="space-y-2">
                         {itemsByDay[dayIndex].map((item) => {
                           const isShared = item.isSharedWithMe;
+                          const isAutoEvent = !isShared && (item as PlanItemWithSharing).is_auto_event;
                           const sharedItem = isShared
                             ? (item as SharedPlanItem)
                             : null;
@@ -1069,7 +1071,11 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                     )}
                                   </div>
                                   <div className="flex gap-1 shrink-0">
-                                    {isShared ? (
+                                    {isAutoEvent ? (
+                                      <span className="text-[10px] bg-[var(--event-bg,#FFF4E5)] text-[var(--accent-foreground)] px-2 py-0.5 rounded-full font-medium">
+                                        Auto
+                                      </span>
+                                    ) : isShared ? (
                                       <button
                                         onClick={() => leaveSharedItem(item.id)}
                                         className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
@@ -1147,6 +1153,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                   <CardContent className="p-2 space-y-2 min-h-[160px] bg-white rounded-b-2xl">
                     {itemsByDay[dayIndex].map((item) => {
                       const isShared = item.isSharedWithMe;
+                      const isAutoEvent = !isShared && (item as PlanItemWithSharing).is_auto_event;
                       const sharedItem = isShared
                         ? (item as SharedPlanItem)
                         : null;
@@ -1243,7 +1250,11 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                               )}
                             </div>
                             <div className="flex gap-0.5">
-                              {isShared ? (
+                              {isAutoEvent ? (
+                                <span className="text-[8px] bg-[var(--event-bg,#FFF4E5)] text-[var(--accent-foreground)] px-1.5 py-0.5 rounded-full font-medium">
+                                  Auto
+                                </span>
+                              ) : isShared ? (
                                 <button
                                   onClick={(e) => {
                                     e.preventDefault();
