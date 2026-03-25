@@ -5,28 +5,9 @@
 import { renderHook, act } from "@testing-library/react";
 import { usePlannerFilters } from "@/app/dashboard/planner/hooks/usePlannerFilters";
 
-// Mock localStorage
-const localStorageMock = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: jest.fn((key: string) => store[key] ?? null),
-    setItem: jest.fn((key: string, value: string) => {
-      store[key] = value;
-    }),
-    removeItem: jest.fn((key: string) => {
-      delete store[key];
-    }),
-    clear: jest.fn(() => {
-      store = {};
-    }),
-  };
-})();
-
-Object.defineProperty(window, "localStorage", { value: localStorageMock });
-
 beforeEach(() => {
-  localStorageMock.clear();
-  jest.clearAllMocks();
+  localStorage.clear();
+  jest.restoreAllMocks();
 });
 
 describe("usePlannerFilters", () => {
@@ -39,7 +20,7 @@ describe("usePlannerFilters", () => {
   });
 
   it("loads stored filters from localStorage", () => {
-    localStorageMock.setItem(
+    localStorage.setItem(
       "planner_item_filter",
       JSON.stringify({
         searchQuery: "pasta",
@@ -86,7 +67,7 @@ describe("usePlannerFilters", () => {
   });
 
   it("toggles tag selection off", () => {
-    localStorageMock.setItem(
+    localStorage.setItem(
       "planner_item_filter",
       JSON.stringify({
         searchQuery: "",
@@ -124,20 +105,22 @@ describe("usePlannerFilters", () => {
   });
 
   it("persists filters to localStorage on change", () => {
+    const spy = jest.spyOn(Storage.prototype, "setItem");
+
     const { result } = renderHook(() => usePlannerFilters());
 
     act(() => {
       result.current.setSearchQuery("sushi");
     });
 
-    expect(localStorageMock.setItem).toHaveBeenCalledWith(
+    expect(spy).toHaveBeenCalledWith(
       "planner_item_filter",
       expect.stringContaining("sushi")
     );
   });
 
   it("handles corrupted localStorage gracefully", () => {
-    localStorageMock.setItem("planner_item_filter", "invalid-json!!!");
+    localStorage.setItem("planner_item_filter", "invalid-json!!!");
 
     const { result } = renderHook(() => usePlannerFilters());
 

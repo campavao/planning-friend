@@ -8,13 +8,19 @@ import type { SessionData } from "@/lib/auth";
 
 // Set up a test secret
 const TEST_SECRET = "test-session-secret-at-least-16-chars";
+let originalSecret: string | undefined;
 
-beforeAll(() => {
+beforeEach(() => {
+  originalSecret = process.env.SESSION_SECRET;
   process.env.SESSION_SECRET = TEST_SECRET;
 });
 
-afterAll(() => {
-  delete process.env.SESSION_SECRET;
+afterEach(() => {
+  if (originalSecret !== undefined) {
+    process.env.SESSION_SECRET = originalSecret;
+  } else {
+    delete process.env.SESSION_SECRET;
+  }
 });
 
 // ============================================

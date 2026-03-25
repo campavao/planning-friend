@@ -1,77 +1,10 @@
-// The parseAnalysisResponse function is not exported directly,
-// but its logic is critical. We replicate it here for testing since
-// it's a pure function that deserves regression coverage.
+/**
+ * Tests for parseAnalysisResponse from gemini.ts
+ * Imports the real function — no duplicated logic
+ */
 
+import { parseAnalysisResponse } from "@/lib/gemini";
 import type { ContentCategory } from "@/lib/db/types";
-
-interface AnalysisResult {
-  category: ContentCategory;
-  title: string;
-  data: Record<string, unknown>;
-  suggested_tags?: string[];
-}
-
-interface MultiItemAnalysisResult {
-  items: AnalysisResult[];
-  isMultiItem: boolean;
-}
-
-// Replicate parseAnalysisResponse exactly as in gemini.ts for testing
-function parseAnalysisResponse(text: string): MultiItemAnalysisResult {
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error("No JSON found in response");
-  }
-
-  const parsed = JSON.parse(jsonMatch[0]);
-
-  if (parsed.items && Array.isArray(parsed.items)) {
-    const validCategories: ContentCategory[] = [
-      "meal",
-      "drink",
-      "event",
-      "date_idea",
-      "gift_idea",
-      "travel",
-      "other",
-    ];
-
-    const validatedItems = parsed.items.map((item: AnalysisResult) => {
-      if (!validCategories.includes(item.category)) {
-        item.category = "other";
-      }
-      return item;
-    });
-
-    return {
-      isMultiItem: parsed.isMultiItem || validatedItems.length > 1,
-      items: validatedItems,
-    };
-  }
-
-  if (parsed.category && parsed.title) {
-    const validCategories: ContentCategory[] = [
-      "meal",
-      "drink",
-      "event",
-      "date_idea",
-      "gift_idea",
-      "travel",
-      "other",
-    ];
-
-    if (!validCategories.includes(parsed.category)) {
-      parsed.category = "other";
-    }
-
-    return {
-      isMultiItem: false,
-      items: [parsed as AnalysisResult],
-    };
-  }
-
-  throw new Error("Invalid response structure");
-}
 
 // ============================================
 // parseAnalysisResponse - multi-item format
@@ -237,11 +170,10 @@ describe("parseAnalysisResponse", () => {
       ).toThrow("Invalid response structure");
     });
 
-    it("throws for empty items array without category/title", () => {
+    it("accepts empty items array (handled by caller)", () => {
       expect(() =>
         parseAnalysisResponse(JSON.stringify({ items: [] }))
       ).not.toThrow();
-      // Empty items array is valid (handled by caller)
     });
   });
 });

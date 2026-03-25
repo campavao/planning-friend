@@ -166,7 +166,7 @@ function getGeminiClient() {
   return new GoogleGenAI({ apiKey });
 }
 
-function parseAnalysisResponse(text: string): MultiItemAnalysisResult {
+export function parseAnalysisResponse(text: string): MultiItemAnalysisResult {
   // Try to extract JSON from the response
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {

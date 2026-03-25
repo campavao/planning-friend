@@ -1,23 +1,9 @@
-// Test the middleware's public API path matching logic
-// The actual middleware requires Next.js runtime, but we can test the path matching
+/**
+ * Tests for middleware path matching logic
+ * Imports real exports — no duplicated logic
+ */
 
-const PUBLIC_API_PATHS = [
-  "/api/auth/send-code",
-  "/api/auth/verify",
-  "/api/auth/logout",
-  "/api/auth/session",
-  "/api/twilio/webhook",
-  "/api/share",
-  "/api/process",
-  "/api/push/subscribe",
-  "/api/push/vapid-key",
-];
-
-function isPublicApiPath(pathname: string): boolean {
-  return PUBLIC_API_PATHS.some(
-    (p) => pathname === p || pathname.startsWith(p + "/")
-  );
-}
+import { PUBLIC_API_PATHS, isPublicApiPath, config } from "@/middleware";
 
 // ============================================
 // isPublicApiPath
@@ -25,15 +11,9 @@ function isPublicApiPath(pathname: string): boolean {
 describe("isPublicApiPath", () => {
   describe("public paths", () => {
     it("recognizes exact public paths", () => {
-      expect(isPublicApiPath("/api/auth/send-code")).toBe(true);
-      expect(isPublicApiPath("/api/auth/verify")).toBe(true);
-      expect(isPublicApiPath("/api/auth/logout")).toBe(true);
-      expect(isPublicApiPath("/api/auth/session")).toBe(true);
-      expect(isPublicApiPath("/api/twilio/webhook")).toBe(true);
-      expect(isPublicApiPath("/api/share")).toBe(true);
-      expect(isPublicApiPath("/api/process")).toBe(true);
-      expect(isPublicApiPath("/api/push/subscribe")).toBe(true);
-      expect(isPublicApiPath("/api/push/vapid-key")).toBe(true);
+      for (const path of PUBLIC_API_PATHS) {
+        expect(isPublicApiPath(path)).toBe(true);
+      }
     });
 
     it("recognizes sub-paths of public paths", () => {
@@ -90,10 +70,6 @@ describe("isPublicApiPath", () => {
     });
 
     it("does not match /api/processing (similar to /api/process)", () => {
-      // /api/processing starts with /api/process but not /api/process/
-      // The function checks p === pathname || pathname.startsWith(p + "/")
-      // "/api/processing".startsWith("/api/process/") is false
-      // "/api/processing" === "/api/process" is false
       expect(isPublicApiPath("/api/processing")).toBe(false);
     });
   });
@@ -103,17 +79,12 @@ describe("isPublicApiPath", () => {
 // Middleware matcher config
 // ============================================
 describe("middleware matcher config", () => {
-  const matcherPatterns = ["/dashboard/:path*", "/api/:path*"];
-
-  it("matches dashboard paths", () => {
-    expect(matcherPatterns.some((p) => p.includes("dashboard"))).toBe(true);
-  });
-
-  it("matches api paths", () => {
-    expect(matcherPatterns.some((p) => p.includes("api"))).toBe(true);
+  it("matches dashboard and api paths", () => {
+    expect(config.matcher).toContain("/dashboard/:path*");
+    expect(config.matcher).toContain("/api/:path*");
   });
 
   it("has exactly 2 matcher patterns", () => {
-    expect(matcherPatterns).toHaveLength(2);
+    expect(config.matcher).toHaveLength(2);
   });
 });

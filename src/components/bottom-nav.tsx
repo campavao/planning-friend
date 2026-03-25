@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 
-const NAV_ITEMS = [
+export const NAV_ITEMS = [
   { href: "/dashboard", icon: Home, label: "Home" },
   { href: "/dashboard/planner", icon: Calendar, label: "Plan" },
   { href: "/dashboard/gifts", icon: Gift, label: "Gifts" },
@@ -13,7 +13,14 @@ const NAV_ITEMS = [
   { href: "/dashboard/settings", icon: Settings, label: "Settings" },
 ];
 
-const TAB_PATHS = new Set(NAV_ITEMS.map((item) => item.href));
+export const TAB_PATHS = new Set(NAV_ITEMS.map((item) => item.href));
+
+// Determine if a nav item is active based on pathname
+export function isNavItemActive(itemHref: string, pathname: string): boolean {
+  return itemHref === "/dashboard"
+    ? pathname === "/dashboard"
+    : pathname.startsWith(itemHref);
+}
 
 export function BottomNav() {
   const pathname = usePathname();
@@ -46,10 +53,7 @@ export function BottomNav() {
       <div className="bg-white/95 backdrop-blur-lg border-t border-[var(--border)] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
         <div className="flex justify-around items-center px-2 py-1">
           {NAV_ITEMS.map((item) => {
-            const isActive =
-              item.href === "/dashboard"
-                ? pathname === "/dashboard"
-                : pathname.startsWith(item.href);
+            const isActive = isNavItemActive(item.href, pathname);
 
             const Icon = item.icon;
 

@@ -1,19 +1,14 @@
 /**
- * Tests for the pure logic extracted from content-card.tsx
- * Tests category routing, Google Maps URL generation, and tag extraction
+ * Tests for the pure logic from content-card.tsx
+ * Imports real functions — no duplicated logic
  */
 
+import { getGoogleMapsUrl, CATEGORY_LABELS } from "@/components/content-card";
 import type { ContentCategory } from "@/lib/db/types";
 
 // ============================================
-// getGoogleMapsUrl (replicated from content-card.tsx)
+// getGoogleMapsUrl
 // ============================================
-function getGoogleMapsUrl(location: string): string {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-    location
-  )}`;
-}
-
 describe("getGoogleMapsUrl (content-card)", () => {
   it("encodes a simple location", () => {
     expect(getGoogleMapsUrl("Central Park")).toBe(
@@ -46,18 +41,8 @@ describe("getGoogleMapsUrl (content-card)", () => {
 });
 
 // ============================================
-// Category icons/labels/colors mapping (from content-card.tsx)
+// CATEGORY_LABELS
 // ============================================
-const CATEGORY_LABELS: Record<string, string> = {
-  meal: "Recipe",
-  drink: "Drink",
-  event: "Event",
-  date_idea: "Date",
-  gift_idea: "Gift",
-  travel: "Travel",
-  other: "Saved",
-};
-
 describe("CATEGORY_LABELS", () => {
   it("has entries for all content categories", () => {
     const categories: ContentCategory[] = [
@@ -87,6 +72,8 @@ describe("CATEGORY_LABELS", () => {
 // Content card routing logic (status + category)
 // ============================================
 describe("ContentCard routing logic", () => {
+  // The ContentCard component routes based on status first, then category.
+  // We test the routing decision tree here as pure logic.
   type CardType =
     | "processing"
     | "failed"
@@ -98,11 +85,7 @@ describe("ContentCard routing logic", () => {
     | "travel"
     | "other";
 
-  // Simulate the routing logic from ContentCard
-  function getCardType(
-    status: string,
-    category: ContentCategory
-  ): CardType {
+  function getCardType(status: string, category: ContentCategory): CardType {
     if (status === "processing") return "processing";
     if (status === "failed") return "failed";
     return category;
@@ -118,64 +101,12 @@ describe("ContentCard routing logic", () => {
     expect(getCardType("failed", "travel")).toBe("failed");
   });
 
-  it("routes completed meal to MealCard", () => {
-    expect(getCardType("completed", "meal")).toBe("meal");
-  });
-
-  it("routes completed drink to DrinkCard", () => {
-    expect(getCardType("completed", "drink")).toBe("drink");
-  });
-
-  it("routes completed event to EventCard", () => {
-    expect(getCardType("completed", "event")).toBe("event");
-  });
-
-  it("routes completed date_idea to DateIdeaCard", () => {
-    expect(getCardType("completed", "date_idea")).toBe("date_idea");
-  });
-
-  it("routes completed gift_idea to GiftIdeaCard", () => {
-    expect(getCardType("completed", "gift_idea")).toBe("gift_idea");
-  });
-
-  it("routes completed travel to TravelCard", () => {
-    expect(getCardType("completed", "travel")).toBe("travel");
-  });
-
-  it("routes other category to OtherCard", () => {
-    expect(getCardType("completed", "other")).toBe("other");
-  });
-});
-
-// ============================================
-// Tag extraction logic (from ContentCard)
-// ============================================
-describe("ContentCard tag extraction logic", () => {
-  interface ContentLike {
-    tags?: { id: string; name: string }[];
-  }
-
-  // Replicate the tag extraction logic
-  function extractTags(
-    content: ContentLike,
-    propTags?: { id: string; name: string }[]
-  ) {
-    return propTags || ("tags" in content ? content.tags : undefined);
-  }
-
-  it("uses provided prop tags when available", () => {
-    const propTags = [{ id: "1", name: "quick" }];
-    const content = { tags: [{ id: "2", name: "dinner" }] };
-    expect(extractTags(content, propTags)).toEqual(propTags);
-  });
-
-  it("falls back to content.tags when no prop tags", () => {
-    const content = { tags: [{ id: "1", name: "quick" }] };
-    expect(extractTags(content)).toEqual(content.tags);
-  });
-
-  it("returns undefined when no tags anywhere", () => {
-    const content = {};
-    expect(extractTags(content)).toBeUndefined();
+  it("routes each category correctly when completed", () => {
+    const categories: ContentCategory[] = [
+      "meal", "drink", "event", "date_idea", "gift_idea", "travel", "other",
+    ];
+    for (const cat of categories) {
+      expect(getCardType("completed", cat)).toBe(cat);
+    }
   });
 });

@@ -29,7 +29,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 // Category icon mapping
-const CATEGORY_ICONS = {
+export const CATEGORY_ICONS = {
   meal: Utensils,
   drink: Coffee,
   event: Calendar,
@@ -40,7 +40,7 @@ const CATEGORY_ICONS = {
 };
 
 // Category labels
-const CATEGORY_LABELS = {
+export const CATEGORY_LABELS = {
   meal: "Recipe",
   drink: "Drink",
   event: "Event",
@@ -51,7 +51,7 @@ const CATEGORY_LABELS = {
 };
 
 // Category colors for backgrounds
-const CATEGORY_COLORS = {
+export const CATEGORY_COLORS = {
   meal: { bg: "bg-[var(--meal-bg)]", text: "text-[var(--meal)]" },
   drink: { bg: "bg-[var(--drink-bg)]", text: "text-[var(--drink)]" },
   event: { bg: "bg-[var(--event-bg)]", text: "text-[var(--event)]" },
@@ -62,7 +62,7 @@ const CATEGORY_COLORS = {
 };
 
 // Generate Google Maps URL from location string
-function getGoogleMapsUrl(location: string): string {
+export function getGoogleMapsUrl(location: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
     location
   )}`;

@@ -1,9 +1,13 @@
+/**
+ * Tests for image-processing utilities
+ * Imports real exports — tautological interface tests removed
+ */
+
 import {
   extractExifData,
   formatGpsCoordinates,
   getGoogleMapsUrl,
 } from "@/lib/image-processing";
-import type { ExifData } from "@/lib/image-processing";
 
 // ============================================
 // formatGpsCoordinates
@@ -29,17 +33,8 @@ describe("formatGpsCoordinates", () => {
     expect(result).toContain("E"); // 0 is >= 0, so E
   });
 
-  it("formats coordinates to a readable string", () => {
-    const result = formatGpsCoordinates(1.5, 2.5);
-    expect(result).toContain("1.5");
-    expect(result).toContain("2.5");
-    expect(result).toContain("N");
-    expect(result).toContain("E");
-  });
-
   it("uses absolute values for display", () => {
     const result = formatGpsCoordinates(-45.123456, -90.654321);
-    // Should show positive numbers with S/W directions
     expect(result).toMatch(/45\.123456.*S/);
     expect(result).toMatch(/90\.654321.*W/);
   });
@@ -88,52 +83,15 @@ describe("extractExifData", () => {
   it("handles invalid JPEG buffer gracefully", () => {
     const buffer = Buffer.from("not a real jpeg");
     const result = extractExifData(buffer, "image/jpeg");
-    // Should not throw, returns empty or partial data
     expect(result).toBeDefined();
     expect(typeof result).toBe("object");
   });
 
   it("handles image/jpg mime type the same as image/jpeg", () => {
-    // Both should attempt EXIF extraction
-    const buffer = Buffer.alloc(100); // Empty buffer
+    const buffer = Buffer.alloc(100);
     const resultJpeg = extractExifData(buffer, "image/jpeg");
     const resultJpg = extractExifData(buffer, "image/jpg");
-    // Both should attempt parsing (and likely return empty due to invalid data)
     expect(typeof resultJpeg).toBe("object");
     expect(typeof resultJpg).toBe("object");
-  });
-});
-
-// ============================================
-// ExifData type contract
-// ============================================
-describe("ExifData interface", () => {
-  it("allows all optional fields", () => {
-    const exif: ExifData = {};
-    expect(exif.latitude).toBeUndefined();
-    expect(exif.longitude).toBeUndefined();
-    expect(exif.dateTaken).toBeUndefined();
-    expect(exif.make).toBeUndefined();
-    expect(exif.model).toBeUndefined();
-    expect(exif.orientation).toBeUndefined();
-  });
-
-  it("allows setting GPS coordinates", () => {
-    const exif: ExifData = {
-      latitude: 40.7128,
-      longitude: -74.006,
-    };
-    expect(exif.latitude).toBe(40.7128);
-    expect(exif.longitude).toBe(-74.006);
-  });
-
-  it("allows setting device info", () => {
-    const exif: ExifData = {
-      make: "Apple",
-      model: "iPhone 15 Pro",
-      orientation: 1,
-    };
-    expect(exif.make).toBe("Apple");
-    expect(exif.model).toBe("iPhone 15 Pro");
   });
 });

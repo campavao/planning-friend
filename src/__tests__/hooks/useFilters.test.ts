@@ -5,28 +5,9 @@
 import { renderHook, act } from "@testing-library/react";
 import { useFilters } from "@/hooks/useFilters";
 
-// Mock localStorage
-const localStorageMock = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: jest.fn((key: string) => store[key] ?? null),
-    setItem: jest.fn((key: string, value: string) => {
-      store[key] = value;
-    }),
-    removeItem: jest.fn((key: string) => {
-      delete store[key];
-    }),
-    clear: jest.fn(() => {
-      store = {};
-    }),
-  };
-})();
-
-Object.defineProperty(window, "localStorage", { value: localStorageMock });
-
 beforeEach(() => {
-  localStorageMock.clear();
-  jest.clearAllMocks();
+  localStorage.clear();
+  jest.restoreAllMocks();
 });
 
 describe("useFilters", () => {
@@ -41,7 +22,7 @@ describe("useFilters", () => {
   });
 
   it("loads stored filters from localStorage", () => {
-    localStorageMock.setItem(
+    localStorage.setItem(
       "test-filters",
       JSON.stringify({ category: "meal", search: "pasta" })
     );
@@ -55,7 +36,7 @@ describe("useFilters", () => {
   });
 
   it("merges stored filters with initial (fills missing keys)", () => {
-    localStorageMock.setItem(
+    localStorage.setItem(
       "test-filters",
       JSON.stringify({ category: "drink" })
     );
@@ -82,6 +63,8 @@ describe("useFilters", () => {
   });
 
   it("persists to localStorage on update", () => {
+    const spy = jest.spyOn(Storage.prototype, "setItem");
+
     const { result } = renderHook(() =>
       useFilters({ initial, storageKey: "test-filters" })
     );
@@ -90,7 +73,7 @@ describe("useFilters", () => {
       result.current.update("search", "tacos");
     });
 
-    expect(localStorageMock.setItem).toHaveBeenCalledWith(
+    expect(spy).toHaveBeenCalledWith(
       "test-filters",
       expect.stringContaining("tacos")
     );
@@ -114,6 +97,8 @@ describe("useFilters", () => {
   });
 
   it("works without a storageKey (no persistence)", () => {
+    const spy = jest.spyOn(Storage.prototype, "getItem");
+
     const { result } = renderHook(() => useFilters({ initial }));
 
     expect(result.current.filters).toEqual(initial);
@@ -123,12 +108,11 @@ describe("useFilters", () => {
     });
 
     expect(result.current.filters.category).toBe("meal");
-    // Should not try to read/write localStorage
-    expect(localStorageMock.getItem).not.toHaveBeenCalled();
+    expect(spy).not.toHaveBeenCalled();
   });
 
   it("handles corrupted localStorage gracefully", () => {
-    localStorageMock.setItem("test-filters", "not-valid-json{{{");
+    localStorage.setItem("test-filters", "not-valid-json{{{");
 
     const { result } = renderHook(() =>
       useFilters({ initial, storageKey: "test-filters" })

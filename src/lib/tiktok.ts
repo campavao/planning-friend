@@ -32,14 +32,19 @@ interface OEmbedResponse {
   html: string;
 }
 
-// Resolve short URLs to full URLs
-async function resolveShortUrl(url: string): Promise<string> {
-  // Check if it's a short URL
-  if (
+// Check if a TikTok URL is a short URL that needs resolving
+export function isShortUrl(url: string): boolean {
+  return (
     url.includes("vm.tiktok.com") ||
     url.includes("vt.tiktok.com") ||
     url.includes("/t/")
-  ) {
+  );
+}
+
+// Resolve short URLs to full URLs
+async function resolveShortUrl(url: string): Promise<string> {
+  // Check if it's a short URL
+  if (isShortUrl(url)) {
     try {
       const response = await fetch(url, {
         method: "HEAD",
@@ -62,7 +67,7 @@ async function resolveShortUrl(url: string): Promise<string> {
 }
 
 // Extract video ID from TikTok URL
-function extractVideoId(url: string): string | null {
+export function extractVideoId(url: string): string | null {
   const videoMatch = url.match(/\/video\/(\d+)/);
   if (videoMatch) {
     return videoMatch[1];
@@ -382,7 +387,7 @@ function tryExtractSigiState(
 }
 
 // Helper to decode HTML entities
-function decodeHTMLEntities(text: string): string {
+export function decodeHTMLEntities(text: string): string {
   return text
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")

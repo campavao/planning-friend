@@ -21,7 +21,7 @@ interface CategoryTabsProps {
   allTags?: Tag[];
 }
 
-const TABS = [
+export const TABS = [
   { id: "all", label: "All", icon: null },
   { id: "meals", label: "Meals", icon: Utensils, category: "meal" },
   { id: "drinks", label: "Drinks", icon: Coffee, category: "drink" },
@@ -32,49 +32,48 @@ const TABS = [
   { id: "other", label: "Other", icon: Pin, category: "other" },
 ];
 
+// Filter content by selected tags
+export function filterByTags(items: ContentWithTags[], selectedTags: string[]) {
+  if (selectedTags.length === 0) return items;
+  return items.filter((item) =>
+    selectedTags.some((tagId) => item.tags?.some((t) => t.id === tagId))
+  );
+}
+
+// Get filtered content for a category
+export function getFilteredContent(content: ContentWithTags[], selectedTags: string[], category?: string) {
+  let items = content;
+  if (category) {
+    items = content.filter((c) => c.category === category);
+  }
+  return filterByTags(items, selectedTags);
+}
+
+// Toggle a tag in the selected list
+export function toggleTag(prev: string[], tagId: string): string[] {
+  return prev.includes(tagId) ? prev.filter((t) => t !== tagId) : [...prev, tagId];
+}
+
+// Get counts for each category
+export function getCounts(content: ContentWithTags[], selectedTags: string[]) {
+  const filtered = filterByTags(content, selectedTags);
+  return {
+    all: filtered.length,
+    meals: filterByTags(content.filter((c) => c.category === "meal"), selectedTags).length,
+    drinks: filterByTags(content.filter((c) => c.category === "drink"), selectedTags).length,
+    events: filterByTags(content.filter((c) => c.category === "event"), selectedTags).length,
+    dates: filterByTags(content.filter((c) => c.category === "date_idea"), selectedTags).length,
+    gifts: filterByTags(content.filter((c) => c.category === "gift_idea"), selectedTags).length,
+    travel: filterByTags(content.filter((c) => c.category === "travel"), selectedTags).length,
+    other: filterByTags(content.filter((c) => c.category === "other"), selectedTags).length,
+  };
+}
+
 export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
   const [activeTab, setActiveTab] = useState("all");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
-  // Filter content by selected tags
-  const filterByTags = (items: ContentWithTags[]) => {
-    if (selectedTags.length === 0) return items;
-    return items.filter((item) =>
-      selectedTags.some((tagId) => item.tags?.some((t) => t.id === tagId))
-    );
-  };
-
-  // Get filtered content for a category
-  const getFilteredContent = (category?: string) => {
-    let items = content;
-    if (category) {
-      items = content.filter((c) => c.category === category);
-    }
-    return filterByTags(items);
-  };
-
-  const toggleTag = (tagId: string) => {
-    setSelectedTags((prev) =>
-      prev.includes(tagId) ? prev.filter((t) => t !== tagId) : [...prev, tagId]
-    );
-  };
-
-  // Get counts for each category
-  const getCounts = () => {
-    const filtered = filterByTags(content);
-    return {
-      all: filtered.length,
-      meals: filterByTags(content.filter((c) => c.category === "meal")).length,
-      drinks: filterByTags(content.filter((c) => c.category === "drink")).length,
-      events: filterByTags(content.filter((c) => c.category === "event")).length,
-      dates: filterByTags(content.filter((c) => c.category === "date_idea")).length,
-      gifts: filterByTags(content.filter((c) => c.category === "gift_idea")).length,
-      travel: filterByTags(content.filter((c) => c.category === "travel")).length,
-      other: filterByTags(content.filter((c) => c.category === "other")).length,
-    };
-  };
-
-  const counts = getCounts();
+  const counts = getCounts(content, selectedTags);
 
   const EmptyState = ({ category }: { category: string }) => {
     const Icon = TABS.find((t) => t.id === category)?.icon || Smartphone;
@@ -108,7 +107,7 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
   );
 
   const currentTab = TABS.find((t) => t.id === activeTab);
-  const currentContent = getFilteredContent(currentTab?.category);
+  const currentContent = getFilteredContent(content, selectedTags, currentTab?.category);
 
   return (
     <div className="w-full">
@@ -139,7 +138,7 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
           <TagFilter
             tags={allTags}
             selectedTags={selectedTags}
-            onToggle={toggleTag}
+            onToggle={(tagId) => setSelectedTags((prev) => toggleTag(prev, tagId))}
             onClear={() => setSelectedTags([])}
           />
         </div>

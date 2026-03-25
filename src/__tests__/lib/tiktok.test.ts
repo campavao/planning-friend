@@ -1,55 +1,18 @@
-// TikTok module has many unexported functions, but we can test the exported ones
-// and the key internal logic patterns
+/**
+ * Tests for TikTok utility functions
+ * Imports real exports — no duplicated logic
+ */
 
-// We need to test extractVideoId and decodeHTMLEntities which are not exported,
-// so we'll test them through the exported API indirectly,
-// and also directly by importing the module's internals.
-
-// Since extractVideoId and decodeHTMLEntities are not exported, we test
-// the exported getTikTokVideoInfo behavior and the interface contract.
-
-import type { TikTokVideoInfo } from "@/lib/tiktok";
-
-// ============================================
-// TikTokVideoInfo interface contract
-// ============================================
-describe("TikTokVideoInfo interface", () => {
-  it("has the expected shape", () => {
-    const info: TikTokVideoInfo = {
-      description: "Test video",
-      originalUrl: "https://www.tiktok.com/@user/video/123",
-    };
-    expect(info.description).toBe("Test video");
-    expect(info.originalUrl).toBe("https://www.tiktok.com/@user/video/123");
-    expect(info.videoUrl).toBeUndefined();
-    expect(info.thumbnailUrl).toBeUndefined();
-    expect(info.author).toBeUndefined();
-  });
-
-  it("allows all optional fields", () => {
-    const info: TikTokVideoInfo = {
-      videoUrl: "https://example.com/video.mp4",
-      thumbnailUrl: "https://example.com/thumb.jpg",
-      description: "Test",
-      author: "testuser",
-      originalUrl: "https://www.tiktok.com/@user/video/123",
-    };
-    expect(info.videoUrl).toBeDefined();
-    expect(info.thumbnailUrl).toBeDefined();
-    expect(info.author).toBe("testuser");
-  });
-});
+import {
+  extractVideoId,
+  decodeHTMLEntities,
+  isShortUrl,
+} from "@/lib/tiktok";
 
 // ============================================
-// Test extractVideoId logic (pattern matching)
+// extractVideoId
 // ============================================
-describe("TikTok video ID extraction pattern", () => {
-  // This tests the regex pattern used in extractVideoId
-  const extractVideoId = (url: string): string | null => {
-    const videoMatch = url.match(/\/video\/(\d+)/);
-    return videoMatch ? videoMatch[1] : null;
-  };
-
+describe("extractVideoId", () => {
   it("extracts video ID from standard URL", () => {
     expect(
       extractVideoId("https://www.tiktok.com/@user/video/7123456789012345678")
@@ -74,21 +37,9 @@ describe("TikTok video ID extraction pattern", () => {
 });
 
 // ============================================
-// Test HTML entity decoding pattern
+// decodeHTMLEntities
 // ============================================
-describe("TikTok HTML entity decoding pattern", () => {
-  // This tests the decodeHTMLEntities logic
-  const decodeHTMLEntities = (text: string): string => {
-    return text
-      .replace(/&amp;/g, "&")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/&#x27;/g, "'")
-      .replace(/&#x2F;/g, "/");
-  };
-
+describe("decodeHTMLEntities", () => {
   it("decodes &amp; to &", () => {
     expect(decodeHTMLEntities("Tom &amp; Jerry")).toBe("Tom & Jerry");
   });
@@ -122,17 +73,9 @@ describe("TikTok HTML entity decoding pattern", () => {
 });
 
 // ============================================
-// Test TikTok URL pattern detection
+// isShortUrl
 // ============================================
-describe("TikTok short URL detection patterns", () => {
-  const isShortUrl = (url: string): boolean => {
-    return (
-      url.includes("vm.tiktok.com") ||
-      url.includes("vt.tiktok.com") ||
-      url.includes("/t/")
-    );
-  };
-
+describe("isShortUrl", () => {
   it("detects vm.tiktok.com as short URL", () => {
     expect(isShortUrl("https://vm.tiktok.com/ZMabc123/")).toBe(true);
   });

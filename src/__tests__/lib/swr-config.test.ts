@@ -4,30 +4,14 @@
 
 import { fetcher, clearSWRCache } from "@/lib/swr-config";
 
-// Mock localStorage
-const localStorageMock = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: jest.fn((key: string) => store[key] ?? null),
-    setItem: jest.fn((key: string, value: string) => {
-      store[key] = value;
-    }),
-    removeItem: jest.fn((key: string) => {
-      delete store[key];
-    }),
-    clear: jest.fn(() => {
-      store = {};
-    }),
-  };
-})();
-
-Object.defineProperty(window, "localStorage", { value: localStorageMock });
-
 beforeEach(() => {
-  localStorageMock.clear();
-  jest.clearAllMocks();
-  // Reset fetch mock
+  localStorage.clear();
+  jest.restoreAllMocks();
   global.fetch = jest.fn();
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
 });
 
 // ============================================
@@ -79,13 +63,12 @@ describe("fetcher", () => {
 // ============================================
 describe("clearSWRCache", () => {
   it("removes the cache from localStorage", () => {
-    localStorageMock.setItem("planning-friend-cache-v1", "some-data");
+    localStorage.setItem("planning-friend-cache-v1", "some-data");
+    const spy = jest.spyOn(Storage.prototype, "removeItem");
 
     clearSWRCache();
 
-    expect(localStorageMock.removeItem).toHaveBeenCalledWith(
-      "planning-friend-cache-v1"
-    );
+    expect(spy).toHaveBeenCalledWith("planning-friend-cache-v1");
   });
 
   it("does not throw when localStorage is empty", () => {
