@@ -69,42 +69,44 @@ export function getCounts(content: ContentWithTags[], selectedTags: string[]) {
   };
 }
 
-export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
-  const [activeTab, setActiveTab] = useState("all");
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+function EmptyState({ category, hasTagFilters }: { category: string; hasTagFilters: boolean }) {
+  const Icon = TABS.find((t) => t.id === category)?.icon || Smartphone;
 
-  const counts = getCounts(content, selectedTags);
-
-  const EmptyState = ({ category }: { category: string }) => {
-    const Icon = TABS.find((t) => t.id === category)?.icon || Smartphone;
-
-    return (
-      <div className="col-span-full flex flex-col items-center justify-center py-16 text-center card-elevated">
-        <div className="w-20 h-20 mx-auto mb-5 rounded-2xl bg-[var(--muted)] flex items-center justify-center">
-          <Icon className="w-10 h-10 text-muted-foreground" />
-        </div>
-        <h3 className="heading-3 mb-2">
-          {selectedTags.length > 0
-            ? `No ${category} match tags`
-            : `No ${category} saved`}
-        </h3>
-        <p className="text-muted-foreground max-w-md mb-5 text-sm">
-          {selectedTags.length > 0
-            ? "Try removing some tag filters."
-            : "Text a TikTok or Instagram link to save it here."}
-        </p>
-        {selectedTags.length === 0 && <AddContactButton variant="button" />}
+  return (
+    <div className="col-span-full flex flex-col items-center justify-center py-16 text-center card-elevated">
+      <div className="w-20 h-20 mx-auto mb-5 rounded-2xl bg-[var(--muted)] flex items-center justify-center">
+        <Icon className="w-10 h-10 text-muted-foreground" />
       </div>
-    );
-  };
+      <h3 className="heading-3 mb-2">
+        {hasTagFilters
+          ? `No ${category} match tags`
+          : `No ${category} saved`}
+      </h3>
+      <p className="text-muted-foreground max-w-md mb-5 text-sm">
+        {hasTagFilters
+          ? "Try removing some tag filters."
+          : "Text a TikTok or Instagram link to save it here."}
+      </p>
+      {!hasTagFilters && <AddContactButton variant="button" />}
+    </div>
+  );
+}
 
-  const ContentGrid = ({ items }: { items: ContentWithTags[] }) => (
+function ContentGrid({ items }: { items: ContentWithTags[] }) {
+  return (
     <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5">
       {items.map((item, index) => (
         <ContentCard key={item.id} content={item} index={index} />
       ))}
     </div>
   );
+}
+
+export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
+  const [activeTab, setActiveTab] = useState("all");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+  const counts = getCounts(content, selectedTags);
 
   const currentTab = TABS.find((t) => t.id === activeTab);
   const currentContent = getFilteredContent(content, selectedTags, currentTab?.category);
@@ -146,7 +148,7 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
 
       {/* Content */}
       {currentContent.length === 0 ? (
-        <EmptyState category={activeTab} />
+        <EmptyState category={activeTab} hasTagFilters={selectedTags.length > 0} />
       ) : (
         <ContentGrid items={currentContent} />
       )}
