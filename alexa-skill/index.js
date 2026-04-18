@@ -237,7 +237,18 @@ function categoryLabel(category) {
 function applyWeekToBuilder(builder, handlerInput, data, opts = {}) {
   if (supportsAPL(handlerInput)) {
     const todayIso = opts.todayDate || new Date().toISOString().slice(0, 10);
-    const days = (data.days || []).map((day) => ({
+    const rawDays = data.days || [];
+    // Rotate so today is the first card. More useful than starting from
+    // Monday — the user always sees "today" first, then the rest of the
+    // week in order. Falls back to the server order if today isn't in
+    // the payload (e.g. querying a past week).
+    const todayIdx = rawDays.findIndex((d) => d.date === todayIso);
+    const orderedDays =
+      todayIdx > 0
+        ? [...rawDays.slice(todayIdx), ...rawDays.slice(0, todayIdx)]
+        : rawDays;
+
+    const days = orderedDays.map((day) => ({
       date: day.date,
       dayName: escapeSsml(day.dayName),
       shortDate: formatShortDate(day.date),
