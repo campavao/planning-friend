@@ -198,6 +198,18 @@ function addRecipeAPL(builder, data) {
   if (data.steps?.length) {
     subtitleParts.push(`${data.steps.length} steps`);
   }
+  // Flatten steps into alternating ordinal + body items so each Text in
+  // the Sequence is a direct child (no wrapping Container that stretches
+  // oddly in APL 2024.3). Each item has a `type` discriminator so the
+  // APL has two templates with `when` conditions to pick the right style.
+  const stepItems = [];
+  (data.steps || []).forEach((step, i) => {
+    stepItems.push({ type: "num", text: `STEP ${i + 1}` });
+    stepItems.push({ type: "body", text: escapeSsml(step) });
+  });
+  const ingredients = (data.ingredients || []).map((ing) => ({
+    body: escapeSsml(ing),
+  }));
   builder.addDirective({
     type: "Alexa.Presentation.APL.RenderDocument",
     token: "recipe",
@@ -206,8 +218,8 @@ function addRecipeAPL(builder, data) {
       recipe: {
         title: escapeSsml(data.title || "Recipe"),
         subtitle: subtitleParts.join(" · "),
-        ingredients: (data.ingredients || []).map(escapeSsml),
-        steps: (data.steps || []).map(escapeSsml),
+        ingredients,
+        stepItems,
       },
     },
   });
@@ -320,7 +332,9 @@ const LaunchRequestHandler = {
   async handle(handlerInput) {
     try {
       const date = await getDeviceDate(handlerInput);
-      const data = await fetchJson("/api/alexa/week", { date });
+      // Rolling 7-day window from today — home screen always starts on
+      // today and shows the next 6 days, spanning week boundaries.
+      const data = await fetchJson("/api/alexa/week", { startDate: date });
 
       const todayItems = getTodayBucket(data, date);
       const todayTitles = todayItems.map((i) => escapeSsml(i.title));

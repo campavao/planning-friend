@@ -42,7 +42,7 @@
         {
           "fontSize": "20dp",
           "color": "#f1f5f9",
-          "lineHeight": "26dp"
+          "lineHeight": 1.3
         }
       ]
     },
@@ -69,21 +69,25 @@
     "parameters": ["payload"],
     "items": [
       {
-        "type": "Container",
+        "type": "Frame",
         "width": "100%",
         "height": "100%",
-        "backgroundColor": "#0b1220",
-        "direction": "column",
-        "items": [
-          {
-            "type": "AlexaHeader",
-            "theme": "dark",
-            "headerTitle": "${payload.week.title}",
-            "headerSubtitle": "${payload.week.subtitle}",
-            "headerBackgroundColor": "#1e293b",
-            "headerDivider": true
-          },
-          {
+        "background": "#0b1220",
+        "item": {
+          "type": "Container",
+          "width": "100%",
+          "height": "100%",
+          "direction": "column",
+          "items": [
+            {
+              "type": "AlexaHeader",
+              "theme": "dark",
+              "headerTitle": "${payload.week.title}",
+              "headerSubtitle": "${payload.week.subtitle}",
+              "headerBackgroundColor": "#1e293b",
+              "headerDivider": true
+            },
+            {
             "type": "Sequence",
             "scrollDirection": "horizontal",
             "grow": 1,
@@ -98,7 +102,7 @@
                 "type": "Frame",
                 "width": "380dp",
                 "height": "100%",
-                "backgroundColor": "#1e293b",
+                "background": "#1e293b",
                 "spacing": "16dp",
                 "when": "${!data.isToday}",
                 "item": {
@@ -171,7 +175,7 @@
                 "type": "Frame",
                 "width": "380dp",
                 "height": "100%",
-                "backgroundColor": "#1e3a8a",
+                "background": "#1e3a8a",
                 "spacing": "16dp",
                 "when": "${data.isToday}",
                 "item": {
@@ -243,6 +247,7 @@
             ]
           }
         ]
+        }
       }
     ]
   }
