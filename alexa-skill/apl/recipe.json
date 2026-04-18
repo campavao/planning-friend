@@ -111,16 +111,20 @@
                       {
                         "type": "Container",
                         "direction": "column",
+                        "width": "100%",
                         "items": [
                           {
                             "type": "Text",
                             "style": "stepNumber",
-                            "text": "STEP ${ordinal}"
+                            "text": "STEP ${index + 1}",
+                            "maxLines": 1
                           },
                           {
                             "type": "Text",
                             "style": "stepText",
-                            "text": "${data}"
+                            "text": "${data}",
+                            "width": "100%",
+                            "maxLines": 0
                           }
                         ]
                       }
@@ -162,7 +166,9 @@
                       {
                         "type": "Text",
                         "style": "ingredientText",
-                        "text": "•   ${data}"
+                        "text": "•   ${data}",
+                        "width": "100%",
+                        "maxLines": 0
                       }
                     ]
                   },
