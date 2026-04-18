@@ -238,17 +238,27 @@ function categoryLabel(category) {
 function applyWeekToBuilder(builder, handlerInput, data, opts = {}) {
   if (supportsAPL(handlerInput)) {
     const todayIso = opts.todayDate || new Date().toISOString().slice(0, 10);
-    const days = (data.days || []).map((day) => ({
-      date: day.date,
-      dayName: escapeSsml(day.dayName),
-      shortDate: formatShortDate(day.date),
-      isToday: day.date === todayIso,
-      items: (day.items || []).map((item) => ({
-        title: escapeSsml(item.title),
-        location: item.location ? escapeSsml(item.location) : null,
-        sharedBy: item.sharedBy ? escapeSsml(item.sharedBy) : null,
-      })),
-    }));
+    const items = [];
+    let tokenIdx = 0;
+    for (const day of data.days || []) {
+      if (!day.items || day.items.length === 0) continue;
+      const isToday = day.date === todayIso;
+      for (const item of day.items) {
+        const metaParts = [];
+        if (item.location) metaParts.push(item.location);
+        if (item.sharedBy) metaParts.push(`shared by ${item.sharedBy}`);
+        const dayLabel = isToday ? "Today" : day.dayName;
+        const secondary =
+          metaParts.length > 0
+            ? `${dayLabel} · ${metaParts.join(" · ")}`
+            : dayLabel;
+        items.push({
+          token: String(tokenIdx++),
+          primaryText: escapeSsml(item.title),
+          secondaryText: escapeSsml(secondary),
+        });
+      }
+    }
 
     builder.addDirective({
       type: "Alexa.Presentation.APL.RenderDocument",
@@ -261,7 +271,7 @@ function applyWeekToBuilder(builder, handlerInput, data, opts = {}) {
             data.totalItems === 0
               ? "Nothing planned"
               : `${data.totalItems} item${data.totalItems === 1 ? "" : "s"}`,
-          days,
+          items,
         },
       },
     });
@@ -281,18 +291,6 @@ function applyWeekToBuilder(builder, handlerInput, data, opts = {}) {
       lines.length > 0 ? lines.join("\n") : "Nothing planned."
     );
   }
-}
-
-function formatShortDate(dateIso) {
-  if (!dateIso || !/^\d{4}-\d{2}-\d{2}$/.test(dateIso)) return "";
-  const d = new Date(dateIso + "T12:00:00Z");
-  return d
-    .toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      timeZone: "UTC",
-    })
-    .toUpperCase();
 }
 
 // Extract today's items from the week payload so LaunchRequest can save
