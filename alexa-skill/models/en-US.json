@@ -90,8 +90,7 @@
             "what's the meal on {when}",
             "dinner plan",
             "dinner plan for {when}",
-            "dinner on {when}",
-            "{when}'s dinner"
+            "dinner on {when}"
           ]
         },
         {
