@@ -86,7 +86,11 @@ const TodaysPlanIntentHandler = {
       const cardText =
         data.items.length === 0
           ? "Nothing planned."
-          : data.items.map((i) => `• ${i.title}`).join("\n");
+          : data.items
+              .map((i) =>
+                i.location ? `• ${i.title} — ${i.location}` : `• ${i.title}`
+              )
+              .join("\n");
       return handlerInput.responseBuilder
         .speak(data.speech)
         .withSimpleCard("Your plan", cardText)
@@ -102,37 +106,108 @@ const TodaysPlanIntentHandler = {
   },
 };
 
-// Stub handlers for milestone 2+ intents. They respond gracefully instead of
-// falling through to the error handler so the skill feels complete in testing.
-function makeStubHandler(intentName, message) {
-  return {
-    canHandle(handlerInput) {
-      return (
-        Alexa.getRequestType(handlerInput.requestEnvelope) ===
-          "IntentRequest" &&
-        Alexa.getIntentName(handlerInput.requestEnvelope) === intentName
-      );
-    },
-    handle(handlerInput) {
-      return handlerInput.responseBuilder.speak(message).getResponse();
-    },
-  };
-}
+const GetRecipeIntentHandler = {
+  canHandle(handlerInput) {
+    return (
+      Alexa.getRequestType(handlerInput.requestEnvelope) === "IntentRequest" &&
+      Alexa.getIntentName(handlerInput.requestEnvelope) === "GetRecipeIntent"
+    );
+  },
+  async handle(handlerInput) {
+    const spoken = Alexa.getSlotValue(
+      handlerInput.requestEnvelope,
+      "dish"
+    );
+    if (!spoken) {
+      return handlerInput.responseBuilder
+        .speak("Which recipe would you like?")
+        .reprompt("Say the name of the recipe.")
+        .getResponse();
+    }
 
-const GetRecipeIntentHandler = makeStubHandler(
-  "GetRecipeIntent",
-  "Recipe read-aloud is coming soon."
-);
+    try {
+      const data = await fetchJson("/api/alexa/recipe", { name: spoken });
+      if (!data.found) {
+        return handlerInput.responseBuilder
+          .speak(
+            data.speech ||
+              `I couldn't find a recipe called ${spoken}.`
+          )
+          .getResponse();
+      }
 
-const NextStepIntentHandler = makeStubHandler(
-  "NextStepIntent",
-  "Step-by-step recipe walkthrough is coming soon."
-);
+      const cardParts = [];
+      if (data.ingredients && data.ingredients.length) {
+        cardParts.push(
+          "Ingredients:\n" +
+            data.ingredients.map((i) => `• ${i}`).join("\n")
+        );
+      }
+      if (data.steps && data.steps.length) {
+        cardParts.push(
+          "Steps:\n" +
+            data.steps.map((s, i) => `${i + 1}. ${s}`).join("\n")
+        );
+      }
+      const cardBody = cardParts.join("\n\n") || "No details saved.";
 
-const WhatsForDinnerIntentHandler = makeStubHandler(
-  "WhatsForDinnerIntent",
-  "Dinner lookup is coming soon."
-);
+      return handlerInput.responseBuilder
+        .speak(data.speech)
+        .withSimpleCard(data.title || "Recipe", cardBody)
+        .getResponse();
+    } catch (err) {
+      console.error("GetRecipeIntent error:", err);
+      return handlerInput.responseBuilder
+        .speak(
+          "Sorry, I couldn't fetch that recipe right now. Please try again."
+        )
+        .getResponse();
+    }
+  },
+};
+
+const WhatsForDinnerIntentHandler = {
+  canHandle(handlerInput) {
+    return (
+      Alexa.getRequestType(handlerInput.requestEnvelope) === "IntentRequest" &&
+      Alexa.getIntentName(handlerInput.requestEnvelope) ===
+        "WhatsForDinnerIntent"
+    );
+  },
+  async handle(handlerInput) {
+    try {
+      const date = await getDeviceDate(handlerInput);
+      const data = await fetchJson("/api/alexa/dinner", { date });
+      const cardTitle = "Dinner";
+      const cardBody = data.found
+        ? data.title || "Nothing planned"
+        : "Nothing planned";
+      return handlerInput.responseBuilder
+        .speak(data.speech)
+        .withSimpleCard(cardTitle, cardBody)
+        .getResponse();
+    } catch (err) {
+      console.error("WhatsForDinnerIntent error:", err);
+      return handlerInput.responseBuilder
+        .speak("Sorry, I couldn't check dinner right now.")
+        .getResponse();
+    }
+  },
+};
+
+const NextStepIntentHandler = {
+  canHandle(handlerInput) {
+    return (
+      Alexa.getRequestType(handlerInput.requestEnvelope) === "IntentRequest" &&
+      Alexa.getIntentName(handlerInput.requestEnvelope) === "NextStepIntent"
+    );
+  },
+  handle(handlerInput) {
+    return handlerInput.responseBuilder
+      .speak("Step-by-step recipe walkthrough is coming soon.")
+      .getResponse();
+  },
+};
 
 const HelpIntentHandler = {
   canHandle(handlerInput) {
