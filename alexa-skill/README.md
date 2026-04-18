@@ -10,11 +10,14 @@ Echo device → Alexa cloud → AWS Lambda (this dir) → /api/alexa/* on Next.j
 
 Auth: long-lived bearer token in Lambda env, matched against `ALEXA_API_TOKEN` on the server. No OAuth / account linking (personal skill, stays in dev mode).
 
-## Current status (milestone 1)
+## Current status (milestone 4 — all planned features shipped)
 
-- `TodaysPlanIntent` — working end-to-end
-- `WhatsForDinnerIntent`, `GetRecipeIntent`, `NextStepIntent` — stubs that respond "coming soon"
-- APL card for Echo Show — not yet (milestone 3)
+- `TodaysPlanIntent` — speaks the day, renders APL list on Echo Show (or Simple card on audio-only devices)
+- `WhatsForDinnerIntent` — tonight's meal-category plan item, APL card
+- `GetRecipeIntent` — fuzzy-matches by name, reads ingredients + steps with SSML pacing, APL recipe view
+- `CookAlongIntent` — hands-free cooking mode. Reads intro + ingredients + step 1, stores the rest in session attributes
+- `NextStepIntent` — advances through the active cooking session; ends the session on the final step with "Enjoy your meal!"
+- APL — two documents (`apl/today.json`, `apl/recipe.json`), rendered only when the device reports `Alexa.Presentation.APL` support
 
 ## One-time setup
 
@@ -72,9 +75,22 @@ Grab the Lambda ARN from the top-right of the function page.
 1. Copy the Skill ID, go back to Lambda step 3 and finish adding the ASK trigger with this Skill ID
 1. Test tab → enable testing in Development
 
-### 6. Populate the DishName slot (for milestone 2+)
+### 6. Populate the DishName slot
 
-The `DishName` custom slot currently has one placeholder value. When you wire up `GetRecipeIntent`, dump your actual recipe titles into the slot values via the Alexa Console or the ASK CLI. Consider a helper script that reads `content` rows where `category = 'meal'` and generates updated JSON.
+The `DishName` custom slot ships with a placeholder value. For reliable voice matching, paste in your actual recipe titles. The server exposes them as ready-to-paste JSON:
+
+```
+curl -H "Authorization: Bearer $TOKEN" https://www.planning-friend.com/api/alexa/dish-slot
+```
+
+Response is `{ "count": N, "values": [{ "name": { "value": "..." } }, ...] }`. In the Alexa Console:
+
+1. Build → Slot Types → DishName
+1. Delete the placeholder row
+1. Click **Bulk Edit** (or the JSON icon) and paste the `values` array
+1. Save → Build Model
+
+Re-run after adding recipes. The Lambda also forwards the raw spoken text to the server as a fallback, so a new recipe works on-demand even before you re-sync the slot — it just won't have as strong NLU resolution.
 
 ## Daily routine
 
@@ -93,13 +109,25 @@ The Lambda asks Alexa for the device's timezone (permission: `alexa::devices:all
 ## Files
 
 - `index.js` — Lambda handler, all intents wired
+- `apl/today.json` — APL document for today's plan / dinner views
+- `apl/recipe.json` — APL document for recipe detail view
 - `models/en-US.json` — interaction model (paste into Alexa Console)
 - `skill.json` — skill manifest (reference for `ask-cli` deploy)
 - `package.json` — `ask-sdk-core` dependency
 - `.env.example` — Lambda env vars
 
-## Next milestones
+When zipping for upload, include the `apl/` directory:
+```
+Compress-Archive -Path index.js,package.json,node_modules,apl -DestinationPath skill.zip -Force
+```
 
-- M2: `GetRecipeIntent` end-to-end with SSML step pacing + `WhatsForDinnerIntent`
-- M3: APL document for Echo Show visual card
-- M4: `NextStepIntent` with session attributes tracking current step
+## Hands-free cooking flow
+
+Invoke with utterances like "Alexa, ask planning friend to walk me through pasta" (or "cook pasta with me"). The skill:
+
+1. Loads the recipe, stores steps in session attributes
+2. Reads: "Let's cook X. You'll need A, B, C. Step 1. [step]. Say 'next' when you're ready."
+3. Keeps the Alexa session open — say "next" to advance without re-invoking the skill
+4. On the final step, closes out with "Enjoy your meal!"
+
+The session is cleared if you say "stop" or if Alexa times out waiting for a reply.
