@@ -220,17 +220,112 @@ function categoryLabel(category) {
   }
 }
 
+// Shared rendering for the week view — used by both WeekPlanIntent and
+// LaunchRequest so the skill's home screen is the same week dashboard.
+// Populates an APL document on APL-capable devices, otherwise a plain
+// card.
+function applyWeekToBuilder(builder, handlerInput, data, opts = {}) {
+  if (supportsAPL(handlerInput)) {
+    const items = [];
+    for (const day of data.days || []) {
+      for (const item of day.items || []) {
+        items.push({
+          token: item.id,
+          primaryText: item.title,
+          secondaryText: item.location
+            ? `${day.dayName} · ${item.location}`
+            : day.dayName,
+        });
+      }
+    }
+    builder.addDirective({
+      type: "Alexa.Presentation.APL.RenderDocument",
+      token: "week",
+      document: todayAPL,
+      datasources: {
+        today: {
+          title: opts.title || "This Week",
+          subtitle:
+            data.totalItems === 0
+              ? "Nothing planned"
+              : `${data.totalItems} item${data.totalItems === 1 ? "" : "s"}`,
+          items,
+        },
+      },
+    });
+  } else {
+    const lines = [];
+    for (const day of data.days || []) {
+      if (!day.items || day.items.length === 0) continue;
+      lines.push(`${day.dayName}:`);
+      for (const item of day.items) {
+        lines.push(
+          `  • ${item.title}${item.location ? " — " + item.location : ""}`
+        );
+      }
+    }
+    builder.withSimpleCard(
+      opts.title || "This Week",
+      lines.length > 0 ? lines.join("\n") : "Nothing planned."
+    );
+  }
+}
+
+// Extract today's items from the week payload so LaunchRequest can save
+// meals to session for pronoun follow-ups and build a short today-focused
+// speech summary.
+function getTodayBucket(weekData, dateIso) {
+  const day = (weekData.days || []).find((d) => d.date === dateIso);
+  return day?.items || [];
+}
+
 const LaunchRequestHandler = {
   canHandle(handlerInput) {
     return (
       Alexa.getRequestType(handlerInput.requestEnvelope) === "LaunchRequest"
     );
   },
-  handle(handlerInput) {
-    return handlerInput.responseBuilder
-      .speak("Hi! Ask me what's on your plan today, or what's for dinner.")
-      .reprompt("Try asking: what's on my plan today?")
-      .getResponse();
+  async handle(handlerInput) {
+    try {
+      const date = await getDeviceDate(handlerInput);
+      const data = await fetchJson("/api/alexa/week", { date });
+
+      const todayItems = getTodayBucket(data, date);
+      const todayTitles = todayItems.map((i) => escapeSsml(i.title));
+
+      let speech = "Welcome to Planning Friend.";
+      if (data.totalItems === 0) {
+        speech += " You don't have anything planned this week.";
+      } else if (todayTitles.length > 0) {
+        speech += ` For today: ${joinList(todayTitles)}.`;
+      } else {
+        const count = data.totalItems === 1 ? "one thing" : `${data.totalItems} things`;
+        speech += ` You have ${count} planned this week. Nothing on today.`;
+      }
+
+      const builder = handlerInput.responseBuilder.speak(speech);
+      applyWeekToBuilder(builder, handlerInput, data, {
+        title: "Planning Friend",
+      });
+
+      // Save today's meals so "recipe for that" resolves after launch.
+      const todayMeals = todayItems.filter((i) => i.category === "meal");
+      setLastMeals(handlerInput, todayMeals);
+
+      builder.reprompt(
+        todayMeals.length > 0
+          ? 'Say "recipe for that" for today\'s meal, or ask about a specific day.'
+          : 'Ask about a specific day, or say "what\'s for dinner".'
+      );
+
+      return builder.getResponse();
+    } catch (err) {
+      console.error("LaunchRequest error:", err);
+      return handlerInput.responseBuilder
+        .speak("Hi! Ask me what's on your plan today, or what's for dinner.")
+        .reprompt("Try asking: what's on my plan today?")
+        .getResponse();
+    }
   },
 };
 
@@ -495,52 +590,7 @@ const WeekPlanIntentHandler = {
     try {
       const data = await fetchJson("/api/alexa/week", params);
       const builder = handlerInput.responseBuilder.speak(data.speech);
-
-      if (supportsAPL(handlerInput)) {
-        const items = [];
-        for (const day of data.days || []) {
-          for (const item of day.items || []) {
-            items.push({
-              token: item.id,
-              primaryText: item.title,
-              secondaryText: item.location
-                ? `${day.dayName} · ${item.location}`
-                : day.dayName,
-            });
-          }
-        }
-        builder.addDirective({
-          type: "Alexa.Presentation.APL.RenderDocument",
-          token: "week",
-          document: todayAPL,
-          datasources: {
-            today: {
-              title: "This Week",
-              subtitle:
-                data.totalItems === 0
-                  ? "Nothing planned"
-                  : `${data.totalItems} item${data.totalItems === 1 ? "" : "s"}`,
-              items,
-            },
-          },
-        });
-      } else {
-        const lines = [];
-        for (const day of data.days || []) {
-          if (!day.items || day.items.length === 0) continue;
-          lines.push(`${day.dayName}:`);
-          for (const item of day.items) {
-            lines.push(
-              `  • ${item.title}${item.location ? " — " + item.location : ""}`
-            );
-          }
-        }
-        builder.withSimpleCard(
-          "This Week",
-          lines.length > 0 ? lines.join("\n") : "Nothing planned."
-        );
-      }
-
+      applyWeekToBuilder(builder, handlerInput, data);
       return builder.getResponse();
     } catch (err) {
       console.error("WeekPlanIntent error:", err);

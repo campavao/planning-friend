@@ -20,6 +20,16 @@ Auth: long-lived bearer token in Lambda env, matched against `ALEXA_API_TOKEN` o
 - `NextStepIntent` — advances through the active cooking session; ends the session on the final step with "Enjoy your meal!"
 - APL — two documents (`apl/today.json`, `apl/recipe.json`), rendered only when the device reports `Alexa.Presentation.APL` support.
 
+## Launch screen
+
+Saying "Alexa, open planning friend" (the bare launch, with no specific intent) loads this week's plan as the home view:
+
+- Speech: "Welcome to Planning Friend. For today: [meals/events]." (or *"You don't have anything planned this week"* when empty)
+- APL: full week list on Echo Show — grouped by day with item + location
+- Session stays open so you can immediately say *"recipe for that"*, *"walk me through that"*, *"what's on my plan tomorrow"*, etc., without re-invoking the skill.
+
+The default Alexa-branded idle screen no longer appears — you see your plan instead.
+
 ## Date queries
 
 `TodaysPlanIntent` and `WhatsForDinnerIntent` take an optional AMAZON.DATE slot. Examples:
