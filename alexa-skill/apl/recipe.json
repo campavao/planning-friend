@@ -112,24 +112,14 @@
                       "data": "${payload.recipe.steps}",
                       "items": [
                         {
-                          "type": "Container",
-                          "direction": "column",
+                          "type": "Text",
+                          "text": "<b>${data.ordinal}</b><br/><br/>${data.body}",
+                          "fontSize": "22dp",
+                          "color": "#f1f5f9",
+                          "lineHeight": "32dp",
+                          "paddingBottom": "24dp",
                           "width": "100%",
-                          "paddingBottom": "18dp",
-                          "items": [
-                            {
-                              "type": "Text",
-                              "style": "recipeStepNumber",
-                              "text": "${data.ordinal}"
-                            },
-                            {
-                              "type": "Text",
-                              "style": "recipeStepText",
-                              "text": "${data.body}",
-                              "width": "100%",
-                              "maxLines": 0
-                            }
-                          ]
+                          "maxLines": 0
                         }
                       ]
                     },
@@ -172,8 +162,11 @@
                         "items": [
                           {
                             "type": "Text",
-                            "style": "recipeIngredientText",
                             "text": "•   ${data.body}",
+                            "fontSize": "18dp",
+                            "color": "#e2e8f0",
+                            "lineHeight": "26dp",
+                            "paddingBottom": "12dp",
                             "width": "100%",
                             "maxLines": 0
                           }
