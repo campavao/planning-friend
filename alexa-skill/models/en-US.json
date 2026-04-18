@@ -110,7 +110,10 @@
             "how do I make {dish}",
             "how do you make {dish}",
             "how to make {dish}",
-            "what's in {dish}"
+            "what's in {dish}",
+            "can you read me the recipe for {dish}",
+            "can you give me the recipe for {dish}",
+            "can you tell me how to make {dish}"
           ]
         },
         {
@@ -133,12 +136,16 @@
           "samples": [
             "walk me through {dish}",
             "walk me through the recipe for {dish}",
+            "can you walk me through {dish}",
+            "could you walk me through {dish}",
             "cook {dish} with me",
             "cook along with {dish}",
             "let's cook {dish}",
             "help me cook {dish}",
+            "can you help me cook {dish}",
             "start cooking {dish}",
-            "guide me through {dish}"
+            "guide me through {dish}",
+            "can you guide me through {dish}"
           ]
         }
       ]
