@@ -137,3 +137,15 @@ Invoke with utterances like "Alexa, ask planning friend to walk me through pasta
 4. On the final step, closes out with "Enjoy your meal!"
 
 The session is cleared if you say "stop" or if Alexa times out waiting for a reply.
+
+## Follow-up flow ("what's the recipe for that")
+
+After `TodaysPlanIntent` or `WhatsForDinnerIntent` mentions a meal, the skill stashes it in session attributes and keeps the session open. You can follow up with a pronoun instead of the dish name — all of these work without saying "ask planning friend" again:
+
+- *"Alexa, ask planning friend what's for dinner"* → "Dinner is Garlic Butter Grilled Cheese Dog."
+- *"What's the recipe for that?"* → reads the recipe for the saved meal
+- *"Walk me through that"* → starts the cook-along flow for the saved meal
+
+Accepted pronouns: `that`, `it`, `this`, `that one`, `this one`, `the one`, `the meal`, `the dish`, `the recipe`, `tonight's dinner`, `my dinner`, `dinner`.
+
+If there are multiple meals on a day, the skill uses the earliest-scheduled one. You can always say the explicit name to override.

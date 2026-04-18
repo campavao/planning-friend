@@ -7,6 +7,7 @@ import {
   type SharedPlanItem,
 } from "@/lib/supabase";
 import { requireAlexaToken } from "@/lib/alexa-auth";
+import { escapeSsml } from "@/lib/alexa-speech";
 
 interface DinnerResponse {
   found: boolean;
@@ -102,9 +103,10 @@ function todayIso(): string {
 }
 
 function buildSpeech(dateLabel: string | null, title: string): string {
+  const safeTitle = escapeSsml(title);
   return dateLabel
-    ? `Dinner ${dateLabel} is ${title}.`
-    : `Dinner is ${title}.`;
+    ? `Dinner ${dateLabel} is ${safeTitle}.`
+    : `Dinner is ${safeTitle}.`;
 }
 
 function formatDateForSpeech(date: string): string {

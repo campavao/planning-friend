@@ -7,6 +7,7 @@ import {
   type MealData,
 } from "@/lib/supabase";
 import { requireAlexaToken } from "@/lib/alexa-auth";
+import { escapeSsml } from "@/lib/alexa-speech";
 
 interface RecipeResponse {
   found: boolean;
@@ -152,22 +153,27 @@ function buildRecipeSpeech(
   steps: string[],
   sharedBy?: string
 ): string {
-  const intro = sharedBy
-    ? `Here's ${sharedBy}'s recipe for ${title}.`
-    : `Here's the recipe for ${title}.`;
+  const safeTitle = escapeSsml(title);
+  const safeIngredients = ingredients.map(escapeSsml);
+  const safeSteps = steps.map(escapeSsml);
+  const safeSharedBy = escapeSsml(sharedBy);
+
+  const intro = safeSharedBy
+    ? `Here's ${safeSharedBy}'s recipe for ${safeTitle}.`
+    : `Here's the recipe for ${safeTitle}.`;
   const parts: string[] = [intro];
 
-  if (ingredients.length > 0) {
-    parts.push(`You'll need: ${joinList(ingredients)}.`);
+  if (safeIngredients.length > 0) {
+    parts.push(`You'll need: ${joinList(safeIngredients)}.`);
     parts.push('<break time="700ms"/>');
   }
 
-  if (steps.length > 0) {
+  if (safeSteps.length > 0) {
     parts.push("Here are the steps.");
-    steps.forEach((step, i) => {
+    safeSteps.forEach((step, i) => {
       parts.push(`<break time="500ms"/> Step ${i + 1}. ${step}`);
     });
-  } else if (ingredients.length === 0) {
+  } else if (safeIngredients.length === 0) {
     parts.push("No detailed steps are saved for this recipe.");
   }
 

@@ -9,6 +9,7 @@ import {
   type SharedPlanItem,
 } from "@/lib/supabase";
 import { requireAlexaToken } from "@/lib/alexa-auth";
+import { escapeSsml } from "@/lib/alexa-speech";
 
 interface AlexaItem {
   id: string;
@@ -114,11 +115,13 @@ function buildSpeech(date: string, items: AlexaItem[]): string {
   if (items.length === 0) return `You have nothing planned for ${dateLabel}.`;
 
   const phrases = items.map((item) => {
-    if (item.category === "meal") return `${item.title} for a meal`;
-    if (item.category === "event" && item.location) {
-      return `${item.title} at ${item.location}`;
+    const title = escapeSsml(item.title);
+    const location = escapeSsml(item.location);
+    if (item.category === "meal") return `${title} for a meal`;
+    if (item.category === "event" && location) {
+      return `${title} at ${location}`;
     }
-    return item.title;
+    return title;
   });
 
   const count = items.length === 1 ? "one thing" : `${items.length} things`;

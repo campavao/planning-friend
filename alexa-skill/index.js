@@ -5,6 +5,59 @@ const Alexa = require("ask-sdk-core");
 const todayAPL = require("./apl/today.json");
 const recipeAPL = require("./apl/recipe.json");
 
+// Escape characters that would break SSML/XML parsing when inserted into
+// a speech string. Alexa wraps .speak() output in <speak>...</speak>, so
+// raw "&", "<", ">" anywhere inside produce a malformed document and the
+// skill response is rejected with "there was a problem".
+function escapeSsml(s) {
+  if (s == null) return "";
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+// Recognizes pronouns and vague references that should resolve against
+// session context instead of being matched as a recipe name. When Alexa
+// captures "that" as the SearchQuery dish slot, we look up the most
+// recently mentioned meal from session attributes.
+const PRONOUN_DISH = new Set([
+  "that",
+  "it",
+  "this",
+  "that one",
+  "this one",
+  "the one",
+  "the meal",
+  "the dish",
+  "the recipe",
+  "tonight's dinner",
+  "tonights dinner",
+  "my dinner",
+  "dinner",
+]);
+
+function isPronounDish(value) {
+  if (!value) return true;
+  return PRONOUN_DISH.has(String(value).toLowerCase().trim());
+}
+
+function setLastMeals(handlerInput, meals) {
+  const attrs = handlerInput.attributesManager.getSessionAttributes();
+  if (meals.length > 0) {
+    attrs.lastMeals = meals.map((m) => ({ title: m.title, id: m.id }));
+  } else {
+    delete attrs.lastMeals;
+  }
+  handlerInput.attributesManager.setSessionAttributes(attrs);
+}
+
+function getLastMealTitle(handlerInput) {
+  const attrs = handlerInput.attributesManager.getSessionAttributes();
+  const first = attrs.lastMeals?.[0];
+  return first ? first.title : null;
+}
+
 const API_URL = process.env.PLANNING_FRIEND_API_URL;
 const API_TOKEN = process.env.PLANNING_FRIEND_API_TOKEN;
 
@@ -234,6 +287,16 @@ const TodaysPlanIntentHandler = {
         builder.withSimpleCard("Your plan", cardText);
       }
 
+      // Save meal items to session so follow-ups like "recipe for that"
+      // can resolve without another skill invocation.
+      const meals = (data.items || []).filter((i) => i.category === "meal");
+      setLastMeals(handlerInput, meals);
+      if (meals.length > 0) {
+        builder.reprompt(
+          'Say "recipe for that" to hear how to make it, or ask about another day.'
+        );
+      }
+
       return builder.getResponse();
     } catch (err) {
       console.error("TodaysPlanIntent error:", err);
@@ -255,18 +318,31 @@ const GetRecipeIntentHandler = {
   },
   async handle(handlerInput) {
     const spoken = Alexa.getSlotValue(handlerInput.requestEnvelope, "dish");
-    if (!spoken) {
-      return handlerInput.responseBuilder
-        .speak("Which recipe would you like?")
-        .reprompt("Say the name of the recipe.")
-        .getResponse();
+
+    // Pronoun resolution: "what's the recipe for that" resolves to the
+    // most recently mentioned meal (saved by TodaysPlanIntent or
+    // WhatsForDinnerIntent). Falls through to fuzzy match otherwise.
+    let effectiveName = spoken;
+    if (isPronounDish(spoken)) {
+      effectiveName = getLastMealTitle(handlerInput);
+      if (!effectiveName) {
+        return handlerInput.responseBuilder
+          .speak("Which recipe would you like?")
+          .reprompt("Say the name of the recipe.")
+          .getResponse();
+      }
     }
 
     try {
-      const data = await fetchJson("/api/alexa/recipe", { name: spoken });
+      const data = await fetchJson("/api/alexa/recipe", {
+        name: effectiveName,
+      });
       if (!data.found) {
         return handlerInput.responseBuilder
-          .speak(data.speech || `I couldn't find a recipe called ${spoken}.`)
+          .speak(
+            data.speech ||
+              `I couldn't find a recipe called ${escapeSsml(effectiveName)}.`
+          )
           .getResponse();
       }
 
@@ -361,6 +437,15 @@ const WhatsForDinnerIntentHandler = {
           "Dinner",
           data.found ? data.title || "Nothing planned" : "Nothing planned"
         );
+      }
+
+      if (data.found && data.title) {
+        setLastMeals(handlerInput, [{ title: data.title, id: data.id }]);
+        builder.reprompt(
+          'Say "recipe for that" to hear how to make it.'
+        );
+      } else {
+        setLastMeals(handlerInput, []);
       }
 
       return builder.getResponse();
@@ -478,18 +563,28 @@ const CookAlongIntentHandler = {
   },
   async handle(handlerInput) {
     const spoken = Alexa.getSlotValue(handlerInput.requestEnvelope, "dish");
-    if (!spoken) {
-      return handlerInput.responseBuilder
-        .speak("Which recipe should we cook?")
-        .reprompt("Say the name of the recipe.")
-        .getResponse();
+
+    let effectiveName = spoken;
+    if (isPronounDish(spoken)) {
+      effectiveName = getLastMealTitle(handlerInput);
+      if (!effectiveName) {
+        return handlerInput.responseBuilder
+          .speak("Which recipe should we cook?")
+          .reprompt("Say the name of the recipe.")
+          .getResponse();
+      }
     }
 
     try {
-      const data = await fetchJson("/api/alexa/recipe", { name: spoken });
+      const data = await fetchJson("/api/alexa/recipe", {
+        name: effectiveName,
+      });
       if (!data.found) {
         return handlerInput.responseBuilder
-          .speak(data.speech || `I couldn't find a recipe called ${spoken}.`)
+          .speak(
+            data.speech ||
+              `I couldn't find a recipe called ${escapeSsml(effectiveName)}.`
+          )
           .getResponse();
       }
 
@@ -497,7 +592,7 @@ const CookAlongIntentHandler = {
       if (steps.length === 0) {
         return handlerInput.responseBuilder
           .speak(
-            `${data.title} doesn't have any saved steps, so I can't walk you through it.`
+            `${escapeSsml(data.title)} doesn't have any saved steps, so I can't walk you through it.`
           )
           .getResponse();
       }
@@ -510,13 +605,16 @@ const CookAlongIntentHandler = {
       };
       handlerInput.attributesManager.setSessionAttributes(attrs);
 
-      const ingredientsLine = data.ingredients?.length
-        ? `You'll need: ${joinList(data.ingredients)}. <break time="700ms"/>`
+      const safeTitle = escapeSsml(data.title);
+      const safeIngredients = (data.ingredients || []).map(escapeSsml);
+      const safeFirstStep = escapeSsml(steps[0]);
+      const ingredientsLine = safeIngredients.length
+        ? `You'll need: ${joinList(safeIngredients)}. <break time="700ms"/>`
         : "";
 
       const speech =
-        `Let's cook ${data.title}. ${ingredientsLine}` +
-        `Step 1. ${steps[0]} <break time="400ms"/> ` +
+        `Let's cook ${safeTitle}. ${ingredientsLine}` +
+        `Step 1. ${safeFirstStep} <break time="400ms"/> ` +
         `Say "next" when you're ready for the next step.`;
 
       const builder = handlerInput.responseBuilder
@@ -564,12 +662,12 @@ const NextStepIntentHandler = {
       handlerInput.attributesManager.setSessionAttributes(attrs);
       return handlerInput.responseBuilder
         .speak(
-          `That was the last step for ${cooking.title}. Enjoy your meal!`
+          `That was the last step for ${escapeSsml(cooking.title)}. Enjoy your meal!`
         )
         .getResponse();
     }
 
-    const step = cooking.steps[idx];
+    const step = escapeSsml(cooking.steps[idx]);
     const stepNumber = idx + 1;
     cooking.currentStep = idx + 1;
     attrs.cooking = cooking;
