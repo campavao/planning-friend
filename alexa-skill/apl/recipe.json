@@ -107,19 +107,31 @@
                       "scrollDirection": "vertical",
                       "width": "100%",
                       "grow": 1,
-                      "paddingBottom": "24dp",
-                      "when": "${payload.recipe.steps.length > 0}",
-                      "data": "${payload.recipe.steps}",
+                      "paddingBottom": "64dp",
+                      "when": "${payload.recipe.stepItems.length > 0}",
+                      "data": "${payload.recipe.stepItems}",
                       "items": [
                         {
                           "type": "Text",
-                          "text": "<b>${data.ordinal}</b><br/><br/>${data.body}",
+                          "text": "${data.text}",
+                          "fontSize": "14dp",
+                          "fontWeight": "700",
+                          "color": "#60a5fa",
+                          "letterSpacing": "2dp",
+                          "paddingTop": "14dp",
+                          "paddingBottom": "4dp",
+                          "width": "100%",
+                          "when": "${data.type == 'num'}"
+                        },
+                        {
+                          "type": "Text",
+                          "text": "${data.text}",
                           "fontSize": "22dp",
                           "color": "#f1f5f9",
                           "lineHeight": 1.5,
-                          "paddingBottom": "24dp",
                           "width": "100%",
-                          "maxLines": 0
+                          "maxLines": 0,
+                          "when": "${data.type == 'body'}"
                         }
                       ]
                     },
@@ -127,7 +139,7 @@
                       "type": "Text",
                       "style": "recipeEmptyText",
                       "text": "No directions saved.",
-                      "when": "${payload.recipe.steps.length == 0}"
+                      "when": "${payload.recipe.stepItems.length == 0}"
                     }
                   ]
                 },
@@ -156,7 +168,7 @@
                         "scrollDirection": "vertical",
                         "width": "100%",
                         "grow": 1,
-                        "paddingBottom": "24dp",
+                        "paddingBottom": "48dp",
                         "when": "${payload.recipe.ingredients.length > 0}",
                         "data": "${payload.recipe.ingredients}",
                         "items": [

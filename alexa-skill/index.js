@@ -198,13 +198,15 @@ function addRecipeAPL(builder, data) {
   if (data.steps?.length) {
     subtitleParts.push(`${data.steps.length} steps`);
   }
-  // Pre-format step data as objects so APL doesn't need bind/ordinal —
-  // each step has its own ordinal label baked in as a string. Simpler
-  // rendering avoids Container layout quirks in APL 2024.3 Sequences.
-  const steps = (data.steps || []).map((step, i) => ({
-    ordinal: `STEP ${i + 1}`,
-    body: escapeSsml(step),
-  }));
+  // Flatten steps into alternating ordinal + body items so each Text in
+  // the Sequence is a direct child (no wrapping Container that stretches
+  // oddly in APL 2024.3). Each item has a `type` discriminator so the
+  // APL has two templates with `when` conditions to pick the right style.
+  const stepItems = [];
+  (data.steps || []).forEach((step, i) => {
+    stepItems.push({ type: "num", text: `STEP ${i + 1}` });
+    stepItems.push({ type: "body", text: escapeSsml(step) });
+  });
   const ingredients = (data.ingredients || []).map((ing) => ({
     body: escapeSsml(ing),
   }));
@@ -217,7 +219,7 @@ function addRecipeAPL(builder, data) {
         title: escapeSsml(data.title || "Recipe"),
         subtitle: subtitleParts.join(" · "),
         ingredients,
-        steps,
+        stepItems,
       },
     },
   });
