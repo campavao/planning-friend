@@ -85,104 +85,94 @@
             "grow": 1,
             "items": [
               {
-                "type": "ScrollView",
+                "type": "Container",
+                "direction": "column",
                 "width": "66%",
                 "height": "100%",
                 "paddingLeft": "48dp",
                 "paddingRight": "32dp",
                 "paddingTop": "24dp",
-                "paddingBottom": "32dp",
-                "item": {
-                  "type": "Container",
-                  "direction": "column",
-                  "items": [
-                    {
-                      "type": "Text",
-                      "style": "sectionLabel",
-                      "text": "DIRECTIONS",
-                      "when": "${payload.recipe.steps.length > 0}"
-                    },
-                    {
-                      "type": "Sequence",
-                      "scrollDirection": "vertical",
-                      "scrollEnabled": false,
-                      "width": "100%",
-                      "height": "auto",
-                      "shrink": 0,
-                      "when": "${payload.recipe.steps.length > 0}",
-                      "data": "${payload.recipe.steps}",
-                      "items": [
-                        {
-                          "type": "Container",
-                          "direction": "column",
-                          "items": [
-                            {
-                              "type": "Text",
-                              "style": "stepNumber",
-                              "text": "STEP ${ordinal}"
-                            },
-                            {
-                              "type": "Text",
-                              "style": "stepText",
-                              "text": "${data}"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "Text",
-                      "style": "emptyText",
-                      "text": "No directions saved.",
-                      "when": "${payload.recipe.steps.length == 0}"
-                    }
-                  ]
-                }
+                "items": [
+                  {
+                    "type": "Text",
+                    "style": "sectionLabel",
+                    "text": "DIRECTIONS",
+                    "when": "${payload.recipe.steps.length > 0}"
+                  },
+                  {
+                    "type": "Sequence",
+                    "scrollDirection": "vertical",
+                    "width": "100%",
+                    "grow": 1,
+                    "paddingBottom": "24dp",
+                    "when": "${payload.recipe.steps.length > 0}",
+                    "data": "${payload.recipe.steps}",
+                    "items": [
+                      {
+                        "type": "Container",
+                        "direction": "column",
+                        "items": [
+                          {
+                            "type": "Text",
+                            "style": "stepNumber",
+                            "text": "STEP ${ordinal}"
+                          },
+                          {
+                            "type": "Text",
+                            "style": "stepText",
+                            "text": "${data}"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "Text",
+                    "style": "emptyText",
+                    "text": "No directions saved.",
+                    "when": "${payload.recipe.steps.length == 0}"
+                  }
+                ]
               },
               {
-                "type": "ScrollView",
+                "type": "Container",
+                "direction": "column",
                 "width": "34%",
                 "height": "100%",
                 "backgroundColor": "#0a1018",
                 "paddingLeft": "32dp",
                 "paddingRight": "32dp",
                 "paddingTop": "24dp",
-                "paddingBottom": "32dp",
-                "item": {
-                  "type": "Container",
-                  "direction": "column",
-                  "items": [
-                    {
-                      "type": "Text",
-                      "style": "sectionLabel",
-                      "text": "INGREDIENTS",
-                      "when": "${payload.recipe.ingredients.length > 0}"
-                    },
-                    {
-                      "type": "Sequence",
-                      "scrollDirection": "vertical",
-                      "scrollEnabled": false,
-                      "width": "100%",
-                      "height": "auto",
-                      "shrink": 0,
-                      "when": "${payload.recipe.ingredients.length > 0}",
-                      "data": "${payload.recipe.ingredients}",
-                      "items": [
-                        {
-                          "type": "Text",
-                          "style": "ingredientText",
-                          "text": "•   ${data}"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "Text",
-                      "style": "emptyText",
-                      "text": "No ingredients saved.",
-                      "when": "${payload.recipe.ingredients.length == 0}"
-                    }
-                  ]
-                }
+                "items": [
+                  {
+                    "type": "Text",
+                    "style": "sectionLabel",
+                    "text": "INGREDIENTS",
+                    "when": "${payload.recipe.ingredients.length > 0}"
+                  },
+                  {
+                    "type": "Sequence",
+                    "scrollDirection": "vertical",
+                    "width": "100%",
+                    "grow": 1,
+                    "paddingBottom": "24dp",
+                    "when": "${payload.recipe.ingredients.length > 0}",
+                    "data": "${payload.recipe.ingredients}",
+                    "items": [
+                      {
+                        "type": "Text",
+                        "style": "ingredientText",
+                        "text": "•   ${data}"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "Text",
+                    "style": "emptyText",
+                    "text": "No ingredients saved.",
+                    "when": "${payload.recipe.ingredients.length == 0}"
+                  }
+                ]
               }
             ]
           }
