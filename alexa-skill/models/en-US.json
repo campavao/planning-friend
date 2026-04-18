@@ -96,14 +96,21 @@
         {
           "name": "GetRecipeIntent",
           "slots": [
-            { "name": "dish", "type": "DishName" }
+            { "name": "dish", "type": "AMAZON.SearchQuery" }
           ],
           "samples": [
             "read me the recipe for {dish}",
-            "how do I make {dish}",
+            "read the recipe for {dish}",
             "recipe for {dish}",
             "give me the recipe for {dish}",
-            "tell me how to make {dish}"
+            "what's the recipe for {dish}",
+            "what is the recipe for {dish}",
+            "tell me the recipe for {dish}",
+            "tell me how to make {dish}",
+            "how do I make {dish}",
+            "how do you make {dish}",
+            "how to make {dish}",
+            "what's in {dish}"
           ]
         },
         {
@@ -121,7 +128,7 @@
         {
           "name": "CookAlongIntent",
           "slots": [
-            { "name": "dish", "type": "DishName" }
+            { "name": "dish", "type": "AMAZON.SearchQuery" }
           ],
           "samples": [
             "walk me through {dish}",
@@ -132,14 +139,6 @@
             "help me cook {dish}",
             "start cooking {dish}",
             "guide me through {dish}"
-          ]
-        }
-      ],
-      "types": [
-        {
-          "name": "DishName",
-          "values": [
-            { "name": { "value": "placeholder dish" } }
           ]
         }
       ]
