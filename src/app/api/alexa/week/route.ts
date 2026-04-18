@@ -9,6 +9,7 @@ import {
   type SharedPlanItem,
 } from "@/lib/supabase";
 import { requireAlexaToken } from "@/lib/alexa-auth";
+import { escapeSsml } from "@/lib/alexa-speech";
 
 interface WeekItem {
   id: string;
@@ -174,7 +175,7 @@ function buildSpeech(
   const daysWithItems = days.filter((d) => d.items.length > 0);
 
   const daySummaries = daysWithItems.map((d) => {
-    const titles = d.items.map((i) => i.title);
+    const titles = d.items.map((i) => escapeSsml(i.title));
     return `${d.dayName}: ${joinList(titles)}`;
   });
 

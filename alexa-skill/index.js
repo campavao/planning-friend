@@ -5,6 +5,18 @@ const Alexa = require("ask-sdk-core");
 const todayAPL = require("./apl/today.json");
 const recipeAPL = require("./apl/recipe.json");
 
+// Escape characters that would break SSML/XML parsing when inserted into
+// a speech string. Alexa wraps .speak() output in <speak>...</speak>, so
+// raw "&", "<", ">" anywhere inside produce a malformed document and the
+// skill response is rejected with "there was a problem".
+function escapeSsml(s) {
+  if (s == null) return "";
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 const API_URL = process.env.PLANNING_FRIEND_API_URL;
 const API_TOKEN = process.env.PLANNING_FRIEND_API_TOKEN;
 
@@ -489,7 +501,10 @@ const CookAlongIntentHandler = {
       const data = await fetchJson("/api/alexa/recipe", { name: spoken });
       if (!data.found) {
         return handlerInput.responseBuilder
-          .speak(data.speech || `I couldn't find a recipe called ${spoken}.`)
+          .speak(
+            data.speech ||
+              `I couldn't find a recipe called ${escapeSsml(spoken)}.`
+          )
           .getResponse();
       }
 
@@ -497,7 +512,7 @@ const CookAlongIntentHandler = {
       if (steps.length === 0) {
         return handlerInput.responseBuilder
           .speak(
-            `${data.title} doesn't have any saved steps, so I can't walk you through it.`
+            `${escapeSsml(data.title)} doesn't have any saved steps, so I can't walk you through it.`
           )
           .getResponse();
       }
@@ -510,13 +525,16 @@ const CookAlongIntentHandler = {
       };
       handlerInput.attributesManager.setSessionAttributes(attrs);
 
-      const ingredientsLine = data.ingredients?.length
-        ? `You'll need: ${joinList(data.ingredients)}. <break time="700ms"/>`
+      const safeTitle = escapeSsml(data.title);
+      const safeIngredients = (data.ingredients || []).map(escapeSsml);
+      const safeFirstStep = escapeSsml(steps[0]);
+      const ingredientsLine = safeIngredients.length
+        ? `You'll need: ${joinList(safeIngredients)}. <break time="700ms"/>`
         : "";
 
       const speech =
-        `Let's cook ${data.title}. ${ingredientsLine}` +
-        `Step 1. ${steps[0]} <break time="400ms"/> ` +
+        `Let's cook ${safeTitle}. ${ingredientsLine}` +
+        `Step 1. ${safeFirstStep} <break time="400ms"/> ` +
         `Say "next" when you're ready for the next step.`;
 
       const builder = handlerInput.responseBuilder
@@ -564,12 +582,12 @@ const NextStepIntentHandler = {
       handlerInput.attributesManager.setSessionAttributes(attrs);
       return handlerInput.responseBuilder
         .speak(
-          `That was the last step for ${cooking.title}. Enjoy your meal!`
+          `That was the last step for ${escapeSsml(cooking.title)}. Enjoy your meal!`
         )
         .getResponse();
     }
 
-    const step = cooking.steps[idx];
+    const step = escapeSsml(cooking.steps[idx]);
     const stepNumber = idx + 1;
     cooking.currentStep = idx + 1;
     attrs.cooking = cooking;
