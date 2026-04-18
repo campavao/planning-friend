@@ -1,0 +1,72 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "planning friend",
+      "intents": [
+        { "name": "AMAZON.CancelIntent", "samples": [] },
+        { "name": "AMAZON.HelpIntent", "samples": [] },
+        { "name": "AMAZON.StopIntent", "samples": [] },
+        { "name": "AMAZON.FallbackIntent", "samples": [] },
+        { "name": "AMAZON.NavigateHomeIntent", "samples": [] },
+        {
+          "name": "TodaysPlanIntent",
+          "slots": [],
+          "samples": [
+            "what's on my plan today",
+            "what's on my plan for today",
+            "what do I have planned today",
+            "what's planned for today",
+            "today's plan",
+            "my plan",
+            "what's happening today",
+            "what am I doing today"
+          ]
+        },
+        {
+          "name": "WhatsForDinnerIntent",
+          "slots": [],
+          "samples": [
+            "what's for dinner",
+            "what am I eating tonight",
+            "what's dinner tonight",
+            "what's the meal tonight",
+            "dinner plan"
+          ]
+        },
+        {
+          "name": "GetRecipeIntent",
+          "slots": [
+            { "name": "dish", "type": "DishName" }
+          ],
+          "samples": [
+            "read me the recipe for {dish}",
+            "how do I make {dish}",
+            "recipe for {dish}",
+            "give me the recipe for {dish}",
+            "tell me how to make {dish}"
+          ]
+        },
+        {
+          "name": "NextStepIntent",
+          "slots": [],
+          "samples": [
+            "next step",
+            "next",
+            "what's next",
+            "continue",
+            "go on",
+            "keep going"
+          ]
+        }
+      ],
+      "types": [
+        {
+          "name": "DishName",
+          "values": [
+            { "name": { "value": "placeholder dish" } }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "planning-friend-alexa-skill",
+  "version": "0.1.0",
+  "description": "Alexa skill Lambda handler for planning-friend (read-only).",
+  "private": true,
+  "main": "index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "zip": "zip -r skill.zip index.js package.json node_modules"
+  },
+  "dependencies": {
+    "ask-sdk-core": "^2.14.0",
+    "ask-sdk-model": "^1.86.0"
+  }
+}

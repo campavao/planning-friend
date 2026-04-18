@@ -11,6 +11,7 @@ export const PUBLIC_API_PATHS = [
   "/api/process",
   "/api/push/subscribe",
   "/api/push/vapid-key",
+  "/api/alexa",
 ];
 
 export function isPublicApiPath(pathname: string): boolean {
