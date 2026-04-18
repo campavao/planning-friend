@@ -102,7 +102,10 @@
             "read me the recipe for {dish}",
             "read the recipe for {dish}",
             "recipe for {dish}",
+            "the recipe for {dish}",
             "give me the recipe for {dish}",
+            "show me the recipe for {dish}",
+            "show the recipe for {dish}",
             "what's the recipe for {dish}",
             "what is the recipe for {dish}",
             "tell me the recipe for {dish}",
@@ -110,9 +113,11 @@
             "how do I make {dish}",
             "how do you make {dish}",
             "how to make {dish}",
+            "show me how to make {dish}",
             "what's in {dish}",
             "can you read me the recipe for {dish}",
             "can you give me the recipe for {dish}",
+            "can you show me the recipe for {dish}",
             "can you tell me how to make {dish}"
           ]
         },
