@@ -71,8 +71,14 @@ function shapeItem(item: PlanItem): AlexaItem {
     category,
     notes: item.notes,
     plannedDate: item.planned_date,
-    location: extractLocation(item.content?.data, category),
+    location: shortenLocation(extractLocation(item.content?.data, category)),
   };
+}
+
+function shortenLocation(location?: string): string | undefined {
+  if (!location) return undefined;
+  const first = location.split(",")[0].trim();
+  return first || undefined;
 }
 
 function extractLocation(data: unknown, category: string): string | undefined {
