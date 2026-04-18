@@ -112,19 +112,33 @@
                         "type": "Container",
                         "direction": "column",
                         "width": "100%",
+                        "height": "auto",
+                        "shrink": 0,
+                        "bind": [
+                          {
+                            "name": "stepOrdinal",
+                            "value": "${ordinal}"
+                          },
+                          {
+                            "name": "stepBody",
+                            "value": "${data}"
+                          }
+                        ],
                         "items": [
                           {
                             "type": "Text",
                             "style": "stepNumber",
-                            "text": "STEP ${index + 1}",
+                            "text": "STEP ${stepOrdinal}",
+                            "width": "100%",
                             "maxLines": 1
                           },
                           {
                             "type": "Text",
                             "style": "stepText",
-                            "text": "${data}",
+                            "text": "${stepBody}",
                             "width": "100%",
-                            "maxLines": 0
+                            "maxLines": 0,
+                            "shrink": 0
                           }
                         ]
                       }
@@ -164,11 +178,27 @@
                     "data": "${payload.recipe.ingredients}",
                     "items": [
                       {
-                        "type": "Text",
-                        "style": "ingredientText",
-                        "text": "•   ${data}",
+                        "type": "Container",
+                        "direction": "column",
                         "width": "100%",
-                        "maxLines": 0
+                        "height": "auto",
+                        "shrink": 0,
+                        "bind": [
+                          {
+                            "name": "ingredientBody",
+                            "value": "${data}"
+                          }
+                        ],
+                        "items": [
+                          {
+                            "type": "Text",
+                            "style": "ingredientText",
+                            "text": "•   ${ingredientBody}",
+                            "width": "100%",
+                            "maxLines": 0,
+                            "shrink": 0
+                          }
+                        ]
                       }
                     ]
                   },
