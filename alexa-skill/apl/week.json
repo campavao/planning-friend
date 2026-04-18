@@ -42,7 +42,7 @@
         {
           "fontSize": "20dp",
           "color": "#f1f5f9",
-          "lineHeight": "26dp"
+          "lineHeight": 1.3
         }
       ]
     },

@@ -25,7 +25,7 @@
           "fontSize": "18dp",
           "color": "#e2e8f0",
           "paddingBottom": "12dp",
-          "lineHeight": "26dp"
+          "lineHeight": 1.5
         }
       ]
     },
@@ -34,7 +34,7 @@
         {
           "fontSize": "22dp",
           "color": "#f1f5f9",
-          "lineHeight": "32dp"
+          "lineHeight": 1.5
         }
       ]
     },
@@ -116,7 +116,7 @@
                           "text": "<b>${data.ordinal}</b><br/><br/>${data.body}",
                           "fontSize": "22dp",
                           "color": "#f1f5f9",
-                          "lineHeight": "32dp",
+                          "lineHeight": 1.5,
                           "paddingBottom": "24dp",
                           "width": "100%",
                           "maxLines": 0
@@ -165,7 +165,7 @@
                             "text": "•   ${data.body}",
                             "fontSize": "18dp",
                             "color": "#e2e8f0",
-                            "lineHeight": "26dp",
+                            "lineHeight": 1.5,
                             "paddingBottom": "12dp",
                             "width": "100%",
                             "maxLines": 0
