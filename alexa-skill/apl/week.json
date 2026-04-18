@@ -7,7 +7,6 @@
       "version": "1.7.0"
     }
   ],
-  "theme": "dark",
   "styles": {
     "dayHeader": {
       "values": [
@@ -34,7 +33,6 @@
         {
           "fontSize": "14dp",
           "color": "#94a3b8",
-          "letterSpacing": "1dp",
           "paddingBottom": "20dp"
         }
       ]
@@ -67,76 +65,6 @@
       ]
     }
   },
-  "layouts": {
-    "DayCard": {
-      "parameters": ["day"],
-      "items": [
-        {
-          "type": "Container",
-          "width": "320dp",
-          "height": "100%",
-          "backgroundColor": "${day.isToday ? '#1e3a8a' : '#1e293b'}",
-          "paddingLeft": "24dp",
-          "paddingRight": "24dp",
-          "paddingTop": "24dp",
-          "paddingBottom": "24dp",
-          "direction": "column",
-          "items": [
-            {
-              "type": "Text",
-              "style": "${day.isToday ? 'dayHeaderToday' : 'dayHeader'}",
-              "text": "${day.dayName}"
-            },
-            {
-              "type": "Text",
-              "style": "dayDate",
-              "text": "${day.shortDate}"
-            },
-            {
-              "type": "Text",
-              "style": "emptyText",
-              "text": "Nothing planned",
-              "when": "${day.items.length == 0}"
-            },
-            {
-              "type": "Sequence",
-              "scrollDirection": "vertical",
-              "grow": 1,
-              "width": "100%",
-              "when": "${day.items.length > 0}",
-              "data": "${day.items}",
-              "items": [
-                {
-                  "type": "Container",
-                  "paddingBottom": "16dp",
-                  "direction": "column",
-                  "items": [
-                    {
-                      "type": "Text",
-                      "style": "itemTitle",
-                      "text": "${data.title}"
-                    },
-                    {
-                      "type": "Text",
-                      "style": "itemMeta",
-                      "text": "${data.location}",
-                      "when": "${data.location}"
-                    },
-                    {
-                      "type": "Text",
-                      "style": "itemMeta",
-                      "text": "Shared by ${data.sharedBy}",
-                      "when": "${data.sharedBy}"
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    }
-  },
   "mainTemplate": {
     "parameters": ["payload"],
     "items": [
@@ -165,18 +93,138 @@
             "paddingTop": "24dp",
             "paddingBottom": "32dp",
             "data": "${payload.week.days}",
-            "numbered": false,
             "items": [
               {
-                "type": "Container",
-                "paddingRight": "16dp",
+                "type": "Frame",
+                "width": "320dp",
                 "height": "100%",
-                "items": [
-                  {
-                    "type": "DayCard",
-                    "day": "${data}"
-                  }
-                ]
+                "backgroundColor": "#1e293b",
+                "spacing": "16dp",
+                "when": "${!data.isToday}",
+                "item": {
+                  "type": "Container",
+                  "direction": "column",
+                  "paddingLeft": "24dp",
+                  "paddingRight": "24dp",
+                  "paddingTop": "24dp",
+                  "paddingBottom": "24dp",
+                  "items": [
+                    {
+                      "type": "Text",
+                      "style": "dayHeader",
+                      "text": "${data.dayName}"
+                    },
+                    {
+                      "type": "Text",
+                      "style": "dayDate",
+                      "text": "${data.shortDate}"
+                    },
+                    {
+                      "type": "Text",
+                      "style": "emptyText",
+                      "text": "Nothing planned",
+                      "when": "${data.items.length == 0}"
+                    },
+                    {
+                      "type": "Container",
+                      "direction": "column",
+                      "when": "${data.items.length > 0}",
+                      "data": "${data.items}",
+                      "items": [
+                        {
+                          "type": "Container",
+                          "paddingBottom": "16dp",
+                          "direction": "column",
+                          "items": [
+                            {
+                              "type": "Text",
+                              "style": "itemTitle",
+                              "text": "${data.title}"
+                            },
+                            {
+                              "type": "Text",
+                              "style": "itemMeta",
+                              "text": "${data.location}",
+                              "when": "${data.location}"
+                            },
+                            {
+                              "type": "Text",
+                              "style": "itemMeta",
+                              "text": "Shared by ${data.sharedBy}",
+                              "when": "${data.sharedBy}"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "Frame",
+                "width": "320dp",
+                "height": "100%",
+                "backgroundColor": "#1e3a8a",
+                "spacing": "16dp",
+                "when": "${data.isToday}",
+                "item": {
+                  "type": "Container",
+                  "direction": "column",
+                  "paddingLeft": "24dp",
+                  "paddingRight": "24dp",
+                  "paddingTop": "24dp",
+                  "paddingBottom": "24dp",
+                  "items": [
+                    {
+                      "type": "Text",
+                      "style": "dayHeaderToday",
+                      "text": "${data.dayName}"
+                    },
+                    {
+                      "type": "Text",
+                      "style": "dayDate",
+                      "text": "${data.shortDate}"
+                    },
+                    {
+                      "type": "Text",
+                      "style": "emptyText",
+                      "text": "Nothing planned",
+                      "when": "${data.items.length == 0}"
+                    },
+                    {
+                      "type": "Container",
+                      "direction": "column",
+                      "when": "${data.items.length > 0}",
+                      "data": "${data.items}",
+                      "items": [
+                        {
+                          "type": "Container",
+                          "paddingBottom": "16dp",
+                          "direction": "column",
+                          "items": [
+                            {
+                              "type": "Text",
+                              "style": "itemTitle",
+                              "text": "${data.title}"
+                            },
+                            {
+                              "type": "Text",
+                              "style": "itemMeta",
+                              "text": "${data.location}",
+                              "when": "${data.location}"
+                            },
+                            {
+                              "type": "Text",
+                              "style": "itemMeta",
+                              "text": "Shared by ${data.sharedBy}",
+                              "when": "${data.sharedBy}"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
               }
             ]
           }

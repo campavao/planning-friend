@@ -6,10 +6,13 @@ const todayAPL = require("./apl/today.json");
 const recipeAPL = require("./apl/recipe.json");
 const weekAPL = require("./apl/week.json");
 
-// Escape characters that would break SSML/XML parsing when inserted into
-// a speech string. Alexa wraps .speak() output in <speak>...</speak>, so
-// raw "&", "<", ">" anywhere inside produce a malformed document and the
-// skill response is rejected with "there was a problem".
+// Escape characters that would break SSML/APL rendering. Alexa wraps
+// .speak() output in <speak>...</speak> (so & < > must be entities), AND
+// APL Text components parse their content as HTML — a raw "&" in a
+// recipe title like "Chicken & Rice" triggers a malformed entity error
+// and Alexa rejects the whole response with "there was a problem".
+// Apply to any user-provided string that flows into speech OR an APL
+// datasource. Card (Simple) content is unaffected.
 function escapeSsml(s) {
   if (s == null) return "";
   return String(s)
@@ -178,8 +181,8 @@ function daysBetween(a, b) {
 function addTodayAPL(builder, data, dateLabel) {
   const items = (data.items || []).map((i, idx) => ({
     token: String(idx),
-    primaryText: i.title,
-    secondaryText: i.location || categoryLabel(i.category),
+    primaryText: escapeSsml(i.title),
+    secondaryText: escapeSsml(i.location || categoryLabel(i.category)),
   }));
   builder.addDirective({
     type: "Alexa.Presentation.APL.RenderDocument",
@@ -188,7 +191,7 @@ function addTodayAPL(builder, data, dateLabel) {
     datasources: {
       today: {
         title: "Your Plan",
-        subtitle: dateLabel,
+        subtitle: escapeSsml(dateLabel),
         items,
       },
     },
@@ -209,10 +212,10 @@ function addRecipeAPL(builder, data) {
     document: recipeAPL,
     datasources: {
       recipe: {
-        title: data.title || "Recipe",
+        title: escapeSsml(data.title || "Recipe"),
         subtitle: subtitleParts.join(" · "),
-        ingredients: data.ingredients || [],
-        steps: data.steps || [],
+        ingredients: (data.ingredients || []).map(escapeSsml),
+        steps: (data.steps || []).map(escapeSsml),
       },
     },
   });
@@ -244,13 +247,13 @@ function applyWeekToBuilder(builder, handlerInput, data, opts = {}) {
     const todayIso = opts.todayDate || new Date().toISOString().slice(0, 10);
     const days = (data.days || []).map((day) => ({
       date: day.date,
-      dayName: day.dayName,
+      dayName: escapeSsml(day.dayName),
       shortDate: formatShortDate(day.date),
       isToday: day.date === todayIso,
       items: (day.items || []).map((item) => ({
-        title: item.title,
-        location: item.location || null,
-        sharedBy: item.sharedBy || null,
+        title: escapeSsml(item.title),
+        location: item.location ? escapeSsml(item.location) : null,
+        sharedBy: item.sharedBy ? escapeSsml(item.sharedBy) : null,
       })),
     }));
 
@@ -547,7 +550,7 @@ const WhatsForDinnerIntentHandler = {
               items: [
                 {
                   token: "dinner",
-                  primaryText: data.title,
+                  primaryText: escapeSsml(data.title),
                   secondaryText: "Meal",
                 },
               ],
