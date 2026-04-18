@@ -96,7 +96,7 @@
             "items": [
               {
                 "type": "Frame",
-                "width": "320dp",
+                "width": "380dp",
                 "height": "100%",
                 "backgroundColor": "#1e293b",
                 "spacing": "16dp",
@@ -137,18 +137,21 @@
                       "items": [
                         {
                           "type": "Container",
+                          "width": "100%",
                           "paddingBottom": "16dp",
                           "direction": "column",
                           "items": [
                             {
                               "type": "Text",
                               "style": "itemTitle",
-                              "text": "${data.title}"
+                              "text": "${data.title}",
+                              "maxLines": 0
                             },
                             {
                               "type": "Text",
                               "style": "itemMeta",
                               "text": "${data.location}",
+                              "maxLines": 0,
                               "when": "${data.location}"
                             },
                             {
@@ -166,7 +169,7 @@
               },
               {
                 "type": "Frame",
-                "width": "320dp",
+                "width": "380dp",
                 "height": "100%",
                 "backgroundColor": "#1e3a8a",
                 "spacing": "16dp",
@@ -207,18 +210,21 @@
                       "items": [
                         {
                           "type": "Container",
+                          "width": "100%",
                           "paddingBottom": "16dp",
                           "direction": "column",
                           "items": [
                             {
                               "type": "Text",
                               "style": "itemTitle",
-                              "text": "${data.title}"
+                              "text": "${data.title}",
+                              "maxLines": 0
                             },
                             {
                               "type": "Text",
                               "style": "itemMeta",
                               "text": "${data.location}",
+                              "maxLines": 0,
                               "when": "${data.location}"
                             },
                             {
