@@ -198,6 +198,16 @@ function addRecipeAPL(builder, data) {
   if (data.steps?.length) {
     subtitleParts.push(`${data.steps.length} steps`);
   }
+  // Pre-format step data as objects so APL doesn't need bind/ordinal —
+  // each step has its own ordinal label baked in as a string. Simpler
+  // rendering avoids Container layout quirks in APL 2024.3 Sequences.
+  const steps = (data.steps || []).map((step, i) => ({
+    ordinal: `STEP ${i + 1}`,
+    body: escapeSsml(step),
+  }));
+  const ingredients = (data.ingredients || []).map((ing) => ({
+    body: escapeSsml(ing),
+  }));
   builder.addDirective({
     type: "Alexa.Presentation.APL.RenderDocument",
     token: "recipe",
@@ -206,8 +216,8 @@ function addRecipeAPL(builder, data) {
       recipe: {
         title: escapeSsml(data.title || "Recipe"),
         subtitle: subtitleParts.join(" · "),
-        ingredients: (data.ingredients || []).map(escapeSsml),
-        steps: (data.steps || []).map(escapeSsml),
+        ingredients,
+        steps,
       },
     },
   });

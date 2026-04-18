@@ -8,7 +8,7 @@
     }
   ],
   "styles": {
-    "sectionLabel": {
+    "recipeSectionLabel": {
       "values": [
         {
           "fontSize": "20dp",
@@ -19,27 +19,26 @@
         }
       ]
     },
-    "ingredientText": {
+    "recipeIngredientText": {
       "values": [
         {
           "fontSize": "18dp",
           "color": "#e2e8f0",
-          "paddingBottom": "10dp",
+          "paddingBottom": "12dp",
           "lineHeight": "26dp"
         }
       ]
     },
-    "stepText": {
+    "recipeStepText": {
       "values": [
         {
           "fontSize": "22dp",
           "color": "#f1f5f9",
-          "paddingBottom": "22dp",
           "lineHeight": "32dp"
         }
       ]
     },
-    "stepNumber": {
+    "recipeStepNumber": {
       "values": [
         {
           "fontSize": "14dp",
@@ -50,7 +49,7 @@
         }
       ]
     },
-    "emptyText": {
+    "recipeEmptyText": {
       "values": [
         {
           "fontSize": "16dp",
@@ -99,7 +98,7 @@
                   "items": [
                     {
                       "type": "Text",
-                      "style": "sectionLabel",
+                      "style": "recipeSectionLabel",
                       "text": "DIRECTIONS",
                       "when": "${payload.recipe.steps.length > 0}"
                     },
@@ -116,28 +115,17 @@
                           "type": "Container",
                           "direction": "column",
                           "width": "100%",
-                          "bind": [
-                            {
-                              "name": "stepOrdinal",
-                              "value": "${index + 1}"
-                            },
-                            {
-                              "name": "stepBody",
-                              "value": "${data}"
-                            }
-                          ],
+                          "paddingBottom": "18dp",
                           "items": [
                             {
                               "type": "Text",
-                              "style": "stepNumber",
-                              "text": "STEP ${stepOrdinal}",
-                              "width": "100%",
-                              "maxLines": 1
+                              "style": "recipeStepNumber",
+                              "text": "${data.ordinal}"
                             },
                             {
                               "type": "Text",
-                              "style": "stepText",
-                              "text": "${stepBody}",
+                              "style": "recipeStepText",
+                              "text": "${data.body}",
                               "width": "100%",
                               "maxLines": 0
                             }
@@ -147,7 +135,7 @@
                     },
                     {
                       "type": "Text",
-                      "style": "emptyText",
+                      "style": "recipeEmptyText",
                       "text": "No directions saved.",
                       "when": "${payload.recipe.steps.length == 0}"
                     }
@@ -169,7 +157,7 @@
                     "items": [
                       {
                         "type": "Text",
-                        "style": "sectionLabel",
+                        "style": "recipeSectionLabel",
                         "text": "INGREDIENTS",
                         "when": "${payload.recipe.ingredients.length > 0}"
                       },
@@ -183,30 +171,17 @@
                         "data": "${payload.recipe.ingredients}",
                         "items": [
                           {
-                            "type": "Container",
-                            "direction": "column",
+                            "type": "Text",
+                            "style": "recipeIngredientText",
+                            "text": "•   ${data.body}",
                             "width": "100%",
-                            "bind": [
-                              {
-                                "name": "ingredientBody",
-                                "value": "${data}"
-                              }
-                            ],
-                            "items": [
-                              {
-                                "type": "Text",
-                                "style": "ingredientText",
-                                "text": "•   ${ingredientBody}",
-                                "width": "100%",
-                                "maxLines": 0
-                              }
-                            ]
+                            "maxLines": 0
                           }
                         ]
                       },
                       {
                         "type": "Text",
-                        "style": "emptyText",
+                        "style": "recipeEmptyText",
                         "text": "No ingredients saved.",
                         "when": "${payload.recipe.ingredients.length == 0}"
                       }
