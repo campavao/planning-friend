@@ -10,14 +10,33 @@ Echo device → Alexa cloud → AWS Lambda (this dir) → /api/alexa/* on Next.j
 
 Auth: long-lived bearer token in Lambda env, matched against `ALEXA_API_TOKEN` on the server. No OAuth / account linking (personal skill, stays in dev mode).
 
-## Current status (milestone 4 — all planned features shipped)
+## Current status
 
-- `TodaysPlanIntent` — speaks the day, renders APL list on Echo Show (or Simple card on audio-only devices)
-- `WhatsForDinnerIntent` — tonight's meal-category plan item, APL card
-- `GetRecipeIntent` — fuzzy-matches by name, reads ingredients + steps with SSML pacing, APL recipe view
-- `CookAlongIntent` — hands-free cooking mode. Reads intro + ingredients + step 1, stores the rest in session attributes
+- `TodaysPlanIntent` — speaks the plan for today, tomorrow, or any weekday ("what's on my plan tomorrow"). Renders APL list on Echo Show.
+- `WeekPlanIntent` — reads a full-week summary grouped by day. Renders APL list with day · location subtitles.
+- `WhatsForDinnerIntent` — tonight's or tomorrow's meal-category plan item ("what's for dinner tomorrow"), APL card.
+- `GetRecipeIntent` — fuzzy-matches by name, reads ingredients + steps with SSML pacing, APL recipe view.
+- `CookAlongIntent` — hands-free cooking mode. Reads intro + ingredients + step 1, stores the rest in session attributes.
 - `NextStepIntent` — advances through the active cooking session; ends the session on the final step with "Enjoy your meal!"
-- APL — two documents (`apl/today.json`, `apl/recipe.json`), rendered only when the device reports `Alexa.Presentation.APL` support
+- APL — two documents (`apl/today.json`, `apl/recipe.json`), rendered only when the device reports `Alexa.Presentation.APL` support.
+
+## Date queries
+
+`TodaysPlanIntent` and `WhatsForDinnerIntent` take an optional AMAZON.DATE slot. Examples:
+
+- "what's on my plan today" / "tomorrow" / "for Tuesday" / "this saturday"
+- "what's the plan on Thursday"
+- "what's for dinner tomorrow" / "what's for dinner on Friday"
+- "what's my plan this week"
+
+Range queries ("this month", "next year") aren't supported — the skill asks for a specific day. "This week" / "next week" route to `WeekPlanIntent`.
+
+## Shared items
+
+Plan items and recipes shared with you by friends (via planning-friend's share feature) are included transparently:
+
+- `TodaysPlanIntent`, `WhatsForDinnerIntent`, `WeekPlanIntent` merge your own items with anything shared with you for the same date range, ordered chronologically.
+- `GetRecipeIntent` / `CookAlongIntent` fuzzy-match across both your own recipe library and recipes someone has shared with you. Shared recipes are introduced in speech: *"Here's Andrea's recipe for Pasta Bolognese."*
 
 ## One-time setup
 
@@ -75,9 +94,11 @@ Grab the Lambda ARN from the top-right of the function page.
 1. Copy the Skill ID, go back to Lambda step 3 and finish adding the ASK trigger with this Skill ID
 1. Test tab → enable testing in Development
 
-### 6. Populate the DishName slot
+### 6. (Optional) Populate the DishName slot
 
-The `DishName` custom slot ships with a placeholder value. For reliable voice matching, paste in your actual recipe titles. The server exposes them as ready-to-paste JSON:
+**This step is optional.** Functionally, the skill works without it: whatever Alexa hears gets sent to the server, which fuzzy-matches against your actual recipes (including ones shared with you via planning-friend). Updating the slot only improves Alexa's *speech recognition* on the edge — e.g. if you have a recipe called "Cacio e Pepe", listing it in the slot makes Alexa more likely to hear "Cacio e Pepe" correctly instead of something phonetically close.
+
+When you want to sync, hit the endpoint for a paste-ready JSON blob:
 
 ```
 curl -H "Authorization: Bearer $TOKEN" https://www.planning-friend.com/api/alexa/dish-slot
@@ -87,10 +108,8 @@ Response is `{ "count": N, "values": [{ "name": { "value": "..." } }, ...] }`. I
 
 1. Build → Slot Types → DishName
 1. Delete the placeholder row
-1. Click **Bulk Edit** (or the JSON icon) and paste the `values` array
+1. Click **Bulk Edit** and paste the `values` array
 1. Save → Build Model
-
-Re-run after adding recipes. The Lambda also forwards the raw spoken text to the server as a fallback, so a new recipe works on-demand even before you re-sync the slot — it just won't have as strong NLU resolution.
 
 ## Daily routine
 

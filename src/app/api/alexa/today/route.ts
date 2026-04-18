@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   getWeeklyPlanWithItems,
   getWeekStart,
+  getSharedItemsForUser,
   type DateIdeaData,
   type EventData,
   type PlanItem,
+  type SharedPlanItem,
 } from "@/lib/supabase";
 import { requireAlexaToken } from "@/lib/alexa-auth";
 
@@ -15,6 +17,7 @@ interface AlexaItem {
   notes?: string;
   plannedDate: string;
   location?: string;
+  sharedBy?: string;
 }
 
 // Read-only endpoint for the Alexa skill Lambda. Returns today's items
@@ -38,15 +41,32 @@ export async function GET(request: NextRequest) {
     const weekStart = getWeekStart(new Date(date + "T12:00:00Z"));
     const plan = await getWeeklyPlanWithItems(context.userId, weekStart);
 
+    let sharedItems: SharedPlanItem[] = [];
+    try {
+      sharedItems = await getSharedItemsForUser(context.userId, weekStart);
+    } catch (err) {
+      // Table may not exist in some environments; degrade gracefully.
+      console.error("Failed to fetch shared items:", err);
+    }
+
     const dayStart = Date.parse(date + "T00:00:00.000Z");
     const dayEnd = Date.parse(date + "T23:59:59.999Z");
+    const withinDay = (value: string) => {
+      const t = Date.parse(value);
+      return !Number.isNaN(t) && t >= dayStart && t <= dayEnd;
+    };
 
-    const items: AlexaItem[] = (plan?.items ?? [])
-      .filter((item) => {
-        const t = Date.parse(item.planned_date);
-        return !Number.isNaN(t) && t >= dayStart && t <= dayEnd;
-      })
-      .map(shapeItem);
+    const ownShaped = (plan?.items ?? [])
+      .filter((item) => withinDay(item.planned_date))
+      .map((item) => shapeItem(item));
+
+    const sharedShaped = sharedItems
+      .filter((item) => withinDay(item.planned_date))
+      .map((item) => shapeItem(item, item.owner_name));
+
+    const items: AlexaItem[] = [...ownShaped, ...sharedShaped].sort(
+      (a, b) => Date.parse(a.plannedDate) - Date.parse(b.plannedDate)
+    );
 
     return NextResponse.json({
       date,
@@ -62,7 +82,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-function shapeItem(item: PlanItem): AlexaItem {
+function shapeItem(item: PlanItem, sharedBy?: string): AlexaItem {
   const title = item.content?.title ?? item.note_title ?? "Untitled item";
   const category = item.content?.category ?? "other";
   return {
@@ -72,6 +92,7 @@ function shapeItem(item: PlanItem): AlexaItem {
     notes: item.notes,
     plannedDate: item.planned_date,
     location: shortenLocation(extractLocation(item.content?.data, category)),
+    sharedBy,
   };
 }
 
@@ -106,14 +127,29 @@ function buildSpeech(date: string, items: AlexaItem[]): string {
 
 function formatDateForSpeech(date: string): string {
   const today = new Date().toISOString().slice(0, 10);
-  if (date === today) return "today";
+  const delta = daysBetween(today, date);
+  if (delta === 0) return "today";
+  if (delta === 1) return "tomorrow";
+  if (delta === -1) return "yesterday";
   const d = new Date(date + "T12:00:00Z");
+  if (delta > 1 && delta < 7) {
+    return d.toLocaleDateString("en-US", {
+      weekday: "long",
+      timeZone: "UTC",
+    });
+  }
   return d.toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
     timeZone: "UTC",
   });
+}
+
+function daysBetween(a: string, b: string): number {
+  const aMs = Date.parse(a + "T00:00:00.000Z");
+  const bMs = Date.parse(b + "T00:00:00.000Z");
+  return Math.round((bMs - aMs) / 86_400_000);
 }
 
 function joinList(items: string[]): string {

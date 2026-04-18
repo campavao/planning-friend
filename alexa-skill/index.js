@@ -63,6 +63,50 @@ function supportsAPL(handlerInput) {
   return Boolean(supported && supported["Alexa.Presentation.APL"]);
 }
 
+// Resolves an AMAZON.DATE slot value into one of:
+//   { kind: "date", date: "YYYY-MM-DD" }     specific day
+//   { kind: "week", monday: "YYYY-MM-DD" }   ISO week (inc. weekend "-WE")
+//   { kind: "none" }                         slot empty
+//   { kind: "unsupported", reason }          month/year/season/decade
+// See https://developer.amazon.com/docs/custom-skills/slot-type-reference.html#date
+function resolveWhen(slotValue) {
+  if (!slotValue) return { kind: "none" };
+  if (/^\d{4}-\d{2}-\d{2}$/.test(slotValue)) {
+    return { kind: "date", date: slotValue };
+  }
+  const weekMatch = slotValue.match(/^(\d{4})-W(\d{2})(-WE)?$/);
+  if (weekMatch) {
+    return {
+      kind: "week",
+      monday: isoWeekToMonday(
+        parseInt(weekMatch[1], 10),
+        parseInt(weekMatch[2], 10)
+      ),
+    };
+  }
+  if (/^\d{4}-\d{2}$/.test(slotValue)) {
+    return { kind: "unsupported", reason: "month" };
+  }
+  if (/^\d{4}$/.test(slotValue)) {
+    return { kind: "unsupported", reason: "year" };
+  }
+  return { kind: "unsupported", reason: "range" };
+}
+
+function isoWeekToMonday(year, week) {
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const jan4Day = jan4.getUTCDay() || 7;
+  const monday = new Date(jan4);
+  monday.setUTCDate(jan4.getUTCDate() - (jan4Day - 1) + (week - 1) * 7);
+  return monday.toISOString().slice(0, 10);
+}
+
+function daysBetween(a, b) {
+  const aMs = Date.parse(a + "T00:00:00.000Z");
+  const bMs = Date.parse(b + "T00:00:00.000Z");
+  return Math.round((bMs - aMs) / 86_400_000);
+}
+
 function addTodayAPL(builder, data, dateLabel) {
   const items = (data.items || []).map((i, idx) => ({
     token: String(idx),
@@ -145,8 +189,34 @@ const TodaysPlanIntentHandler = {
     );
   },
   async handle(handlerInput) {
+    const slotValue = Alexa.getSlotValue(
+      handlerInput.requestEnvelope,
+      "when"
+    );
+    const resolved = resolveWhen(slotValue);
+
+    if (resolved.kind === "week") {
+      return handlerInput.responseBuilder
+        .speak(
+          "For the whole week, ask me what's my plan this week."
+        )
+        .reprompt("Say: what's my plan this week.")
+        .getResponse();
+    }
+    if (resolved.kind === "unsupported") {
+      return handlerInput.responseBuilder
+        .speak(
+          "I can only check a specific day. Try today, tomorrow, or a day of the week."
+        )
+        .reprompt("Try: what's on my plan tomorrow.")
+        .getResponse();
+    }
+
     try {
-      const date = await getDeviceDate(handlerInput);
+      const date =
+        resolved.kind === "date"
+          ? resolved.date
+          : await getDeviceDate(handlerInput);
       const data = await fetchJson("/api/alexa/today", { date });
       const builder = handlerInput.responseBuilder.speak(data.speech);
 
@@ -244,8 +314,26 @@ const WhatsForDinnerIntentHandler = {
     );
   },
   async handle(handlerInput) {
+    const slotValue = Alexa.getSlotValue(
+      handlerInput.requestEnvelope,
+      "when"
+    );
+    const resolved = resolveWhen(slotValue);
+
+    if (resolved.kind === "week" || resolved.kind === "unsupported") {
+      return handlerInput.responseBuilder
+        .speak(
+          "I can only check dinner for a specific day. Try tonight, tomorrow, or a day of the week."
+        )
+        .reprompt("Try: what's for dinner tomorrow.")
+        .getResponse();
+    }
+
     try {
-      const date = await getDeviceDate(handlerInput);
+      const date =
+        resolved.kind === "date"
+          ? resolved.date
+          : await getDeviceDate(handlerInput);
       const data = await fetchJson("/api/alexa/dinner", { date });
       const builder = handlerInput.responseBuilder.speak(data.speech);
 
@@ -280,6 +368,99 @@ const WhatsForDinnerIntentHandler = {
       console.error("WhatsForDinnerIntent error:", err);
       return handlerInput.responseBuilder
         .speak("Sorry, I couldn't check dinner right now.")
+        .getResponse();
+    }
+  },
+};
+
+const WeekPlanIntentHandler = {
+  canHandle(handlerInput) {
+    return (
+      Alexa.getRequestType(handlerInput.requestEnvelope) === "IntentRequest" &&
+      Alexa.getIntentName(handlerInput.requestEnvelope) === "WeekPlanIntent"
+    );
+  },
+  async handle(handlerInput) {
+    const slotValue = Alexa.getSlotValue(
+      handlerInput.requestEnvelope,
+      "when"
+    );
+    const resolved = resolveWhen(slotValue);
+
+    if (resolved.kind === "unsupported") {
+      return handlerInput.responseBuilder
+        .speak(
+          "I can only check a specific week or date. Try: what's my plan this week, or the week of May twentieth."
+        )
+        .reprompt("Try: what's my plan this week.")
+        .getResponse();
+    }
+
+    // Backend accepts ?week=YYYY-MM-DD (Monday) or ?date=YYYY-MM-DD
+    // (any day within the target week). Default: current week.
+    let params;
+    if (resolved.kind === "week") {
+      params = { week: resolved.monday };
+    } else if (resolved.kind === "date") {
+      params = { date: resolved.date };
+    } else {
+      params = { date: await getDeviceDate(handlerInput) };
+    }
+
+    try {
+      const data = await fetchJson("/api/alexa/week", params);
+      const builder = handlerInput.responseBuilder.speak(data.speech);
+
+      if (supportsAPL(handlerInput)) {
+        const items = [];
+        for (const day of data.days || []) {
+          for (const item of day.items || []) {
+            items.push({
+              token: item.id,
+              primaryText: item.title,
+              secondaryText: item.location
+                ? `${day.dayName} · ${item.location}`
+                : day.dayName,
+            });
+          }
+        }
+        builder.addDirective({
+          type: "Alexa.Presentation.APL.RenderDocument",
+          token: "week",
+          document: todayAPL,
+          datasources: {
+            today: {
+              title: "This Week",
+              subtitle:
+                data.totalItems === 0
+                  ? "Nothing planned"
+                  : `${data.totalItems} item${data.totalItems === 1 ? "" : "s"}`,
+              items,
+            },
+          },
+        });
+      } else {
+        const lines = [];
+        for (const day of data.days || []) {
+          if (!day.items || day.items.length === 0) continue;
+          lines.push(`${day.dayName}:`);
+          for (const item of day.items) {
+            lines.push(
+              `  • ${item.title}${item.location ? " — " + item.location : ""}`
+            );
+          }
+        }
+        builder.withSimpleCard(
+          "This Week",
+          lines.length > 0 ? lines.join("\n") : "Nothing planned."
+        );
+      }
+
+      return builder.getResponse();
+    } catch (err) {
+      console.error("WeekPlanIntent error:", err);
+      return handlerInput.responseBuilder
+        .speak("Sorry, I couldn't fetch your week right now.")
         .getResponse();
     }
   },
@@ -416,7 +597,7 @@ const HelpIntentHandler = {
   handle(handlerInput) {
     return handlerInput.responseBuilder
       .speak(
-        'You can ask: what\'s on my plan today, what\'s for dinner, or read me the recipe for something. To cook hands-free, say "walk me through" followed by a recipe name.'
+        'You can ask: what\'s on my plan today, what\'s on my plan tomorrow, what\'s my plan this week, what\'s for dinner, or read me the recipe for something. To cook hands-free, say "walk me through" followed by a recipe name.'
       )
       .reprompt("What would you like to know?")
       .getResponse();
@@ -487,8 +668,17 @@ function joinList(items) {
 
 function formatDateLabel(date) {
   const today = new Date().toISOString().slice(0, 10);
-  if (date === today) return "Today";
+  const delta = daysBetween(today, date);
+  if (delta === 0) return "Today";
+  if (delta === 1) return "Tomorrow";
+  if (delta === -1) return "Yesterday";
   const d = new Date(date + "T12:00:00Z");
+  if (delta > 1 && delta < 7) {
+    return d.toLocaleDateString("en-US", {
+      weekday: "long",
+      timeZone: "UTC",
+    });
+  }
   return d.toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
@@ -501,6 +691,7 @@ exports.handler = Alexa.SkillBuilders.custom()
   .addRequestHandlers(
     LaunchRequestHandler,
     TodaysPlanIntentHandler,
+    WeekPlanIntentHandler,
     GetRecipeIntentHandler,
     WhatsForDinnerIntentHandler,
     CookAlongIntentHandler,
