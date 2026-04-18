@@ -4,6 +4,7 @@ const Alexa = require("ask-sdk-core");
 
 const todayAPL = require("./apl/today.json");
 const recipeAPL = require("./apl/recipe.json");
+const weekAPL = require("./apl/week.json");
 
 // Escape characters that would break SSML/XML parsing when inserted into
 // a speech string. Alexa wraps .speak() output in <speak>...</speak>, so
@@ -111,9 +112,23 @@ async function getDeviceDate(handlerInput) {
 }
 
 function supportsAPL(handlerInput) {
+  // Primary signal: device advertises APL interface.
   const supported =
     handlerInput.requestEnvelope?.context?.System?.device?.supportedInterfaces;
-  return Boolean(supported && supported["Alexa.Presentation.APL"]);
+  if (supported && supported["Alexa.Presentation.APL"]) return true;
+
+  // Simulator quirk: supportedInterfaces is often empty ({}) even on Hub
+  // viewports. Fall back to checking the Viewports context which includes
+  // `type: "APL"` when APL rendering is available.
+  const viewports = handlerInput.requestEnvelope?.context?.Viewports;
+  if (
+    Array.isArray(viewports) &&
+    viewports.some((v) => v && v.type === "APL")
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 // Resolves an AMAZON.DATE slot value into one of:
@@ -222,34 +237,35 @@ function categoryLabel(category) {
 
 // Shared rendering for the week view — used by both WeekPlanIntent and
 // LaunchRequest so the skill's home screen is the same week dashboard.
-// Populates an APL document on APL-capable devices, otherwise a plain
-// card.
+// Renders horizontally scrolling day cards on APL devices, otherwise a
+// plain text card grouped by day.
 function applyWeekToBuilder(builder, handlerInput, data, opts = {}) {
   if (supportsAPL(handlerInput)) {
-    const items = [];
-    for (const day of data.days || []) {
-      for (const item of day.items || []) {
-        items.push({
-          token: item.id,
-          primaryText: item.title,
-          secondaryText: item.location
-            ? `${day.dayName} · ${item.location}`
-            : day.dayName,
-        });
-      }
-    }
+    const todayIso = opts.todayDate || new Date().toISOString().slice(0, 10);
+    const days = (data.days || []).map((day) => ({
+      date: day.date,
+      dayName: day.dayName,
+      shortDate: formatShortDate(day.date),
+      isToday: day.date === todayIso,
+      items: (day.items || []).map((item) => ({
+        title: item.title,
+        location: item.location || null,
+        sharedBy: item.sharedBy || null,
+      })),
+    }));
+
     builder.addDirective({
       type: "Alexa.Presentation.APL.RenderDocument",
       token: "week",
-      document: todayAPL,
+      document: weekAPL,
       datasources: {
-        today: {
+        week: {
           title: opts.title || "This Week",
           subtitle:
             data.totalItems === 0
               ? "Nothing planned"
               : `${data.totalItems} item${data.totalItems === 1 ? "" : "s"}`,
-          items,
+          days,
         },
       },
     });
@@ -269,6 +285,16 @@ function applyWeekToBuilder(builder, handlerInput, data, opts = {}) {
       lines.length > 0 ? lines.join("\n") : "Nothing planned."
     );
   }
+}
+
+function formatShortDate(dateIso) {
+  if (!dateIso || !/^\d{4}-\d{2}-\d{2}$/.test(dateIso)) return "";
+  const d = new Date(dateIso + "T12:00:00Z");
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }).toUpperCase();
 }
 
 // Extract today's items from the week payload so LaunchRequest can save
@@ -306,6 +332,7 @@ const LaunchRequestHandler = {
       const builder = handlerInput.responseBuilder.speak(speech);
       applyWeekToBuilder(builder, handlerInput, data, {
         title: "Planning Friend",
+        todayDate: date,
       });
 
       // Save today's meals so "recipe for that" resolves after launch.
@@ -590,7 +617,8 @@ const WeekPlanIntentHandler = {
     try {
       const data = await fetchJson("/api/alexa/week", params);
       const builder = handlerInput.responseBuilder.speak(data.speech);
-      applyWeekToBuilder(builder, handlerInput, data);
+      const todayDate = await getDeviceDate(handlerInput);
+      applyWeekToBuilder(builder, handlerInput, data, { todayDate });
       return builder.getResponse();
     } catch (err) {
       console.error("WeekPlanIntent error:", err);
