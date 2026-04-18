@@ -106,14 +106,29 @@ function buildSpeech(date: string, items: AlexaItem[]): string {
 
 function formatDateForSpeech(date: string): string {
   const today = new Date().toISOString().slice(0, 10);
-  if (date === today) return "today";
+  const delta = daysBetween(today, date);
+  if (delta === 0) return "today";
+  if (delta === 1) return "tomorrow";
+  if (delta === -1) return "yesterday";
   const d = new Date(date + "T12:00:00Z");
+  if (delta > 1 && delta < 7) {
+    return d.toLocaleDateString("en-US", {
+      weekday: "long",
+      timeZone: "UTC",
+    });
+  }
   return d.toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
     timeZone: "UTC",
   });
+}
+
+function daysBetween(a: string, b: string): number {
+  const aMs = Date.parse(a + "T00:00:00.000Z");
+  const bMs = Date.parse(b + "T00:00:00.000Z");
+  return Math.round((bMs - aMs) / 86_400_000);
 }
 
 function joinList(items: string[]): string {

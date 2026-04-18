@@ -10,14 +10,25 @@ Echo device → Alexa cloud → AWS Lambda (this dir) → /api/alexa/* on Next.j
 
 Auth: long-lived bearer token in Lambda env, matched against `ALEXA_API_TOKEN` on the server. No OAuth / account linking (personal skill, stays in dev mode).
 
-## Current status (milestone 4 — all planned features shipped)
+## Current status
 
-- `TodaysPlanIntent` — speaks the day, renders APL list on Echo Show (or Simple card on audio-only devices)
-- `WhatsForDinnerIntent` — tonight's meal-category plan item, APL card
-- `GetRecipeIntent` — fuzzy-matches by name, reads ingredients + steps with SSML pacing, APL recipe view
-- `CookAlongIntent` — hands-free cooking mode. Reads intro + ingredients + step 1, stores the rest in session attributes
+- `TodaysPlanIntent` — speaks the plan for today, tomorrow, or any weekday ("what's on my plan tomorrow"). Renders APL list on Echo Show.
+- `WeekPlanIntent` — reads a full-week summary grouped by day. Renders APL list with day · location subtitles.
+- `WhatsForDinnerIntent` — tonight's or tomorrow's meal-category plan item ("what's for dinner tomorrow"), APL card.
+- `GetRecipeIntent` — fuzzy-matches by name, reads ingredients + steps with SSML pacing, APL recipe view.
+- `CookAlongIntent` — hands-free cooking mode. Reads intro + ingredients + step 1, stores the rest in session attributes.
 - `NextStepIntent` — advances through the active cooking session; ends the session on the final step with "Enjoy your meal!"
-- APL — two documents (`apl/today.json`, `apl/recipe.json`), rendered only when the device reports `Alexa.Presentation.APL` support
+- APL — two documents (`apl/today.json`, `apl/recipe.json`), rendered only when the device reports `Alexa.Presentation.APL` support.
+
+## Date queries
+
+`TodaysPlanIntent` and `WhatsForDinnerIntent` take an optional AMAZON.DATE slot. Examples:
+
+- "what's on my plan today" / "tomorrow" / "friday" / "this saturday"
+- "what's for dinner tomorrow"
+- "what's my plan this week"
+
+Range queries ("this month", "next year") aren't supported — the skill asks for a specific day. "This week" / "next week" route to `WeekPlanIntent`.
 
 ## One-time setup
 

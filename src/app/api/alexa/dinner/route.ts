@@ -40,10 +40,12 @@ export async function GET(request: NextRequest) {
       })
       .sort((a, b) => Date.parse(a.planned_date) - Date.parse(b.planned_date))[0];
 
+    const dateLabel = formatDateForSpeech(date);
+
     if (!meal || !meal.content) {
       const body: DinnerResponse = {
         found: false,
-        speech: "You don't have a meal planned for today.",
+        speech: `You don't have a meal planned for ${dateLabel}.`,
       };
       return NextResponse.json(body);
     }
@@ -52,7 +54,7 @@ export async function GET(request: NextRequest) {
       found: true,
       id: meal.content.id,
       title: meal.content.title,
-      speech: `Dinner is ${meal.content.title}.`,
+      speech: buildSpeech(date === todayIso() ? null : dateLabel, meal.content.title),
     };
     return NextResponse.json(body);
   } catch (error) {
@@ -62,4 +64,41 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function buildSpeech(dateLabel: string | null, title: string): string {
+  return dateLabel
+    ? `Dinner ${dateLabel} is ${title}.`
+    : `Dinner is ${title}.`;
+}
+
+function formatDateForSpeech(date: string): string {
+  const today = todayIso();
+  const delta = daysBetween(today, date);
+  if (delta === 0) return "today";
+  if (delta === 1) return "tomorrow";
+  if (delta === -1) return "yesterday";
+  const d = new Date(date + "T12:00:00Z");
+  if (delta > 1 && delta < 7) {
+    return "on " + d.toLocaleDateString("en-US", {
+      weekday: "long",
+      timeZone: "UTC",
+    });
+  }
+  return "on " + d.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+function daysBetween(a: string, b: string): number {
+  const aMs = Date.parse(a + "T00:00:00.000Z");
+  const bMs = Date.parse(b + "T00:00:00.000Z");
+  return Math.round((bMs - aMs) / 86_400_000);
 }

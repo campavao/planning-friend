@@ -10,27 +10,55 @@
         { "name": "AMAZON.NavigateHomeIntent", "samples": [] },
         {
           "name": "TodaysPlanIntent",
+          "slots": [
+            { "name": "when", "type": "AMAZON.DATE" }
+          ],
+          "samples": [
+            "what's on my plan",
+            "what's on my plan {when}",
+            "what's on my plan for {when}",
+            "what do I have planned",
+            "what do I have planned {when}",
+            "what's planned {when}",
+            "what's planned for {when}",
+            "my plan",
+            "my plan for {when}",
+            "what's happening {when}",
+            "what am I doing {when}",
+            "today's plan",
+            "tomorrow's plan"
+          ]
+        },
+        {
+          "name": "WeekPlanIntent",
           "slots": [],
           "samples": [
-            "what's on my plan today",
-            "what's on my plan for today",
-            "what do I have planned today",
-            "what's planned for today",
-            "today's plan",
-            "my plan",
-            "what's happening today",
-            "what am I doing today"
+            "what's my plan this week",
+            "what's on my plan this week",
+            "this week's plan",
+            "what's the plan for this week",
+            "what's happening this week",
+            "what do I have planned this week",
+            "what's going on this week",
+            "week plan",
+            "the week"
           ]
         },
         {
           "name": "WhatsForDinnerIntent",
-          "slots": [],
+          "slots": [
+            { "name": "when", "type": "AMAZON.DATE" }
+          ],
           "samples": [
             "what's for dinner",
+            "what's for dinner {when}",
+            "what am I eating {when}",
             "what am I eating tonight",
-            "what's dinner tonight",
-            "what's the meal tonight",
-            "dinner plan"
+            "what's dinner {when}",
+            "what's the meal {when}",
+            "dinner plan",
+            "dinner plan for {when}",
+            "{when}'s dinner"
           ]
         },
         {
