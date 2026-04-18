@@ -69,21 +69,25 @@
     "parameters": ["payload"],
     "items": [
       {
-        "type": "Container",
+        "type": "Frame",
         "width": "100%",
         "height": "100%",
         "backgroundColor": "#0b1220",
-        "direction": "column",
-        "items": [
-          {
-            "type": "AlexaHeader",
-            "theme": "dark",
-            "headerTitle": "${payload.week.title}",
-            "headerSubtitle": "${payload.week.subtitle}",
-            "headerBackgroundColor": "#1e293b",
-            "headerDivider": true
-          },
-          {
+        "item": {
+          "type": "Container",
+          "width": "100%",
+          "height": "100%",
+          "direction": "column",
+          "items": [
+            {
+              "type": "AlexaHeader",
+              "theme": "dark",
+              "headerTitle": "${payload.week.title}",
+              "headerSubtitle": "${payload.week.subtitle}",
+              "headerBackgroundColor": "#1e293b",
+              "headerDivider": true
+            },
+            {
             "type": "Sequence",
             "scrollDirection": "horizontal",
             "grow": 1,
@@ -243,6 +247,7 @@
             ]
           }
         ]
+        }
       }
     ]
   }

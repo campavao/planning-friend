@@ -33,56 +33,91 @@ interface WeekResponse {
   speech: string;
 }
 
-// Returns the full 7-day view starting Monday of the week containing
-// the requested date (defaults to current week). Used by WeekPlanIntent.
+// Returns a 7-day view. Modes:
+// - `?startDate=YYYY-MM-DD`: rolling 7 days starting from that date.
+//   Fetches across calendar-week boundaries when the window spans.
+//   Used by LaunchRequest so the home screen always starts on today.
+// - `?week=YYYY-MM-DD` or `?date=YYYY-MM-DD`: traditional Mon-Sun week
+//   containing that date. Used by WeekPlanIntent.
+// - No params: current week (Mon-Sun).
 export async function GET(request: NextRequest) {
   const { context, errorResponse } = requireAlexaToken(request);
   if (errorResponse) return errorResponse;
 
   const { searchParams } = new URL(request.url);
+  const startDateParam = searchParams.get("startDate");
   const weekParam = searchParams.get("week");
   const dateParam = searchParams.get("date");
 
-  let anchor: string;
-  if (weekParam) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(weekParam)) {
+  const rolling = Boolean(startDateParam);
+  let windowStart: string;
+
+  if (startDateParam) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDateParam)) {
       return NextResponse.json(
-        { error: "week must be YYYY-MM-DD" },
+        { error: "startDate must be YYYY-MM-DD" },
         { status: 400 }
       );
     }
-    anchor = weekParam;
-  } else if (dateParam) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
-      return NextResponse.json(
-        { error: "date must be YYYY-MM-DD" },
-        { status: 400 }
-      );
-    }
-    anchor = dateParam;
+    windowStart = startDateParam;
   } else {
-    anchor = new Date().toISOString().slice(0, 10);
+    let anchor: string;
+    if (weekParam) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(weekParam)) {
+        return NextResponse.json(
+          { error: "week must be YYYY-MM-DD" },
+          { status: 400 }
+        );
+      }
+      anchor = weekParam;
+    } else if (dateParam) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+        return NextResponse.json(
+          { error: "date must be YYYY-MM-DD" },
+          { status: 400 }
+        );
+      }
+      anchor = dateParam;
+    } else {
+      anchor = new Date().toISOString().slice(0, 10);
+    }
+    windowStart = getWeekStart(new Date(anchor + "T12:00:00Z"));
   }
 
   try {
-    const weekStart = getWeekStart(new Date(anchor + "T12:00:00Z"));
-    const plan = await getWeeklyPlanWithItems(context.userId, weekStart);
+    const windowEndMs =
+      Date.parse(windowStart + "T00:00:00.000Z") + 6 * 86_400_000;
+    const windowEnd = new Date(windowEndMs).toISOString().slice(0, 10);
+    const firstWeekStart = getWeekStart(
+      new Date(windowStart + "T12:00:00Z")
+    );
+    const lastWeekStart = getWeekStart(new Date(windowEnd + "T12:00:00Z"));
+    const weekStartsToFetch =
+      firstWeekStart === lastWeekStart
+        ? [firstWeekStart]
+        : [firstWeekStart, lastWeekStart];
 
-    let sharedItems: SharedPlanItem[] = [];
-    try {
-      sharedItems = await getSharedItemsForUser(context.userId, weekStart);
-    } catch (err) {
-      console.error("Failed to fetch shared items:", err);
+    const allItems: PlanItem[] = [];
+    const allShared: SharedPlanItem[] = [];
+    for (const weekStart of weekStartsToFetch) {
+      const plan = await getWeeklyPlanWithItems(context.userId, weekStart);
+      if (plan?.items) allItems.push(...plan.items);
+      try {
+        const s = await getSharedItemsForUser(context.userId, weekStart);
+        allShared.push(...s);
+      } catch (err) {
+        console.error("Failed to fetch shared items:", err);
+      }
     }
 
-    const days = buildDays(weekStart, plan?.items ?? [], sharedItems);
+    const days = buildDays(windowStart, allItems, allShared);
     const totalItems = days.reduce((sum, d) => sum + d.items.length, 0);
 
     const body: WeekResponse = {
-      weekStart,
+      weekStart: windowStart,
       totalItems,
       days,
-      speech: buildSpeech(weekStart, days, totalItems),
+      speech: buildSpeech(windowStart, days, totalItems, rolling),
     };
     return NextResponse.json(body);
   } catch (error) {
@@ -161,11 +196,14 @@ function shortenLocation(location?: string): string | undefined {
 }
 
 function buildSpeech(
-  weekStart: string,
+  windowStart: string,
   days: WeekDay[],
-  totalItems: number
+  totalItems: number,
+  rolling: boolean
 ): string {
-  const weekLabel = weekLabelRelativeToToday(weekStart);
+  const weekLabel = rolling
+    ? rollingLabel(windowStart)
+    : weekLabelRelativeToToday(windowStart);
   if (totalItems === 0) {
     return `You don't have anything planned ${weekLabel}.`;
   }
@@ -180,6 +218,20 @@ function buildSpeech(
   });
 
   return `You have ${countPhrase} planned ${weekLabel}. ${daySummaries.join(". ")}.`;
+}
+
+function rollingLabel(startDate: string): string {
+  const today = new Date().toISOString().slice(0, 10);
+  if (startDate === today) return "for the next seven days";
+  const d = new Date(startDate + "T12:00:00Z");
+  return (
+    "for the seven days starting " +
+    d.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      timeZone: "UTC",
+    })
+  );
 }
 
 function weekLabelRelativeToToday(weekStart: string): string {

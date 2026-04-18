@@ -320,7 +320,9 @@ const LaunchRequestHandler = {
   async handle(handlerInput) {
     try {
       const date = await getDeviceDate(handlerInput);
-      const data = await fetchJson("/api/alexa/week", { date });
+      // Rolling 7-day window from today — home screen always starts on
+      // today and shows the next 6 days, spanning week boundaries.
+      const data = await fetchJson("/api/alexa/week", { startDate: date });
 
       const todayItems = getTodayBucket(data, date);
       const todayTitles = todayItems.map((i) => escapeSsml(i.title));
