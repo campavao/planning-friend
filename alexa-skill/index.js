@@ -115,23 +115,15 @@ async function getDeviceDate(handlerInput) {
 }
 
 function supportsAPL(handlerInput) {
-  // Primary signal: device advertises APL interface.
+  // Only trust device.supportedInterfaces. The simulator advertises a
+  // Viewport with type:"APL" but its device cannot actually render APL
+  // directives ("The device does not support Alexa.Presentation.APL
+  // directives" in the Device Log). Real Echo Shows include APL in
+  // supportedInterfaces; audio-only Echos and the simulator fall back
+  // to SimpleCard.
   const supported =
     handlerInput.requestEnvelope?.context?.System?.device?.supportedInterfaces;
-  if (supported && supported["Alexa.Presentation.APL"]) return true;
-
-  // Simulator quirk: supportedInterfaces is often empty ({}) even on Hub
-  // viewports. Fall back to checking the Viewports context which includes
-  // `type: "APL"` when APL rendering is available.
-  const viewports = handlerInput.requestEnvelope?.context?.Viewports;
-  if (
-    Array.isArray(viewports) &&
-    viewports.some((v) => v && v.type === "APL")
-  ) {
-    return true;
-  }
-
-  return false;
+  return Boolean(supported && supported["Alexa.Presentation.APL"]);
 }
 
 // Resolves an AMAZON.DATE slot value into one of:
