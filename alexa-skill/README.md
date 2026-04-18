@@ -94,22 +94,9 @@ Grab the Lambda ARN from the top-right of the function page.
 1. Copy the Skill ID, go back to Lambda step 3 and finish adding the ASK trigger with this Skill ID
 1. Test tab → enable testing in Development
 
-### 6. (Optional) Populate the DishName slot
+### 6. Recipe names — no manual sync needed
 
-**This step is optional.** Functionally, the skill works without it: whatever Alexa hears gets sent to the server, which fuzzy-matches against your actual recipes (including ones shared with you via planning-friend). Updating the slot only improves Alexa's *speech recognition* on the edge — e.g. if you have a recipe called "Cacio e Pepe", listing it in the slot makes Alexa more likely to hear "Cacio e Pepe" correctly instead of something phonetically close.
-
-When you want to sync, hit the endpoint for a paste-ready JSON blob:
-
-```
-curl -H "Authorization: Bearer $TOKEN" https://www.planning-friend.com/api/alexa/dish-slot
-```
-
-Response is `{ "count": N, "values": [{ "name": { "value": "..." } }, ...] }`. In the Alexa Console:
-
-1. Build → Slot Types → DishName
-1. Delete the placeholder row
-1. Click **Bulk Edit** and paste the `values` array
-1. Save → Build Model
+The recipe intents use the built-in `AMAZON.SearchQuery` slot, which captures whatever the user says without requiring a pre-registered vocabulary. The raw spoken text is forwarded to the server, which fuzzy-matches against your actual recipes (own + shared) at request time. New recipes work the moment you add them in planning-friend — no Alexa Console changes required.
 
 ## Daily routine
 
