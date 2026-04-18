@@ -117,7 +117,7 @@
                         "bind": [
                           {
                             "name": "stepOrdinal",
-                            "value": "${ordinal}"
+                            "value": "${index + 1}"
                           },
                           {
                             "name": "stepBody",
