@@ -24,11 +24,19 @@ Auth: long-lived bearer token in Lambda env, matched against `ALEXA_API_TOKEN` o
 
 `TodaysPlanIntent` and `WhatsForDinnerIntent` take an optional AMAZON.DATE slot. Examples:
 
-- "what's on my plan today" / "tomorrow" / "friday" / "this saturday"
-- "what's for dinner tomorrow"
+- "what's on my plan today" / "tomorrow" / "for Tuesday" / "this saturday"
+- "what's the plan on Thursday"
+- "what's for dinner tomorrow" / "what's for dinner on Friday"
 - "what's my plan this week"
 
 Range queries ("this month", "next year") aren't supported — the skill asks for a specific day. "This week" / "next week" route to `WeekPlanIntent`.
+
+## Shared items
+
+Plan items and recipes shared with you by friends (via planning-friend's share feature) are included transparently:
+
+- `TodaysPlanIntent`, `WhatsForDinnerIntent`, `WeekPlanIntent` merge your own items with anything shared with you for the same date range, ordered chronologically.
+- `GetRecipeIntent` / `CookAlongIntent` fuzzy-match across both your own recipe library and recipes someone has shared with you. Shared recipes are introduced in speech: *"Here's Andrea's recipe for Pasta Bolognese."*
 
 ## One-time setup
 
@@ -86,9 +94,11 @@ Grab the Lambda ARN from the top-right of the function page.
 1. Copy the Skill ID, go back to Lambda step 3 and finish adding the ASK trigger with this Skill ID
 1. Test tab → enable testing in Development
 
-### 6. Populate the DishName slot
+### 6. (Optional) Populate the DishName slot
 
-The `DishName` custom slot ships with a placeholder value. For reliable voice matching, paste in your actual recipe titles. The server exposes them as ready-to-paste JSON:
+**This step is optional.** Functionally, the skill works without it: whatever Alexa hears gets sent to the server, which fuzzy-matches against your actual recipes (including ones shared with you via planning-friend). Updating the slot only improves Alexa's *speech recognition* on the edge — e.g. if you have a recipe called "Cacio e Pepe", listing it in the slot makes Alexa more likely to hear "Cacio e Pepe" correctly instead of something phonetically close.
+
+When you want to sync, hit the endpoint for a paste-ready JSON blob:
 
 ```
 curl -H "Authorization: Bearer $TOKEN" https://www.planning-friend.com/api/alexa/dish-slot
@@ -98,10 +108,8 @@ Response is `{ "count": N, "values": [{ "name": { "value": "..." } }, ...] }`. I
 
 1. Build → Slot Types → DishName
 1. Delete the placeholder row
-1. Click **Bulk Edit** (or the JSON icon) and paste the `values` array
+1. Click **Bulk Edit** and paste the `values` array
 1. Save → Build Model
-
-Re-run after adding recipes. The Lambda also forwards the raw spoken text to the server as a fallback, so a new recipe works on-demand even before you re-sync the slot — it just won't have as strong NLU resolution.
 
 ## Daily routine
 

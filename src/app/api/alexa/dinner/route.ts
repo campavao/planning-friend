@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getWeeklyPlanWithItems, getWeekStart } from "@/lib/supabase";
+import {
+  getSharedItemsForUser,
+  getWeeklyPlanWithItems,
+  getWeekStart,
+  type PlanItem,
+  type SharedPlanItem,
+} from "@/lib/supabase";
 import { requireAlexaToken } from "@/lib/alexa-auth";
 
 interface DinnerResponse {
   found: boolean;
   id?: string;
   title?: string;
+  sharedBy?: string;
   speech: string;
 }
 
@@ -29,20 +36,40 @@ export async function GET(request: NextRequest) {
   try {
     const weekStart = getWeekStart(new Date(date + "T12:00:00Z"));
     const plan = await getWeeklyPlanWithItems(context.userId, weekStart);
+
+    let sharedItems: SharedPlanItem[] = [];
+    try {
+      sharedItems = await getSharedItemsForUser(context.userId, weekStart);
+    } catch (err) {
+      console.error("Failed to fetch shared items:", err);
+    }
+
     const dayStart = Date.parse(date + "T00:00:00.000Z");
     const dayEnd = Date.parse(date + "T23:59:59.999Z");
+    const isMealInDay = (item: PlanItem) => {
+      const t = Date.parse(item.planned_date);
+      if (Number.isNaN(t) || t < dayStart || t > dayEnd) return false;
+      return item.content?.category === "meal";
+    };
 
-    const meal = (plan?.items ?? [])
-      .filter((item) => {
-        const t = Date.parse(item.planned_date);
-        if (Number.isNaN(t) || t < dayStart || t > dayEnd) return false;
-        return item.content?.category === "meal";
-      })
-      .sort((a, b) => Date.parse(a.planned_date) - Date.parse(b.planned_date))[0];
+    type Candidate = { item: PlanItem; sharedBy?: string };
+    const candidates: Candidate[] = [
+      ...((plan?.items ?? [])
+        .filter(isMealInDay)
+        .map((item) => ({ item }))),
+      ...sharedItems
+        .filter(isMealInDay)
+        .map((item) => ({ item: item as PlanItem, sharedBy: item.owner_name })),
+    ];
+    candidates.sort(
+      (a, b) =>
+        Date.parse(a.item.planned_date) - Date.parse(b.item.planned_date)
+    );
+    const winner = candidates[0];
 
     const dateLabel = formatDateForSpeech(date);
 
-    if (!meal || !meal.content) {
+    if (!winner || !winner.item.content) {
       const body: DinnerResponse = {
         found: false,
         speech: `You don't have a meal planned for ${dateLabel}.`,
@@ -52,9 +79,13 @@ export async function GET(request: NextRequest) {
 
     const body: DinnerResponse = {
       found: true,
-      id: meal.content.id,
-      title: meal.content.title,
-      speech: buildSpeech(date === todayIso() ? null : dateLabel, meal.content.title),
+      id: winner.item.content.id,
+      title: winner.item.content.title,
+      sharedBy: winner.sharedBy,
+      speech: buildSpeech(
+        date === todayIso() ? null : dateLabel,
+        winner.item.content.title
+      ),
     };
     return NextResponse.json(body);
   } catch (error) {

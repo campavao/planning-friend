@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   getWeeklyPlanWithItems,
   getWeekStart,
+  getSharedItemsForUser,
   type DateIdeaData,
   type EventData,
   type PlanItem,
+  type SharedPlanItem,
 } from "@/lib/supabase";
 import { requireAlexaToken } from "@/lib/alexa-auth";
 
@@ -15,6 +17,7 @@ interface AlexaItem {
   notes?: string;
   plannedDate: string;
   location?: string;
+  sharedBy?: string;
 }
 
 // Read-only endpoint for the Alexa skill Lambda. Returns today's items
@@ -38,15 +41,32 @@ export async function GET(request: NextRequest) {
     const weekStart = getWeekStart(new Date(date + "T12:00:00Z"));
     const plan = await getWeeklyPlanWithItems(context.userId, weekStart);
 
+    let sharedItems: SharedPlanItem[] = [];
+    try {
+      sharedItems = await getSharedItemsForUser(context.userId, weekStart);
+    } catch (err) {
+      // Table may not exist in some environments; degrade gracefully.
+      console.error("Failed to fetch shared items:", err);
+    }
+
     const dayStart = Date.parse(date + "T00:00:00.000Z");
     const dayEnd = Date.parse(date + "T23:59:59.999Z");
+    const withinDay = (value: string) => {
+      const t = Date.parse(value);
+      return !Number.isNaN(t) && t >= dayStart && t <= dayEnd;
+    };
 
-    const items: AlexaItem[] = (plan?.items ?? [])
-      .filter((item) => {
-        const t = Date.parse(item.planned_date);
-        return !Number.isNaN(t) && t >= dayStart && t <= dayEnd;
-      })
-      .map(shapeItem);
+    const ownShaped = (plan?.items ?? [])
+      .filter((item) => withinDay(item.planned_date))
+      .map((item) => shapeItem(item));
+
+    const sharedShaped = sharedItems
+      .filter((item) => withinDay(item.planned_date))
+      .map((item) => shapeItem(item, item.owner_name));
+
+    const items: AlexaItem[] = [...ownShaped, ...sharedShaped].sort(
+      (a, b) => Date.parse(a.plannedDate) - Date.parse(b.plannedDate)
+    );
 
     return NextResponse.json({
       date,
@@ -62,7 +82,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-function shapeItem(item: PlanItem): AlexaItem {
+function shapeItem(item: PlanItem, sharedBy?: string): AlexaItem {
   const title = item.content?.title ?? item.note_title ?? "Untitled item";
   const category = item.content?.category ?? "other";
   return {
@@ -72,6 +92,7 @@ function shapeItem(item: PlanItem): AlexaItem {
     notes: item.notes,
     plannedDate: item.planned_date,
     location: shortenLocation(extractLocation(item.content?.data, category)),
+    sharedBy,
   };
 }
 

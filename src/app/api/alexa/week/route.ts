@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  getSharedItemsForUser,
   getWeeklyPlanWithItems,
   getWeekStart,
   type DateIdeaData,
   type EventData,
   type PlanItem,
+  type SharedPlanItem,
 } from "@/lib/supabase";
 import { requireAlexaToken } from "@/lib/alexa-auth";
 
@@ -14,6 +16,7 @@ interface WeekItem {
   category: string;
   plannedDate: string;
   location?: string;
+  sharedBy?: string;
 }
 
 interface WeekDay {
@@ -63,7 +66,15 @@ export async function GET(request: NextRequest) {
   try {
     const weekStart = getWeekStart(new Date(anchor + "T12:00:00Z"));
     const plan = await getWeeklyPlanWithItems(context.userId, weekStart);
-    const days = buildDays(weekStart, plan?.items ?? []);
+
+    let sharedItems: SharedPlanItem[] = [];
+    try {
+      sharedItems = await getSharedItemsForUser(context.userId, weekStart);
+    } catch (err) {
+      console.error("Failed to fetch shared items:", err);
+    }
+
+    const days = buildDays(weekStart, plan?.items ?? [], sharedItems);
     const totalItems = days.reduce((sum, d) => sum + d.items.length, 0);
 
     const body: WeekResponse = {
@@ -82,7 +93,11 @@ export async function GET(request: NextRequest) {
   }
 }
 
-function buildDays(weekStart: string, items: PlanItem[]): WeekDay[] {
+function buildDays(
+  weekStart: string,
+  items: PlanItem[],
+  sharedItems: SharedPlanItem[]
+): WeekDay[] {
   const days: WeekDay[] = [];
   const start = new Date(weekStart + "T00:00:00Z");
   for (let i = 0; i < 7; i++) {
@@ -95,20 +110,30 @@ function buildDays(weekStart: string, items: PlanItem[]): WeekDay[] {
     });
     const dayStart = Date.parse(dateStr + "T00:00:00.000Z");
     const dayEnd = Date.parse(dateStr + "T23:59:59.999Z");
+    const withinDay = (value: string) => {
+      const t = Date.parse(value);
+      return !Number.isNaN(t) && t >= dayStart && t <= dayEnd;
+    };
 
-    const dayItems = items
-      .filter((item) => {
-        const t = Date.parse(item.planned_date);
-        return !Number.isNaN(t) && t >= dayStart && t <= dayEnd;
-      })
-      .map(shapeItem);
+    const own = items
+      .filter((item) => withinDay(item.planned_date))
+      .map((item) => shapeItem(item));
+    const shared = sharedItems
+      .filter((item) => withinDay(item.planned_date))
+      .map((item) => shapeItem(item, item.owner_name));
 
-    days.push({ date: dateStr, dayName, items: dayItems });
+    days.push({
+      date: dateStr,
+      dayName,
+      items: [...own, ...shared].sort(
+        (a, b) => Date.parse(a.plannedDate) - Date.parse(b.plannedDate)
+      ),
+    });
   }
   return days;
 }
 
-function shapeItem(item: PlanItem): WeekItem {
+function shapeItem(item: PlanItem, sharedBy?: string): WeekItem {
   const title = item.content?.title ?? item.note_title ?? "Untitled item";
   const category = item.content?.category ?? "other";
   return {
@@ -117,6 +142,7 @@ function shapeItem(item: PlanItem): WeekItem {
     category,
     plannedDate: item.planned_date,
     location: shortenLocation(extractLocation(item.content?.data, category)),
+    sharedBy,
   };
 }
 

@@ -466,6 +466,52 @@ export async function updateItemSharing(
   }
 }
 
+// Returns every content item that has been shared with this user via
+// plan_item_shares, deduplicated by content id. Used by the Alexa skill
+// to broaden recipe fuzzy-match beyond the user's own library.
+export async function getAllSharedContent(
+  userId: string
+): Promise<{ content: Content; ownerName: string }[]> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("plan_item_shares")
+    .select(
+      `
+      plan_items!inner (
+        content (*)
+      ),
+      users!plan_item_shares_owner_user_id_fkey (
+        name,
+        phone_number
+      )
+    `
+    )
+    .eq("shared_with_user_id", userId);
+
+  if (error) {
+    throw new Error(`Failed to get shared content: ${error.message}`);
+  }
+
+  const seen = new Set<string>();
+  const result: { content: Content; ownerName: string }[] = [];
+  for (const row of data ?? []) {
+    const planItem = row.plan_items as unknown as { content: Content | null };
+    const owner = row.users as unknown as {
+      name?: string;
+      phone_number?: string;
+    };
+    const content = planItem?.content;
+    if (!content || seen.has(content.id)) continue;
+    seen.add(content.id);
+    result.push({
+      content,
+      ownerName: owner?.name || owner?.phone_number?.slice(-4) || "Friend",
+    });
+  }
+  return result;
+}
+
 export async function getPlanItemShares(
   itemId: string
 ): Promise<PlanItemShare[]> {

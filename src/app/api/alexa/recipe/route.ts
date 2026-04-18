@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  getAllSharedContent,
   getContentByUser,
   type Content,
   type DrinkData,
@@ -14,7 +15,13 @@ interface RecipeResponse {
   category?: string;
   ingredients?: string[];
   steps?: string[];
+  sharedBy?: string;
   speech: string;
+}
+
+interface RecipeCandidate {
+  content: Content;
+  sharedBy?: string;
 }
 
 // Fetches a recipe (meal or drink) by fuzzy-matched name and shapes it
@@ -33,13 +40,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const all = await getContentByUser(context.userId);
-    const recipes = all.filter(
-      (c) =>
-        c.status === "completed" &&
-        (c.category === "meal" || c.category === "drink")
-    );
-    const match = findBestMatch(name, recipes);
+    const pool = await buildSearchPool(context.userId);
+    const match = findBestMatch(name, pool);
     if (!match) {
       const body: RecipeResponse = {
         found: false,
@@ -59,7 +61,13 @@ export async function GET(request: NextRequest) {
       category: match.content.category,
       ingredients,
       steps,
-      speech: buildRecipeSpeech(match.content.title, ingredients, steps),
+      sharedBy: match.sharedBy,
+      speech: buildRecipeSpeech(
+        match.content.title,
+        ingredients,
+        steps,
+        match.sharedBy
+      ),
     };
     return NextResponse.json(body);
   } catch (error) {
@@ -71,17 +79,47 @@ export async function GET(request: NextRequest) {
   }
 }
 
+async function buildSearchPool(userId: string): Promise<RecipeCandidate[]> {
+  const own = await getContentByUser(userId);
+  const ownRecipes: RecipeCandidate[] = own
+    .filter(
+      (c) =>
+        c.status === "completed" &&
+        (c.category === "meal" || c.category === "drink")
+    )
+    .map((content) => ({ content }));
+
+  let sharedRecipes: RecipeCandidate[] = [];
+  try {
+    const shared = await getAllSharedContent(userId);
+    sharedRecipes = shared
+      .filter(
+        ({ content }) =>
+          content.status === "completed" &&
+          (content.category === "meal" || content.category === "drink")
+      )
+      .map(({ content, ownerName }) => ({ content, sharedBy: ownerName }));
+  } catch (err) {
+    console.error("Failed to fetch shared recipes:", err);
+  }
+
+  // Own content takes precedence if the same id appears in both lists.
+  const seen = new Set(ownRecipes.map((r) => r.content.id));
+  const deduped = sharedRecipes.filter((r) => !seen.has(r.content.id));
+  return [...ownRecipes, ...deduped];
+}
+
 function findBestMatch(
   query: string,
-  recipes: Content[]
-): { content: Content; score: number } | null {
+  candidates: RecipeCandidate[]
+): (RecipeCandidate & { score: number }) | null {
   const q = normalize(query);
   if (!q) return null;
-  let best: { content: Content; score: number } | null = null;
-  for (const recipe of recipes) {
-    const score = scoreTitle(q, normalize(recipe.title));
+  let best: (RecipeCandidate & { score: number }) | null = null;
+  for (const candidate of candidates) {
+    const score = scoreTitle(q, normalize(candidate.content.title));
     if (score > 0 && (!best || score > best.score)) {
-      best = { content: recipe, score };
+      best = { ...candidate, score };
     }
   }
   return best;
@@ -111,9 +149,13 @@ function scoreTitle(query: string, title: string): number {
 function buildRecipeSpeech(
   title: string,
   ingredients: string[],
-  steps: string[]
+  steps: string[],
+  sharedBy?: string
 ): string {
-  const parts: string[] = [`Here's the recipe for ${title}.`];
+  const intro = sharedBy
+    ? `Here's ${sharedBy}'s recipe for ${title}.`
+    : `Here's the recipe for ${title}.`;
+  const parts: string[] = [intro];
 
   if (ingredients.length > 0) {
     parts.push(`You'll need: ${joinList(ingredients)}.`);
