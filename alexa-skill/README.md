@@ -10,13 +10,14 @@ Echo device → Alexa cloud → AWS Lambda (this dir) → /api/alexa/* on Next.j
 
 Auth: long-lived bearer token in Lambda env, matched against `ALEXA_API_TOKEN` on the server. No OAuth / account linking (personal skill, stays in dev mode).
 
-## Current status (milestone 2)
+## Current status (milestone 4 — all planned features shipped)
 
-- `TodaysPlanIntent` — working, card shows title + venue on Echo Show
-- `WhatsForDinnerIntent` — returns the meal-category plan item for today
-- `GetRecipeIntent` — fuzzy-matches by name, reads ingredients + steps with SSML pacing, renders recipe card
-- `NextStepIntent` — stub (milestone 4: hands-free step walkthrough with session attributes)
-- APL card for Echo Show — not yet (milestone 3, plain Simple card for now)
+- `TodaysPlanIntent` — speaks the day, renders APL list on Echo Show (or Simple card on audio-only devices)
+- `WhatsForDinnerIntent` — tonight's meal-category plan item, APL card
+- `GetRecipeIntent` — fuzzy-matches by name, reads ingredients + steps with SSML pacing, APL recipe view
+- `CookAlongIntent` — hands-free cooking mode. Reads intro + ingredients + step 1, stores the rest in session attributes
+- `NextStepIntent` — advances through the active cooking session; ends the session on the final step with "Enjoy your meal!"
+- APL — two documents (`apl/today.json`, `apl/recipe.json`), rendered only when the device reports `Alexa.Presentation.APL` support
 
 ## One-time setup
 
@@ -108,12 +109,25 @@ The Lambda asks Alexa for the device's timezone (permission: `alexa::devices:all
 ## Files
 
 - `index.js` — Lambda handler, all intents wired
+- `apl/today.json` — APL document for today's plan / dinner views
+- `apl/recipe.json` — APL document for recipe detail view
 - `models/en-US.json` — interaction model (paste into Alexa Console)
 - `skill.json` — skill manifest (reference for `ask-cli` deploy)
 - `package.json` — `ask-sdk-core` dependency
 - `.env.example` — Lambda env vars
 
-## Next milestones
+When zipping for upload, include the `apl/` directory:
+```
+Compress-Archive -Path index.js,package.json,node_modules,apl -DestinationPath skill.zip -Force
+```
 
-- M3: APL document for Echo Show visual card (replaces the plain Simple cards)
-- M4: `NextStepIntent` with session attributes tracking current step, enabling hands-free cooking flow
+## Hands-free cooking flow
+
+Invoke with utterances like "Alexa, ask planning friend to walk me through pasta" (or "cook pasta with me"). The skill:
+
+1. Loads the recipe, stores steps in session attributes
+2. Reads: "Let's cook X. You'll need A, B, C. Step 1. [step]. Say 'next' when you're ready."
+3. Keeps the Alexa session open — say "next" to advance without re-invoking the skill
+4. On the final step, closes out with "Enjoy your meal!"
+
+The session is cleared if you say "stop" or if Alexa times out waiting for a reply.

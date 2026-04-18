@@ -57,6 +57,22 @@
             "go on",
             "keep going"
           ]
+        },
+        {
+          "name": "CookAlongIntent",
+          "slots": [
+            { "name": "dish", "type": "DishName" }
+          ],
+          "samples": [
+            "walk me through {dish}",
+            "walk me through the recipe for {dish}",
+            "cook {dish} with me",
+            "cook along with {dish}",
+            "let's cook {dish}",
+            "help me cook {dish}",
+            "start cooking {dish}",
+            "guide me through {dish}"
+          ]
         }
       ],
       "types": [

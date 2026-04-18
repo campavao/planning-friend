@@ -2,6 +2,9 @@
 
 const Alexa = require("ask-sdk-core");
 
+const todayAPL = require("./apl/today.json");
+const recipeAPL = require("./apl/recipe.json");
+
 const API_URL = process.env.PLANNING_FRIEND_API_URL;
 const API_TOKEN = process.env.PLANNING_FRIEND_API_TOKEN;
 
@@ -31,8 +34,6 @@ async function fetchJson(path, params) {
   return res.json();
 }
 
-// Derive YYYY-MM-DD in the device's timezone from the Alexa request timestamp.
-// Falls back to server UTC date if tz lookup isn't possible.
 async function getDeviceDate(handlerInput) {
   try {
     const deviceId = Alexa.getDeviceId(handlerInput.requestEnvelope);
@@ -56,6 +57,72 @@ async function getDeviceDate(handlerInput) {
   return new Date().toISOString().slice(0, 10);
 }
 
+function supportsAPL(handlerInput) {
+  const supported =
+    handlerInput.requestEnvelope?.context?.System?.device?.supportedInterfaces;
+  return Boolean(supported && supported["Alexa.Presentation.APL"]);
+}
+
+function addTodayAPL(builder, data, dateLabel) {
+  const items = (data.items || []).map((i, idx) => ({
+    token: String(idx),
+    primaryText: i.title,
+    secondaryText: i.location || categoryLabel(i.category),
+  }));
+  builder.addDirective({
+    type: "Alexa.Presentation.APL.RenderDocument",
+    token: "today",
+    document: todayAPL,
+    datasources: {
+      today: {
+        title: "Your Plan",
+        subtitle: dateLabel,
+        items,
+      },
+    },
+  });
+}
+
+function addRecipeAPL(builder, data) {
+  const subtitleParts = [];
+  if (data.ingredients?.length) {
+    subtitleParts.push(`${data.ingredients.length} ingredients`);
+  }
+  if (data.steps?.length) {
+    subtitleParts.push(`${data.steps.length} steps`);
+  }
+  builder.addDirective({
+    type: "Alexa.Presentation.APL.RenderDocument",
+    token: "recipe",
+    document: recipeAPL,
+    datasources: {
+      recipe: {
+        title: data.title || "Recipe",
+        subtitle: subtitleParts.join(" · "),
+        ingredients: data.ingredients || [],
+        steps: data.steps || [],
+      },
+    },
+  });
+}
+
+function categoryLabel(category) {
+  switch (category) {
+    case "meal":
+      return "Meal";
+    case "drink":
+      return "Drink";
+    case "event":
+      return "Event";
+    case "date_idea":
+      return "Date idea";
+    case "travel":
+      return "Travel";
+    default:
+      return "";
+  }
+}
+
 const LaunchRequestHandler = {
   canHandle(handlerInput) {
     return (
@@ -64,9 +131,7 @@ const LaunchRequestHandler = {
   },
   handle(handlerInput) {
     return handlerInput.responseBuilder
-      .speak(
-        "Hi! Ask me what's on your plan today, or what's for dinner."
-      )
+      .speak("Hi! Ask me what's on your plan today, or what's for dinner.")
       .reprompt("Try asking: what's on my plan today?")
       .getResponse();
   },
@@ -83,18 +148,23 @@ const TodaysPlanIntentHandler = {
     try {
       const date = await getDeviceDate(handlerInput);
       const data = await fetchJson("/api/alexa/today", { date });
-      const cardText =
-        data.items.length === 0
-          ? "Nothing planned."
-          : data.items
-              .map((i) =>
-                i.location ? `• ${i.title} — ${i.location}` : `• ${i.title}`
-              )
-              .join("\n");
-      return handlerInput.responseBuilder
-        .speak(data.speech)
-        .withSimpleCard("Your plan", cardText)
-        .getResponse();
+      const builder = handlerInput.responseBuilder.speak(data.speech);
+
+      if (supportsAPL(handlerInput)) {
+        addTodayAPL(builder, data, formatDateLabel(date));
+      } else {
+        const cardText =
+          data.items.length === 0
+            ? "Nothing planned."
+            : data.items
+                .map((i) =>
+                  i.location ? `• ${i.title} — ${i.location}` : `• ${i.title}`
+                )
+                .join("\n");
+        builder.withSimpleCard("Your plan", cardText);
+      }
+
+      return builder.getResponse();
     } catch (err) {
       console.error("TodaysPlanIntent error:", err);
       return handlerInput.responseBuilder
@@ -114,10 +184,7 @@ const GetRecipeIntentHandler = {
     );
   },
   async handle(handlerInput) {
-    const spoken = Alexa.getSlotValue(
-      handlerInput.requestEnvelope,
-      "dish"
-    );
+    const spoken = Alexa.getSlotValue(handlerInput.requestEnvelope, "dish");
     if (!spoken) {
       return handlerInput.responseBuilder
         .speak("Which recipe would you like?")
@@ -129,32 +196,35 @@ const GetRecipeIntentHandler = {
       const data = await fetchJson("/api/alexa/recipe", { name: spoken });
       if (!data.found) {
         return handlerInput.responseBuilder
-          .speak(
-            data.speech ||
-              `I couldn't find a recipe called ${spoken}.`
-          )
+          .speak(data.speech || `I couldn't find a recipe called ${spoken}.`)
           .getResponse();
       }
 
-      const cardParts = [];
-      if (data.ingredients && data.ingredients.length) {
-        cardParts.push(
-          "Ingredients:\n" +
-            data.ingredients.map((i) => `• ${i}`).join("\n")
-        );
-      }
-      if (data.steps && data.steps.length) {
-        cardParts.push(
-          "Steps:\n" +
-            data.steps.map((s, i) => `${i + 1}. ${s}`).join("\n")
-        );
-      }
-      const cardBody = cardParts.join("\n\n") || "No details saved.";
+      const builder = handlerInput.responseBuilder.speak(data.speech);
 
-      return handlerInput.responseBuilder
-        .speak(data.speech)
-        .withSimpleCard(data.title || "Recipe", cardBody)
-        .getResponse();
+      if (supportsAPL(handlerInput)) {
+        addRecipeAPL(builder, data);
+      } else {
+        const cardParts = [];
+        if (data.ingredients && data.ingredients.length) {
+          cardParts.push(
+            "Ingredients:\n" +
+              data.ingredients.map((i) => `• ${i}`).join("\n")
+          );
+        }
+        if (data.steps && data.steps.length) {
+          cardParts.push(
+            "Steps:\n" +
+              data.steps.map((s, i) => `${i + 1}. ${s}`).join("\n")
+          );
+        }
+        builder.withSimpleCard(
+          data.title || "Recipe",
+          cardParts.join("\n\n") || "No details saved."
+        );
+      }
+
+      return builder.getResponse();
     } catch (err) {
       console.error("GetRecipeIntent error:", err);
       return handlerInput.responseBuilder
@@ -170,22 +240,42 @@ const WhatsForDinnerIntentHandler = {
   canHandle(handlerInput) {
     return (
       Alexa.getRequestType(handlerInput.requestEnvelope) === "IntentRequest" &&
-      Alexa.getIntentName(handlerInput.requestEnvelope) ===
-        "WhatsForDinnerIntent"
+      Alexa.getIntentName(handlerInput.requestEnvelope) === "WhatsForDinnerIntent"
     );
   },
   async handle(handlerInput) {
     try {
       const date = await getDeviceDate(handlerInput);
       const data = await fetchJson("/api/alexa/dinner", { date });
-      const cardTitle = "Dinner";
-      const cardBody = data.found
-        ? data.title || "Nothing planned"
-        : "Nothing planned";
-      return handlerInput.responseBuilder
-        .speak(data.speech)
-        .withSimpleCard(cardTitle, cardBody)
-        .getResponse();
+      const builder = handlerInput.responseBuilder.speak(data.speech);
+
+      if (supportsAPL(handlerInput) && data.found) {
+        builder.addDirective({
+          type: "Alexa.Presentation.APL.RenderDocument",
+          token: "today",
+          document: todayAPL,
+          datasources: {
+            today: {
+              title: "Dinner",
+              subtitle: formatDateLabel(date),
+              items: [
+                {
+                  token: "dinner",
+                  primaryText: data.title,
+                  secondaryText: "Meal",
+                },
+              ],
+            },
+          },
+        });
+      } else {
+        builder.withSimpleCard(
+          "Dinner",
+          data.found ? data.title || "Nothing planned" : "Nothing planned"
+        );
+      }
+
+      return builder.getResponse();
     } catch (err) {
       console.error("WhatsForDinnerIntent error:", err);
       return handlerInput.responseBuilder
@@ -195,6 +285,79 @@ const WhatsForDinnerIntentHandler = {
   },
 };
 
+// Starts a hands-free cooking session. Stores the recipe steps in session
+// attributes so NextStepIntent can advance through them. Reads the intro +
+// ingredients + step 1 immediately, then keeps the session open.
+const CookAlongIntentHandler = {
+  canHandle(handlerInput) {
+    return (
+      Alexa.getRequestType(handlerInput.requestEnvelope) === "IntentRequest" &&
+      Alexa.getIntentName(handlerInput.requestEnvelope) === "CookAlongIntent"
+    );
+  },
+  async handle(handlerInput) {
+    const spoken = Alexa.getSlotValue(handlerInput.requestEnvelope, "dish");
+    if (!spoken) {
+      return handlerInput.responseBuilder
+        .speak("Which recipe should we cook?")
+        .reprompt("Say the name of the recipe.")
+        .getResponse();
+    }
+
+    try {
+      const data = await fetchJson("/api/alexa/recipe", { name: spoken });
+      if (!data.found) {
+        return handlerInput.responseBuilder
+          .speak(data.speech || `I couldn't find a recipe called ${spoken}.`)
+          .getResponse();
+      }
+
+      const steps = data.steps || [];
+      if (steps.length === 0) {
+        return handlerInput.responseBuilder
+          .speak(
+            `${data.title} doesn't have any saved steps, so I can't walk you through it.`
+          )
+          .getResponse();
+      }
+
+      const attrs = handlerInput.attributesManager.getSessionAttributes();
+      attrs.cooking = {
+        title: data.title,
+        steps,
+        currentStep: 1,
+      };
+      handlerInput.attributesManager.setSessionAttributes(attrs);
+
+      const ingredientsLine = data.ingredients?.length
+        ? `You'll need: ${joinList(data.ingredients)}. <break time="700ms"/>`
+        : "";
+
+      const speech =
+        `Let's cook ${data.title}. ${ingredientsLine}` +
+        `Step 1. ${steps[0]} <break time="400ms"/> ` +
+        `Say "next" when you're ready for the next step.`;
+
+      const builder = handlerInput.responseBuilder
+        .speak(speech)
+        .reprompt('Say "next" for the next step.');
+
+      if (supportsAPL(handlerInput)) {
+        addRecipeAPL(builder, data);
+      }
+
+      return builder.getResponse();
+    } catch (err) {
+      console.error("CookAlongIntent error:", err);
+      return handlerInput.responseBuilder
+        .speak("Sorry, I couldn't start that recipe right now.")
+        .getResponse();
+    }
+  },
+};
+
+// Advances through the cooking session stored in session attributes. If
+// no session is active, nudges the user to start one.
 const NextStepIntentHandler = {
   canHandle(handlerInput) {
     return (
@@ -203,8 +366,42 @@ const NextStepIntentHandler = {
     );
   },
   handle(handlerInput) {
+    const attrs = handlerInput.attributesManager.getSessionAttributes();
+    const cooking = attrs.cooking;
+    if (!cooking || !Array.isArray(cooking.steps)) {
+      return handlerInput.responseBuilder
+        .speak(
+          'There\'s no recipe in progress. Say "walk me through" followed by a recipe name to start.'
+        )
+        .reprompt("Say the name of a recipe to cook.")
+        .getResponse();
+    }
+
+    const idx = cooking.currentStep;
+    if (idx >= cooking.steps.length) {
+      delete attrs.cooking;
+      handlerInput.attributesManager.setSessionAttributes(attrs);
+      return handlerInput.responseBuilder
+        .speak(
+          `That was the last step for ${cooking.title}. Enjoy your meal!`
+        )
+        .getResponse();
+    }
+
+    const step = cooking.steps[idx];
+    const stepNumber = idx + 1;
+    cooking.currentStep = idx + 1;
+    attrs.cooking = cooking;
+    handlerInput.attributesManager.setSessionAttributes(attrs);
+
+    const isLast = cooking.currentStep >= cooking.steps.length;
+    const tail = isLast
+      ? ' <break time="400ms"/> That\'s the last step. Enjoy!'
+      : ' <break time="400ms"/> Say "next" for the next step.';
+
     return handlerInput.responseBuilder
-      .speak("Step-by-step recipe walkthrough is coming soon.")
+      .speak(`Step ${stepNumber}. ${step}${tail}`)
+      .reprompt('Say "next" for the next step.')
       .getResponse();
   },
 };
@@ -219,7 +416,7 @@ const HelpIntentHandler = {
   handle(handlerInput) {
     return handlerInput.responseBuilder
       .speak(
-        "You can ask: what's on my plan today, or what's for dinner. What would you like?"
+        'You can ask: what\'s on my plan today, what\'s for dinner, or read me the recipe for something. To cook hands-free, say "walk me through" followed by a recipe name.'
       )
       .reprompt("What would you like to know?")
       .getResponse();
@@ -281,13 +478,33 @@ const ErrorHandler = {
   },
 };
 
+function joinList(items) {
+  if (!items || items.length === 0) return "";
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
+}
+
+function formatDateLabel(date) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (date === today) return "Today";
+  const d = new Date(date + "T12:00:00Z");
+  return d.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 exports.handler = Alexa.SkillBuilders.custom()
   .addRequestHandlers(
     LaunchRequestHandler,
     TodaysPlanIntentHandler,
     GetRecipeIntentHandler,
-    NextStepIntentHandler,
     WhatsForDinnerIntentHandler,
+    CookAlongIntentHandler,
+    NextStepIntentHandler,
     HelpIntentHandler,
     CancelAndStopIntentHandler,
     FallbackIntentHandler,

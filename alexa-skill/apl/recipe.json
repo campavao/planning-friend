@@ -1,0 +1,111 @@
+{
+  "type": "APL",
+  "version": "2024.3",
+  "import": [
+    {
+      "name": "alexa-layouts",
+      "version": "1.7.0"
+    }
+  ],
+  "styles": {
+    "sectionHeader": {
+      "values": [
+        {
+          "fontSize": "24dp",
+          "fontWeight": "700",
+          "color": "#f8fafc",
+          "paddingBottom": "8dp"
+        }
+      ]
+    },
+    "bodyText": {
+      "values": [
+        {
+          "fontSize": "20dp",
+          "color": "#e2e8f0",
+          "paddingBottom": "6dp"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "parameters": ["payload"],
+    "items": [
+      {
+        "type": "Container",
+        "width": "100%",
+        "height": "100%",
+        "backgroundColor": "#0f172a",
+        "items": [
+          {
+            "type": "AlexaHeader",
+            "theme": "dark",
+            "headerTitle": "${payload.recipe.title}",
+            "headerSubtitle": "${payload.recipe.subtitle}",
+            "headerBackgroundColor": "#1e293b"
+          },
+          {
+            "type": "ScrollView",
+            "grow": 1,
+            "width": "100%",
+            "paddingLeft": "32dp",
+            "paddingRight": "32dp",
+            "paddingTop": "16dp",
+            "paddingBottom": "24dp",
+            "item": {
+              "type": "Container",
+              "direction": "column",
+              "items": [
+                {
+                  "type": "Text",
+                  "style": "sectionHeader",
+                  "text": "Ingredients",
+                  "when": "${payload.recipe.ingredients.length > 0}"
+                },
+                {
+                  "type": "Sequence",
+                  "scrollDirection": "vertical",
+                  "width": "100%",
+                  "height": "auto",
+                  "shrink": 0,
+                  "when": "${payload.recipe.ingredients.length > 0}",
+                  "data": "${payload.recipe.ingredients}",
+                  "items": [
+                    {
+                      "type": "Text",
+                      "style": "bodyText",
+                      "text": "• ${data}"
+                    }
+                  ]
+                },
+                {
+                  "type": "Text",
+                  "style": "sectionHeader",
+                  "text": "Steps",
+                  "paddingTop": "16dp",
+                  "when": "${payload.recipe.steps.length > 0}"
+                },
+                {
+                  "type": "Sequence",
+                  "scrollDirection": "vertical",
+                  "width": "100%",
+                  "height": "auto",
+                  "shrink": 0,
+                  "when": "${payload.recipe.steps.length > 0}",
+                  "data": "${payload.recipe.steps}",
+                  "items": [
+                    {
+                      "type": "Text",
+                      "style": "bodyText",
+                      "text": "${ordinal}. ${data}"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
