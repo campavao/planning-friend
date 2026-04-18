@@ -126,8 +126,12 @@
                       "when": "${data.items.length == 0}"
                     },
                     {
-                      "type": "Container",
-                      "direction": "column",
+                      "type": "Sequence",
+                      "scrollDirection": "vertical",
+                      "scrollEnabled": false,
+                      "width": "100%",
+                      "height": "auto",
+                      "shrink": 0,
                       "when": "${data.items.length > 0}",
                       "data": "${data.items}",
                       "items": [
@@ -192,8 +196,12 @@
                       "when": "${data.items.length == 0}"
                     },
                     {
-                      "type": "Container",
-                      "direction": "column",
+                      "type": "Sequence",
+                      "scrollDirection": "vertical",
+                      "scrollEnabled": false,
+                      "width": "100%",
+                      "height": "auto",
+                      "shrink": 0,
                       "when": "${data.items.length > 0}",
                       "data": "${data.items}",
                       "items": [

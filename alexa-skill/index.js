@@ -115,23 +115,16 @@ async function getDeviceDate(handlerInput) {
 }
 
 function supportsAPL(handlerInput) {
-  // Primary signal: device advertises APL interface.
+  // Only trust the device's explicit interface declaration. The Alexa
+  // Simulator advertises a Viewport with type:"APL" but its device
+  // cannot actually process APL.RenderDocument directives — sending
+  // one there returns "The device does not support
+  // Alexa.Presentation.APL directives" in the Device Log. Real Echo
+  // Shows include APL in supportedInterfaces, so the SimpleCard
+  // fallback only hits the simulator (and audio-only Echos).
   const supported =
     handlerInput.requestEnvelope?.context?.System?.device?.supportedInterfaces;
-  if (supported && supported["Alexa.Presentation.APL"]) return true;
-
-  // Simulator quirk: supportedInterfaces is often empty ({}) even on Hub
-  // viewports. Fall back to checking the Viewports context which includes
-  // `type: "APL"` when APL rendering is available.
-  const viewports = handlerInput.requestEnvelope?.context?.Viewports;
-  if (
-    Array.isArray(viewports) &&
-    viewports.some((v) => v && v.type === "APL")
-  ) {
-    return true;
-  }
-
-  return false;
+  return Boolean(supported && supported["Alexa.Presentation.APL"]);
 }
 
 // Resolves an AMAZON.DATE slot value into one of:
@@ -293,11 +286,13 @@ function applyWeekToBuilder(builder, handlerInput, data, opts = {}) {
 function formatShortDate(dateIso) {
   if (!dateIso || !/^\d{4}-\d{2}-\d{2}$/.test(dateIso)) return "";
   const d = new Date(dateIso + "T12:00:00Z");
-  return d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
-  }).toUpperCase();
+  return d
+    .toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC",
+    })
+    .toUpperCase();
 }
 
 // Extract today's items from the week payload so LaunchRequest can save
