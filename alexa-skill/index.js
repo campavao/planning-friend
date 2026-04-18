@@ -381,9 +381,34 @@ const WeekPlanIntentHandler = {
     );
   },
   async handle(handlerInput) {
+    const slotValue = Alexa.getSlotValue(
+      handlerInput.requestEnvelope,
+      "when"
+    );
+    const resolved = resolveWhen(slotValue);
+
+    if (resolved.kind === "unsupported") {
+      return handlerInput.responseBuilder
+        .speak(
+          "I can only check a specific week or date. Try: what's my plan this week, or the week of May twentieth."
+        )
+        .reprompt("Try: what's my plan this week.")
+        .getResponse();
+    }
+
+    // Backend accepts ?week=YYYY-MM-DD (Monday) or ?date=YYYY-MM-DD
+    // (any day within the target week). Default: current week.
+    let params;
+    if (resolved.kind === "week") {
+      params = { week: resolved.monday };
+    } else if (resolved.kind === "date") {
+      params = { date: resolved.date };
+    } else {
+      params = { date: await getDeviceDate(handlerInput) };
+    }
+
     try {
-      const date = await getDeviceDate(handlerInput);
-      const data = await fetchJson("/api/alexa/week", { date });
+      const data = await fetchJson("/api/alexa/week", params);
       const builder = handlerInput.responseBuilder.speak(data.speech);
 
       if (supportsAPL(handlerInput)) {

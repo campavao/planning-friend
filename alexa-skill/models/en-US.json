@@ -18,6 +18,9 @@
             "what's on my plan {when}",
             "what's on my plan for {when}",
             "what's on my plan on {when}",
+            "what's my plan {when}",
+            "what's my plan for {when}",
+            "what's my plan on {when}",
             "what's the plan",
             "what's the plan {when}",
             "what's the plan for {when}",
@@ -41,7 +44,9 @@
         },
         {
           "name": "WeekPlanIntent",
-          "slots": [],
+          "slots": [
+            { "name": "when", "type": "AMAZON.DATE" }
+          ],
           "samples": [
             "what's my plan this week",
             "what's on my plan this week",
@@ -51,7 +56,19 @@
             "what do I have planned this week",
             "what's going on this week",
             "week plan",
-            "the week"
+            "the week",
+            "what's my plan next week",
+            "next week's plan",
+            "what's my plan last week",
+            "what's my plan for the week of {when}",
+            "what's on my plan for the week of {when}",
+            "what's the plan for the week of {when}",
+            "the plan for the week of {when}",
+            "plan for the week of {when}",
+            "what's happening the week of {when}",
+            "what do I have planned the week of {when}",
+            "what's going on the week of {when}",
+            "the week of {when}"
           ]
         },
         {
