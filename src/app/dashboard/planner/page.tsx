@@ -453,6 +453,11 @@ function PlannerContent() {
     emptyPool: false,
     poolSize: 0,
   };
+  // True while SWR is fetching a different week than the one currently in
+  // `data` — keepPreviousData holds the old payload, so we render
+  // suggestion skeletons instead of stale picks during the swap.
+  const isSuggestionsLoading =
+    !!weekStart && !!data?.plan && data.plan.week_start !== weekStart;
 
   const contentById = useMemo(() => {
     const map = new Map<string, ContentWithTags>();
@@ -1346,11 +1351,13 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                         dayIndex={dayIndex}
                         picks={filterPicksForDay(dayIndex)}
                         contentById={contentById}
+                        weekStart={weekStart}
                         onAdd={addSuggestionToDay}
                         onDismiss={dismissSuggestion}
                         onRefresh={refreshDaySuggestions}
                         isRefreshing={refreshingDay === dayIndex}
                         emptyPool={suggestionsMeta.emptyPool}
+                        loading={isSuggestionsLoading}
                         layout="mobile"
                       />
                     )}
@@ -1574,11 +1581,13 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                         dayIndex={dayIndex}
                         picks={filterPicksForDay(dayIndex)}
                         contentById={contentById}
+                        weekStart={weekStart}
                         onAdd={addSuggestionToDay}
                         onDismiss={dismissSuggestion}
                         onRefresh={refreshDaySuggestions}
                         isRefreshing={refreshingDay === dayIndex}
                         emptyPool={suggestionsMeta.emptyPool}
+                        loading={isSuggestionsLoading}
                         layout="desktop"
                       />
                     )}
@@ -1782,6 +1791,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                       dayIndex={addingToDay}
                       picks={filterPicksForDay(addingToDay)}
                       contentById={contentById}
+                      weekStart={weekStart}
                       onAdd={(contentId, dayIndex) => {
                         addSuggestionToDay(contentId, dayIndex);
                         closeAddModal();
