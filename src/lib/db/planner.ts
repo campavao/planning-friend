@@ -2,11 +2,34 @@ import { createServerClient } from "./client";
 import type {
   Content,
   ContentCategory,
+  ContentWithTags,
   PlanItem,
+  Tag,
   WeeklyPlan,
   WeeklyPlanWithItems,
 } from "./types";
 import { formatDateString, parseDateString } from "@/lib/utils";
+
+export const ELIGIBLE_SUGGESTION_CATEGORIES: ContentCategory[] = [
+  "meal",
+  "event",
+  "date_idea",
+  "drink",
+];
+
+export interface DecayedHistoryItem {
+  contentId: string;
+  category: ContentCategory;
+  plannedDate: string;
+  dayIndex: number;
+  weight: number;
+  tagIds: string[];
+}
+
+export interface DecayedHistory {
+  items: DecayedHistoryItem[];
+  weeksOfHistory: number;
+}
 
 export function getWeekStart(date: Date = new Date()): string {
   const d = new Date(date);
@@ -161,6 +184,7 @@ export async function addPlanItem(
     noteTitle?: string;
     notes?: string;
     plannedDate: string;
+    source?: "manual" | "ai_suggested" | "quick_note";
   }
 ): Promise<PlanItem> {
   const supabase = createServerClient();
@@ -188,6 +212,7 @@ export async function addPlanItem(
     planned_date: string;
     slot_order: number;
     notes?: string;
+    source?: string;
   } = {
     plan_id: planId,
     planned_date: options.plannedDate,
@@ -202,6 +227,11 @@ export async function addPlanItem(
   }
   if (options.notes) {
     insertData.notes = options.notes;
+  }
+  if (options.source) {
+    insertData.source = options.source;
+  } else {
+    insertData.source = options.noteTitle ? "quick_note" : "manual";
   }
 
   const { data, error } = await supabase
@@ -285,45 +315,225 @@ export async function removePlanItem(itemId: string): Promise<void> {
   }
 }
 
-export async function getUsagePatterns(
-  userId: string
-): Promise<Map<number, ContentCategory[]>> {
+const HISTORY_HALF_LIFE_WEEKS = 6;
+const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
+
+interface RawHistoryRow {
+  id: string;
+  planned_date: string | null;
+  content_id: string | null;
+  content?: { id: string; category: ContentCategory } | null;
+}
+
+function mondayIndexFromIsoDate(value: string): number | null {
+  const planned = new Date(value);
+  if (Number.isNaN(planned.getTime())) return null;
+  return (planned.getUTCDay() + 6) % 7;
+}
+
+export async function getDecayedHistory(
+  userId: string,
+  now: Date = new Date()
+): Promise<DecayedHistory> {
   const supabase = createServerClient();
 
-  const { data, error } = await supabase
+  const ownItemsPromise = supabase
     .from("plan_items")
     .select(
       `
+      id,
       planned_date,
-      content:content_id (category)
+      content_id,
+      content:content_id (id, category),
+      weekly_plans!inner(user_id)
     `
     )
-    .eq("plan_id.user_id", userId);
+    .eq("weekly_plans.user_id", userId)
+    .not("content_id", "is", null);
 
-  if (error) {
-    console.error("Failed to get usage patterns:", error);
-    return new Map();
+  const planSharesPromise = supabase
+    .from("plan_shares")
+    .select("plan_id")
+    .eq("shared_with_user_id", userId);
+
+  const itemSharesPromise = supabase
+    .from("plan_item_shares")
+    .select("plan_item_id")
+    .eq("shared_with_user_id", userId);
+
+  const [ownRes, planSharesRes, itemSharesRes] = await Promise.all([
+    ownItemsPromise,
+    planSharesPromise,
+    itemSharesPromise,
+  ]);
+
+  if (ownRes.error) {
+    console.error("Failed to get own plan history:", ownRes.error);
   }
 
-  const patterns = new Map<number, ContentCategory[]>();
-  for (const item of data || []) {
-    const plannedDate = (item as { planned_date?: string }).planned_date;
-    if (!plannedDate) continue;
-    const planned = new Date(plannedDate);
-    if (Number.isNaN(planned.getTime())) continue;
-    const day = (planned.getUTCDay() + 6) % 7;
-    const contentData = item.content as unknown as {
-      category: ContentCategory;
-    } | null;
-    const category = contentData?.category;
-    if (category) {
-      const existing = patterns.get(day) || [];
-      existing.push(category);
-      patterns.set(day, existing);
+  const merged = new Map<string, RawHistoryRow>();
+  for (const row of (ownRes.data ?? []) as unknown as RawHistoryRow[]) {
+    if (row.id) merged.set(row.id, row);
+  }
+
+  const sharedPlanIds = (planSharesRes.data ?? []).map(
+    (r: { plan_id: string }) => r.plan_id
+  );
+  if (sharedPlanIds.length > 0) {
+    const { data: sharedPlanItems, error: sharedPlanItemsError } =
+      await supabase
+        .from("plan_items")
+        .select(
+          `
+          id,
+          planned_date,
+          content_id,
+          content:content_id (id, category)
+        `
+        )
+        .in("plan_id", sharedPlanIds)
+        .not("content_id", "is", null);
+    if (sharedPlanItemsError) {
+      console.error(
+        "Failed to get shared-plan history:",
+        sharedPlanItemsError
+      );
+    } else {
+      for (const row of (sharedPlanItems ?? []) as unknown as RawHistoryRow[]) {
+        if (row.id && !merged.has(row.id)) merged.set(row.id, row);
+      }
     }
   }
 
-  return patterns;
+  const sharedItemIds = (itemSharesRes.data ?? []).map(
+    (r: { plan_item_id: string }) => r.plan_item_id
+  );
+  if (sharedItemIds.length > 0) {
+    const { data: sharedItems, error: sharedItemsError } = await supabase
+      .from("plan_items")
+      .select(
+        `
+        id,
+        planned_date,
+        content_id,
+        content:content_id (id, category)
+      `
+      )
+      .in("id", sharedItemIds)
+      .not("content_id", "is", null);
+    if (sharedItemsError) {
+      console.error("Failed to get item-share history:", sharedItemsError);
+    } else {
+      for (const row of (sharedItems ?? []) as unknown as RawHistoryRow[]) {
+        if (row.id && !merged.has(row.id)) merged.set(row.id, row);
+      }
+    }
+  }
+
+  const contentIds = Array.from(
+    new Set(
+      Array.from(merged.values())
+        .map((r) => r.content_id)
+        .filter((id): id is string => Boolean(id))
+    )
+  );
+
+  let tagIdsByContent = new Map<string, string[]>();
+  if (contentIds.length > 0) {
+    const { data: tagRows } = await supabase
+      .from("content_tags")
+      .select("content_id, tag_id")
+      .in("content_id", contentIds);
+    tagIdsByContent = new Map<string, string[]>();
+    for (const row of (tagRows ?? []) as { content_id: string; tag_id: string }[]) {
+      const existing = tagIdsByContent.get(row.content_id) ?? [];
+      existing.push(row.tag_id);
+      tagIdsByContent.set(row.content_id, existing);
+    }
+  }
+
+  const items: DecayedHistoryItem[] = [];
+  let oldestMs = Number.POSITIVE_INFINITY;
+  const nowMs = now.getTime();
+
+  for (const row of merged.values()) {
+    if (!row.planned_date || !row.content_id || !row.content) continue;
+    const dayIndex = mondayIndexFromIsoDate(row.planned_date);
+    if (dayIndex === null) continue;
+    const plannedMs = new Date(row.planned_date).getTime();
+    if (Number.isNaN(plannedMs)) continue;
+    const weeksOld = Math.max(0, (nowMs - plannedMs) / MS_PER_WEEK);
+    const weight = Math.pow(0.5, weeksOld / HISTORY_HALF_LIFE_WEEKS);
+    if (plannedMs < oldestMs) oldestMs = plannedMs;
+    items.push({
+      contentId: row.content_id,
+      category: row.content.category,
+      plannedDate: row.planned_date,
+      dayIndex,
+      weight,
+      tagIds: tagIdsByContent.get(row.content_id) ?? [],
+    });
+  }
+
+  const weeksOfHistory =
+    items.length === 0
+      ? 0
+      : Math.max(0, (nowMs - oldestMs) / MS_PER_WEEK);
+
+  return { items, weeksOfHistory };
+}
+
+export async function getEligibleContentPool(
+  userId: string
+): Promise<ContentWithTags[]> {
+  const supabase = createServerClient();
+
+  const { data: contentRows, error: contentError } = await supabase
+    .from("content")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("status", "completed")
+    .in("category", ELIGIBLE_SUGGESTION_CATEGORIES);
+
+  if (contentError) {
+    throw new Error(
+      `Failed to get eligible content pool: ${contentError.message}`
+    );
+  }
+
+  const content = (contentRows ?? []) as Content[];
+  if (content.length === 0) return [];
+
+  const contentIds = content.map((c) => c.id);
+  const { data: tagRows, error: tagsError } = await supabase
+    .from("content_tags")
+    .select(
+      `
+      content_id,
+      tag:tag_id (*)
+    `
+    )
+    .in("content_id", contentIds);
+
+  if (tagsError) {
+    throw new Error(`Failed to get content tags: ${tagsError.message}`);
+  }
+
+  const tagsByContent = new Map<string, Tag[]>();
+  for (const row of (tagRows ?? []) as unknown as {
+    content_id: string;
+    tag: Tag | null;
+  }[]) {
+    if (!row.tag) continue;
+    const existing = tagsByContent.get(row.content_id) ?? [];
+    existing.push(row.tag);
+    tagsByContent.set(row.content_id, existing);
+  }
+
+  return content.map((c) => ({
+    ...c,
+    tags: tagsByContent.get(c.id) ?? [],
+  }));
 }
 
 export async function getPastWeeklyPlans(

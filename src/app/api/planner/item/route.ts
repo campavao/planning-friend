@@ -1,6 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { removePlanItem, updatePlanItem } from "@/lib/supabase";
+import {
+  removePlanItem,
+  updatePlanItem,
+  getWeekStart,
+} from "@/lib/supabase";
+import { createServerClient } from "@/lib/db/client";
+import { parseDateString } from "@/lib/utils";
 import { requireSession } from "@/lib/auth";
+import { bustForPlanItem } from "@/lib/db/suggestions";
+
+async function getItemPlannedDate(itemId: string): Promise<string | null> {
+  const supabase = createServerClient();
+  const { data, error } = await supabase
+    .from("plan_items")
+    .select("planned_date")
+    .eq("id", itemId)
+    .single();
+  if (error || !data) return null;
+  return (data as { planned_date: string }).planned_date;
+}
+
+function weekStartFromPlannedDate(plannedDate: string): string {
+  const dateOnly = plannedDate.split("T")[0];
+  return getWeekStart(parseDateString(dateOnly));
+}
 
 // DELETE remove item from plan
 export async function DELETE(request: NextRequest) {
@@ -13,6 +36,19 @@ export async function DELETE(request: NextRequest) {
 
     if (!itemId) {
       return NextResponse.json({ error: "Missing item ID" }, { status: 400 });
+    }
+
+    const plannedDate = await getItemPlannedDate(itemId);
+    if (plannedDate) {
+      // Bust caches BEFORE deletion so plan_item_shares lookup still resolves.
+      try {
+        await bustForPlanItem({
+          planItemId: itemId,
+          weekStarts: [weekStartFromPlannedDate(plannedDate)],
+        });
+      } catch (err) {
+        console.error("Failed to bust cache before delete:", err);
+      }
     }
 
     await removePlanItem(itemId);
@@ -66,7 +102,20 @@ export async function PUT(request: NextRequest) {
           plannedDate,
         };
 
+    const oldPlannedDate = await getItemPlannedDate(id);
     const item = await updatePlanItem(id, updates);
+
+    const newWeek = weekStartFromPlannedDate(plannedDate);
+    const weekStarts = new Set<string>([newWeek]);
+    if (oldPlannedDate) {
+      weekStarts.add(weekStartFromPlannedDate(oldPlannedDate));
+    }
+    bustForPlanItem({
+      planItemId: id,
+      weekStarts: Array.from(weekStarts),
+    }).catch((err) =>
+      console.error("Failed to bust cache after update:", err)
+    );
 
     return NextResponse.json({ success: true, item });
   } catch (error) {

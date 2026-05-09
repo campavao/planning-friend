@@ -111,7 +111,15 @@ interface GroceryListState {
 }
 
 import { WeekNavigation } from "./components/WeekNavigation";
+import { SuggestionStrip } from "./components/SuggestionStrip";
 import { usePlannerFilters } from "./hooks/usePlannerFilters";
+
+interface UndoState {
+  itemId: string;
+  dayIndex: number;
+  contentTitle: string;
+  expiresAt: number;
+}
 
 function PlannerContent() {
   const [weekStart, setWeekStart] = useState<string>("");
@@ -123,6 +131,11 @@ function PlannerContent() {
   const [editingItem, setEditingItem] = useState<PlanItemWithSharing | null>(
     null,
   );
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(
+    new Set(),
+  );
+  const [refreshingDay, setRefreshingDay] = useState<number | null>(null);
+  const [undoState, setUndoState] = useState<UndoState | null>(null);
 
   // Week start day preference (0=Sunday, 1=Monday, etc.)
   const weekStartDay = useMemo(() => getWeekStartDay(), []);
@@ -433,6 +446,130 @@ function PlannerContent() {
     } finally {
       setAddingQuickNote(false);
     }
+  };
+
+  const suggestions = data?.suggestions ?? {};
+  const suggestionsMeta = data?.suggestionsMeta ?? {
+    emptyPool: false,
+    poolSize: 0,
+  };
+
+  const contentById = useMemo(() => {
+    const map = new Map<string, ContentWithTags>();
+    for (const c of data?.availableContent ?? []) {
+      map.set(c.id, c as ContentWithTags);
+    }
+    return map;
+  }, [data?.availableContent]);
+
+  // Reset transient suggestion state when the week changes.
+  useEffect(() => {
+    setDismissedSuggestions(new Set());
+    setUndoState(null);
+  }, [weekStart]);
+
+  // Auto-dismiss the undo pill after expiration.
+  useEffect(() => {
+    if (!undoState) return;
+    const remaining = undoState.expiresAt - Date.now();
+    if (remaining <= 0) {
+      setUndoState(null);
+      return;
+    }
+    const t = setTimeout(() => setUndoState(null), remaining);
+    return () => clearTimeout(t);
+  }, [undoState]);
+
+  const getDismissKey = (dayIndex: number, contentId: string) =>
+    `${dayIndex}:${contentId}`;
+
+  const addSuggestionToDay = async (contentId: string, dayIndex: number) => {
+    const plannedDate = getPlannedDateTime(dayIndex, "19:00");
+    if (!plannedDate) return;
+    try {
+      const res = await fetch("/api/planner", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          weekStart,
+          contentId,
+          plannedDate,
+          source: "ai_suggested",
+        }),
+      });
+      if (!res.ok) return;
+      const body = (await res.json()) as { item?: { id: string } };
+      const itemId = body.item?.id;
+      const content = contentById.get(contentId);
+      if (itemId) {
+        setUndoState({
+          itemId,
+          dayIndex,
+          contentTitle: content?.title ?? "Suggestion",
+          expiresAt: Date.now() + 4500,
+        });
+      }
+      mutatePlanner();
+    } catch (err) {
+      console.error("Failed to add suggestion:", err);
+    }
+  };
+
+  const undoLastAdd = async () => {
+    if (!undoState) return;
+    const target = undoState;
+    setUndoState(null);
+    try {
+      await fetch(`/api/planner/item?id=${target.itemId}`, {
+        method: "DELETE",
+      });
+    } catch (err) {
+      console.error("Failed to undo add:", err);
+    }
+    mutatePlanner();
+  };
+
+  const dismissSuggestion = async (contentId: string, dayIndex: number) => {
+    setDismissedSuggestions((prev) => {
+      const next = new Set(prev);
+      next.add(getDismissKey(dayIndex, contentId));
+      return next;
+    });
+    try {
+      await fetch(
+        `/api/planner/suggestions?week=${encodeURIComponent(
+          weekStart,
+        )}&day=${dayIndex}&contentId=${encodeURIComponent(contentId)}`,
+        { method: "DELETE" },
+      );
+    } catch (err) {
+      console.error("Failed to dismiss suggestion:", err);
+    }
+  };
+
+  const refreshDaySuggestions = async (dayIndex: number) => {
+    setRefreshingDay(dayIndex);
+    try {
+      const res = await fetch("/api/planner/suggestions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ weekStart, dayIndex }),
+      });
+      if (res.ok) {
+        await mutatePlanner();
+      }
+    } catch (err) {
+      console.error("Failed to refresh suggestions:", err);
+    } finally {
+      setRefreshingDay(null);
+    }
+  };
+
+  const filterPicksForDay = (dayIndex: number) => {
+    const list = suggestions[dayIndex] ?? [];
+    return list.filter(
+      (p) => !dismissedSuggestions.has(getDismissKey(dayIndex, p.contentId)),
+    );
   };
 
   const removeFromDay = async (itemId: string) => {
@@ -1205,9 +1342,17 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                         })}
                       </div>
                     ) : (
-                      <div className="text-center py-6 text-muted-foreground text-sm">
-                        No plans yet
-                      </div>
+                      <SuggestionStrip
+                        dayIndex={dayIndex}
+                        picks={filterPicksForDay(dayIndex)}
+                        contentById={contentById}
+                        onAdd={addSuggestionToDay}
+                        onDismiss={dismissSuggestion}
+                        onRefresh={refreshDaySuggestions}
+                        isRefreshing={refreshingDay === dayIndex}
+                        emptyPool={suggestionsMeta.emptyPool}
+                        layout="mobile"
+                      />
                     )}
                   </div>
                 </div>
@@ -1424,6 +1569,20 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                       );
                     })}
 
+                    {itemsByDay[dayIndex].length === 0 && (
+                      <SuggestionStrip
+                        dayIndex={dayIndex}
+                        picks={filterPicksForDay(dayIndex)}
+                        contentById={contentById}
+                        onAdd={addSuggestionToDay}
+                        onDismiss={dismissSuggestion}
+                        onRefresh={refreshDaySuggestions}
+                        isRefreshing={refreshingDay === dayIndex}
+                        emptyPool={suggestionsMeta.emptyPool}
+                        layout="desktop"
+                      />
+                    )}
+
                     <Button
                       variant="ghost"
                       size="sm"
@@ -1610,6 +1769,31 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                   />
                 </div>
               )}
+
+              {/* Suggested for this day */}
+              {!editingItem &&
+                addingToDay !== null &&
+                filterPicksForDay(addingToDay).length > 0 && (
+                  <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--background-alt)]">
+                    <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
+                      Suggested for {DAYS_FULL[addingToDay]}
+                    </p>
+                    <SuggestionStrip
+                      dayIndex={addingToDay}
+                      picks={filterPicksForDay(addingToDay)}
+                      contentById={contentById}
+                      onAdd={(contentId, dayIndex) => {
+                        addSuggestionToDay(contentId, dayIndex);
+                        closeAddModal();
+                      }}
+                      onDismiss={dismissSuggestion}
+                      onRefresh={refreshDaySuggestions}
+                      isRefreshing={refreshingDay === addingToDay}
+                      emptyPool={false}
+                      layout="mobile"
+                    />
+                  </div>
+                )}
 
               {/* Content List */}
               <div className="p-4 space-y-2">
@@ -2094,6 +2278,21 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Undo pill for AI-suggested adds */}
+      {undoState && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-[var(--foreground)] text-[var(--background)] rounded-full pl-4 pr-2 py-2 flex items-center gap-3 shadow-lg">
+          <span className="text-sm">
+            Added <span className="font-medium">{undoState.contentTitle}</span>
+          </span>
+          <button
+            onClick={undoLastAdd}
+            className="text-sm font-semibold uppercase tracking-wide bg-[var(--background)] text-[var(--foreground)] rounded-full px-3 py-1 hover:bg-[var(--muted)]"
+          >
+            Undo
+          </button>
         </div>
       )}
     </main>

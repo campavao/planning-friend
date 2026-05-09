@@ -34,11 +34,22 @@ interface ContentWithTags extends Content {
   tags?: Tag[];
 }
 
+export interface SuggestionPick {
+  contentId: string;
+  why: string | null;
+}
+
+export interface SuggestionsMeta {
+  emptyPool: boolean;
+  poolSize: number;
+}
+
 export interface PlannerData {
   plan: WeeklyPlanWithSharingItems | null;
   sharedItems: SharedPlanItem[];
   availableContent: ContentWithTags[];
-  suggestions: Record<number, Content[]>;
+  suggestions: Record<number, SuggestionPick[]>;
+  suggestionsMeta?: SuggestionsMeta;
   shareableFriends: ShareableFriend[];
   allTags?: Tag[];
 }
@@ -68,6 +79,7 @@ export function usePlanner(
     sharedItems: data?.sharedItems ?? [],
     availableContent: data?.availableContent ?? [],
     suggestions: data?.suggestions ?? {},
+    suggestionsMeta: data?.suggestionsMeta ?? { emptyPool: false, poolSize: 0 },
     shareableFriends: data?.shareableFriends ?? [],
     allTags: data?.allTags ?? [],
     isLoading,
