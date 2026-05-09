@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionFromCookieValue, SESSION_HEADERS } from "@/lib/auth";
 
-const PUBLIC_API_PATHS = [
+export const PUBLIC_API_PATHS = [
   "/api/auth/send-code",
   "/api/auth/verify",
   "/api/auth/logout",
@@ -11,9 +11,10 @@ const PUBLIC_API_PATHS = [
   "/api/process",
   "/api/push/subscribe",
   "/api/push/vapid-key",
+  "/api/alexa",
 ];
 
-function isPublicApiPath(pathname: string): boolean {
+export function isPublicApiPath(pathname: string): boolean {
   return PUBLIC_API_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }
 

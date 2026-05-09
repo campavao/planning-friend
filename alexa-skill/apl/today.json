@@ -1,0 +1,24 @@
+{
+  "type": "APL",
+  "version": "2024.3",
+  "import": [
+    {
+      "name": "alexa-layouts",
+      "version": "1.7.0"
+    }
+  ],
+  "mainTemplate": {
+    "parameters": ["payload"],
+    "items": [
+      {
+        "type": "AlexaTextList",
+        "theme": "dark",
+        "headerTitle": "${payload.today.title}",
+        "headerSubtitle": "${payload.today.subtitle}",
+        "headerBackButton": false,
+        "backgroundColor": "#0f172a",
+        "listItems": "${payload.today.items}"
+      }
+    ]
+  }
+}

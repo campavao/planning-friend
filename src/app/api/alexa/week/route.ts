@@ -1,0 +1,274 @@
+import { NextRequest, NextResponse } from "next/server";
+import {
+  getSharedItemsForUser,
+  getWeeklyPlanWithItems,
+  getWeekStart,
+  type DateIdeaData,
+  type EventData,
+  type PlanItem,
+  type SharedPlanItem,
+} from "@/lib/supabase";
+import { requireAlexaToken } from "@/lib/alexa-auth";
+import { escapeSsml } from "@/lib/alexa-speech";
+
+interface WeekItem {
+  id: string;
+  title: string;
+  category: string;
+  plannedDate: string;
+  location?: string;
+  sharedBy?: string;
+}
+
+interface WeekDay {
+  date: string;
+  dayName: string;
+  items: WeekItem[];
+}
+
+interface WeekResponse {
+  weekStart: string;
+  totalItems: number;
+  days: WeekDay[];
+  speech: string;
+}
+
+// Returns a 7-day view. Modes:
+// - `?startDate=YYYY-MM-DD`: rolling 7 days starting from that date.
+//   Fetches across calendar-week boundaries when the window spans.
+//   Used by LaunchRequest so the home screen always starts on today.
+// - `?week=YYYY-MM-DD` or `?date=YYYY-MM-DD`: traditional Mon-Sun week
+//   containing that date. Used by WeekPlanIntent.
+// - No params: current week (Mon-Sun).
+export async function GET(request: NextRequest) {
+  const { context, errorResponse } = requireAlexaToken(request);
+  if (errorResponse) return errorResponse;
+
+  const { searchParams } = new URL(request.url);
+  const startDateParam = searchParams.get("startDate");
+  const weekParam = searchParams.get("week");
+  const dateParam = searchParams.get("date");
+
+  const rolling = Boolean(startDateParam);
+  let windowStart: string;
+
+  if (startDateParam) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDateParam)) {
+      return NextResponse.json(
+        { error: "startDate must be YYYY-MM-DD" },
+        { status: 400 }
+      );
+    }
+    windowStart = startDateParam;
+  } else {
+    let anchor: string;
+    if (weekParam) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(weekParam)) {
+        return NextResponse.json(
+          { error: "week must be YYYY-MM-DD" },
+          { status: 400 }
+        );
+      }
+      anchor = weekParam;
+    } else if (dateParam) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+        return NextResponse.json(
+          { error: "date must be YYYY-MM-DD" },
+          { status: 400 }
+        );
+      }
+      anchor = dateParam;
+    } else {
+      anchor = new Date().toISOString().slice(0, 10);
+    }
+    windowStart = getWeekStart(new Date(anchor + "T12:00:00Z"));
+  }
+
+  try {
+    const windowEndMs =
+      Date.parse(windowStart + "T00:00:00.000Z") + 6 * 86_400_000;
+    const windowEnd = new Date(windowEndMs).toISOString().slice(0, 10);
+    const firstWeekStart = getWeekStart(
+      new Date(windowStart + "T12:00:00Z")
+    );
+    const lastWeekStart = getWeekStart(new Date(windowEnd + "T12:00:00Z"));
+    const weekStartsToFetch =
+      firstWeekStart === lastWeekStart
+        ? [firstWeekStart]
+        : [firstWeekStart, lastWeekStart];
+
+    const allItems: PlanItem[] = [];
+    const allShared: SharedPlanItem[] = [];
+    for (const weekStart of weekStartsToFetch) {
+      const plan = await getWeeklyPlanWithItems(context.userId, weekStart);
+      if (plan?.items) allItems.push(...plan.items);
+      try {
+        const s = await getSharedItemsForUser(context.userId, weekStart);
+        allShared.push(...s);
+      } catch (err) {
+        console.error("Failed to fetch shared items:", err);
+      }
+    }
+
+    const days = buildDays(windowStart, allItems, allShared);
+    const totalItems = days.reduce((sum, d) => sum + d.items.length, 0);
+
+    const body: WeekResponse = {
+      weekStart: windowStart,
+      totalItems,
+      days,
+      speech: buildSpeech(windowStart, days, totalItems, rolling),
+    };
+    return NextResponse.json(body);
+  } catch (error) {
+    console.error("Error fetching Alexa week:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch week" },
+      { status: 500 }
+    );
+  }
+}
+
+function buildDays(
+  weekStart: string,
+  items: PlanItem[],
+  sharedItems: SharedPlanItem[]
+): WeekDay[] {
+  const days: WeekDay[] = [];
+  const start = new Date(weekStart + "T00:00:00Z");
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setUTCDate(start.getUTCDate() + i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const dayName = d.toLocaleDateString("en-US", {
+      weekday: "long",
+      timeZone: "UTC",
+    });
+    const dayStart = Date.parse(dateStr + "T00:00:00.000Z");
+    const dayEnd = Date.parse(dateStr + "T23:59:59.999Z");
+    const withinDay = (value: string) => {
+      const t = Date.parse(value);
+      return !Number.isNaN(t) && t >= dayStart && t <= dayEnd;
+    };
+
+    const own = items
+      .filter((item) => withinDay(item.planned_date))
+      .map((item) => shapeItem(item));
+    const shared = sharedItems
+      .filter((item) => withinDay(item.planned_date))
+      .map((item) => shapeItem(item, item.owner_name));
+
+    days.push({
+      date: dateStr,
+      dayName,
+      items: [...own, ...shared].sort(
+        (a, b) => Date.parse(a.plannedDate) - Date.parse(b.plannedDate)
+      ),
+    });
+  }
+  return days;
+}
+
+function shapeItem(item: PlanItem, sharedBy?: string): WeekItem {
+  const title = item.content?.title ?? item.note_title ?? "Untitled item";
+  const category = item.content?.category ?? "other";
+  return {
+    id: item.id,
+    title,
+    category,
+    plannedDate: item.planned_date,
+    location: shortenLocation(extractLocation(item.content?.data, category)),
+    sharedBy,
+  };
+}
+
+function extractLocation(data: unknown, category: string): string | undefined {
+  if (!data || typeof data !== "object") return undefined;
+  if (category === "event") return (data as EventData).location;
+  if (category === "date_idea") return (data as DateIdeaData).location;
+  return undefined;
+}
+
+function shortenLocation(location?: string): string | undefined {
+  if (!location) return undefined;
+  const first = location.split(",")[0].trim();
+  return first || undefined;
+}
+
+function buildSpeech(
+  windowStart: string,
+  days: WeekDay[],
+  totalItems: number,
+  rolling: boolean
+): string {
+  const weekLabel = rolling
+    ? rollingLabel(windowStart)
+    : weekLabelRelativeToToday(windowStart);
+  if (totalItems === 0) {
+    return `You don't have anything planned ${weekLabel}.`;
+  }
+
+  const countPhrase =
+    totalItems === 1 ? "one thing" : `${totalItems} things`;
+  const daysWithItems = days.filter((d) => d.items.length > 0);
+
+  const daySummaries = daysWithItems.map((d) => {
+    const titles = d.items.map((i) => escapeSsml(i.title));
+    return `${d.dayName}: ${joinList(titles)}`;
+  });
+
+  return `You have ${countPhrase} planned ${weekLabel}. ${daySummaries.join(". ")}.`;
+}
+
+function rollingLabel(startDate: string): string {
+  const today = new Date().toISOString().slice(0, 10);
+  if (startDate === today) return "for the next seven days";
+  const d = new Date(startDate + "T12:00:00Z");
+  return (
+    "for the seven days starting " +
+    d.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      timeZone: "UTC",
+    })
+  );
+}
+
+function weekLabelRelativeToToday(weekStart: string): string {
+  const today = new Date().toISOString().slice(0, 10);
+  const todayWeekStart = mondayOf(today);
+  if (weekStart === todayWeekStart) return "this week";
+  const delta = daysBetween(todayWeekStart, weekStart);
+  if (delta === 7) return "next week";
+  if (delta === -7) return "last week";
+  const d = new Date(weekStart + "T12:00:00Z");
+  return (
+    "for the week of " +
+    d.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      timeZone: "UTC",
+    })
+  );
+}
+
+function mondayOf(date: string): string {
+  const d = new Date(date + "T12:00:00Z");
+  const day = d.getUTCDay();
+  const offset = day === 0 ? -6 : 1 - day;
+  d.setUTCDate(d.getUTCDate() + offset);
+  return d.toISOString().slice(0, 10);
+}
+
+function daysBetween(a: string, b: string): number {
+  const aMs = Date.parse(a + "T00:00:00.000Z");
+  const bMs = Date.parse(b + "T00:00:00.000Z");
+  return Math.round((bMs - aMs) / 86_400_000);
+}
+
+function joinList(items: string[]): string {
+  if (items.length === 0) return "";
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
+}

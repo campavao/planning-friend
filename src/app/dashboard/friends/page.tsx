@@ -313,7 +313,7 @@ export default function FriendsPage() {
   return (
     <main className="min-h-screen pb-28 md:pb-8 bg-[var(--background)]">
       {/* Header */}
-      <div className="bg-[var(--secondary)] px-4 py-5">
+      <div className="bg-[var(--secondary)] px-4 py-5 sticky top-0 z-20">
         <div className="max-w-4xl mx-auto flex items-center gap-4">
           <Link href="/dashboard" className="hidden md:inline-flex">
             <Button
@@ -352,7 +352,7 @@ export default function FriendsPage() {
         />
 
         {/* Action Buttons */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex flex-col sm:flex-row gap-2 mb-6">
           <Button
             onClick={handleImportContacts}
             disabled={importingContacts}

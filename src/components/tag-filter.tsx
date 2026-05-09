@@ -22,9 +22,17 @@ export function TagFilter({
 }: TagFilterProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Randomized tag IDs for collapsed view - stable unless tags array changes
+  // Deterministic subset of tag IDs for collapsed view - stable across re-renders
   const randomTagIds = useMemo(() => {
-    const shuffled = [...tags].sort(() => Math.random() - 0.5);
+    // Simple hash to get a deterministic but varied ordering per tag set
+    const hash = (s: string) => {
+      let h = 0;
+      for (let i = 0; i < s.length; i++) {
+        h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+      }
+      return h;
+    };
+    const shuffled = [...tags].sort((a, b) => hash(a.id) - hash(b.id));
     return new Set(shuffled.slice(0, MAX_COLLAPSED_TAGS).map((t) => t.id));
   }, [tags]);
 

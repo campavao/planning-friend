@@ -1,0 +1,254 @@
+{
+  "type": "APL",
+  "version": "2024.3",
+  "import": [
+    {
+      "name": "alexa-layouts",
+      "version": "1.7.0"
+    }
+  ],
+  "styles": {
+    "dayHeader": {
+      "values": [
+        {
+          "fontSize": "26dp",
+          "fontWeight": "700",
+          "color": "#f1f5f9",
+          "paddingBottom": "4dp"
+        }
+      ]
+    },
+    "dayHeaderToday": {
+      "values": [
+        {
+          "fontSize": "26dp",
+          "fontWeight": "700",
+          "color": "#60a5fa",
+          "paddingBottom": "4dp"
+        }
+      ]
+    },
+    "dayDate": {
+      "values": [
+        {
+          "fontSize": "14dp",
+          "color": "#94a3b8",
+          "paddingBottom": "20dp"
+        }
+      ]
+    },
+    "itemTitle": {
+      "values": [
+        {
+          "fontSize": "20dp",
+          "color": "#f1f5f9",
+          "lineHeight": 1.3
+        }
+      ]
+    },
+    "itemMeta": {
+      "values": [
+        {
+          "fontSize": "14dp",
+          "color": "#94a3b8",
+          "paddingTop": "2dp"
+        }
+      ]
+    },
+    "emptyText": {
+      "values": [
+        {
+          "fontSize": "16dp",
+          "color": "#64748b",
+          "fontStyle": "italic"
+        }
+      ]
+    }
+  },
+  "mainTemplate": {
+    "parameters": ["payload"],
+    "items": [
+      {
+        "type": "Frame",
+        "width": "100%",
+        "height": "100%",
+        "background": "#0b1220",
+        "item": {
+          "type": "Container",
+          "width": "100%",
+          "height": "100%",
+          "direction": "column",
+          "items": [
+            {
+              "type": "AlexaHeader",
+              "theme": "dark",
+              "headerTitle": "${payload.week.title}",
+              "headerSubtitle": "${payload.week.subtitle}",
+              "headerBackgroundColor": "#1e293b",
+              "headerDivider": true
+            },
+            {
+            "type": "Sequence",
+            "scrollDirection": "horizontal",
+            "grow": 1,
+            "width": "100%",
+            "paddingLeft": "32dp",
+            "paddingRight": "32dp",
+            "paddingTop": "24dp",
+            "paddingBottom": "32dp",
+            "data": "${payload.week.days}",
+            "items": [
+              {
+                "type": "Frame",
+                "width": "380dp",
+                "height": "100%",
+                "background": "#1e293b",
+                "spacing": "16dp",
+                "when": "${!data.isToday}",
+                "item": {
+                  "type": "Container",
+                  "direction": "column",
+                  "paddingLeft": "24dp",
+                  "paddingRight": "24dp",
+                  "paddingTop": "24dp",
+                  "paddingBottom": "24dp",
+                  "items": [
+                    {
+                      "type": "Text",
+                      "style": "dayHeader",
+                      "text": "${data.dayName}"
+                    },
+                    {
+                      "type": "Text",
+                      "style": "dayDate",
+                      "text": "${data.shortDate}"
+                    },
+                    {
+                      "type": "Text",
+                      "style": "emptyText",
+                      "text": "Nothing planned",
+                      "when": "${data.items.length == 0}"
+                    },
+                    {
+                      "type": "Sequence",
+                      "scrollDirection": "vertical",
+                      "scrollEnabled": false,
+                      "width": "100%",
+                      "height": "auto",
+                      "shrink": 0,
+                      "when": "${data.items.length > 0}",
+                      "data": "${data.items}",
+                      "items": [
+                        {
+                          "type": "Container",
+                          "width": "100%",
+                          "paddingBottom": "16dp",
+                          "direction": "column",
+                          "items": [
+                            {
+                              "type": "Text",
+                              "style": "itemTitle",
+                              "text": "${data.title}",
+                              "maxLines": 0
+                            },
+                            {
+                              "type": "Text",
+                              "style": "itemMeta",
+                              "text": "${data.location}",
+                              "maxLines": 0,
+                              "when": "${data.location}"
+                            },
+                            {
+                              "type": "Text",
+                              "style": "itemMeta",
+                              "text": "Shared by ${data.sharedBy}",
+                              "when": "${data.sharedBy}"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "Frame",
+                "width": "380dp",
+                "height": "100%",
+                "background": "#1e3a8a",
+                "spacing": "16dp",
+                "when": "${data.isToday}",
+                "item": {
+                  "type": "Container",
+                  "direction": "column",
+                  "paddingLeft": "24dp",
+                  "paddingRight": "24dp",
+                  "paddingTop": "24dp",
+                  "paddingBottom": "24dp",
+                  "items": [
+                    {
+                      "type": "Text",
+                      "style": "dayHeaderToday",
+                      "text": "${data.dayName}"
+                    },
+                    {
+                      "type": "Text",
+                      "style": "dayDate",
+                      "text": "${data.shortDate}"
+                    },
+                    {
+                      "type": "Text",
+                      "style": "emptyText",
+                      "text": "Nothing planned",
+                      "when": "${data.items.length == 0}"
+                    },
+                    {
+                      "type": "Sequence",
+                      "scrollDirection": "vertical",
+                      "scrollEnabled": false,
+                      "width": "100%",
+                      "height": "auto",
+                      "shrink": 0,
+                      "when": "${data.items.length > 0}",
+                      "data": "${data.items}",
+                      "items": [
+                        {
+                          "type": "Container",
+                          "width": "100%",
+                          "paddingBottom": "16dp",
+                          "direction": "column",
+                          "items": [
+                            {
+                              "type": "Text",
+                              "style": "itemTitle",
+                              "text": "${data.title}",
+                              "maxLines": 0
+                            },
+                            {
+                              "type": "Text",
+                              "style": "itemMeta",
+                              "text": "${data.location}",
+                              "maxLines": 0,
+                              "when": "${data.location}"
+                            },
+                            {
+                              "type": "Text",
+                              "style": "itemMeta",
+                              "text": "Shared by ${data.sharedBy}",
+                              "when": "${data.sharedBy}"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+        }
+      }
+    ]
+  }
+}

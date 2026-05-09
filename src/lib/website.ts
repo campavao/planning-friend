@@ -2,6 +2,7 @@
 
 export interface WebsiteInfo {
   url: string;
+  resolvedUrl?: string;
   title?: string;
   description?: string;
   thumbnailUrl?: string;
@@ -150,6 +151,27 @@ function extractStructuredData(html: string): Record<string, unknown> | null {
   return null;
 }
 
+// Extract place name from a resolved Google Maps URL
+// e.g. https://www.google.com/maps/place/Joe's+Pizza/@40.73,-73.99,...
+function extractGoogleMapsPlaceName(resolvedUrl: string): string | null {
+  try {
+    const urlObj = new URL(resolvedUrl);
+    if (
+      !urlObj.hostname.includes("google.com") &&
+      !urlObj.hostname.includes("google.co")
+    ) {
+      return null;
+    }
+    const placeMatch = urlObj.pathname.match(/\/maps\/place\/([^/@]+)/);
+    if (placeMatch) {
+      return decodeURIComponent(placeMatch[1].replace(/\+/g, " "));
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // Main function to scrape a website
 export async function getWebsiteInfo(url: string): Promise<WebsiteInfo> {
   console.log(`Scraping website: ${url}`);
@@ -165,6 +187,9 @@ export async function getWebsiteInfo(url: string): Promise<WebsiteInfo> {
       },
       redirect: "follow",
     });
+
+    // Capture the resolved URL after redirects (important for short URLs like maps.app.goo.gl)
+    const resolvedUrl = response.url;
 
     if (!response.ok) {
       console.error(`Failed to fetch website: ${response.status}`);
@@ -186,9 +211,43 @@ export async function getWebsiteInfo(url: string): Promise<WebsiteInfo> {
     // Extract text content for AI analysis
     const pageContent = extractTextContent(html);
 
+    // When a shortened URL redirected, enrich sparse metadata with info
+    // from the resolved URL so downstream AI analysis has useful context
+    if (resolvedUrl !== url) {
+      console.log(`URL redirected: ${url} -> ${resolvedUrl}`);
+
+      // Google Maps: extract the place name from the URL path
+      const mapsPlaceName = extractGoogleMapsPlaceName(resolvedUrl);
+      if (mapsPlaceName) {
+        console.log(`Google Maps place detected: "${mapsPlaceName}"`);
+        if (!meta.title || meta.title === "Google Maps") {
+          meta.title = mapsPlaceName;
+        }
+        if (
+          !meta.description ||
+          meta.description.startsWith("Find local businesses")
+        ) {
+          meta.description = `Google Maps link for: ${mapsPlaceName}`;
+        }
+      }
+
+      // For any shortened link with sparse page content, note the final
+      // destination so the AI has something meaningful to search for
+      if (!pageContent || pageContent.length < 100) {
+        const resolvedHost = new URL(resolvedUrl).hostname;
+        if (!meta.title) {
+          meta.title = `Content from ${resolvedHost}`;
+        }
+        if (!meta.description) {
+          meta.description = `Redirected to: ${resolvedUrl}`;
+        }
+      }
+    }
+
     // Build the result
     const result: WebsiteInfo = {
       url,
+      resolvedUrl: resolvedUrl !== url ? resolvedUrl : undefined,
       title: meta.title,
       description: meta.description,
       thumbnailUrl: meta.image,

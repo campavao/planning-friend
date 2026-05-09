@@ -19,12 +19,9 @@ export function useContent({ enabled = true }: UseContentOptions = {}) {
       enabled ? "/api/content?includeTags=true" : null,
       fetcher,
       {
-        // Revalidate on focus to catch updates from other devices
         revalidateOnFocus: true,
-        // Keep previous data while revalidating for smooth UX
         keepPreviousData: true,
-        // Dedupe requests within 2 seconds
-        dedupingInterval: 2000,
+        dedupingInterval: 5000,
       }
     );
 

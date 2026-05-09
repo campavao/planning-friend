@@ -44,6 +44,7 @@ export interface EventData {
   description?: string;
   website?: string;
   reservation_link?: string;
+  image_url?: string;
 }
 
 export interface DateIdeaData {
@@ -54,6 +55,7 @@ export interface DateIdeaData {
   website?: string;
   menu_link?: string;
   reservation_link?: string;
+  image_url?: string;
 }
 
 export interface GiftIdeaData {
@@ -73,6 +75,7 @@ export interface TravelData {
   price_range?: "$" | "$$" | "$$$" | "$$$$";
   destination_city?: string;
   destination_country?: string;
+  image_url?: string;
 }
 
 export interface DrinkData {
@@ -184,6 +187,7 @@ export interface GiftAssignment {
   recipient_id: string;
   content_id: string;
   created_at: string;
+  given_at?: string | null;
   content?: Content;
 }
 

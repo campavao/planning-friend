@@ -1,0 +1,159 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "planning friend",
+      "intents": [
+        { "name": "AMAZON.CancelIntent", "samples": [] },
+        { "name": "AMAZON.HelpIntent", "samples": [] },
+        { "name": "AMAZON.StopIntent", "samples": [] },
+        { "name": "AMAZON.FallbackIntent", "samples": [] },
+        { "name": "AMAZON.NavigateHomeIntent", "samples": [] },
+        {
+          "name": "TodaysPlanIntent",
+          "slots": [
+            { "name": "when", "type": "AMAZON.DATE" }
+          ],
+          "samples": [
+            "what's on my plan",
+            "what's on my plan {when}",
+            "what's on my plan for {when}",
+            "what's on my plan on {when}",
+            "what's my plan {when}",
+            "what's my plan for {when}",
+            "what's my plan on {when}",
+            "what's the plan",
+            "what's the plan {when}",
+            "what's the plan for {when}",
+            "what's the plan on {when}",
+            "what do I have planned",
+            "what do I have planned {when}",
+            "what do I have planned on {when}",
+            "what's planned {when}",
+            "what's planned for {when}",
+            "what's planned on {when}",
+            "my plan",
+            "my plan for {when}",
+            "my plan on {when}",
+            "what's happening {when}",
+            "what's happening on {when}",
+            "what am I doing {when}",
+            "what am I doing on {when}",
+            "today's plan",
+            "tomorrow's plan"
+          ]
+        },
+        {
+          "name": "WeekPlanIntent",
+          "slots": [
+            { "name": "when", "type": "AMAZON.DATE" }
+          ],
+          "samples": [
+            "what's my plan this week",
+            "what's on my plan this week",
+            "this week's plan",
+            "what's the plan for this week",
+            "what's happening this week",
+            "what do I have planned this week",
+            "what's going on this week",
+            "week plan",
+            "the week",
+            "what's my plan next week",
+            "next week's plan",
+            "what's my plan last week",
+            "what's my plan for the week of {when}",
+            "what's on my plan for the week of {when}",
+            "what's the plan for the week of {when}",
+            "the plan for the week of {when}",
+            "plan for the week of {when}",
+            "what's happening the week of {when}",
+            "what do I have planned the week of {when}",
+            "what's going on the week of {when}",
+            "the week of {when}"
+          ]
+        },
+        {
+          "name": "WhatsForDinnerIntent",
+          "slots": [
+            { "name": "when", "type": "AMAZON.DATE" }
+          ],
+          "samples": [
+            "what's for dinner",
+            "what's for dinner {when}",
+            "what's for dinner on {when}",
+            "what am I eating",
+            "what am I eating {when}",
+            "what am I eating on {when}",
+            "what am I eating tonight",
+            "what's dinner {when}",
+            "what's dinner on {when}",
+            "what's the meal {when}",
+            "what's the meal on {when}",
+            "dinner plan",
+            "dinner plan for {when}",
+            "dinner on {when}"
+          ]
+        },
+        {
+          "name": "GetRecipeIntent",
+          "slots": [
+            { "name": "dish", "type": "AMAZON.SearchQuery" }
+          ],
+          "samples": [
+            "read me the recipe for {dish}",
+            "read the recipe for {dish}",
+            "recipe for {dish}",
+            "the recipe for {dish}",
+            "give me the recipe for {dish}",
+            "show me the recipe for {dish}",
+            "show the recipe for {dish}",
+            "what's the recipe for {dish}",
+            "what is the recipe for {dish}",
+            "tell me the recipe for {dish}",
+            "tell me how to make {dish}",
+            "how do I make {dish}",
+            "how do you make {dish}",
+            "how to make {dish}",
+            "show me how to make {dish}",
+            "what's in {dish}",
+            "can you read me the recipe for {dish}",
+            "can you give me the recipe for {dish}",
+            "can you show me the recipe for {dish}",
+            "can you tell me how to make {dish}"
+          ]
+        },
+        {
+          "name": "NextStepIntent",
+          "slots": [],
+          "samples": [
+            "next step",
+            "next",
+            "what's next",
+            "continue",
+            "go on",
+            "keep going"
+          ]
+        },
+        {
+          "name": "CookAlongIntent",
+          "slots": [
+            { "name": "dish", "type": "AMAZON.SearchQuery" }
+          ],
+          "samples": [
+            "walk me through {dish}",
+            "walk me through the recipe for {dish}",
+            "can you walk me through {dish}",
+            "could you walk me through {dish}",
+            "cook {dish} with me",
+            "cook along with {dish}",
+            "let's cook {dish}",
+            "help me cook {dish}",
+            "can you help me cook {dish}",
+            "start cooking {dish}",
+            "guide me through {dish}",
+            "can you guide me through {dish}"
+          ]
+        }
+      ]
+    }
+  }
+}

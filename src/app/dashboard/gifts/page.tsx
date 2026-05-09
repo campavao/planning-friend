@@ -12,6 +12,9 @@ import type {
 } from "@/lib/supabase";
 import {
   ArrowLeft,
+  Check,
+  Eye,
+  EyeOff,
   ExternalLink,
   Gift,
   Pencil,
@@ -36,6 +39,7 @@ export default function GiftPlannerPage() {
   const [editName, setEditName] = useState("");
   const [assigningTo, setAssigningTo] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showGiven, setShowGiven] = useState(false);
   const router = useRouter();
 
   const fetchData = useCallback(async () => {
@@ -166,6 +170,22 @@ export default function GiftPlannerPage() {
     }
   };
 
+  const toggleGiftGiven = async (assignmentId: string, currentlyGiven: boolean) => {
+    try {
+      const res = await fetch("/api/gifts/assignments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: assignmentId, given: !currentlyGiven }),
+      });
+
+      if (res.ok) {
+        fetchData();
+      }
+    } catch (error) {
+      console.error("Failed to toggle gift given status:", error);
+    }
+  };
+
   const getFilteredGifts = (recipientId: string) => {
     const recipient = recipients.find((r) => r.id === recipientId);
     const assignedIds = new Set(
@@ -192,7 +212,7 @@ export default function GiftPlannerPage() {
   return (
     <main className="min-h-screen pb-28 md:pb-8 bg-[var(--background)]">
       {/* Header */}
-      <div className="bg-[var(--accent)] px-4 py-5">
+      <div className="bg-[var(--accent)] px-4 py-5 sticky top-0 z-20">
         <div className="max-w-4xl mx-auto flex items-center gap-4">
           <Link href="/dashboard" className="hidden md:inline-flex">
             <Button
@@ -251,6 +271,24 @@ export default function GiftPlannerPage() {
           </div>
         ) : (
           <div className="space-y-4">
+            {/* Show/hide given gifts toggle */}
+            {recipients.some((r) =>
+              r.assignments.some((a: GiftAssignment) => a.given_at)
+            ) && (
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setShowGiven(!showGiven)}
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showGiven ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                  {showGiven ? "Hide" : "Show"} given gifts
+                </button>
+              </div>
+            )}
             {recipients.map((recipient) => (
               <Card key={recipient.id} className="card-elevated overflow-hidden">
                 <CardHeader className="pb-3 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl">
@@ -323,34 +361,52 @@ export default function GiftPlannerPage() {
                   {/* Assigned Gifts */}
                   {recipient.assignments.length > 0 && (
                     <div className="space-y-2 mb-4">
-                      {recipient.assignments.map(
-                        (assignment: GiftAssignment) => {
+                      {recipient.assignments
+                        .filter((a: GiftAssignment) => showGiven || !a.given_at)
+                        .map((assignment: GiftAssignment) => {
                           const giftData = assignment.content
                             ?.data as GiftIdeaData;
+                          const isGiven = !!assignment.given_at;
                           return (
                             <div
                               key={assignment.id}
-                              className="group flex items-center gap-3 bg-[var(--muted)] rounded-xl p-3"
+                              className={`group flex items-center gap-3 rounded-xl p-3 ${
+                                isGiven
+                                  ? "bg-[var(--muted)]/50 opacity-60"
+                                  : "bg-[var(--muted)]"
+                              }`}
                             >
                               {assignment.content?.thumbnail_url && (
                                 <img
                                   src={assignment.content.thumbnail_url}
                                   alt=""
-                                  className="w-12 h-12 object-cover shrink-0 rounded-lg"
+                                  className={`w-12 h-12 object-cover shrink-0 rounded-lg ${
+                                    isGiven ? "grayscale" : ""
+                                  }`}
                                 />
                               )}
                               <div className="flex-1 min-w-0">
-                                <p className="font-medium text-sm line-clamp-1">
+                                <p
+                                  className={`font-medium text-sm line-clamp-1 ${
+                                    isGiven ? "line-through text-muted-foreground" : ""
+                                  }`}
+                                >
                                   {assignment.content?.title}
                                 </p>
                                 {giftData?.cost && (
-                                  <p className="text-sm text-[var(--accent)] font-semibold">
+                                  <p
+                                    className={`text-sm font-semibold ${
+                                      isGiven
+                                        ? "text-muted-foreground line-through"
+                                        : "text-[var(--accent)]"
+                                    }`}
+                                  >
                                     {giftData.cost}
                                   </p>
                                 )}
                               </div>
-                              <div className="flex gap-2 shrink-0">
-                                {giftData?.amazon_link && (
+                              <div className="flex gap-1 shrink-0 items-center">
+                                {giftData?.amazon_link && !isGiven && (
                                   <a
                                     href={giftData.amazon_link}
                                     target="_blank"
@@ -363,17 +419,52 @@ export default function GiftPlannerPage() {
                                 )}
                                 <button
                                   onClick={() =>
+                                    toggleGiftGiven(assignment.id, isGiven)
+                                  }
+                                  className={`p-1.5 rounded-lg transition-colors ${
+                                    isGiven
+                                      ? "text-[var(--secondary)] bg-[var(--secondary)]/10"
+                                      : "text-muted-foreground hover:text-[var(--secondary)] hover:bg-[var(--secondary)]/10"
+                                  }`}
+                                  title={isGiven ? "Mark as not given" : "Mark as given"}
+                                >
+                                  <Check className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() =>
                                     removeAssignment(assignment.id)
                                   }
-                                  className="text-destructive hover:bg-red-50 p-1 rounded-lg text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                                  className="text-destructive hover:bg-red-50 p-1.5 rounded-lg md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                                 >
                                   <X className="w-4 h-4" />
                                 </button>
                               </div>
                             </div>
                           );
-                        }
-                      )}
+                        })}
+                      {/* Show count of hidden given gifts */}
+                      {!showGiven &&
+                        recipient.assignments.filter(
+                          (a: GiftAssignment) => a.given_at
+                        ).length > 0 && (
+                          <button
+                            onClick={() => setShowGiven(true)}
+                            className="text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-center py-1"
+                          >
+                            {
+                              recipient.assignments.filter(
+                                (a: GiftAssignment) => a.given_at
+                              ).length
+                            }{" "}
+                            given gift
+                            {recipient.assignments.filter(
+                              (a: GiftAssignment) => a.given_at
+                            ).length !== 1
+                              ? "s"
+                              : ""}{" "}
+                            hidden
+                          </button>
+                        )}
                     </div>
                   )}
 

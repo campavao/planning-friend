@@ -22,41 +22,43 @@ export function WeekNavigation({
   loading = false,
 }: WeekNavigationProps) {
   return (
-    <div className="card-elevated p-4 mb-6 flex items-center justify-between">
-      <Button
-        variant="ghost"
-        onClick={onPrev}
-        className="btn-ghost"
-        disabled={loading}
-      >
-        <ArrowLeft className="w-4 h-4" />
-        <span className="hidden sm:inline ml-2">Prev</span>
-      </Button>
-      <div className="text-center">
-        <h2 className="text-lg md:text-xl font-semibold">{weekRangeLabel}</h2>
-        <div className="flex items-center justify-center gap-2 mt-2 flex-wrap">
+    <div className="mb-3 px-1">
+      <div className="flex items-center justify-between">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onPrev}
+          className="btn-ghost w-8 h-8"
+          disabled={loading}
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </Button>
+        <h2 className="text-lg font-semibold">{weekRangeLabel}</h2>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onNext}
+          className="btn-ghost w-8 h-8"
+          disabled={loading}
+        >
+          <ArrowRight className="w-4 h-4" />
+        </Button>
+      </div>
+      {(isCurrentWeek || sharedCount > 0) && (
+        <div className="flex items-center justify-center gap-2 mt-1">
           {isCurrentWeek && (
-            <Badge className="bg-[var(--accent-light)] text-[var(--accent-foreground)]">
+            <Badge className="bg-[var(--accent-light)] text-[var(--accent-foreground)] text-xs px-2 py-0.5">
               This Week
             </Badge>
           )}
           {sharedCount > 0 && (
-            <Badge variant="date">
+            <Badge variant="date" className="text-xs px-2 py-0.5">
               <Users className="w-3 h-3" />
               {sharedCount} shared
             </Badge>
           )}
         </div>
-      </div>
-      <Button
-        variant="ghost"
-        onClick={onNext}
-        className="btn-ghost"
-        disabled={loading}
-      >
-        <span className="hidden sm:inline mr-2">Next</span>
-        <ArrowRight className="w-4 h-4" />
-      </Button>
+      )}
     </div>
   );
 }

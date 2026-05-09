@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI, type Part } from "@google/genai";
 import type {
   ContentCategory,
   DateIdeaData,
@@ -73,18 +73,20 @@ For **event**:
 - requires_ticket: true/false
 - ticket_link: URL to buy tickets if mentioned
 - description: Brief description of the event
-- website: Official website URL (use your knowledge to find the likely URL based on the event/venue name)
+- website: Official website URL (use your knowledge or Google Search to find the actual URL)
 - reservation_link: URL to make reservations (OpenTable, Resy, etc.) if applicable
+- image_url: A photo URL of the venue/event (use Google Search to find one if not available in the page content)
 
 For **date_idea**:
 - title: Name of the place or activity
-- location: Where it is located (city, address, or general area)
+- location: Where it is located (full address if possible, otherwise city or general area)
 - type: One of "dinner", "activity", "entertainment", "outdoors", "other"
 - price_range: One of "$", "$$", "$$$", "$$$$" if you can estimate
 - description: Brief description of why it's a good date idea
-- website: Official website URL (use your knowledge to find the likely URL based on the venue name)
-- menu_link: Link to the menu if it's a restaurant (often /menu on the website)
-- reservation_link: URL to make reservations (OpenTable, Resy, etc.) if applicable
+- website: Official website URL (use Google Search to find the actual URL for the business)
+- menu_link: Link to the menu if it's a restaurant (use Google Search to find it - often /menu on the restaurant's website, or on services like Yelp)
+- reservation_link: URL to make reservations if applicable (search for the business on OpenTable, Resy, etc.)
+- image_url: A photo URL of the place (use Google Search to find one if not available in the page content)
 
 For **gift_idea**:
 - title: Name of the product/item
@@ -108,11 +110,12 @@ For **travel**:
 - location: Where it is located (city, country)
 - type: One of "restaurant", "attraction", "hotel", "activity", "other"
 - description: Brief description of why it's worth visiting
-- website: Official website URL if known
+- website: Official website URL (use Google Search to find the actual URL)
 - booking_link: Link to book/reserve if applicable
 - price_range: One of "$", "$$", "$$$", "$$$$" if you can estimate
 - destination_city: The city name
 - destination_country: The country name
+- image_url: A photo URL of the place (use Google Search to find one if not available in the page content)
 
 For **other**:
 - title: Brief description of the content
@@ -151,17 +154,19 @@ For MULTIPLE items (lists, top 5s, etc.), respond with:
 
 Respond ONLY with valid JSON. If you cannot determine the content, use category "other".`;
 
-export function getGeminiClient() {
+const MODEL = "gemini-2.5-flash";
+
+function getGeminiClient() {
   const apiKey = process.env.GOOGLE_AI_API_KEY;
 
   if (!apiKey) {
     throw new Error("Missing GOOGLE_AI_API_KEY environment variable");
   }
 
-  return new GoogleGenerativeAI(apiKey);
+  return new GoogleGenAI({ apiKey });
 }
 
-function parseAnalysisResponse(text: string): MultiItemAnalysisResult {
+export function parseAnalysisResponse(text: string): MultiItemAnalysisResult {
   // Try to extract JSON from the response
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
@@ -224,10 +229,7 @@ export async function analyzeVideoWithGemini(
   videoBase64: string,
   videoDescription?: string
 ): Promise<MultiItemAnalysisResult> {
-  const genAI = getGeminiClient();
-
-  // Use Gemini 2.5 Flash for video analysis
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const ai = getGeminiClient();
 
   // Prepare the prompt with optional description context
   let prompt = ANALYSIS_PROMPT;
@@ -236,20 +238,20 @@ export async function analyzeVideoWithGemini(
   }
 
   try {
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          mimeType: "video/mp4",
-          data: videoBase64,
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: [
+        {
+          inlineData: {
+            mimeType: "video/mp4",
+            data: videoBase64,
+          },
         },
-      },
-      { text: prompt },
-    ]);
+        { text: prompt },
+      ],
+    });
 
-    const response = result.response;
-    const text = response.text();
-
-    return parseAnalysisResponse(text);
+    return parseAnalysisResponse(response.text!);
   } catch (error) {
     console.error("Error analyzing video with Gemini:", error);
 
@@ -274,10 +276,7 @@ export async function analyzeWithThumbnail(
   thumbnailUrl: string,
   description: string
 ): Promise<MultiItemAnalysisResult> {
-  const genAI = getGeminiClient();
-
-  // Use Gemini 2.5 Flash for image analysis
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const ai = getGeminiClient();
 
   // Fetch the thumbnail
   const imageResponse = await fetch(thumbnailUrl);
@@ -295,20 +294,20 @@ Video caption/description: "${description}"
 Based on the thumbnail and description, analyze what this content is about.`;
 
   try {
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          mimeType,
-          data: imageBase64,
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: [
+        {
+          inlineData: {
+            mimeType,
+            data: imageBase64,
+          },
         },
-      },
-      { text: prompt },
-    ]);
+        { text: prompt },
+      ],
+    });
 
-    const response = result.response;
-    const text = response.text();
-
-    return parseAnalysisResponse(text);
+    return parseAnalysisResponse(response.text!);
   } catch (error) {
     console.error("Error analyzing with thumbnail:", error);
 
@@ -332,10 +331,7 @@ export async function analyzeWithDescription(
   description: string,
   tiktokUrl: string
 ): Promise<MultiItemAnalysisResult> {
-  const genAI = getGeminiClient();
-
-  // Use Gemini 2.5 Flash for text-only analysis
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const ai = getGeminiClient();
 
   const prompt = `${ANALYSIS_PROMPT}
 
@@ -347,12 +343,12 @@ Video caption/description: "${description}"
 Based on this information, determine what category this content belongs to and extract any relevant details you can infer.`;
 
   try {
-    const result = await model.generateContent([{ text: prompt }]);
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: prompt,
+    });
 
-    const response = result.response;
-    const text = response.text();
-
-    return parseAnalysisResponse(text);
+    return parseAnalysisResponse(response.text!);
   } catch (error) {
     console.error("Error analyzing with description:", error);
 
@@ -380,15 +376,16 @@ export async function analyzeWebpage(
     structuredData?: Record<string, unknown>;
     description?: string;
     siteName?: string;
+    resolvedUrl?: string;
   }
 ): Promise<MultiItemAnalysisResult> {
-  const genAI = getGeminiClient();
-
-  // Use Gemini 2.5 Flash for text analysis
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const ai = getGeminiClient();
 
   // Build context from available data
   let contextInfo = `Website URL: ${url}\n`;
+  if (options?.resolvedUrl) {
+    contextInfo += `Resolved URL (after redirects): ${options.resolvedUrl}\n`;
+  }
   if (options?.siteName) {
     contextInfo += `Site name: ${options.siteName}\n`;
   }
@@ -416,9 +413,22 @@ ${pageContent}
 
 Based on this website content, determine what category it belongs to and extract all relevant details. Pay special attention to:
 - If it's a recipe page, extract the FULL recipe with ALL ingredients and ALL steps
-- If it's a restaurant, extract location, hours, contact info, and reservation links
+- If it's a restaurant or place, extract location, hours, contact info, website, menu links, and reservation links
 - If it's a product, extract the name, price, and purchase link
-- Use the structured data if available as it's usually the most accurate source`;
+- Use the structured data if available as it's usually the most accurate source
+- **If the page content above is sparse, generic, or appears to be from a JavaScript app that didn't render properly (e.g. Google Maps, Yelp, Airbnb), you MUST use Google Search to look up the business/place name and find ALL of the following:**
+  - The business's own website URL (not the Google Maps or Yelp link)
+  - A photo/image URL of the location
+  - Menu link (for restaurants)
+  - Reservation link (check OpenTable, Resy, or the restaurant's own site)
+  - Full address, phone number, hours, cuisine type, price range`;
+
+  // Google Search grounding lets Gemini look up details when page content is thin
+  // (e.g. JS-heavy SPAs like Google Maps, Yelp, Airbnb that don't yield
+  // useful content from simple HTML fetching)
+  const config = {
+    tools: [{ googleSearch: {} }],
+  };
 
   try {
     // If we have a thumbnail, include it
@@ -432,19 +442,21 @@ Based on this website content, determine what category it belongs to and extract
             ? "image/png"
             : "image/jpeg";
 
-          const result = await model.generateContent([
-            {
-              inlineData: {
-                mimeType,
-                data: imageBase64,
+          const response = await ai.models.generateContent({
+            model: MODEL,
+            contents: [
+              {
+                inlineData: {
+                  mimeType,
+                  data: imageBase64,
+                },
               },
-            },
-            { text: prompt },
-          ]);
+              { text: prompt },
+            ],
+            config,
+          });
 
-          const response = result.response;
-          const text = response.text();
-          return parseAnalysisResponse(text);
+          return parseAnalysisResponse(response.text!);
         }
       } catch (imgError) {
         console.log("Failed to include thumbnail in analysis:", imgError);
@@ -453,11 +465,13 @@ Based on this website content, determine what category it belongs to and extract
     }
 
     // Text-only analysis
-    const result = await model.generateContent([{ text: prompt }]);
-    const response = result.response;
-    const text = response.text();
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: prompt,
+      config,
+    });
 
-    return parseAnalysisResponse(text);
+    return parseAnalysisResponse(response.text!);
   } catch (error) {
     console.error("Error analyzing webpage with Gemini:", error);
 
@@ -532,20 +546,7 @@ export async function analyzeImage(
     messageText?: string; // Any text sent with the image
   }
 ): Promise<MultiItemAnalysisResult> {
-  const genAI = getGeminiClient();
-
-  // Use Gemini 2.5 Flash with Google Search grounding enabled
-  // Note: googleSearch is a valid tool but not yet in the TypeScript types
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
-    tools: [
-      {
-        // Enable Google Search grounding for looking up restaurants, products, etc.
-        googleSearch: {},
-      },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ] as any,
-  });
+  const ai = getGeminiClient();
 
   // Build context from available metadata
   let contextInfo = "";
@@ -591,23 +592,27 @@ Return as JSON with this format:
   }]
 }`;
 
+  const imagePart: Part = {
+    inlineData: {
+      mimeType,
+      data: imageBase64,
+    },
+  };
+
+  const config = {
+    tools: [{ googleSearch: {} }],
+  };
+
   try {
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          mimeType,
-          data: imageBase64,
-        },
-      },
-      { text: prompt },
-    ]);
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: [imagePart, { text: prompt }],
+      config,
+    });
 
-    const response = result.response;
-    const text = response.text();
+    console.log("Image analysis response:", response.text?.slice(0, 500));
 
-    console.log("Image analysis response:", text.slice(0, 500));
-
-    return parseAnalysisResponse(text);
+    return parseAnalysisResponse(response.text!);
   } catch (error) {
     // Check if this is a RECITATION error (content blocked due to similarity to copyrighted content)
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -618,22 +623,18 @@ Return as JSON with this format:
 
       try {
         // Retry with the fallback prompt that emphasizes paraphrasing
-        const retryResult = await model.generateContent([
-          {
-            inlineData: {
-              mimeType,
-              data: imageBase64,
-            },
-          },
-          { text: fallbackPrompt },
-        ]);
+        const retryResponse = await ai.models.generateContent({
+          model: MODEL,
+          contents: [imagePart, { text: fallbackPrompt }],
+          config,
+        });
 
-        const retryResponse = retryResult.response;
-        const retryText = retryResponse.text();
+        console.log(
+          "Retry analysis response:",
+          retryResponse.text?.slice(0, 500)
+        );
 
-        console.log("Retry analysis response:", retryText.slice(0, 500));
-
-        return parseAnalysisResponse(retryText);
+        return parseAnalysisResponse(retryResponse.text!);
       } catch (retryError) {
         console.error("Retry also failed:", retryError);
       }

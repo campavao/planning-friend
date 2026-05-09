@@ -1,0 +1,52 @@
+{
+  "manifest": {
+    "manifestVersion": "1.0",
+    "publishingInformation": {
+      "locales": {
+        "en-US": {
+          "name": "Planning Friend",
+          "summary": "Read your planned meals, events, and recipes aloud.",
+          "description": "Personal planner integration. Ask what you have planned today, get recipes read aloud, and hear dinner plans on demand. Read-only access to your planning-friend account.",
+          "examplePhrases": [
+            "Alexa, open planning friend",
+            "Alexa, ask planning friend what's on my plan today",
+            "Alexa, ask planning friend what's for dinner"
+          ],
+          "keywords": ["planning", "planner", "recipes", "meals", "schedule"],
+          "smallIconUri": "",
+          "largeIconUri": ""
+        }
+      },
+      "isAvailableWorldwide": false,
+      "distributionCountries": ["US"],
+      "testingInstructions": "Personal-use skill. Development mode only.",
+      "category": "ORGANIZERS_AND_ASSISTANTS"
+    },
+    "privacyAndCompliance": {
+      "allowsPurchases": false,
+      "usesPersonalInfo": false,
+      "isChildDirected": false,
+      "isExportCompliant": true,
+      "containsAds": false,
+      "locales": {
+        "en-US": {
+          "privacyPolicyUrl": "",
+          "termsOfUseUrl": ""
+        }
+      }
+    },
+    "apis": {
+      "custom": {
+        "endpoint": {
+          "uri": "arn:aws:lambda:REGION:ACCOUNT_ID:function:planning-friend-alexa-skill"
+        },
+        "interfaces": [
+          { "type": "ALEXA_PRESENTATION_APL" }
+        ]
+      }
+    },
+    "permissions": [
+      { "name": "alexa::devices:all:settings:read" }
+    ]
+  }
+}

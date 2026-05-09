@@ -1,4 +1,4 @@
-import { getGeminiClient } from "@/lib/gemini";
+import { GoogleGenAI } from "@google/genai";
 import type { ScoredCandidate } from "./scorer";
 
 const CURATOR_TIMEOUT_MS = 6000;
@@ -131,27 +131,27 @@ export async function curate(ctx: CuratorContext): Promise<CuratorResult> {
     return { picks: {}, source: "fallback" };
   }
 
-  let model;
-  try {
-    model = getGeminiClient().getGenerativeModel({
-      model: CURATOR_MODEL,
-      generationConfig: { responseMimeType: "application/json" },
-    });
-  } catch (err) {
-    console.warn("Curator: gemini client unavailable", err);
+  const apiKey = process.env.GOOGLE_AI_API_KEY;
+  if (!apiKey) {
+    console.warn("Curator: GOOGLE_AI_API_KEY missing");
     return { picks: fallbackPicks(ctx.candidatesByDay), source: "fallback" };
   }
 
+  const ai = new GoogleGenAI({ apiKey });
   const prompt = buildPrompt(ctx);
   const systemInstruction =
     "You curate weekly plan suggestions. Pick 2-3 items per day from the candidates I provide. Prefer variety across the week. Never invent items not in the candidate list. Return strict JSON only.";
 
   const generation = (async () => {
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      systemInstruction,
+    const response = await ai.models.generateContent({
+      model: CURATOR_MODEL,
+      contents: prompt,
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+      },
     });
-    return result.response.text();
+    return response.text ?? "";
   })();
 
   const timeout = new Promise<null>((resolve) =>
