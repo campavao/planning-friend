@@ -151,7 +151,7 @@ For MULTIPLE items (lists, top 5s, etc.), respond with:
 
 Respond ONLY with valid JSON. If you cannot determine the content, use category "other".`;
 
-function getGeminiClient() {
+export function getGeminiClient() {
   const apiKey = process.env.GOOGLE_AI_API_KEY;
 
   if (!apiKey) {

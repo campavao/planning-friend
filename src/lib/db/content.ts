@@ -1,5 +1,7 @@
 import { createServerClient } from "./client";
 import type { Content, ContentCategory } from "./types";
+import { bustAllUserWeeks } from "./suggestions";
+import { getWeekStart } from "./planner";
 
 export async function createProcessingContent(
   userId: string,
@@ -47,7 +49,17 @@ export async function updateContent(
     throw new Error(`Failed to update content: ${error.message}`);
   }
 
-  return data as Content;
+  const result = data as Content;
+
+  // Bust suggestion caches when content becomes eligible (status flip to
+  // completed) or when its category changes — both alter the pool.
+  if (updates.status === "completed" || updates.category !== undefined) {
+    bustAllUserWeeks(result.user_id, getWeekStart()).catch((err) => {
+      console.error("Failed to bust suggestion cache after update:", err);
+    });
+  }
+
+  return result;
 }
 
 export async function saveContent(
@@ -70,6 +82,10 @@ export async function saveContent(
   if (error) {
     throw new Error(`Failed to save content: ${error.message}`);
   }
+
+  bustAllUserWeeks(content.user_id, getWeekStart()).catch((err) => {
+    console.error("Failed to bust suggestion cache after save:", err);
+  });
 
   return data as Content;
 }
@@ -146,4 +162,8 @@ export async function deleteContent(
   if (error) {
     throw new Error(`Failed to delete content: ${error.message}`);
   }
+
+  bustAllUserWeeks(userId, getWeekStart()).catch((err) => {
+    console.error("Failed to bust suggestion cache after delete:", err);
+  });
 }

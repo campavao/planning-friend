@@ -9,13 +9,16 @@ import {
   getPlanItemShares,
   getFriends,
   getUserTags,
-  type Content,
-  type ContentCategory,
   type PlanItem,
   type SharedPlanItem,
 } from "@/lib/supabase";
 import { parseDateString } from "@/lib/utils";
 import { requireSession } from "@/lib/auth";
+import {
+  getOrComputeSuggestions,
+  type ThisWeekItemRef,
+} from "@/lib/recommendations";
+import { bustCacheForWeek } from "@/lib/db/suggestions";
 
 // Extended plan item with sharing info
 interface PlanItemWithSharing extends PlanItem {
@@ -94,11 +97,49 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Generate suggestions based on patterns (using own items only)
-    const suggestions = generateSuggestions(
-      plan?.items || [],
-      availableContent,
-    );
+    const thisWeekItems: ThisWeekItemRef[] = [];
+    for (const item of plan?.items ?? []) {
+      thisWeekItems.push({
+        plannedDate: item.planned_date,
+        contentId: item.content_id ?? null,
+        category: item.content?.category ?? null,
+        title: item.content?.title ?? item.note_title ?? null,
+      });
+    }
+    for (const item of sharedItems) {
+      thisWeekItems.push({
+        plannedDate: item.planned_date,
+        contentId: item.content_id ?? null,
+        category: item.content?.category ?? null,
+        title: item.content?.title ?? null,
+      });
+    }
+
+    const featureEnabled =
+      process.env.NEXT_PUBLIC_SMART_SUGGESTIONS_ENABLED === "true";
+
+    let suggestions: Record<number, { contentId: string; why: string | null }[]> = {};
+    let suggestionsMeta: { emptyPool: boolean; poolSize: number } = {
+      emptyPool: false,
+      poolSize: 0,
+    };
+    if (featureEnabled) {
+      try {
+        const result = await getOrComputeSuggestions({
+          userId: session.userId,
+          weekStart,
+          thisWeekItems,
+          curatorEnabled: true,
+        });
+        suggestions = result.payload;
+        suggestionsMeta = {
+          emptyPool: result.emptyPool,
+          poolSize: result.poolSize,
+        };
+      } catch (err) {
+        console.error("Failed to compute suggestions:", err);
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -111,6 +152,7 @@ export async function GET(request: NextRequest) {
       sharedItems,
       availableContent,
       suggestions,
+      suggestionsMeta,
       shareableFriends,
       allTags,
     });
@@ -130,8 +172,15 @@ export async function POST(request: NextRequest) {
     if (errorResponse) return errorResponse;
 
     const body = await request.json();
-    const { weekStart, contentId, noteTitle, dayOfWeek, notes, plannedDate } =
-      body;
+    const {
+      weekStart,
+      contentId,
+      noteTitle,
+      dayOfWeek,
+      notes,
+      plannedDate,
+      source,
+    } = body;
 
     if (!contentId && !noteTitle) {
       return NextResponse.json(
@@ -160,12 +209,21 @@ export async function POST(request: NextRequest) {
     // Get or create the plan
     const plan = await getOrCreateWeeklyPlan(session.userId, planWeekStart);
 
-    // Add the item (either content or quick note)
+    const validSource: "manual" | "ai_suggested" | "quick_note" | undefined =
+      source === "ai_suggested" || source === "manual" || source === "quick_note"
+        ? source
+        : undefined;
+
     const item = await addPlanItem(plan.id, {
       contentId,
       noteTitle,
       notes,
       plannedDate: resolvedPlannedDate,
+      source: validSource,
+    });
+
+    bustCacheForWeek(session.userId, planWeekStart).catch((err) => {
+      console.error("Failed to bust suggestion cache after add:", err);
     });
 
     return NextResponse.json({ success: true, item });
@@ -178,57 +236,3 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Generate smart suggestions based on content and patterns
-function generateSuggestions(
-  existingItems: { planned_date: string; content?: Content }[],
-  availableContent: Content[],
-): Record<number, Content[]> {
-  const suggestions: Record<number, Content[]> = {};
-  const usedContentIds = new Set(
-    existingItems.map((item) => item.content?.id).filter(Boolean),
-  );
-
-  // Day name patterns - what categories typically go on each day
-  const dayPatterns: Record<number, ContentCategory[]> = {
-    0: ["meal"], // Monday - start the week with a home meal
-    1: ["meal", "date_idea"], // Tuesday
-    2: ["meal"], // Wednesday
-    3: ["date_idea", "event"], // Thursday - date night
-    4: ["date_idea", "event"], // Friday - going out
-    5: ["event", "date_idea"], // Saturday - activities
-    6: ["meal"], // Sunday - home cooking
-  };
-
-  const getMondayIndex = (value: string) => {
-    const planned = new Date(value);
-    if (Number.isNaN(planned.getTime())) return null;
-    return (planned.getUTCDay() + 6) % 7;
-  };
-
-  for (let day = 0; day <= 6; day++) {
-    const dayItems = existingItems.filter((item) => {
-      const dayIndex = getMondayIndex(item.planned_date);
-      return dayIndex === day;
-    });
-
-    // If day is empty, suggest content
-    if (dayItems.length === 0) {
-      const preferredCategories = dayPatterns[day] || ["meal", "date_idea"];
-
-      const daySuggestions = availableContent
-        .filter((content) => {
-          // Not already used this week
-          if (usedContentIds.has(content.id)) return false;
-          // Matches preferred category for this day
-          return preferredCategories.includes(content.category);
-        })
-        .slice(0, 3); // Max 3 suggestions per day
-
-      if (daySuggestions.length > 0) {
-        suggestions[day] = daySuggestions;
-      }
-    }
-  }
-
-  return suggestions;
-}
