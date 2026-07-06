@@ -27,12 +27,19 @@ export function BottomNav() {
 
   // Save current tab to localStorage for persistence across app restarts
   useEffect(() => {
-    if (pathname && TAB_PATHS.has(pathname)) {
-      try {
+    try {
+      if (pathname && TAB_PATHS.has(pathname)) {
         localStorage.setItem("lastTab", pathname);
-      } catch {
-        // Ignore storage errors
       }
+      // Mark the session as active from ANY dashboard page, not just Home.
+      // If the app reopens directly on e.g. /dashboard/planner, this flag is
+      // what stops the Home page's "restore last tab" redirect from
+      // rubberbanding the user back when they later tap Home.
+      if (pathname?.startsWith("/dashboard")) {
+        sessionStorage.setItem("sessionActive", "true");
+      }
+    } catch {
+      // Ignore storage errors
     }
   }, [pathname]);
 

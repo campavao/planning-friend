@@ -3,19 +3,21 @@ import {
   deleteThumbnail,
   getContentById,
   getContentTags,
+  getUserById,
   updateContent,
 } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
-import { requireSession } from "@/lib/auth";
+import { getSession, requireSession } from "@/lib/auth";
 
-// GET single content
+// GET single content — public so extracted content can be shared by link.
+// Editing (PATCH/DELETE) remains owner-only below.
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { session, errorResponse } = await requireSession(request);
-    if (errorResponse) return errorResponse;
+    // Session is optional here: viewers without an account can still read
+    const session = await getSession(request);
 
     const { id } = await params;
     const content = await getContentById(id);
@@ -23,6 +25,8 @@ export async function GET(
     if (!content) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
+
+    const isOwner = session?.userId === content.user_id;
 
     // Fetch tags for this content
     let tags: Awaited<ReturnType<typeof getContentTags>> = [];
@@ -32,7 +36,18 @@ export async function GET(
       // Tags table might not exist yet, continue without tags
     }
 
-    return NextResponse.json({ success: true, content, tags });
+    // Include the owner's display name so shared views can attribute the item
+    let ownerName: string | null = null;
+    if (!isOwner) {
+      try {
+        const owner = await getUserById(content.user_id);
+        ownerName = owner?.name || null;
+      } catch {
+        // Attribution is best-effort
+      }
+    }
+
+    return NextResponse.json({ success: true, content, tags, isOwner, ownerName });
   } catch (error) {
     console.error("Error fetching content:", error);
     return NextResponse.json(

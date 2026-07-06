@@ -47,18 +47,24 @@ export function useSession({
     // Wait for initial load to complete
     if (isLoading) return;
 
-    // If there's an error or not authenticated, redirect to login
-    if ((error || !isAuthenticated) && !allowUnauthenticated) {
-      router.push("/");
+    // If authenticated, call onSuccess
+    if (isAuthenticated && !error) {
+      onSuccess?.();
       return;
     }
 
-    // If authenticated, call onSuccess
-    if (isAuthenticated && onSuccess) {
-      onSuccess();
+    // Not authenticated according to the current (possibly cached) data.
+    // Wait for any in-flight revalidation to settle before redirecting so a
+    // stale persisted "unauthenticated" entry can't bounce a freshly
+    // logged-in user back to the login page.
+    if (isValidating) return;
+
+    if (!allowUnauthenticated) {
+      router.push("/");
     }
   }, [
     isLoading,
+    isValidating,
     isAuthenticated,
     error,
     router,

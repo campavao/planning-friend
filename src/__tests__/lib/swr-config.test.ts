@@ -63,12 +63,20 @@ describe("fetcher", () => {
 // ============================================
 describe("clearSWRCache", () => {
   it("removes the cache from localStorage", () => {
-    localStorage.setItem("planning-friend-cache-v1", "some-data");
+    localStorage.setItem("planning-friend-cache-v2", "some-data");
     const spy = jest.spyOn(Storage.prototype, "removeItem");
 
     clearSWRCache();
 
-    expect(spy).toHaveBeenCalledWith("planning-friend-cache-v1");
+    expect(spy).toHaveBeenCalledWith("planning-friend-cache-v2");
+  });
+
+  it("removes legacy cache versions from localStorage", () => {
+    localStorage.setItem("planning-friend-cache-v1", "old-data");
+
+    clearSWRCache();
+
+    expect(localStorage.getItem("planning-friend-cache-v1")).toBeNull();
   });
 
   it("does not throw when localStorage is empty", () => {
