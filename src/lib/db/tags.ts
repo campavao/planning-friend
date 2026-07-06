@@ -108,20 +108,52 @@ export async function getOrCreateTags(
   userId: string,
   tagNames: string[]
 ): Promise<Tag[]> {
-  const tags: Tag[] = [];
-  for (const name of tagNames) {
-    const tag = await createTag(userId, name);
-    tags.push(tag);
+  const names = [
+    ...new Set(tagNames.map((n) => n.toLowerCase().trim()).filter(Boolean)),
+  ];
+  if (names.length === 0) return [];
+
+  const supabase = createServerClient();
+
+  // Insert all tags in one call, ignoring any that already exist for the user.
+  const { error: insertError } = await supabase
+    .from("tags")
+    .upsert(
+      names.map((name) => ({ user_id: userId, name })),
+      { onConflict: "user_id,name", ignoreDuplicates: true }
+    );
+  if (insertError) {
+    throw new Error(`Failed to create tags: ${insertError.message}`);
   }
-  return tags;
+
+  // Return the full rows (both pre-existing and newly created) in one read.
+  const { data, error } = await supabase
+    .from("tags")
+    .select("*")
+    .eq("user_id", userId)
+    .in("name", names);
+  if (error) {
+    throw new Error(`Failed to load tags: ${error.message}`);
+  }
+
+  return data as Tag[];
 }
 
 export async function addTagsToContent(
   contentId: string,
   tagIds: string[]
 ): Promise<void> {
-  for (const tagId of tagIds) {
-    await addTagToContent(contentId, tagId);
+  if (tagIds.length === 0) return;
+
+  const supabase = createServerClient();
+
+  // Single bulk insert; ignore rows that are already attached.
+  const { error } = await supabase.from("content_tags").upsert(
+    tagIds.map((tag_id) => ({ content_id: contentId, tag_id })),
+    { onConflict: "content_id,tag_id", ignoreDuplicates: true }
+  );
+  if (error) {
+    throw new Error(`Failed to add tags: ${error.message}`);
   }
 }
 

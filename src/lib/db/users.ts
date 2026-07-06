@@ -2,6 +2,9 @@ import { createServerClient } from "./client";
 import type { User } from "./types";
 import { checkVerifyOtp, sendVerifyOtp } from "@/lib/twilio";
 
+// Re-exported so existing imports from the db barrel keep working.
+export { normalizePhoneNumber } from "@/lib/phone";
+
 export async function sendPhoneOtp(phoneNumber: string): Promise<void> {
   await sendVerifyOtp(phoneNumber);
 }
@@ -16,17 +19,6 @@ export async function verifyPhoneOtp(
   };
 }
 
-export function normalizePhoneNumber(phoneNumber: string): string {
-  let normalized = phoneNumber.replace(/[^\d+]/g, "");
-  if (!normalized.startsWith("+")) {
-    if (normalized.length === 10) {
-      normalized = "+1" + normalized;
-    } else if (normalized.length === 11 && normalized.startsWith("1")) {
-      normalized = "+" + normalized;
-    }
-  }
-  return normalized;
-}
 
 export async function getOrCreateUser(phoneNumber: string): Promise<User> {
   const supabase = createServerClient();
