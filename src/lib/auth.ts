@@ -96,6 +96,44 @@ export async function createSessionToken(session: SessionData): Promise<string> 
 }
 
 /**
+ * Constant-time string comparison to avoid leaking match progress via timing.
+ */
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < a.length; i++) {
+    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return mismatch === 0;
+}
+
+/**
+ * Token authenticating server-to-server calls to internal endpoints (e.g.
+ * /api/process). Derived from SESSION_SECRET so every part of the same
+ * deployment can produce/verify it with no extra configuration, while an
+ * outside caller (who lacks the secret) cannot forge it.
+ */
+export async function createInternalToken(): Promise<string> {
+  const signature = await hmacSign("internal-process-call");
+  return base64UrlEncode(signature);
+}
+
+export async function verifyInternalToken(
+  token: string | null | undefined
+): Promise<boolean> {
+  if (!token) return false;
+  try {
+    const expected = await createInternalToken();
+    return constantTimeEqual(token, expected);
+  } catch {
+    return false;
+  }
+}
+
+/** Header used to carry the internal token between server-side callers. */
+export const INTERNAL_TOKEN_HEADER = "x-internal-token";
+
+/**
  * Parse and verify session from raw cookie value. Edge-safe.
  * Supports signed (v2.sig.payload) and legacy unsigned base64 for backward compatibility.
  */

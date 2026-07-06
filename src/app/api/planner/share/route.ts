@@ -5,6 +5,7 @@ import {
   getSharedPlans,
   removePlanShare,
   getWeeklyPlan,
+  userOwnsWeeklyPlan,
 } from "@/lib/supabase";
 import { requireSession } from "@/lib/auth";
 
@@ -55,6 +56,11 @@ export async function POST(request: NextRequest) {
           );
         }
         targetPlanId = plan.id;
+      } else if (planId) {
+        // A directly-supplied planId must belong to the caller.
+        if (!(await userOwnsWeeklyPlan(planId, session.userId))) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
       }
 
       const invite = await createShareInvite(targetPlanId, session.userId);

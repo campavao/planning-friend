@@ -3,11 +3,16 @@ import {
   removePlanItem,
   updatePlanItem,
   getWeekStart,
+  userOwnsPlanItem,
+  userOwnsContent,
 } from "@/lib/supabase";
 import { createServerClient } from "@/lib/db/client";
 import { parseDateString } from "@/lib/utils";
 import { requireSession } from "@/lib/auth";
 import { bustForPlanItem } from "@/lib/db/suggestions";
+
+const forbidden = () =>
+  NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
 async function getItemPlannedDate(itemId: string): Promise<string | null> {
   const supabase = createServerClient();
@@ -28,7 +33,7 @@ function weekStartFromPlannedDate(plannedDate: string): string {
 // DELETE remove item from plan
 export async function DELETE(request: NextRequest) {
   try {
-    const { errorResponse } = await requireSession(request);
+    const { session, errorResponse } = await requireSession(request);
     if (errorResponse) return errorResponse;
 
     const { searchParams } = new URL(request.url);
@@ -36,6 +41,10 @@ export async function DELETE(request: NextRequest) {
 
     if (!itemId) {
       return NextResponse.json({ error: "Missing item ID" }, { status: 400 });
+    }
+
+    if (!(await userOwnsPlanItem(itemId, session.userId))) {
+      return forbidden();
     }
 
     const plannedDate = await getItemPlannedDate(itemId);
@@ -66,7 +75,7 @@ export async function DELETE(request: NextRequest) {
 // PUT update item in plan
 export async function PUT(request: NextRequest) {
   try {
-    const { errorResponse } = await requireSession(request);
+    const { session, errorResponse } = await requireSession(request);
     if (errorResponse) return errorResponse;
 
     const body = await request.json();
@@ -74,6 +83,15 @@ export async function PUT(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json({ error: "Missing item ID" }, { status: 400 });
+    }
+
+    if (!(await userOwnsPlanItem(id, session.userId))) {
+      return forbidden();
+    }
+
+    // If reassigning to a piece of content, it must be the caller's own.
+    if (contentId && !(await userOwnsContent(contentId, session.userId))) {
+      return forbidden();
     }
     if (!plannedDate) {
       return NextResponse.json(

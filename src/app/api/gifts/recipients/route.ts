@@ -5,8 +5,12 @@ import {
   createGiftRecipient,
   updateGiftRecipient,
   deleteGiftRecipient,
+  userOwnsGiftRecipient,
 } from "@/lib/supabase";
 import { requireSession } from "@/lib/auth";
+
+const forbidden = () =>
+  NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
 // GET - List all recipients for the user
 export async function GET(request: NextRequest) {
@@ -59,7 +63,7 @@ export async function POST(request: NextRequest) {
 // PATCH - Update a recipient
 export async function PATCH(request: NextRequest) {
   try {
-    const { errorResponse } = await requireSession(request);
+    const { session, errorResponse } = await requireSession(request);
     if (errorResponse) return errorResponse;
 
     const { id, name } = await request.json();
@@ -69,6 +73,10 @@ export async function PATCH(request: NextRequest) {
         { error: "ID and name are required" },
         { status: 400 }
       );
+    }
+
+    if (!(await userOwnsGiftRecipient(id, session.userId))) {
+      return forbidden();
     }
 
     const recipient = await updateGiftRecipient(id, name.trim());
@@ -85,13 +93,17 @@ export async function PATCH(request: NextRequest) {
 // DELETE - Delete a recipient
 export async function DELETE(request: NextRequest) {
   try {
-    const { errorResponse } = await requireSession(request);
+    const { session, errorResponse } = await requireSession(request);
     if (errorResponse) return errorResponse;
 
     const id = request.nextUrl.searchParams.get("id");
 
     if (!id) {
       return NextResponse.json({ error: "ID is required" }, { status: 400 });
+    }
+
+    if (!(await userOwnsGiftRecipient(id, session.userId))) {
+      return forbidden();
     }
 
     await deleteGiftRecipient(id);

@@ -1,32 +1,11 @@
 import { removePushSubscription, savePushSubscription } from "@/lib/push-notifications";
-import { cookies } from "next/headers";
+import { requireSession } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
-    // Get user from session
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("session");
-
-    if (!sessionCookie?.value) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-    }
-
-    let userId: string;
-    try {
-      // Session cookie is base64 encoded
-      const decoded = Buffer.from(sessionCookie.value, "base64").toString();
-      const session = JSON.parse(decoded);
-
-      // Check if session is expired
-      if (session.exp && session.exp < Date.now()) {
-        return NextResponse.json({ error: "Session expired" }, { status: 401 });
-      }
-
-      userId = session.userId;
-    } catch {
-      return NextResponse.json({ error: "Invalid session" }, { status: 401 });
-    }
+    const { session, errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const body = await request.json();
     const { subscription } = body;
@@ -39,9 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Save the subscription
-    const saved = await savePushSubscription(userId, subscription);
-
-    console.log("Push subscription saved for user:", userId);
+    const saved = await savePushSubscription(session.userId, subscription);
 
     return NextResponse.json({
       success: true,
@@ -58,29 +35,8 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    // Get user from session
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("session");
-
-    if (!sessionCookie?.value) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-    }
-
-    let userId: string;
-    try {
-      // Session cookie is base64 encoded
-      const decoded = Buffer.from(sessionCookie.value, "base64").toString();
-      const session = JSON.parse(decoded);
-
-      // Check if session is expired
-      if (session.exp && session.exp < Date.now()) {
-        return NextResponse.json({ error: "Session expired" }, { status: 401 });
-      }
-
-      userId = session.userId;
-    } catch {
-      return NextResponse.json({ error: "Invalid session" }, { status: 401 });
-    }
+    const { session, errorResponse } = await requireSession(request);
+    if (errorResponse) return errorResponse;
 
     const body = await request.json();
     const { endpoint } = body;
@@ -89,9 +45,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Endpoint required" }, { status: 400 });
     }
 
-    await removePushSubscription(userId, endpoint);
-
-    console.log("Push subscription removed for user:", userId);
+    await removePushSubscription(session.userId, endpoint);
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -102,4 +56,3 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
-

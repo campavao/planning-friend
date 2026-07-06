@@ -1,6 +1,41 @@
 import { createProcessingContent, getOrCreateUser } from "@/lib/supabase";
-import { extractSocialMediaUrl, normalizePhoneNumber } from "@/lib/twilio";
+import {
+  extractSocialMediaUrl,
+  normalizePhoneNumber,
+  validateTwilioRequest,
+} from "@/lib/twilio";
+import {
+  createInternalToken,
+  INTERNAL_TOKEN_HEADER,
+} from "@/lib/auth";
 import { after, NextRequest, NextResponse } from "next/server";
+
+// Empty TwiML acknowledgement Twilio expects on success.
+const EMPTY_TWIML =
+  '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';
+
+function twimlResponse(status = 200): NextResponse {
+  return new NextResponse(EMPTY_TWIML, {
+    status,
+    headers: { "Content-Type": "text/xml" },
+  });
+}
+
+// The webhook URL Twilio signed. Must match exactly what was configured in the
+// Twilio console, so prefer the explicit app URL over the (proxy-rewritten)
+// request URL.
+function getWebhookUrl(request: NextRequest): string {
+  if (
+    process.env.NEXT_PUBLIC_APP_URL &&
+    !process.env.NEXT_PUBLIC_APP_URL.includes("localhost")
+  ) {
+    return `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/api/twilio/webhook`;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}/api/twilio/webhook`;
+  }
+  return new URL(request.url).toString();
+}
 
 // Get the base URL dynamically
 function getBaseUrl(request: NextRequest): string {
@@ -27,6 +62,32 @@ export async function POST(request: NextRequest) {
   try {
     // Parse form data from Twilio
     const formData = await request.formData();
+
+    // Verify the request genuinely came from Twilio before trusting any field
+    // (the From number drives user creation). Twilio signs the exact webhook
+    // URL + sorted POST params with the account auth token.
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    if (authToken) {
+      const signature = request.headers.get("x-twilio-signature") ?? "";
+      const params: Record<string, string> = {};
+      for (const [key, value] of formData.entries()) {
+        if (typeof value === "string") params[key] = value;
+      }
+      const valid = validateTwilioRequest(
+        signature,
+        getWebhookUrl(request),
+        params
+      );
+      if (!valid) {
+        console.error("Rejected Twilio webhook: invalid signature");
+        return twimlResponse(403);
+      }
+    } else {
+      console.warn(
+        "TWILIO_AUTH_TOKEN not set — skipping Twilio signature validation"
+      );
+    }
+
     const body = formData.get("Body") as string;
     const from = formData.get("From") as string;
 
@@ -74,13 +135,7 @@ export async function POST(request: NextRequest) {
         }`
       );
       // Return 200 to acknowledge receipt (Twilio expects this)
-      return new NextResponse(
-        '<?xml version="1.0" encoding="UTF-8"?><Response></Response>',
-        {
-          status: 200,
-          headers: { "Content-Type": "text/xml" },
-        }
-      );
+      return twimlResponse();
     }
 
     // Determine platform and URL
@@ -120,6 +175,7 @@ export async function POST(request: NextRequest) {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            [INTERNAL_TOKEN_HEADER]: await createInternalToken(),
           },
           body: JSON.stringify({
             contentId: processingContent.id,
@@ -152,23 +208,11 @@ export async function POST(request: NextRequest) {
     });
 
     // Return empty TwiML response (no reply SMS for now)
-    return new NextResponse(
-      '<?xml version="1.0" encoding="UTF-8"?><Response></Response>',
-      {
-        status: 200,
-        headers: { "Content-Type": "text/xml" },
-      }
-    );
+    return twimlResponse();
   } catch (error) {
     console.error("Error processing Twilio webhook:", error);
     // Still return 200 to prevent Twilio from retrying
-    return new NextResponse(
-      '<?xml version="1.0" encoding="UTF-8"?><Response></Response>',
-      {
-        status: 200,
-        headers: { "Content-Type": "text/xml" },
-      }
-    );
+    return twimlResponse();
   }
 }
 

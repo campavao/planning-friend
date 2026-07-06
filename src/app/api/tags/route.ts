@@ -5,9 +5,14 @@ import {
   deleteTag,
   addTagToContent,
   removeTagFromContent,
+  userOwnsContent,
+  userOwnsTag,
   DEFAULT_TAGS,
 } from "@/lib/supabase";
 import { requireSession } from "@/lib/auth";
+
+const forbidden = () =>
+  NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
 // GET - List all tags for the user + default suggestions
 export async function GET(request: NextRequest) {
@@ -42,8 +47,17 @@ export async function POST(request: NextRequest) {
 
     const { name, contentId, tagId } = await request.json();
 
+    // Any content the caller names must be their own before we attach tags.
+    if (contentId && !(await userOwnsContent(contentId, session.userId))) {
+      return forbidden();
+    }
+
     // If contentId and tagId provided, add existing tag to content
     if (contentId && tagId) {
+      // The tag being attached must also belong to the caller.
+      if (!(await userOwnsTag(tagId, session.userId))) {
+        return forbidden();
+      }
       await addTagToContent(contentId, tagId);
       return NextResponse.json({ success: true });
     }
@@ -75,7 +89,7 @@ export async function POST(request: NextRequest) {
 // DELETE - Delete a tag or remove tag from content
 export async function DELETE(request: NextRequest) {
   try {
-    const { errorResponse } = await requireSession(request);
+    const { session, errorResponse } = await requireSession(request);
     if (errorResponse) return errorResponse;
 
     const tagId = request.nextUrl.searchParams.get("tagId");
@@ -85,8 +99,16 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "tagId required" }, { status: 400 });
     }
 
+    // The tag must belong to the caller in either case.
+    if (!(await userOwnsTag(tagId, session.userId))) {
+      return forbidden();
+    }
+
     // If contentId provided, just remove from content
     if (contentId) {
+      if (!(await userOwnsContent(contentId, session.userId))) {
+        return forbidden();
+      }
       await removeTagFromContent(contentId, tagId);
       return NextResponse.json({ success: true });
     }
