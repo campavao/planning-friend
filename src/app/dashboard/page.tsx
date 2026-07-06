@@ -19,7 +19,6 @@ import {
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSession } from "./useSession";
 
@@ -30,25 +29,11 @@ function getInitialTipVisibility() {
 }
 
 export default function Dashboard() {
-  const router = useRouter();
   const [showTip, setShowTip] = useState(getInitialTipVisibility);
   const [showNamePrompt, setShowNamePrompt] = useState(false);
 
-  // Redirect to last active tab only on fresh app open (not on in-session navigation)
-  useEffect(() => {
-    try {
-      const sessionActive = sessionStorage.getItem("sessionActive");
-      if (!sessionActive) {
-        sessionStorage.setItem("sessionActive", "true");
-        const lastTab = localStorage.getItem("lastTab");
-        if (lastTab && lastTab !== "/dashboard") {
-          router.replace(lastTab);
-        }
-      }
-    } catch {
-      // Ignore storage errors
-    }
-  }, [router]);
+  // Note: "restore last tab on fresh open" lives in BottomNav (root layout)
+  // so it can't race the session-active flag across components.
 
   // Session management with SWR
   const { user, isLoading: sessionLoading } = useSession();
