@@ -100,10 +100,6 @@ export default function ContentDetailPage() {
   const [linkCopied, setLinkCopied] = useState(false);
   const [copying, setCopying] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
-  const [retryFeedback, setRetryFeedback] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
 
   const isEditable = !!user && content?.user_id === user.id;
   const loading = sessionLoading || (contentLoading && !content);
@@ -260,7 +256,6 @@ export default function ContentDetailPage() {
     if (!content) return;
 
     setRetrying(true);
-    setRetryFeedback(null);
     try {
       const res = await fetch(`/api/content/${content.id}/reprocess`, {
         method: "POST",
@@ -271,17 +266,9 @@ export default function ContentDetailPage() {
         throw new Error(data?.error || "Failed to start retry");
       }
 
-      setRetryFeedback({
-        type: "success",
-        message: "Retrying...",
-      });
       mutateContent();
     } catch (error) {
-      setRetryFeedback({
-        type: "error",
-        message:
-          error instanceof Error ? error.message : "Something went wrong",
-      });
+      console.error("Failed to retry processing:", error);
     } finally {
       setRetrying(false);
     }
