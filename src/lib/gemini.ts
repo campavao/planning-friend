@@ -234,7 +234,7 @@ export async function analyzeVideoWithGemini(
   // Prepare the prompt with optional description context
   let prompt = ANALYSIS_PROMPT;
   if (videoDescription) {
-    prompt += `\n\nVideo caption/description from TikTok: "${videoDescription}"`;
+    prompt += `\n\nVideo caption/description: "${videoDescription}"`;
   }
 
   try {
@@ -288,8 +288,8 @@ export async function analyzeWithThumbnail(
 
   const prompt = `${ANALYSIS_PROMPT}
 
-The image is a thumbnail from the TikTok video.
-Video caption/description: "${description}"
+The image is a thumbnail from the source video or post.
+Caption/description: "${description}"
 
 Based on the thumbnail and description, analyze what this content is about.`;
 
@@ -329,16 +329,16 @@ Based on the thumbnail and description, analyze what this content is about.`;
 // Analyze with just description (last resort when no image/video available)
 export async function analyzeWithDescription(
   description: string,
-  tiktokUrl: string
+  sourceUrl: string
 ): Promise<MultiItemAnalysisResult> {
   const ai = getGeminiClient();
 
   const prompt = `${ANALYSIS_PROMPT}
 
-I only have the description/caption from a TikTok video. Please analyze it and categorize the content.
+I only have the description/caption from a saved video or post. Please analyze it and categorize the content.
 
-TikTok URL: ${tiktokUrl}
-Video caption/description: "${description}"
+Source URL: ${sourceUrl}
+Caption/description: "${description}"
 
 Based on this information, determine what category this content belongs to and extract any relevant details you can infer.`;
 
@@ -357,9 +357,9 @@ Based on this information, determine what category this content belongs to and e
       items: [
         {
           category: "other",
-          title: description.slice(0, 50) || "Saved TikTok",
+          title: description.slice(0, 50) || "Saved item",
           data: {
-            description: description || "Content from TikTok",
+            description: description || "Saved content",
           },
         },
       ],

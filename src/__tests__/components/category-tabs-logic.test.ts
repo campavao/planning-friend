@@ -9,38 +9,21 @@ import {
   getCounts,
   toggleTag,
 } from "@/components/category-tabs";
-import type { ContentCategory } from "@/lib/db/types";
+import type { ContentWithTags } from "@/lib/db/types";
 
-interface TagLike {
-  id: string;
-  name: string;
-}
-
-interface ContentItem {
-  id: string;
-  category: ContentCategory;
-  title: string;
-  status: string;
-  data: Record<string, unknown>;
-  user_id: string;
-  created_at: string;
-  updated_at: string;
-  tags?: TagLike[];
-  [key: string]: unknown;
-}
-
-// Test data
-const testContent: ContentItem[] = [
-  { id: "1", category: "meal", title: "t", status: "completed", data: {}, user_id: "u", created_at: "", updated_at: "", tags: [{ id: "t1", name: "quick" }, { id: "t2", name: "dinner" }] },
-  { id: "2", category: "meal", title: "t", status: "completed", data: {}, user_id: "u", created_at: "", updated_at: "", tags: [{ id: "t2", name: "dinner" }, { id: "t3", name: "healthy" }] },
-  { id: "3", category: "drink", title: "t", status: "completed", data: {}, user_id: "u", created_at: "", updated_at: "", tags: [{ id: "t1", name: "quick" }] },
-  { id: "4", category: "event", title: "t", status: "completed", data: {}, user_id: "u", created_at: "", updated_at: "", tags: [] },
-  { id: "5", category: "date_idea", title: "t", status: "completed", data: {}, user_id: "u", created_at: "", updated_at: "", tags: [{ id: "t4", name: "romantic" }] },
-  { id: "6", category: "gift_idea", title: "t", status: "completed", data: {}, user_id: "u", created_at: "", updated_at: "" },
-  { id: "7", category: "travel", title: "t", status: "completed", data: {}, user_id: "u", created_at: "", updated_at: "", tags: [{ id: "t5", name: "budget" }] },
-  { id: "8", category: "other", title: "t", status: "completed", data: {}, user_id: "u", created_at: "", updated_at: "" },
-  { id: "9", category: "meal", title: "t", status: "completed", data: {}, user_id: "u", created_at: "", updated_at: "", tags: [{ id: "t3", name: "healthy" }] },
-];
+// Minimal fixtures cast to the real ContentWithTags shape; only the fields the
+// filtering/counting logic reads (category, status, tags[].name) matter here.
+const testContent = [
+  { id: "1", tiktok_url: "", category: "meal", title: "t", status: "completed", data: {}, user_id: "u", created_at: "", updated_at: "", tags: [{ id: "t1", name: "quick" }, { id: "t2", name: "dinner" }] },
+  { id: "2", tiktok_url: "", category: "meal", title: "t", status: "completed", data: {}, user_id: "u", created_at: "", updated_at: "", tags: [{ id: "t2", name: "dinner" }, { id: "t3", name: "healthy" }] },
+  { id: "3", tiktok_url: "", category: "drink", title: "t", status: "completed", data: {}, user_id: "u", created_at: "", updated_at: "", tags: [{ id: "t1", name: "quick" }] },
+  { id: "4", tiktok_url: "", category: "event", title: "t", status: "completed", data: {}, user_id: "u", created_at: "", updated_at: "", tags: [] },
+  { id: "5", tiktok_url: "", category: "date_idea", title: "t", status: "completed", data: {}, user_id: "u", created_at: "", updated_at: "", tags: [{ id: "t4", name: "romantic" }] },
+  { id: "6", tiktok_url: "", category: "gift_idea", title: "t", status: "completed", data: {}, user_id: "u", created_at: "", updated_at: "" },
+  { id: "7", tiktok_url: "", category: "travel", title: "t", status: "completed", data: {}, user_id: "u", created_at: "", updated_at: "", tags: [{ id: "t5", name: "budget" }] },
+  { id: "8", tiktok_url: "", category: "other", title: "t", status: "completed", data: {}, user_id: "u", created_at: "", updated_at: "" },
+  { id: "9", tiktok_url: "", category: "meal", title: "t", status: "completed", data: {}, user_id: "u", created_at: "", updated_at: "", tags: [{ id: "t3", name: "healthy" }] },
+] as unknown as ContentWithTags[];
 
 // ============================================
 // filterByTags
