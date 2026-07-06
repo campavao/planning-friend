@@ -25,62 +25,46 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import useSWR from "swr";
+import { fetcher } from "@/lib/swr-config";
+import { useSession } from "../useSession";
 
 export default function GiftPlannerPage() {
-  const [recipients, setRecipients] = useState<GiftRecipientWithAssignments[]>(
-    []
-  );
-  const [giftIdeas, setGiftIdeas] = useState<Content[]>([]);
-  const [loading, setLoading] = useState(true);
   const [newRecipientName, setNewRecipientName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [assigningTo, setAssigningTo] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showGiven, setShowGiven] = useState(false);
-  const router = useRouter();
 
-  const fetchData = useCallback(async () => {
-    try {
-      const [recipientsRes, giftsRes] = await Promise.all([
-        fetch("/api/gifts/recipients?include=assignments"),
-        fetch("/api/gifts/assignments"),
-      ]);
+  // Session handling (redirect to login if unauthenticated) is consistent
+  // with the rest of the dashboard.
+  const { isLoading: sessionLoading } = useSession();
 
-      if (recipientsRes.status === 401 || giftsRes.status === 401) {
-        router.push("/");
-        return;
-      }
+  const {
+    data: recipientsData,
+    isLoading: recipientsLoading,
+    mutate: mutateRecipients,
+  } = useSWR<{ recipients: GiftRecipientWithAssignments[] }>(
+    "/api/gifts/recipients?include=assignments",
+    fetcher
+  );
+  const { data: giftsData, mutate: mutateGifts } = useSWR<{
+    giftIdeas: Content[];
+  }>("/api/gifts/assignments", fetcher);
 
-      if (recipientsRes.ok) {
-        const recipientsData = await recipientsRes.json();
-        setRecipients(recipientsData.recipients || []);
-      } else {
-        console.warn("Failed to fetch recipients (tables may not exist yet)");
-        setRecipients([]);
-      }
+  const recipients = recipientsData?.recipients ?? [];
+  const giftIdeas = giftsData?.giftIdeas ?? [];
 
-      if (giftsRes.ok) {
-        const giftsData = await giftsRes.json();
-        setGiftIdeas(giftsData.giftIdeas || []);
-      } else {
-        console.warn("Failed to fetch gift ideas");
-        setGiftIdeas([]);
-      }
-    } catch (error) {
-      console.error("Failed to fetch data:", error);
-      setRecipients([]);
-      setGiftIdeas([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [router]);
+  // Refresh both lists after a mutation (the SWR equivalent of the old
+  // fetchData() re-fetch).
+  const refresh = useCallback(() => {
+    mutateRecipients();
+    mutateGifts();
+  }, [mutateRecipients, mutateGifts]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const loading = sessionLoading || (recipientsLoading && !recipientsData);
 
   const addRecipient = async () => {
     if (!newRecipientName.trim()) return;
@@ -94,7 +78,7 @@ export default function GiftPlannerPage() {
 
       if (res.ok) {
         setNewRecipientName("");
-        fetchData();
+        refresh();
       }
     } catch (error) {
       console.error("Failed to add recipient:", error);
@@ -114,7 +98,7 @@ export default function GiftPlannerPage() {
       if (res.ok) {
         setEditingId(null);
         setEditName("");
-        fetchData();
+        refresh();
       }
     } catch (error) {
       console.error("Failed to update recipient:", error);
@@ -131,7 +115,7 @@ export default function GiftPlannerPage() {
       });
 
       if (res.ok) {
-        fetchData();
+        refresh();
       }
     } catch (error) {
       console.error("Failed to delete recipient:", error);
@@ -149,7 +133,7 @@ export default function GiftPlannerPage() {
       if (res.ok) {
         setAssigningTo(null);
         setSearchQuery("");
-        fetchData();
+        refresh();
       }
     } catch (error) {
       console.error("Failed to assign gift:", error);
@@ -163,7 +147,7 @@ export default function GiftPlannerPage() {
       });
 
       if (res.ok) {
-        fetchData();
+        refresh();
       }
     } catch (error) {
       console.error("Failed to remove assignment:", error);
@@ -179,7 +163,7 @@ export default function GiftPlannerPage() {
       });
 
       if (res.ok) {
-        fetchData();
+        refresh();
       }
     } catch (error) {
       console.error("Failed to toggle gift given status:", error);

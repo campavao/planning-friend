@@ -12,12 +12,13 @@ import {
   Smartphone,
   Star,
   Trash2,
-  User,
   Users,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import useSWR from "swr";
+import { fetcher } from "@/lib/swr-config";
+import { useSession } from "../useSession";
 
 // Type for Contact Picker API
 interface ContactInfo {
@@ -38,8 +39,6 @@ declare global {
 }
 
 export default function FriendsPage() {
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddManual, setShowAddManual] = useState(false);
   const [newFriendName, setNewFriendName] = useState("");
@@ -48,32 +47,25 @@ export default function FriendsPage() {
   const [importingContacts, setImportingContacts] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
-  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const fetchFriends = useCallback(async () => {
-    try {
-      const res = await fetch("/api/friends");
+  // Session handling (redirect to login if unauthenticated) matches the rest
+  // of the dashboard.
+  const { isLoading: sessionLoading } = useSession();
 
-      if (res.status === 401) {
-        router.push("/");
-        return;
-      }
+  const {
+    data,
+    isLoading: friendsLoading,
+    mutate,
+  } = useSWR<{ friends: Friend[] }>("/api/friends", fetcher);
 
-      if (res.ok) {
-        const data = await res.json();
-        setFriends(data.friends || []);
-      }
-    } catch (error) {
-      console.error("Failed to fetch friends:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [router]);
+  const friends = data?.friends ?? [];
+  const loading = sessionLoading || (friendsLoading && !data);
 
-  useEffect(() => {
-    fetchFriends();
-  }, [fetchFriends]);
+  // Re-fetch the list after a mutation.
+  const fetchFriends = useCallback(() => {
+    mutate();
+  }, [mutate]);
 
   // Parse vCard file content
   const parseVCard = (
