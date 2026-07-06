@@ -656,12 +656,3 @@ Return as JSON with this format:
     };
   }
 }
-
-// Legacy function for backwards compatibility - returns first item only
-export async function analyzeSingleItem(
-  videoBase64: string,
-  videoDescription?: string
-): Promise<AnalysisResult> {
-  const result = await analyzeVideoWithGemini(videoBase64, videoDescription);
-  return result.items[0];
-}

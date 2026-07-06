@@ -92,29 +92,6 @@ interface ContentCardProps {
   tags?: Tag[];
 }
 
-// Tag display component for cards
-function CardTags({ tags }: { tags?: Tag[] }) {
-  if (!tags || tags.length === 0) return null;
-
-  return (
-    <div className="flex flex-wrap gap-1.5 mt-2">
-      {tags.slice(0, 2).map((tag) => (
-        <span
-          key={tag.id}
-          className="text-[10px] px-2 py-0.5 bg-[var(--accent-light)] text-[var(--accent-foreground)] rounded-full font-medium"
-        >
-          {tag.name}
-        </span>
-      ))}
-      {tags.length > 2 && (
-        <span className="text-[10px] text-muted-foreground">
-          +{tags.length - 2}
-        </span>
-      )}
-    </div>
-  );
-}
-
 function ProcessingCard({
   content,
   index = 0,

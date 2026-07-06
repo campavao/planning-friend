@@ -9,6 +9,7 @@ import {
 import { createServerClient } from "@/lib/db/client";
 import { parseDateString } from "@/lib/utils";
 import { requireSession } from "@/lib/auth";
+import { updatePlanItemBodySchema } from "@/lib/schemas/planner";
 import { bustForPlanItem } from "@/lib/db/suggestions";
 
 const forbidden = () =>
@@ -78,12 +79,14 @@ export async function PUT(request: NextRequest) {
     const { session, errorResponse } = await requireSession(request);
     if (errorResponse) return errorResponse;
 
-    const body = await request.json();
-    const { id, contentId, noteTitle, notes, plannedDate } = body;
-
-    if (!id) {
-      return NextResponse.json({ error: "Missing item ID" }, { status: 400 });
+    const parsed = updatePlanItemBodySchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message ?? "Invalid request" },
+        { status: 400 },
+      );
     }
+    const { id, contentId, noteTitle, notes, plannedDate } = parsed.data;
 
     if (!(await userOwnsPlanItem(id, session.userId))) {
       return forbidden();
@@ -92,18 +95,6 @@ export async function PUT(request: NextRequest) {
     // If reassigning to a piece of content, it must be the caller's own.
     if (contentId && !(await userOwnsContent(contentId, session.userId))) {
       return forbidden();
-    }
-    if (!plannedDate) {
-      return NextResponse.json(
-        { error: "plannedDate is required" },
-        { status: 400 },
-      );
-    }
-    if (!contentId && !noteTitle) {
-      return NextResponse.json(
-        { error: "Either contentId or noteTitle is required" },
-        { status: 400 },
-      );
     }
 
     const updates = contentId

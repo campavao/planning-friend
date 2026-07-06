@@ -16,6 +16,7 @@ import {
 } from "@/lib/supabase";
 import { parseDateString } from "@/lib/utils";
 import { requireSession } from "@/lib/auth";
+import { addPlanItemBodySchema } from "@/lib/schemas/planner";
 import {
   getOrComputeSuggestions,
   type ThisWeekItemRef,
@@ -188,25 +189,19 @@ export async function POST(request: NextRequest) {
     const { session, errorResponse } = await requireSession(request);
     if (errorResponse) return errorResponse;
 
-    const body = await request.json();
-    const {
-      weekStart,
-      contentId,
-      noteTitle,
-      dayOfWeek,
-      notes,
-      plannedDate,
-      source,
-    } = body;
-
-    if (!contentId && !noteTitle) {
+    const rawBody = await request.json();
+    const parsed = addPlanItemBodySchema.safeParse(rawBody);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Either contentId or noteTitle is required" },
+        { error: parsed.error.issues[0]?.message ?? "Invalid request" },
         { status: 400 },
       );
     }
+    const { weekStart, contentId, noteTitle, dayOfWeek, notes, plannedDate } =
+      parsed.data;
+    const source = rawBody.source;
 
-    let resolvedPlannedDate: string | undefined = plannedDate;
+    let resolvedPlannedDate: string | undefined = plannedDate ?? undefined;
     if (!resolvedPlannedDate && dayOfWeek !== undefined) {
       const plannedDateObj = parseDateString(weekStart || getWeekStart());
       plannedDateObj.setDate(plannedDateObj.getDate() + dayOfWeek);
@@ -232,9 +227,9 @@ export async function POST(request: NextRequest) {
         : undefined;
 
     const item = await addPlanItem(plan.id, {
-      contentId,
-      noteTitle,
-      notes,
+      contentId: contentId ?? undefined,
+      noteTitle: noteTitle ?? undefined,
+      notes: notes ?? undefined,
       plannedDate: resolvedPlannedDate,
       source: validSource,
     });
