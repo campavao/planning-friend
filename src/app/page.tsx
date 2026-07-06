@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSWRConfig } from "swr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AddContactButton } from "@/components/add-contact-button";
@@ -16,6 +17,7 @@ export default function Home() {
   const [error, setError] = useState("");
   const [checkingSession, setCheckingSession] = useState(true);
   const router = useRouter();
+  const { mutate } = useSWRConfig();
 
   // Check if already logged in
   useEffect(() => {
@@ -24,6 +26,9 @@ export default function Home() {
         const res = await fetch("/api/auth/session");
         const data = await res.json();
         if (data.authenticated) {
+          // Seed the SWR session cache so the dashboard doesn't redirect
+          // back here based on a stale cached "unauthenticated" entry
+          await mutate("/api/auth/session", data, { revalidate: false });
           router.push("/dashboard");
         }
       } catch {
@@ -33,7 +38,7 @@ export default function Home() {
       }
     }
     checkSession();
-  }, [router]);
+  }, [router, mutate]);
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhoneNumber(e.target.value);
@@ -84,6 +89,18 @@ export default function Home() {
       if (!res.ok) {
         throw new Error(data.error || "Invalid code");
       }
+
+      // Seed the SWR session cache with the fresh login before navigating.
+      // Without this the dashboard can read a stale "unauthenticated" entry
+      // and bounce back to the login page instead of redirecting.
+      await mutate(
+        "/api/auth/session",
+        {
+          authenticated: true,
+          user: { id: data.user.id, phoneNumber: data.user.phoneNumber },
+        },
+        { revalidate: false }
+      );
 
       router.push("/dashboard");
     } catch (err) {

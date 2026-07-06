@@ -18,6 +18,16 @@ export function isPublicApiPath(pathname: string): boolean {
   return PUBLIC_API_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }
 
+// Content detail pages (/dashboard/<uuid>) are publicly viewable so extracted
+// content can be shared by link. Editing is still enforced server-side by the
+// content API's ownership checks.
+const CONTENT_DETAIL_PATH =
+  /^\/dashboard\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+export function isPublicContentPath(pathname: string): boolean {
+  return CONTENT_DETAIL_PATH.test(pathname);
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -28,6 +38,9 @@ export async function middleware(request: NextRequest) {
       ? await getSessionFromCookieValue(sessionCookie.value)
       : null;
     if (!session) {
+      if (isPublicContentPath(pathname)) {
+        return NextResponse.next();
+      }
       const loginUrl = new URL("/", request.url);
       return NextResponse.redirect(loginUrl);
     }

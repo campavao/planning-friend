@@ -2,7 +2,7 @@
 
 import { Calendar, Gift, Home, Settings, Users } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 export const NAV_ITEMS = [
@@ -24,17 +24,37 @@ export function isNavItemActive(itemHref: string, pathname: string): boolean {
 
 export function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
 
-  // Save current tab to localStorage for persistence across app restarts
+  // Tab persistence lives entirely here (root layout) so the "session
+  // active" flag and the "restore last tab" redirect can't race each other
+  // across components:
+  // - The first dashboard page seen in this browsing session marks the
+  //   session active, from ANY dashboard page — reopening the app directly
+  //   on e.g. /dashboard/planner must stop a later tap on Home from
+  //   rubberbanding back to the planner.
+  // - Only a true fresh open landing on Home restores the remembered tab.
   useEffect(() => {
-    if (pathname && TAB_PATHS.has(pathname)) {
-      try {
-        localStorage.setItem("lastTab", pathname);
-      } catch {
-        // Ignore storage errors
+    if (!pathname?.startsWith("/dashboard")) return;
+    try {
+      if (!sessionStorage.getItem("sessionActive")) {
+        sessionStorage.setItem("sessionActive", "true");
+        if (pathname === "/dashboard") {
+          const lastTab = localStorage.getItem("lastTab");
+          if (lastTab && lastTab !== "/dashboard" && TAB_PATHS.has(lastTab)) {
+            router.replace(lastTab);
+            // Keep the remembered tab; don't overwrite it with /dashboard
+            return;
+          }
+        }
       }
+      if (TAB_PATHS.has(pathname)) {
+        localStorage.setItem("lastTab", pathname);
+      }
+    } catch {
+      // Ignore storage errors
     }
-  }, [pathname]);
+  }, [pathname, router]);
 
   // Don't show on login page
   if (pathname === "/") return null;

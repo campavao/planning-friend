@@ -1,11 +1,16 @@
 "use client";
 
-import { ReactNode, useSyncExternalStore } from "react";
+import { ReactNode, useEffect, useLayoutEffect } from "react";
 import type { Cache, State } from "swr";
-import { SWRConfig } from "swr";
+import { SWRConfig, useSWRConfig } from "swr";
 
 const CACHE_KEY = "planning-friend-cache";
-const CACHE_VERSION = "v1";
+// v2: entries are persisted as { data } only (no error/loading flags) and
+// auth keys are never persisted. Bumping the version discards old caches
+// that contain stale auth state or transient flags.
+const CACHE_VERSION = "v2";
+const STORAGE_KEY = `${CACHE_KEY}-${CACHE_VERSION}`;
+const LEGACY_STORAGE_KEYS = [`${CACHE_KEY}-v1`];
 
 // SWR's internal state type for cache entries
 type SWRCacheState = State<unknown, unknown>;
@@ -22,97 +27,101 @@ export async function fetcher<T>(url: string): Promise<T> {
   return res.json();
 }
 
-// Create a localStorage-backed cache provider
-// Returns a Cache-compatible object that persists to localStorage
+// Auth/session state must never be served from persistent storage: a stale
+// "unauthenticated" entry bounces logged-in users back to the login page,
+// and a stale "authenticated" entry does the reverse.
+function isPersistableKey(key: string): boolean {
+  return !key.includes("/api/auth/");
+}
+
+// Single cache map for the lifetime of the page. SWR's initial revalidation
+// runs exactly once per hook (a layout effect keyed on the request key), so
+// the cache instance must NEVER be swapped after mount — a swap strands
+// in-flight requests in the old cache and the hooks never refetch, leaving
+// pages stuck loading or flashing between caches.
+const cacheMap = new Map<string, SWRCacheState>();
+
 function localStorageProvider(): Cache<SWRCacheState> {
-  // Initialize from localStorage
-  const map = new Map<string, SWRCacheState>();
+  // Type assertion needed due to SWR's complex recursive Cache generics
+  return cacheMap as unknown as Cache<SWRCacheState>;
+}
 
+function readPersistedEntries(): [string, unknown][] {
   try {
-    const stored = localStorage.getItem(`${CACHE_KEY}-${CACHE_VERSION}`);
-    if (stored) {
-      const entries = JSON.parse(stored) as [string, SWRCacheState][];
-      entries.forEach(([key, value]) => {
-        map.set(key, value);
-      });
-    }
+    LEGACY_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return [];
+    const entries = JSON.parse(stored) as [string, SWRCacheState][];
+    return entries
+      .filter(
+        ([key, value]) =>
+          key && isPersistableKey(key) && value?.data !== undefined
+      )
+      // Restore data only — never transient flags or errors, otherwise a
+      // hook can wake up permanently "loading" or showing a stale error.
+      .map(([key, value]) => [key, value.data]);
   } catch {
-    // Ignore parse errors
+    return [];
   }
+}
 
-  // Save to localStorage
-  const saveCache = () => {
-    try {
-      const entries = Array.from(map.entries()).filter(([key, value]) => {
-        // Only cache valid entries
-        return key && value !== undefined;
-      });
-      localStorage.setItem(
-        `${CACHE_KEY}-${CACHE_VERSION}`,
-        JSON.stringify(entries)
-      );
-    } catch (e) {
-      console.warn("Failed to save SWR cache to localStorage:", e);
+function saveCache() {
+  try {
+    const entries = Array.from(cacheMap.entries())
+      .filter(([key, value]) => {
+        return key && isPersistableKey(key) && value?.data !== undefined;
+      })
+      .map(([key, value]) => [key, { data: value.data }]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  } catch (e) {
+    console.warn("Failed to save SWR cache to localStorage:", e);
+  }
+}
+
+// Module-level so StrictMode double-mounts can't hydrate twice or stack up
+// persistence listeners/intervals.
+let hydrationDone = false;
+
+const useIsomorphicLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
+
+// Rendered as the FIRST child of SWRConfig so its layout effect runs before
+// any data hook starts its initial request. It injects the persisted cache
+// through mutate() — after hydration, so the first render matches the server
+// HTML — and every mounted hook still revalidates in the background
+// (classic stale-while-revalidate).
+function CacheHydrator() {
+  const { mutate } = useSWRConfig();
+
+  useIsomorphicLayoutEffect(() => {
+    if (hydrationDone || typeof window === "undefined") return;
+    hydrationDone = true;
+
+    for (const [key, data] of readPersistedEntries()) {
+      mutate(key, data, { revalidate: false });
     }
-  };
 
-  // Save before page unload
-  if (typeof window !== "undefined") {
     window.addEventListener("beforeunload", saveCache);
-
-    // Also save periodically to handle mobile app backgrounding
-    setInterval(saveCache, 30000); // Every 30 seconds
-
+    setInterval(saveCache, 30000);
     // Save when app is backgrounded (important for mobile PWA)
     window.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") {
         saveCache();
       }
     });
-  }
+  }, [mutate]);
 
-  // Return a Cache-compatible object using type assertion
-  // This is necessary because SWR's Cache interface has recursive generics
-  // that don't play well with localStorage's serialization
-  return map as unknown as Cache<SWRCacheState>;
+  return null;
 }
 
 interface SWRProviderProps {
   children: ReactNode;
 }
 
-// Use useSyncExternalStore for hydration-safe mounting detection
-function useIsMounted() {
-  return useSyncExternalStore(
-    () => () => {}, // subscribe (no-op)
-    () => true, // getSnapshot (client)
-    () => false // getServerSnapshot (server)
-  );
-}
-
 export function SWRProvider({ children }: SWRProviderProps) {
-  const isMounted = useIsMounted();
-
-  // Don't use localStorage provider during SSR
-  if (!isMounted) {
-    return (
-      <SWRConfig
-        value={{
-          fetcher,
-          revalidateOnFocus: true,
-          revalidateOnReconnect: true,
-          dedupingInterval: 2000,
-        }}
-      >
-        {children}
-      </SWRConfig>
-    );
-  }
-
   return (
     <SWRConfig
       value={{
-        // Type assertion needed due to SWR's complex recursive Cache generics
         provider: localStorageProvider as unknown as () => Cache<SWRCacheState>,
         fetcher,
         revalidateOnFocus: true,
@@ -125,6 +134,7 @@ export function SWRProvider({ children }: SWRProviderProps) {
         errorRetryInterval: 5000,
       }}
     >
+      <CacheHydrator />
       {children}
     </SWRConfig>
   );
@@ -133,8 +143,12 @@ export function SWRProvider({ children }: SWRProviderProps) {
 // Helper to clear the cache (useful for logout)
 export function clearSWRCache() {
   try {
-    localStorage.removeItem(`${CACHE_KEY}-${CACHE_VERSION}`);
+    localStorage.removeItem(STORAGE_KEY);
+    LEGACY_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
   } catch {
     // Ignore errors
   }
+  // Also clear the in-memory cache so the next account on this device
+  // doesn't briefly see the previous account's data.
+  cacheMap.clear();
 }

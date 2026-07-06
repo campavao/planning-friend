@@ -42,6 +42,8 @@ export function useContent({ enabled = true }: UseContentOptions = {}) {
 interface SingleContentResponse {
   content: ContentWithTags;
   tags: Tag[];
+  isOwner?: boolean;
+  ownerName?: string | null;
 }
 
 export function useContentById(
@@ -61,6 +63,8 @@ export function useContentById(
   return {
     content: data?.content ?? null,
     tags: data?.tags ?? [],
+    isOwner: data?.isOwner ?? false,
+    ownerName: data?.ownerName ?? null,
     isLoading,
     isValidating,
     error,

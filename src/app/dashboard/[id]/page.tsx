@@ -16,6 +16,7 @@ import type {
 } from "@/lib/supabase";
 import {
   ArrowLeft,
+  BookmarkPlus,
   Calendar,
   ChevronDown,
   Clock,
@@ -29,6 +30,7 @@ import {
   Pin,
   Plane,
   RefreshCw,
+  Share2,
   ShoppingCart,
   Trash2,
   Utensils,
@@ -85,7 +87,11 @@ function getSourceLinkText(url: string): string | null {
 }
 
 export default function ContentDetailPage() {
-  const { user, isLoading: sessionLoading } = useSession();
+  // Content detail is publicly viewable (shareable by link); editing and
+  // copying still require a signed-in user.
+  const { user, isLoading: sessionLoading } = useSession({
+    allowUnauthenticated: true,
+  });
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
@@ -94,9 +100,10 @@ export default function ContentDetailPage() {
   const {
     content,
     tags,
+    ownerName,
     isLoading: contentLoading,
     mutate: mutateContent,
-  } = useContentById(id, { enabled: !!user });
+  } = useContentById(id);
 
   const { tags: allTags, mutate: mutateTags } = useTags({ enabled: !!user });
 
@@ -106,13 +113,16 @@ export default function ContentDetailPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [copying, setCopying] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
   const [retryFeedback, setRetryFeedback] = useState<{
     type: "success" | "error";
     message: string;
   } | null>(null);
 
-  const isEditable = content?.user_id === user?.id;
-  const loading = sessionLoading || (!!user && contentLoading && !content);
+  const isEditable = !!user && content?.user_id === user.id;
+  const loading = sessionLoading || (contentLoading && !content);
 
   useEffect(() => {
     if (content) {
@@ -122,6 +132,12 @@ export default function ContentDetailPage() {
   }, [content]);
 
   const handleBack = useCallback(() => {
+    // Logged-out visitors (viewing a shared link) can't access the dashboard
+    if (!user) {
+      router.push("/");
+      return;
+    }
+
     const from = searchParams.get("from");
     const week = searchParams.get("week");
 
@@ -130,7 +146,41 @@ export default function ContentDetailPage() {
     } else {
       router.push("/dashboard");
     }
-  }, [router, searchParams]);
+  }, [router, searchParams, user]);
+
+  const handleShare = useCallback(async () => {
+    const url = `${window.location.origin}/dashboard/${id}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: content?.title, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      // User cancelled the share sheet or clipboard was unavailable
+    }
+  }, [id, content?.title]);
+
+  const handleCopyToCollection = async () => {
+    setCopying(true);
+    setCopyError(null);
+    try {
+      const res = await fetch(`/api/content/${id}/copy`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to save a copy");
+      }
+      router.push(`/dashboard/${data.content.id}`);
+    } catch (error) {
+      setCopyError(
+        error instanceof Error ? error.message : "Something went wrong"
+      );
+    } finally {
+      setCopying(false);
+    }
+  };
 
   const handleAddTag = async (name: string) => {
     try {
@@ -291,6 +341,21 @@ export default function ContentDetailPage() {
             Back
           </Button>
           <div className="flex gap-2">
+            {content.status === "completed" && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleShare}
+                className="btn-ghost"
+                title="Share"
+              >
+                {linkCopied ? (
+                  <Check className="w-4 h-4 text-green-600" />
+                ) : (
+                  <Share2 className="w-4 h-4" />
+                )}
+              </Button>
+            )}
             {content.status === "completed" && isEditable && (
               <>
                 <Button
@@ -376,6 +441,44 @@ export default function ContentDetailPage() {
                 Delete
               </Button>
             </div>
+          </div>
+        )}
+
+        {/* Shared item banner — anyone can view, only the owner can edit */}
+        {!isEditable && content.status === "completed" && (
+          <div className="card-elevated p-4 mb-6 animate-slide-up">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="font-semibold">
+                  {ownerName ? `Shared by ${ownerName}` : "Shared item"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {user
+                    ? "Save a copy to your collection to edit it"
+                    : "Sign in to save it to your own collection"}
+                </p>
+              </div>
+              {user ? (
+                <Button
+                  onClick={handleCopyToCollection}
+                  disabled={copying}
+                  className="btn-primary"
+                >
+                  <BookmarkPlus className="w-4 h-4 mr-2" />
+                  {copying ? "Saving..." : "Save to my collection"}
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => router.push("/")}
+                  className="btn-primary"
+                >
+                  Sign In
+                </Button>
+              )}
+            </div>
+            {copyError && (
+              <p className="text-destructive text-sm mt-2">{copyError}</p>
+            )}
           </div>
         )}
 
