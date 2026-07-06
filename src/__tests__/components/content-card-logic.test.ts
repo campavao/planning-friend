@@ -3,7 +3,8 @@
  * Imports real functions — no duplicated logic
  */
 
-import { getGoogleMapsUrl, CATEGORY_LABELS } from "@/components/content-card";
+import { getGoogleMapsUrl } from "@/components/content-card";
+import { CATEGORY_UI } from "@/lib/categories";
 import type { ContentCategory } from "@/lib/db/types";
 
 // ============================================
@@ -43,7 +44,7 @@ describe("getGoogleMapsUrl (content-card)", () => {
 // ============================================
 // CATEGORY_LABELS
 // ============================================
-describe("CATEGORY_LABELS", () => {
+describe("category labels", () => {
   it("has entries for all content categories", () => {
     const categories: ContentCategory[] = [
       "meal",
@@ -55,16 +56,16 @@ describe("CATEGORY_LABELS", () => {
       "other",
     ];
     for (const cat of categories) {
-      expect(CATEGORY_LABELS[cat]).toBeDefined();
-      expect(CATEGORY_LABELS[cat].length).toBeGreaterThan(0);
+      expect(CATEGORY_UI[cat]).toBeDefined();
+      expect(CATEGORY_UI[cat].label.length).toBeGreaterThan(0);
     }
   });
 
   it("has human-friendly labels", () => {
-    expect(CATEGORY_LABELS.meal).toBe("Recipe");
-    expect(CATEGORY_LABELS.date_idea).toBe("Date");
-    expect(CATEGORY_LABELS.gift_idea).toBe("Gift");
-    expect(CATEGORY_LABELS.other).toBe("Saved");
+    expect(CATEGORY_UI.meal.label).toBe("Recipe");
+    expect(CATEGORY_UI.date_idea.label).toBe("Date");
+    expect(CATEGORY_UI.gift_idea.label).toBe("Gift");
+    expect(CATEGORY_UI.other.label).toBe("Saved");
   });
 });
 

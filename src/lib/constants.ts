@@ -38,28 +38,25 @@ export const DEFAULT_TAGS = [
   "no-cook",
 ];
 
-// Category configuration
+// Category configuration — the single source of truth for a category's
+// emoji, display label, and badge class. UI icon/color tokens derive from
+// this in src/lib/categories.tsx. Labels match what the cards and detail
+// view show, so a category reads the same in the UI and in notifications.
 export const CATEGORY_CONFIG: Record<
   string,
   { emoji: string; label: string; color: string }
 > = {
-  meal: { emoji: "🍽️", label: "Meal", color: "badge-meal" },
+  meal: { emoji: "🍽️", label: "Recipe", color: "badge-meal" },
   drink: { emoji: "🍹", label: "Drink", color: "badge-drink" },
   event: { emoji: "🎉", label: "Event", color: "badge-event" },
-  date_idea: { emoji: "💕", label: "Date Idea", color: "badge-date_idea" },
-  gift_idea: { emoji: "🎁", label: "Gift Idea", color: "badge-gift_idea" },
+  date_idea: { emoji: "💕", label: "Date", color: "badge-date_idea" },
+  gift_idea: { emoji: "🎁", label: "Gift", color: "badge-gift_idea" },
   travel: { emoji: "✈️", label: "Travel", color: "badge-travel" },
   other: { emoji: "📌", label: "Saved", color: "badge-other" },
 };
 
-// Category emojis for quick lookup
-export const CATEGORY_EMOJI: Record<string, string> = {
-  meal: "🍽️",
-  drink: "🍹",
-  event: "🎉",
-  date_idea: "💕",
-  gift_idea: "🎁",
-  travel: "✈️",
-  other: "📌",
-};
+// Emoji-only lookup for a category (falls back to a sparkle).
+export function categoryEmoji(category: string): string {
+  return CATEGORY_CONFIG[category]?.emoji ?? "✨";
+}
 

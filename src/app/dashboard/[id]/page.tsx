@@ -20,20 +20,16 @@ import {
   Calendar,
   ChevronDown,
   Clock,
-  Coffee,
   ExternalLink,
   Gift,
-  Heart,
   Loader2,
   MapPin,
   Pencil,
-  Pin,
   Plane,
   RefreshCw,
   Share2,
   ShoppingCart,
   Trash2,
-  Utensils,
   XCircle,
   Check,
 } from "lucide-react";
@@ -41,22 +37,10 @@ import Image from "next/image";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "../useSession";
+import { categoryUI } from "@/lib/categories";
 import { RecipeSteps } from "./components/RecipeSteps";
 import { LocationCard } from "./components/LocationCard";
 
-// Category config
-const CATEGORY_CONFIG: Record<
-  string,
-  { icon: React.ElementType; label: string; color: string; bg: string }
-> = {
-  meal: { icon: Utensils, label: "Recipe", color: "text-[var(--meal)]", bg: "bg-[var(--meal-bg)]" },
-  drink: { icon: Coffee, label: "Drink", color: "text-[var(--drink)]", bg: "bg-[var(--drink-bg)]" },
-  event: { icon: Calendar, label: "Event", color: "text-[var(--event)]", bg: "bg-[var(--event-bg)]" },
-  date_idea: { icon: Heart, label: "Date", color: "text-[var(--date)]", bg: "bg-[var(--date-bg)]" },
-  gift_idea: { icon: Gift, label: "Gift", color: "text-[var(--gift)]", bg: "bg-[var(--gift-bg)]" },
-  travel: { icon: Plane, label: "Travel", color: "text-[var(--travel)]", bg: "bg-[var(--travel-bg)]" },
-  other: { icon: Pin, label: "Saved", color: "text-[var(--other)]", bg: "bg-[var(--other-bg)]" },
-};
 
 // Check if the URL is an image-only placeholder (not a real URL)
 function isImageOnlyContent(url: string): boolean {
@@ -324,7 +308,7 @@ export default function ContentDetailPage() {
     );
   }
 
-  const config = CATEGORY_CONFIG[content.category] || CATEGORY_CONFIG.other;
+  const config = categoryUI(content.category);
   const Icon = config.icon;
 
   return (
@@ -516,7 +500,7 @@ export default function ContentDetailPage() {
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" />
               </div>
             ) : (
-              <span className={`badge ${config.bg} ${config.color}`}>
+              <span className={`badge ${config.bg} ${config.text}`}>
                 <Icon className="w-3.5 h-3.5" />
                 {config.label}
               </span>

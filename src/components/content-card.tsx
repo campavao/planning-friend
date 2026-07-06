@@ -13,53 +13,15 @@ import type {
   TravelData,
 } from "@/lib/supabase";
 import {
-  Calendar,
   Clock,
-  Coffee,
-  Gift,
-  Heart,
   Loader2,
   MapPin,
   Plane,
-  Pin,
-  Utensils,
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-
-// Category icon mapping
-export const CATEGORY_ICONS = {
-  meal: Utensils,
-  drink: Coffee,
-  event: Calendar,
-  date_idea: Heart,
-  gift_idea: Gift,
-  travel: Plane,
-  other: Pin,
-};
-
-// Category labels
-export const CATEGORY_LABELS = {
-  meal: "Recipe",
-  drink: "Drink",
-  event: "Event",
-  date_idea: "Date",
-  gift_idea: "Gift",
-  travel: "Travel",
-  other: "Saved",
-};
-
-// Category colors for backgrounds
-export const CATEGORY_COLORS = {
-  meal: { bg: "bg-[var(--meal-bg)]", text: "text-[var(--meal)]" },
-  drink: { bg: "bg-[var(--drink-bg)]", text: "text-[var(--drink)]" },
-  event: { bg: "bg-[var(--event-bg)]", text: "text-[var(--event)]" },
-  date_idea: { bg: "bg-[var(--date-bg)]", text: "text-[var(--date)]" },
-  gift_idea: { bg: "bg-[var(--gift-bg)]", text: "text-[var(--gift)]" },
-  travel: { bg: "bg-[var(--travel-bg)]", text: "text-[var(--travel)]" },
-  other: { bg: "bg-[var(--other-bg)]", text: "text-[var(--other)]" },
-};
+import { categoryUI } from "@/lib/categories";
 
 // Generate Google Maps URL from location string
 export function getGoogleMapsUrl(location: string): string {
@@ -222,9 +184,10 @@ function ContentCardInner({
   index?: number;
   meta?: React.ReactNode;
 }) {
-  const Icon = CATEGORY_ICONS[content.category as keyof typeof CATEGORY_ICONS] || Pin;
-  const label = CATEGORY_LABELS[content.category as keyof typeof CATEGORY_LABELS] || "Saved";
-  const colors = CATEGORY_COLORS[content.category as keyof typeof CATEGORY_COLORS] || CATEGORY_COLORS.other;
+  const { icon: Icon, label, text: textColor, bg: bgColor } = categoryUI(
+    content.category
+  );
+  const colors = { text: textColor, bg: bgColor };
 
   return (
     <Link href={`/dashboard/${content.id}`}>

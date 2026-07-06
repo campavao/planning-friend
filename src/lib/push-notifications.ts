@@ -1,5 +1,6 @@
 import webpush from "web-push";
 import { createServerClient } from "./supabase";
+import { categoryEmoji } from "./constants";
 
 // Configure web-push with VAPID keys
 // You'll need to set these environment variables:
@@ -194,17 +195,7 @@ export async function notifyContentReady(
   title: string,
   category: string
 ): Promise<void> {
-  const categoryEmojis: Record<string, string> = {
-    meal: "🍽️",
-    drink: "🍹",
-    event: "🎉",
-    date_idea: "💕",
-    gift_idea: "🎁",
-    travel: "✈️",
-    other: "📌",
-  };
-
-  const emoji = categoryEmojis[category] || "✨";
+  const emoji = categoryEmoji(category);
 
   await sendPushNotification(userId, {
     title: `${emoji} Content Saved!`,
