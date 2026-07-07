@@ -1,6 +1,12 @@
 // TikTok video downloader with multiple fallback methods
 // Priority: RapidAPI (paid, best quality) -> oEmbed API (free) -> Page scrape (free)
 
+import { decodeHTMLEntities, followRedirect } from "./scrape";
+
+// Re-exported so existing imports (and tests) that pull decodeHTMLEntities
+// from this module keep working.
+export { decodeHTMLEntities };
+
 export interface TikTokVideoInfo {
   videoUrl?: string;
   thumbnailUrl?: string;
@@ -43,27 +49,7 @@ export function isShortUrl(url: string): boolean {
 
 // Resolve short URLs to full URLs
 async function resolveShortUrl(url: string): Promise<string> {
-  // Check if it's a short URL
-  if (isShortUrl(url)) {
-    try {
-      const response = await fetch(url, {
-        method: "HEAD",
-        redirect: "follow",
-      });
-      return response.url;
-    } catch {
-      // If HEAD fails, try GET
-      try {
-        const response = await fetch(url, {
-          redirect: "follow",
-        });
-        return response.url;
-      } catch {
-        return url;
-      }
-    }
-  }
-  return url;
+  return isShortUrl(url) ? followRedirect(url) : url;
 }
 
 // Extract video ID from TikTok URL
@@ -384,18 +370,6 @@ function tryExtractSigiState(
     console.log("Failed to parse SIGI_STATE:", error);
     return null;
   }
-}
-
-// Helper to decode HTML entities
-export function decodeHTMLEntities(text: string): string {
-  return text
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&#x27;/g, "'")
-    .replace(/&#x2F;/g, "/");
 }
 
 // Main function with fallbacks

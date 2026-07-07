@@ -2,6 +2,9 @@ import { createServerClient } from "./client";
 import type { User } from "./types";
 import { checkVerifyOtp, sendVerifyOtp } from "@/lib/twilio";
 
+// Re-exported so existing imports from the db barrel keep working.
+export { normalizePhoneNumber } from "@/lib/phone";
+
 export async function sendPhoneOtp(phoneNumber: string): Promise<void> {
   await sendVerifyOtp(phoneNumber);
 }
@@ -16,17 +19,6 @@ export async function verifyPhoneOtp(
   };
 }
 
-export function normalizePhoneNumber(phoneNumber: string): string {
-  let normalized = phoneNumber.replace(/[^\d+]/g, "");
-  if (!normalized.startsWith("+")) {
-    if (normalized.length === 10) {
-      normalized = "+1" + normalized;
-    } else if (normalized.length === 11 && normalized.startsWith("1")) {
-      normalized = "+" + normalized;
-    }
-  }
-  return normalized;
-}
 
 export async function getOrCreateUser(phoneNumber: string): Promise<User> {
   const supabase = createServerClient();
@@ -116,58 +108,4 @@ export async function updateUserName(
   }
 
   return data as User;
-}
-
-export async function createVerificationCode(
-  phoneNumber: string
-): Promise<string> {
-  const supabase = createServerClient();
-
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-
-  await supabase
-    .from("verification_codes")
-    .update({ used: true })
-    .eq("phone_number", phoneNumber)
-    .eq("used", false);
-
-  const { error } = await supabase.from("verification_codes").insert({
-    phone_number: phoneNumber,
-    code,
-    expires_at: expiresAt,
-  });
-
-  if (error) {
-    throw new Error(`Failed to create verification code: ${error.message}`);
-  }
-
-  return code;
-}
-
-export async function verifyCode(
-  phoneNumber: string,
-  code: string
-): Promise<boolean> {
-  const supabase = createServerClient();
-
-  const { data, error } = await supabase
-    .from("verification_codes")
-    .select("*")
-    .eq("phone_number", phoneNumber)
-    .eq("code", code)
-    .eq("used", false)
-    .gt("expires_at", new Date().toISOString())
-    .single();
-
-  if (error || !data) {
-    return false;
-  }
-
-  await supabase
-    .from("verification_codes")
-    .update({ used: true })
-    .eq("id", data.id);
-
-  return true;
 }

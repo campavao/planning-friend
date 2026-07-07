@@ -8,8 +8,10 @@ import { AddToHomeScreenButton } from "@/components/add-to-homescreen-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
-import { clearSWRCache } from "@/lib/swr-config";
+import { clearSWRCache, fetcher } from "@/lib/swr-config";
 import { getWeekStartDay, setWeekStartDay } from "@/lib/utils";
+import useSWR from "swr";
+import { useSession } from "../useSession";
 import {
   Bell,
   Calendar,
@@ -23,7 +25,7 @@ import {
   Users,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const WEEK_START_OPTIONS = [
   { value: 0, label: "Sunday" },
@@ -41,11 +43,9 @@ interface UserSettings {
 }
 
 export default function SettingsPage() {
-  const [, setSettings] = useState<UserSettings>({});
   const [homeRegion, setHomeRegion] = useState("");
   const [homeCountry, setHomeCountry] = useState("");
   const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [userName, setUserName] = useState("");
   const [savingName, setSavingName] = useState(false);
@@ -63,42 +63,44 @@ export default function SettingsPage() {
     isSupported,
   } = usePushNotifications();
 
+  const { isLoading: sessionLoading } = useSession();
+
+  // These are edit-in-place forms, so disable focus revalidation — a
+  // background refetch must not overwrite what the user is typing. The fields
+  // are seeded once from the fetched values.
+  const {
+    data: settingsData,
+    isLoading: settingsLoading,
+    mutate: mutateSettings,
+  } = useSWR<{ settings?: UserSettings }>("/api/settings", fetcher, {
+    revalidateOnFocus: false,
+  });
+  const { data: nameData, mutate: mutateName } = useSWR<{ name?: string }>(
+    "/api/users/name",
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+
+  const loading = sessionLoading || (settingsLoading && !settingsData);
+
   useEffect(() => {
     setWeekStartDayValue(getWeekStartDay());
   }, []);
 
+  const seededRef = useRef(false);
   useEffect(() => {
-    async function fetchSettings() {
-      try {
-        const [settingsRes, nameRes] = await Promise.all([
-          fetch("/api/settings"),
-          fetch("/api/users/name"),
-        ]);
+    if (seededRef.current || !settingsData) return;
+    seededRef.current = true;
+    setHomeRegion(settingsData.settings?.home_region || "");
+    setHomeCountry(settingsData.settings?.home_country || "");
+  }, [settingsData]);
 
-        if (settingsRes.status === 401 || nameRes.status === 401) {
-          router.push("/");
-          return;
-        }
-
-        const settingsData = await settingsRes.json();
-        if (settingsData.settings) {
-          setSettings(settingsData.settings);
-          setHomeRegion(settingsData.settings.home_region || "");
-          setHomeCountry(settingsData.settings.home_country || "");
-        }
-
-        const nameData = await nameRes.json();
-        if (nameData.name) {
-          setUserName(nameData.name);
-        }
-      } catch (error) {
-        console.error("Failed to load settings:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchSettings();
-  }, [router]);
+  const nameSeededRef = useRef(false);
+  useEffect(() => {
+    if (nameSeededRef.current || !nameData) return;
+    nameSeededRef.current = true;
+    if (nameData.name) setUserName(nameData.name);
+  }, [nameData]);
 
   const handleWeekStartChange = (value: number) => {
     setWeekStartDayValue(value);
@@ -119,6 +121,7 @@ export default function SettingsPage() {
       });
 
       if (res.ok) {
+        mutateName();
         setNameMessage("Saved!");
         setTimeout(() => setNameMessage(""), 3000);
       } else {
@@ -149,7 +152,7 @@ export default function SettingsPage() {
 
       if (res.ok) {
         const data = await res.json();
-        setSettings(data.settings);
+        mutateSettings({ settings: data.settings }, { revalidate: false });
         setMessage("Saved!");
         setTimeout(() => setMessage(""), 3000);
       }

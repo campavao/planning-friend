@@ -1,7 +1,11 @@
 import { detectPlatform } from "@/lib/social-media";
 import { getContentById, updateContent } from "@/lib/supabase";
 import { after, NextRequest, NextResponse } from "next/server";
-import { requireSession } from "@/lib/auth";
+import {
+  createInternalToken,
+  INTERNAL_TOKEN_HEADER,
+  requireSession,
+} from "@/lib/auth";
 
 function getBaseUrl(request: NextRequest): string {
   if (
@@ -67,6 +71,7 @@ export async function POST(
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            [INTERNAL_TOKEN_HEADER]: await createInternalToken(),
           },
           body: JSON.stringify({
             contentId: content.id,

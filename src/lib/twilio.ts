@@ -1,5 +1,9 @@
 import twilio from "twilio";
 
+// Shared phone normalizer; re-exported so callers importing it from here
+// (e.g. the Twilio webhook) keep working.
+export { normalizePhoneNumber } from "./phone";
+
 // Initialize Twilio client
 export function getTwilioClient() {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -58,34 +62,6 @@ export async function checkVerifyOtp(
     console.error("Twilio Verify check error:", error);
     return { success: false };
   }
-}
-
-// Send SMS message (keeping for potential future use, but note A2P requirements)
-export async function sendSMS(to: string, body: string): Promise<void> {
-  const client = getTwilioClient();
-  const from = process.env.NEXT_PUBLIC_TWILIO_PHONE_NUMBER;
-
-  if (!from) {
-    throw new Error("Missing Twilio phone number");
-  }
-
-  await client.messages.create({
-    body,
-    from,
-    to,
-  });
-}
-
-// Legacy function - now uses Twilio Verify instead
-export async function sendVerificationCode(
-  phoneNumber: string,
-  code: string
-): Promise<void> {
-  // This function is deprecated - use sendVerifyOtp instead
-  // Keeping for backward compatibility but it will use direct SMS
-  // which requires A2P 10DLC registration
-  const message = `Your TikTok Helper verification code is: ${code}. This code expires in 10 minutes.`;
-  await sendSMS(phoneNumber, message);
 }
 
 // Validate Twilio webhook request signature
@@ -194,20 +170,3 @@ export function extractSocialMediaUrl(
   return null;
 }
 
-// Normalize phone number to E.164 format
-export function normalizePhoneNumber(phoneNumber: string): string {
-  // Remove all non-digit characters except +
-  let normalized = phoneNumber.replace(/[^\d+]/g, "");
-
-  // Ensure it starts with +
-  if (!normalized.startsWith("+")) {
-    // Assume US number if no country code
-    if (normalized.length === 10) {
-      normalized = "+1" + normalized;
-    } else if (normalized.length === 11 && normalized.startsWith("1")) {
-      normalized = "+" + normalized;
-    }
-  }
-
-  return normalized;
-}

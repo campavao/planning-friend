@@ -6,24 +6,19 @@ import {
 } from "@/lib/supabase";
 import { cookies } from "next/headers";
 import { createSessionToken } from "@/lib/auth";
+import { verifyBodySchema } from "@/lib/schemas/auth";
 import { SESSION_EXPIRATION_MS, SESSION_EXPIRATION_SECONDS } from "@/lib/constants";
-
-interface VerifyRequest {
-  phoneNumber: string;
-  code: string;
-}
 
 export async function POST(request: NextRequest) {
   try {
-    const body: VerifyRequest = await request.json();
-    const { phoneNumber, code } = body;
-
-    if (!phoneNumber || !code) {
+    const parsed = verifyBodySchema.safeParse(await request.json());
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Phone number and code are required" },
+        { error: parsed.error.issues[0]?.message ?? "Invalid request" },
         { status: 400 }
       );
     }
+    const { phoneNumber, code } = parsed.data;
 
     // Normalize the phone number
     const normalizedPhone = normalizePhoneNumber(phoneNumber);

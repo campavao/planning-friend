@@ -21,6 +21,7 @@ import {
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSession } from "./useSession";
+import { CardGridSkeleton, StatRowSkeleton } from "@/components/Skeletons";
 
 // Initialize tip visibility from localStorage
 function getInitialTipVisibility() {
@@ -154,14 +155,25 @@ export default function Dashboard() {
 
   if (isInitialLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="loading-spinner mx-auto mb-4" />
-          <p className="text-muted-foreground text-sm">
-            Loading your collection...
-          </p>
+      <main className="min-h-screen pb-28 md:pb-8 bg-background">
+        <div className="sticky top-0 z-20 bg-[var(--background)]">
+          <div className="relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary-light)]/20 via-transparent to-[var(--accent)]/10" />
+            <div className="relative max-w-7xl mx-auto px-4 md:px-6 pt-4 pb-3">
+              <h1 className="heading-1">My Collection</h1>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Loading your collection…
+              </p>
+            </div>
+          </div>
         </div>
-      </div>
+        <div className="max-w-7xl mx-auto px-4 md:px-6 pb-4 pt-2">
+          <StatRowSkeleton />
+        </div>
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
+          <CardGridSkeleton />
+        </div>
+      </main>
     );
   }
 

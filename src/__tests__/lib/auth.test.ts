@@ -1,8 +1,10 @@
 import {
+  createInternalToken,
   createSessionToken,
   getSessionFromCookieValue,
   getSessionFromRequest,
   SESSION_HEADERS,
+  verifyInternalToken,
 } from "@/lib/auth";
 import type { SessionData } from "@/lib/auth";
 
@@ -31,6 +33,34 @@ describe("SESSION_HEADERS", () => {
     expect(SESSION_HEADERS.userId).toBe("x-session-user-id");
     expect(SESSION_HEADERS.phoneNumber).toBe("x-session-phone");
     expect(SESSION_HEADERS.exp).toBe("x-session-exp");
+  });
+});
+
+// ============================================
+// internal token (server-to-server auth for /api/process)
+// ============================================
+describe("internal token", () => {
+  it("verifies a token it just created", async () => {
+    const token = await createInternalToken();
+    await expect(verifyInternalToken(token)).resolves.toBe(true);
+  });
+
+  it("rejects a forged / arbitrary token", async () => {
+    await expect(verifyInternalToken("not-the-real-token")).resolves.toBe(
+      false
+    );
+  });
+
+  it("rejects empty or missing tokens", async () => {
+    await expect(verifyInternalToken("")).resolves.toBe(false);
+    await expect(verifyInternalToken(null)).resolves.toBe(false);
+    await expect(verifyInternalToken(undefined)).resolves.toBe(false);
+  });
+
+  it("does not verify a token minted under a different secret", async () => {
+    const token = await createInternalToken();
+    process.env.SESSION_SECRET = "a-completely-different-secret-value";
+    await expect(verifyInternalToken(token)).resolves.toBe(false);
   });
 });
 

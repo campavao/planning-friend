@@ -8,6 +8,7 @@ export * from "./tags";
 export * from "./settings";
 export * from "./friends";
 export * from "./sharing";
+export * from "./ownership";
 export * from "./storage";
 export * from "./grocery-cache";
 

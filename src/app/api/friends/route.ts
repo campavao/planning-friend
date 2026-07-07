@@ -5,6 +5,7 @@ import {
   updateFriend,
   deleteFriend,
   addFriendsFromContacts,
+  userOwnsFriend,
 } from "@/lib/supabase";
 import { requireSession } from "@/lib/auth";
 
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
 // PATCH - Update friend (name or favorite status)
 export async function PATCH(request: NextRequest) {
   try {
-    const { errorResponse } = await requireSession(request);
+    const { session, errorResponse } = await requireSession(request);
     if (errorResponse) return errorResponse;
 
     const { id, name, is_favorite } = await request.json();
@@ -91,6 +92,10 @@ export async function PATCH(request: NextRequest) {
         { error: "Friend ID is required" },
         { status: 400 }
       );
+    }
+
+    if (!(await userOwnsFriend(id, session.userId))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const updates: { name?: string; is_favorite?: boolean } = {};

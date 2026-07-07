@@ -25,7 +25,6 @@ import {
 import html2canvas from "html2canvas";
 import {
   ArrowLeft,
-  ArrowRight,
   Calendar,
   Camera,
   Check,
@@ -33,11 +32,9 @@ import {
   ChevronRight,
   Coffee,
   FileText,
-  Gift,
   Hand,
   Heart,
   Pencil,
-  Pin,
   Plus,
   ShoppingCart,
   Star,
@@ -57,16 +54,7 @@ import {
   useState,
 } from "react";
 import { useSession } from "../useSession";
-
-// Category icon mapping
-const CATEGORY_ICONS: Record<string, React.ElementType> = {
-  meal: Utensils,
-  drink: Coffee,
-  event: Calendar,
-  date_idea: Heart,
-  gift_idea: Gift,
-  other: Pin,
-};
+import { categoryUI } from "@/lib/categories";
 
 // Extended plan item with sharing info from API
 interface PlanItemWithSharing extends PlanItem {
@@ -1236,9 +1224,9 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                             );
                           }
 
-                          const Icon =
-                            CATEGORY_ICONS[item.content?.category || "other"] ||
-                            Pin;
+                          const Icon = categoryUI(
+                            item.content?.category || "other"
+                          ).icon;
 
                           // Content item display (mobile)
                           return (
@@ -1458,9 +1446,9 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                         );
                       }
 
-                      const Icon =
-                        CATEGORY_ICONS[item.content?.category || "other"] ||
-                        Pin;
+                      const Icon = categoryUI(
+                        item.content?.category || "other"
+                      ).icon;
 
                       // Content item (desktop)
                       return (
@@ -1808,7 +1796,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
               {/* Content List */}
               <div className="p-4 space-y-2">
                 {getFilteredContent().map((content: ContentWithTags) => {
-                  const Icon = CATEGORY_ICONS[content.category] || Pin;
+                  const Icon = categoryUI(content.category).icon;
                   return (
                     <button
                       key={content.id}

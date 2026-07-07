@@ -4,6 +4,7 @@ import { Calendar, Gift, Home, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { useTabPrefetch } from "@/hooks/useTabPrefetch";
 
 export const NAV_ITEMS = [
   { href: "/dashboard", icon: Home, label: "Home" },
@@ -25,6 +26,10 @@ export function isNavItemActive(itemHref: string, pathname: string): boolean {
 export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
+
+  // Warm the other tabs' data once we're on the dashboard, so switching tabs
+  // is instant instead of showing a full-screen spinner each time.
+  useTabPrefetch(!!pathname?.startsWith("/dashboard"));
 
   // Tab persistence lives entirely here (root layout) so the "session
   // active" flag and the "restore last tab" redirect can't race each other
