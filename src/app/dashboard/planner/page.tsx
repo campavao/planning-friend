@@ -4,9 +4,12 @@ import { TagFilter } from "@/components/tag-filter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  PLANNER_LIBRARY_KEY,
+  plannerWeekKey,
   usePlanner,
-  type PlannerData,
+  usePlannerLibrary,
   type PlanItemWithSharing,
+  type ShareableFriend,
 } from "@/hooks/usePlanner";
 import type {
   Content,
@@ -88,7 +91,6 @@ interface ItemShareState {
   newFriendPhone: string;
 }
 
-type ShareableFriend = PlannerData["shareableFriends"][number];
 type ContentWithTags = Content & { tags?: Tag[] };
 
 // Grocery list types (from Gemini AI)
@@ -210,7 +212,7 @@ function PlannerContent() {
 
   /** Revalidate the SWR cache for the week containing dateKey. */
   const revalidateWeek = useCallback(
-    (week: string) => globalMutate(`/api/planner?week=${week}`),
+    (week: string) => globalMutate(plannerWeekKey(week)),
     [globalMutate],
   );
   const revalidateDate = useCallback(
@@ -218,8 +220,10 @@ function PlannerContent() {
     [revalidateWeek, weekOf],
   );
 
-  // Week the anchor date belongs to — drives week-independent data
-  // (available content, friends, tags) and the grocery list.
+  // Week-independent data: content library, tags, shareable friends.
+  const { data: library } = usePlannerLibrary({ enabled: !!user });
+
+  // Week the anchor date belongs to — drives the grocery list.
   const anchorWeek = anchorDate ? weekOf(anchorDate) : null;
   const { data } = usePlanner(anchorWeek, {
     enabled: !!user && !!anchorWeek,
@@ -720,11 +724,11 @@ function PlannerContent() {
 
   const contentById = useMemo(() => {
     const map = new Map<string, ContentWithTags>();
-    for (const c of data?.availableContent ?? []) {
+    for (const c of library?.availableContent ?? []) {
       map.set(c.id, c as ContentWithTags);
     }
     return map;
-  }, [data?.availableContent]);
+  }, [library?.availableContent]);
 
   // Auto-dismiss the undo pill after expiration.
   useEffect(() => {
@@ -853,7 +857,8 @@ function PlannerContent() {
     let preSelectedFriendIds: string[] = [];
 
     if (currentlySharedUserIds.length > 0) {
-      const shareableFriends: ShareableFriend[] = data?.shareableFriends || [];
+      const shareableFriends: ShareableFriend[] =
+        library?.shareableFriends || [];
       preSelectedFriendIds =
         shareableFriends
           .filter((f: ShareableFriend) =>
@@ -983,8 +988,8 @@ function PlannerContent() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
 
-      // Refresh shareableFriends (served with the anchor week's payload)
-      if (anchorWeek) revalidateWeek(anchorWeek);
+      // Refresh the shareable-friends list
+      globalMutate(PLANNER_LIBRARY_KEY);
 
       if (result.friend?.linked_user_id) {
         setItemShare((s) => ({
@@ -1033,17 +1038,17 @@ function PlannerContent() {
     searchQuery || categoryFilter !== "all" || selectedTagIds.length > 0;
 
   const getFilteredContent = () => {
+    if (!library?.availableContent) return [];
+
     // keepPreviousData means modalData can briefly belong to another week;
     // only trust its plan items for used-item filtering once it matches.
     const modalReady =
       !!modalData && modalData.plan?.week_start === modalWeek;
-    const source = modalReady ? modalData : data;
-    if (!source?.availableContent) return [];
-
     const planItems: PlanItemWithSharing[] = modalReady
       ? modalData.plan?.items || []
       : [];
-    const availableContent: ContentWithTags[] = source.availableContent || [];
+    const availableContent: ContentWithTags[] =
+      library.availableContent as ContentWithTags[];
     const usedIds = new Set(
       planItems.map((i: PlanItemWithSharing) => i.content_id) || [],
     );
@@ -1341,7 +1346,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
         {/* Empty State */}
-        {data?.availableContent?.length === 0 && (
+        {library?.availableContent?.length === 0 && (
           <div className="card-elevated p-8 mb-6 text-center">
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--muted)] flex items-center justify-center">
               <Calendar className="w-8 h-8 text-muted-foreground" />
@@ -1530,10 +1535,10 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
               </div>
 
               {/* Tag filters */}
-              {data?.allTags && data.allTags.length > 0 && (
+              {library?.allTags && library.allTags.length > 0 && (
                 <div className="px-4 py-3 border-b border-[var(--border)]">
                   <TagFilter
-                    tags={data.allTags}
+                    tags={library.allTags}
                     selectedTags={selectedTagIds}
                     onToggle={toggleTagSelection}
                     onClear={() => setSelectedTagIds([])}
@@ -1876,10 +1881,11 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     Select friends to share this item with.
                   </p>
 
-                  {data?.shareableFriends &&
-                  data.shareableFriends.length > 0 ? (
+                  {library?.shareableFriends &&
+                  library.shareableFriends.length > 0 ? (
                     <>
-                      {data.shareableFriends.map((friend: ShareableFriend) => {
+                      {library.shareableFriends.map(
+                        (friend: ShareableFriend) => {
                         const isSelected = itemShare.selectedFriendIds.includes(
                           friend.id,
                         );

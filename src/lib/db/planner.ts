@@ -543,6 +543,9 @@ export interface PlanItemSearchResult {
   category: ContentCategory | null;
   thumbnail_url: string | null;
   is_note: boolean;
+  content_id: string | null;
+  /** Set when the item was shared with the user by a friend */
+  owner_name?: string;
 }
 
 interface PlanItemSearchRow {
@@ -634,9 +637,110 @@ export async function searchPlanItems(
       category: row.content?.category ?? null,
       thumbnail_url: row.content?.thumbnail_url ?? null,
       is_note: !row.content,
+      content_id: row.content?.id ?? null,
     }))
     .sort((a, b) => b.planned_date.localeCompare(a.planned_date))
     .slice(0, limit);
+}
+
+interface SharedSearchRow {
+  plan_items: {
+    id: string;
+    planned_date: string | null;
+    note_title: string | null;
+    content: {
+      id: string;
+      title: string;
+      category: ContentCategory;
+      thumbnail_url: string | null;
+    } | null;
+  } | null;
+  users: { name?: string | null; phone_number?: string | null } | null;
+}
+
+/**
+ * Search items friends have shared with this user. Item shares are few
+ * per user, so we fetch them all and match titles in JS rather than
+ * fighting nested PostgREST OR-filters.
+ */
+export async function searchSharedPlanItems(
+  userId: string,
+  query: string,
+  limit: number = 20
+): Promise<PlanItemSearchResult[]> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("plan_item_shares")
+    .select(
+      `
+      plan_items!inner (
+        id,
+        planned_date,
+        note_title,
+        content:content_id (id, title, category, thumbnail_url)
+      ),
+      users!plan_item_shares_owner_user_id_fkey (name, phone_number)
+    `
+    )
+    .eq("shared_with_user_id", userId);
+
+  if (error) {
+    throw new Error(`Failed to search shared items: ${error.message}`);
+  }
+
+  const lowered = query.toLowerCase();
+  const results: PlanItemSearchResult[] = [];
+  for (const row of (data ?? []) as unknown as SharedSearchRow[]) {
+    const item = row.plan_items;
+    if (!item?.planned_date) continue;
+    const title = item.content?.title ?? item.note_title ?? "";
+    if (!title.toLowerCase().includes(lowered)) continue;
+    results.push({
+      id: item.id,
+      planned_date: item.planned_date,
+      title: title || "Untitled",
+      category: item.content?.category ?? null,
+      thumbnail_url: item.content?.thumbnail_url ?? null,
+      is_note: !item.content,
+      content_id: item.content?.id ?? null,
+      owner_name:
+        row.users?.name || row.users?.phone_number?.slice(-4) || "Friend",
+    });
+  }
+
+  return results
+    .sort((a, b) => b.planned_date.localeCompare(a.planned_date))
+    .slice(0, limit);
+}
+
+/**
+ * Search the user's saved event content by title. Used to surface
+ * auto-injected events (dated events that were never materialized into
+ * plan items) in planner search; the caller parses each event's date.
+ */
+export async function searchDatedEventContent(
+  userId: string,
+  query: string,
+  limit: number = 20
+): Promise<Content[]> {
+  const supabase = createServerClient();
+  const sanitized = query.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+
+  const { data, error } = await supabase
+    .from("content")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("status", "completed")
+    .eq("category", "event")
+    .ilike("title", `%${sanitized}%`)
+    .limit(limit);
+
+  if (error) {
+    throw new Error(`Failed to search event content: ${error.message}`);
+  }
+
+  return (data ?? []) as Content[];
 }
 
 export async function getPastWeeklyPlans(

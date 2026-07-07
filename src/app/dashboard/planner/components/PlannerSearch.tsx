@@ -34,6 +34,7 @@ interface SearchResult {
   category: ContentCategory | null;
   thumbnail_url: string | null;
   is_note: boolean;
+  owner_name?: string;
 }
 
 interface PlannerSearchProps {
@@ -210,6 +211,11 @@ export function PlannerSearch({ onJump }: PlannerSearchProps) {
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {formatResultDate(dateKey)}
+                      {result.owner_name && (
+                        <span className="ml-1.5 bg-[var(--muted)] px-1.5 py-0.5 rounded-full text-[10px] font-medium">
+                          from {result.owner_name}
+                        </span>
+                      )}
                     </p>
                   </div>
                 </button>
