@@ -3,6 +3,12 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type {
   Content,
@@ -220,7 +226,7 @@ export default function GiftPlannerPage() {
 
       <div className="max-w-4xl mx-auto px-3 md:px-4 py-6">
         {/* Add New Person */}
-        <div className="card-elevated mb-6">
+        <Card className="mb-6">
           <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl">
             <h2 className="font-semibold text-base flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center">
@@ -235,18 +241,18 @@ export default function GiftPlannerPage() {
               value={newRecipientName}
               onChange={(e) => setNewRecipientName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addRecipient()}
-              className="input-modern flex-1"
+              className="flex-1"
             />
-            <Button onClick={addRecipient} className="btn-secondary">
+            <Button onClick={addRecipient} variant="secondary">
               <Gift className="w-4 h-4 mr-2" />
               Add
             </Button>
           </div>
-        </div>
+        </Card>
 
         {/* Recipients List */}
         {recipients.length === 0 ? (
-          <div className="card-elevated p-8 text-center">
+          <Card className="p-8 text-center">
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--accent)]/10 flex items-center justify-center">
               <Gift className="w-8 h-8 text-[var(--accent)]" />
             </div>
@@ -257,7 +263,7 @@ export default function GiftPlannerPage() {
               Add people you want to give gifts to, then assign gift ideas to
               them.
             </p>
-          </div>
+          </Card>
         ) : (
           <div className="space-y-4">
             {/* Show/hide given gifts toggle */}
@@ -265,9 +271,10 @@ export default function GiftPlannerPage() {
               r.assignments.some((a: GiftAssignment) => a.given_at)
             ) && (
               <div className="flex justify-end">
-                <button
+                <Button
+                  variant="ghost"
                   onClick={() => setShowGiven(!showGiven)}
-                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  className="h-auto p-0 gap-1.5 text-sm font-normal text-muted-foreground hover:text-foreground hover:bg-transparent"
                 >
                   {showGiven ? (
                     <EyeOff className="w-4 h-4" />
@@ -275,11 +282,11 @@ export default function GiftPlannerPage() {
                     <Eye className="w-4 h-4" />
                   )}
                   {showGiven ? "Hide" : "Show"} given gifts
-                </button>
+                </Button>
               </div>
             )}
             {recipients.map((recipient) => (
-              <Card key={recipient.id} className="card-elevated overflow-hidden">
+              <Card key={recipient.id} className="overflow-hidden">
                 <CardHeader className="pb-3 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl">
                   <div className="flex items-center justify-between">
                     {editingId === recipient.id ? (
@@ -290,13 +297,12 @@ export default function GiftPlannerPage() {
                           onKeyDown={(e) =>
                             e.key === "Enter" && updateRecipient(recipient.id)
                           }
-                          className="input-modern flex-1"
+                          className="flex-1"
                           autoFocus
                         />
                         <Button
                           size="sm"
                           onClick={() => updateRecipient(recipient.id)}
-                          className="btn-primary"
                         >
                           Save
                         </Button>
@@ -316,7 +322,7 @@ export default function GiftPlannerPage() {
                             <User className="w-4 h-4" />
                           </div>
                           {recipient.name}
-                          <Badge className="badge ml-2 bg-[var(--accent)]/10 text-[var(--accent)]">
+                          <Badge className="ml-2 bg-[var(--accent)]/10 text-[var(--accent)]">
                             {recipient.assignments.length} gift
                             {recipient.assignments.length !== 1 ? "s" : ""}
                           </Badge>
@@ -406,27 +412,31 @@ export default function GiftPlannerPage() {
                                     Amazon
                                   </a>
                                 )}
-                                <button
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
                                   onClick={() =>
                                     toggleGiftGiven(assignment.id, isGiven)
                                   }
-                                  className={`p-1.5 rounded-lg transition-colors ${
+                                  className={
                                     isGiven
-                                      ? "text-[var(--secondary)] bg-[var(--secondary)]/10"
+                                      ? "text-[var(--secondary)] bg-[var(--secondary)]/10 hover:text-[var(--secondary)] hover:bg-[var(--secondary)]/10"
                                       : "text-muted-foreground hover:text-[var(--secondary)] hover:bg-[var(--secondary)]/10"
-                                  }`}
+                                  }
                                   title={isGiven ? "Mark as not given" : "Mark as given"}
                                 >
                                   <Check className="w-4 h-4" />
-                                </button>
-                                <button
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
                                   onClick={() =>
                                     removeAssignment(assignment.id)
                                   }
-                                  className="text-destructive hover:bg-red-50 p-1.5 rounded-lg md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                                  className="text-destructive hover:text-destructive hover:bg-red-50 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                                 >
                                   <X className="w-4 h-4" />
-                                </button>
+                                </Button>
                               </div>
                             </div>
                           );
@@ -436,9 +446,10 @@ export default function GiftPlannerPage() {
                         recipient.assignments.filter(
                           (a: GiftAssignment) => a.given_at
                         ).length > 0 && (
-                          <button
+                          <Button
+                            variant="ghost"
                             onClick={() => setShowGiven(true)}
-                            className="text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-center py-1"
+                            className="h-auto w-full py-1 px-0 text-xs font-normal text-muted-foreground hover:text-foreground hover:bg-transparent"
                           >
                             {
                               recipient.assignments.filter(
@@ -452,7 +463,7 @@ export default function GiftPlannerPage() {
                               ? "s"
                               : ""}{" "}
                             hidden
-                          </button>
+                          </Button>
                         )}
                     </div>
                   )}
@@ -475,33 +486,39 @@ export default function GiftPlannerPage() {
 
         {/* Empty State for Gift Ideas */}
         {giftIdeas.length === 0 && recipients.length > 0 && (
-          <div className="card-elevated p-6 mt-6 text-center">
+          <Card className="p-6 mt-6 text-center">
             <p className="text-sm text-muted-foreground">
               No gift ideas saved yet. Text a TikTok or Instagram with product
               recommendations to save gift ideas!
             </p>
-          </div>
+          </Card>
         )}
       </div>
 
       {/* Assign Gift Modal */}
       {assigningTo !== null && (
-        <div className="fixed inset-0 modal-backdrop z-50 flex items-end md:items-center justify-center p-0 md:p-4">
-          <div className="bg-[var(--card)] w-full md:max-w-lg md:rounded-2xl rounded-t-2xl max-h-[80vh] flex flex-col shadow-xl">
+        <Dialog
+          open
+          onOpenChange={(o) => {
+            if (!o) {
+              setAssigningTo(null);
+              setSearchQuery("");
+            }
+          }}
+        >
+          <DialogContent
+            showCloseButton={false}
+            onInteractOutside={(e) => e.preventDefault()}
+            className="top-auto bottom-0 left-0 translate-x-0 translate-y-0 md:top-[50%] md:bottom-auto md:left-[50%] md:translate-x-[-50%] md:translate-y-[-50%] w-full max-w-full sm:max-w-full md:max-w-lg rounded-t-2xl rounded-b-none md:rounded-b-2xl p-0 gap-0 max-h-[80vh] flex flex-col overflow-hidden"
+          >
             <div className="p-4 border-b border-[var(--border)] flex items-center justify-between bg-gradient-to-r from-[var(--accent)] to-[var(--accent-dark)] md:rounded-t-2xl">
-              <h3 className="font-semibold text-white">
+              <DialogTitle className="font-semibold text-base leading-normal text-white">
                 Add Gift for{" "}
                 {recipients.find((r) => r.id === assigningTo)?.name}
-              </h3>
-              <button
-                onClick={() => {
-                  setAssigningTo(null);
-                  setSearchQuery("");
-                }}
-                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
-              >
+              </DialogTitle>
+              <DialogClose className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors">
                 <X className="w-5 h-5" />
-              </button>
+              </DialogClose>
             </div>
 
             <div className="p-4 border-b border-[var(--border)] bg-white">
@@ -510,7 +527,7 @@ export default function GiftPlannerPage() {
                 placeholder="Search gift ideas..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="input-modern w-full"
+                className="w-full"
                 autoFocus
               />
             </div>
@@ -565,8 +582,8 @@ export default function GiftPlannerPage() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
     </main>
   );
