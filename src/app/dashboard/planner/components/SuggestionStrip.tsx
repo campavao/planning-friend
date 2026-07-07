@@ -1,24 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import {
-  Calendar,
-  Coffee,
-  Heart,
-  Plus,
-  RefreshCw,
-  Sparkles,
-  Utensils,
-  X,
-} from "lucide-react";
+import { Plus, RefreshCw, Sparkles, X } from "lucide-react";
 import type { Content, ContentCategory, Tag } from "@/lib/supabase";
-
-const CATEGORY_ICONS: Record<string, React.ElementType> = {
-  meal: Utensils,
-  drink: Coffee,
-  event: Calendar,
-  date_idea: Heart,
-};
+import { categoryUI } from "@/lib/categories";
 
 export interface SuggestionPickView {
   contentId: string;
@@ -155,7 +140,7 @@ export function SuggestionStrip({
           const content = contentById.get(pick.contentId);
           if (!content) return null;
           const category = (content.category ?? "other") as ContentCategory;
-          const Icon = CATEGORY_ICONS[category] ?? Utensils;
+          const Icon = categoryUI(category).icon;
           const detailHref = `/dashboard/${content.id}?from=planner&week=${weekStart}`;
 
           return (

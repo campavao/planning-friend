@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    name: Lint & Test
+    name: Lint, Typecheck & Test
     runs-on: ubuntu-latest
 
     steps:
@@ -26,6 +26,12 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Typecheck
+        # jest runs in transpile-only mode and next build only checks the app
+        # import graph, so a dedicated tsc pass is what catches type errors in
+        # tests and other non-bundled files.
+        run: npm run typecheck
 
       - name: Run tests
         run: npx jest --ci --coverage

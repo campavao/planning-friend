@@ -1,0 +1,77 @@
+name: Regression (auth & authorization)
+
+# Runs the end-to-end auth/authorization regression (scripts/regression.mjs)
+# against a live deployment. Two triggers:
+#   - automatically after each successful *production* Vercel deploy
+#   - manually via the "Run workflow" button (optionally against another URL)
+#
+# Requires one repository secret: SESSION_SECRET (must match the deployed app's
+# SESSION_SECRET, so the test session cookie verifies). Add it under
+# Settings → Secrets and variables → Actions → New repository secret.
+#
+# Optional repository variable REGRESSION_BASE_URL overrides the default target.
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "URL to test (blank = production deployment)"
+        required: false
+        default: ""
+  deployment_status:
+
+jobs:
+  regression:
+    # Manual runs always; automatic runs only for a successful production deploy.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       (github.event.deployment_status.environment == 'Production' ||
+        github.event.deployment_status.environment == 'production'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Resolve target URL
+        id: target
+        env:
+          INPUT_URL: ${{ github.event.inputs.base_url }}
+          DEPLOY_URL: ${{ github.event.deployment_status.environment_url }}
+          VAR_URL: ${{ vars.REGRESSION_BASE_URL }}
+        run: |
+          if [ -n "$INPUT_URL" ]; then
+            url="$INPUT_URL"
+          elif [ -n "$DEPLOY_URL" ]; then
+            url="$DEPLOY_URL"
+          elif [ -n "$VAR_URL" ]; then
+            url="$VAR_URL"
+          else
+            url="https://tiktok-helper.vercel.app"
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Testing: $url"
+
+      - name: Run regression
+        env:
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          BASE_URL: ${{ steps.target.outputs.url }}
+        run: |
+          if [ -z "$SESSION_SECRET" ]; then
+            echo "::error::Missing repository secret SESSION_SECRET. Add it under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          {
+            echo "### Regression vs \`$BASE_URL\`"
+            echo ""
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          status=0
+          node scripts/regression.mjs | tee -a "$GITHUB_STEP_SUMMARY" || status=$?
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          exit $status

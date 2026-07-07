@@ -10,32 +10,18 @@ import {
 import type { Content, SharedPlanItem, Tag } from "@/lib/supabase";
 import { formatDateString, parseDateString } from "@/lib/date-utils";
 import {
-  Calendar,
-  Coffee,
   FileText,
-  Gift,
   Hand,
-  Heart,
   Pencil,
-  Pin,
   Plus,
   Users,
-  Utensils,
   X,
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { categoryUI } from "@/lib/categories";
 import { SuggestionStrip } from "./SuggestionStrip";
 import { formatItemTime, getItemDateKey } from "../lib/date-helpers";
-
-const CATEGORY_ICONS: Record<string, React.ElementType> = {
-  meal: Utensils,
-  drink: Coffee,
-  event: Calendar,
-  date_idea: Heart,
-  gift_idea: Gift,
-  other: Pin,
-};
 
 type ContentWithTags = Content & { tags?: Tag[] };
 
@@ -339,9 +325,9 @@ export function WeekSection({
                           );
                         }
 
-                        const Icon =
-                          CATEGORY_ICONS[item.content?.category || "other"] ||
-                          Pin;
+                        const Icon = categoryUI(
+                          item.content?.category || "other",
+                        ).icon;
 
                         // Content item display (mobile)
                         return (
@@ -577,9 +563,9 @@ export function WeekSection({
                           );
                         }
 
-                        const Icon =
-                          CATEGORY_ICONS[item.content?.category || "other"] ||
-                          Pin;
+                        const Icon = categoryUI(
+                          item.content?.category || "other",
+                        ).icon;
 
                         // Content item (desktop)
                         return (

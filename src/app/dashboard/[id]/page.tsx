@@ -20,20 +20,16 @@ import {
   Calendar,
   ChevronDown,
   Clock,
-  Coffee,
   ExternalLink,
   Gift,
-  Heart,
   Loader2,
   MapPin,
   Pencil,
-  Pin,
   Plane,
   RefreshCw,
   Share2,
   ShoppingCart,
   Trash2,
-  Utensils,
   XCircle,
   Check,
 } from "lucide-react";
@@ -41,22 +37,10 @@ import Image from "next/image";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "../useSession";
+import { categoryUI } from "@/lib/categories";
 import { RecipeSteps } from "./components/RecipeSteps";
 import { LocationCard } from "./components/LocationCard";
 
-// Category config
-const CATEGORY_CONFIG: Record<
-  string,
-  { icon: React.ElementType; label: string; color: string; bg: string }
-> = {
-  meal: { icon: Utensils, label: "Recipe", color: "text-[var(--meal)]", bg: "bg-[var(--meal-bg)]" },
-  drink: { icon: Coffee, label: "Drink", color: "text-[var(--drink)]", bg: "bg-[var(--drink-bg)]" },
-  event: { icon: Calendar, label: "Event", color: "text-[var(--event)]", bg: "bg-[var(--event-bg)]" },
-  date_idea: { icon: Heart, label: "Date", color: "text-[var(--date)]", bg: "bg-[var(--date-bg)]" },
-  gift_idea: { icon: Gift, label: "Gift", color: "text-[var(--gift)]", bg: "bg-[var(--gift-bg)]" },
-  travel: { icon: Plane, label: "Travel", color: "text-[var(--travel)]", bg: "bg-[var(--travel-bg)]" },
-  other: { icon: Pin, label: "Saved", color: "text-[var(--other)]", bg: "bg-[var(--other-bg)]" },
-};
 
 // Check if the URL is an image-only placeholder (not a real URL)
 function isImageOnlyContent(url: string): boolean {
@@ -116,10 +100,6 @@ export default function ContentDetailPage() {
   const [linkCopied, setLinkCopied] = useState(false);
   const [copying, setCopying] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
-  const [retryFeedback, setRetryFeedback] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
 
   const isEditable = !!user && content?.user_id === user.id;
   const loading = sessionLoading || (contentLoading && !content);
@@ -276,7 +256,6 @@ export default function ContentDetailPage() {
     if (!content) return;
 
     setRetrying(true);
-    setRetryFeedback(null);
     try {
       const res = await fetch(`/api/content/${content.id}/reprocess`, {
         method: "POST",
@@ -287,17 +266,9 @@ export default function ContentDetailPage() {
         throw new Error(data?.error || "Failed to start retry");
       }
 
-      setRetryFeedback({
-        type: "success",
-        message: "Retrying...",
-      });
       mutateContent();
     } catch (error) {
-      setRetryFeedback({
-        type: "error",
-        message:
-          error instanceof Error ? error.message : "Something went wrong",
-      });
+      console.error("Failed to retry processing:", error);
     } finally {
       setRetrying(false);
     }
@@ -324,7 +295,7 @@ export default function ContentDetailPage() {
     );
   }
 
-  const config = CATEGORY_CONFIG[content.category] || CATEGORY_CONFIG.other;
+  const config = categoryUI(content.category);
   const Icon = config.icon;
 
   return (
@@ -516,7 +487,7 @@ export default function ContentDetailPage() {
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" />
               </div>
             ) : (
-              <span className={`badge ${config.bg} ${config.color}`}>
+              <span className={`badge ${config.bg} ${config.text}`}>
                 <Icon className="w-3.5 h-3.5" />
                 {config.label}
               </span>

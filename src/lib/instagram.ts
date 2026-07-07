@@ -1,5 +1,7 @@
 // Instagram post/reel handler with metadata extraction
 
+import { decodeHTMLEntities, followRedirect } from "./scrape";
+
 export interface InstagramMediaInfo {
   videoUrl?: string;
   thumbnailUrl?: string;
@@ -13,31 +15,15 @@ export interface InstagramMediaInfo {
 
 // Resolve Instagram short URLs to full URLs
 async function resolveShortUrl(url: string): Promise<string> {
-  // Check if it's a short URL that needs resolving
+  // Already a full Instagram URL — nothing to resolve
   if (
     url.includes("/reel/") ||
     url.includes("/p/") ||
     url.includes("/reels/")
   ) {
-    return url; // Already a full URL
+    return url;
   }
-
-  try {
-    const response = await fetch(url, {
-      method: "HEAD",
-      redirect: "follow",
-    });
-    return response.url;
-  } catch {
-    try {
-      const response = await fetch(url, {
-        redirect: "follow",
-      });
-      return response.url;
-    } catch {
-      return url;
-    }
-  }
+  return followRedirect(url);
 }
 
 // Detect media type from URL
@@ -341,22 +327,6 @@ async function tryPageScrape(
 
   console.log("All page scrape attempts failed");
   return null;
-}
-
-// Helper to decode HTML entities
-function decodeHTMLEntities(text: string): string {
-  return text
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&#x27;/g, "'")
-    .replace(/&#x2F;/g, "/")
-    .replace(/&#x([0-9A-Fa-f]+);/g, (_, hex) =>
-      String.fromCharCode(parseInt(hex, 16))
-    )
-    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)));
 }
 
 // Main function to get Instagram media info

@@ -5,8 +5,14 @@ import {
   markGiftAsGiven,
   unmarkGiftAsGiven,
   getGiftIdeas,
+  userOwnsGiftRecipient,
+  userOwnsGiftAssignment,
+  userOwnsContent,
 } from "@/lib/supabase";
 import { requireSession } from "@/lib/auth";
+
+const forbidden = () =>
+  NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
 // GET - Get all gift ideas for the picker
 export async function GET(request: NextRequest) {
@@ -28,7 +34,7 @@ export async function GET(request: NextRequest) {
 // POST - Assign a gift to a recipient
 export async function POST(request: NextRequest) {
   try {
-    const { errorResponse } = await requireSession(request);
+    const { session, errorResponse } = await requireSession(request);
     if (errorResponse) return errorResponse;
 
     const { recipientId, contentId } = await request.json();
@@ -38,6 +44,15 @@ export async function POST(request: NextRequest) {
         { error: "recipientId and contentId are required" },
         { status: 400 }
       );
+    }
+
+    // Both the recipient and the gift content must belong to the caller.
+    const [ownsRecipient, ownsContent] = await Promise.all([
+      userOwnsGiftRecipient(recipientId, session.userId),
+      userOwnsContent(contentId, session.userId),
+    ]);
+    if (!ownsRecipient || !ownsContent) {
+      return forbidden();
     }
 
     const assignment = await assignGiftToRecipient(recipientId, contentId);
@@ -54,13 +69,17 @@ export async function POST(request: NextRequest) {
 // PATCH - Mark/unmark a gift as given
 export async function PATCH(request: NextRequest) {
   try {
-    const { errorResponse } = await requireSession(request);
+    const { session, errorResponse } = await requireSession(request);
     if (errorResponse) return errorResponse;
 
     const { id, given } = await request.json();
 
     if (!id) {
       return NextResponse.json({ error: "ID is required" }, { status: 400 });
+    }
+
+    if (!(await userOwnsGiftAssignment(id, session.userId))) {
+      return forbidden();
     }
 
     if (given) {
@@ -82,13 +101,17 @@ export async function PATCH(request: NextRequest) {
 // DELETE - Remove a gift assignment
 export async function DELETE(request: NextRequest) {
   try {
-    const { errorResponse } = await requireSession(request);
+    const { session, errorResponse } = await requireSession(request);
     if (errorResponse) return errorResponse;
 
     const id = request.nextUrl.searchParams.get("id");
 
     if (!id) {
       return NextResponse.json({ error: "ID is required" }, { status: 400 });
+    }
+
+    if (!(await userOwnsGiftAssignment(id, session.userId))) {
+      return forbidden();
     }
 
     await removeGiftAssignment(id);

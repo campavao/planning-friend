@@ -1,8 +1,8 @@
-import { verifyBodySchema, sendCodeBodySchema } from "@/types/schemas/auth";
+import { verifyBodySchema, sendCodeBodySchema } from "@/lib/schemas/auth";
 import {
   addPlanItemBodySchema,
   updatePlanItemBodySchema,
-} from "@/types/schemas/planner";
+} from "@/lib/schemas/planner";
 
 // ============================================
 // Auth Schemas

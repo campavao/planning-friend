@@ -1,5 +1,7 @@
 // Website scraper for extracting content from generic web pages
 
+import { decodeHTMLEntities } from "./scrape";
+
 export interface WebsiteInfo {
   url: string;
   resolvedUrl?: string;
@@ -9,19 +11,6 @@ export interface WebsiteInfo {
   pageContent?: string;
   structuredData?: Record<string, unknown>;
   siteName?: string;
-}
-
-// Helper to decode HTML entities
-function decodeHTMLEntities(text: string): string {
-  return text
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&#x27;/g, "'")
-    .replace(/&#x2F;/g, "/")
-    .replace(/&nbsp;/g, " ");
 }
 
 // Extract text content from HTML, removing scripts/styles

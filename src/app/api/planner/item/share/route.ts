@@ -9,9 +9,13 @@ import {
   leaveSharedItem,
   shareItemWithFriends,
   updateItemSharing,
+  userOwnsPlanItem,
 } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth";
+
+const forbidden = () =>
+  NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
 // GET - Get share info for a plan item
 export async function GET(request: NextRequest) {
@@ -27,6 +31,11 @@ export async function GET(request: NextRequest) {
         { error: "itemId is required" },
         { status: 400 }
       );
+    }
+
+    // Only the item's owner may see who it's shared with.
+    if (!(await userOwnsPlanItem(itemId, session.userId))) {
+      return forbidden();
     }
 
     const shareInfo = await getItemShareInfo(itemId);
@@ -73,6 +82,11 @@ export async function POST(request: NextRequest) {
         { error: "friendIds array is required" },
         { status: 400 }
       );
+    }
+
+    // Only the item's owner may share it.
+    if (!(await userOwnsPlanItem(itemId, session.userId))) {
+      return forbidden();
     }
 
     // Get the friends to find their linked_user_ids
@@ -133,6 +147,11 @@ export async function PUT(request: NextRequest) {
         { error: "friendIds array is required" },
         { status: 400 }
       );
+    }
+
+    // Only the item's owner may change its sharing.
+    if (!(await userOwnsPlanItem(itemId, session.userId))) {
+      return forbidden();
     }
 
     // Get current shares to find who is new

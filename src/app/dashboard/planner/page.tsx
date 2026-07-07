@@ -36,9 +36,7 @@ import {
   ChevronDown,
   ChevronRight,
   Coffee,
-  Gift,
   Heart,
-  Pin,
   Plus,
   ShoppingCart,
   Star,
@@ -59,22 +57,13 @@ import {
 } from "react";
 import { useSWRConfig } from "swr";
 import { useSession } from "../useSession";
+import { categoryUI } from "@/lib/categories";
 import { DateJumpControls } from "./components/DateJumpControls";
 import { PlannerSearch } from "./components/PlannerSearch";
 import { SuggestionStrip } from "./components/SuggestionStrip";
 import { WeekSection } from "./components/WeekSection";
 import { getItemDateKey } from "./lib/date-helpers";
 import { usePlannerFilters } from "./hooks/usePlannerFilters";
-
-// Category icon mapping (used by the add-item modal)
-const CATEGORY_ICONS: Record<string, React.ElementType> = {
-  meal: Utensils,
-  drink: Coffee,
-  event: Calendar,
-  date_idea: Heart,
-  gift_idea: Gift,
-  other: Pin,
-};
 
 interface ItemShareState {
   isOpen: boolean;
@@ -1579,7 +1568,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
               {/* Content List */}
               <div className="p-4 space-y-2">
                 {getFilteredContent().map((content: ContentWithTags) => {
-                  const Icon = CATEGORY_ICONS[content.category] || Pin;
+                  const Icon = categoryUI(content.category).icon;
                   return (
                     <button
                       key={content.id}

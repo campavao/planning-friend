@@ -1,11 +1,22 @@
 import { processContent } from "@/lib/processing";
 import { updateContent } from "@/lib/supabase";
+import { INTERNAL_TOKEN_HEADER, verifyInternalToken } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   let contentId: string | undefined;
 
   try {
+    // This endpoint writes content into an arbitrary account (userId comes
+    // from the body), so it must only be reachable by other parts of this
+    // same deployment — never by an anonymous caller.
+    const isInternal = await verifyInternalToken(
+      request.headers.get(INTERNAL_TOKEN_HEADER)
+    );
+    if (!isInternal) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const body = await request.json();
     contentId = body.contentId;
     const socialUrl = body.socialUrl || body.tiktokUrl;

@@ -5,7 +5,7 @@ import {
   SHARE_INVITE_EXPIRY_MS,
   DEFAULT_TAGS,
   CATEGORY_CONFIG,
-  CATEGORY_EMOJI,
+  categoryEmoji,
 } from "@/lib/constants";
 
 // ============================================
@@ -121,30 +121,28 @@ describe("CATEGORY_CONFIG", () => {
     }
   });
 
-  it("has human-readable labels", () => {
-    expect(CATEGORY_CONFIG.meal.label).toBe("Meal");
+  it("has human-readable labels matching the UI", () => {
+    expect(CATEGORY_CONFIG.meal.label).toBe("Recipe");
     expect(CATEGORY_CONFIG.drink.label).toBe("Drink");
     expect(CATEGORY_CONFIG.event.label).toBe("Event");
-    expect(CATEGORY_CONFIG.date_idea.label).toBe("Date Idea");
-    expect(CATEGORY_CONFIG.gift_idea.label).toBe("Gift Idea");
+    expect(CATEGORY_CONFIG.date_idea.label).toBe("Date");
+    expect(CATEGORY_CONFIG.gift_idea.label).toBe("Gift");
     expect(CATEGORY_CONFIG.travel.label).toBe("Travel");
     expect(CATEGORY_CONFIG.other.label).toBe("Saved");
   });
 });
 
 // ============================================
-// CATEGORY_EMOJI
+// categoryEmoji
 // ============================================
-describe("CATEGORY_EMOJI", () => {
-  it("has the same categories as CATEGORY_CONFIG", () => {
-    const configKeys = Object.keys(CATEGORY_CONFIG).sort();
-    const emojiKeys = Object.keys(CATEGORY_EMOJI).sort();
-    expect(emojiKeys).toEqual(configKeys);
+describe("categoryEmoji", () => {
+  it("returns the emoji for each known category", () => {
+    for (const key of Object.keys(CATEGORY_CONFIG)) {
+      expect(categoryEmoji(key)).toBe(CATEGORY_CONFIG[key].emoji);
+    }
   });
 
-  it("has matching emojis with CATEGORY_CONFIG", () => {
-    for (const key of Object.keys(CATEGORY_CONFIG)) {
-      expect(CATEGORY_EMOJI[key]).toBe(CATEGORY_CONFIG[key].emoji);
-    }
+  it("falls back to a sparkle for unknown categories", () => {
+    expect(categoryEmoji("nonexistent")).toBe("✨");
   });
 });

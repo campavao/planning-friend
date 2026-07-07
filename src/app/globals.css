@@ -446,6 +446,34 @@
   to { transform: rotate(360deg); }
 }
 
+/* Skeleton placeholder — a soft shimmer used while a page's data loads, so
+   navigation shows the page's shape instead of a blank spinner. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--muted);
+  border-radius: 0.5rem;
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.45) 50%,
+    transparent 100%
+  );
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes skeleton-shimmer {
+  100% { transform: translateX(100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after { animation: none; }
+}
+
 @keyframes loading-progress {
   0% { transform: translateX(-100%); }
   50% { transform: translateX(100%); }

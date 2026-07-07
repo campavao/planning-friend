@@ -2,30 +2,11 @@
 
 import type { ContentCategory } from "@/lib/supabase";
 import { parseDateString } from "@/lib/date-utils";
-import {
-  Calendar,
-  CalendarArrowDown,
-  Coffee,
-  FileText,
-  Gift,
-  Heart,
-  Pin,
-  Search,
-  Utensils,
-  X,
-} from "lucide-react";
+import { CalendarArrowDown, FileText, Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { categoryUI } from "@/lib/categories";
 import { formatUtcDateString } from "../lib/date-helpers";
 import { parseSearchDate } from "../lib/parse-search-date";
-
-const CATEGORY_ICONS: Record<string, React.ElementType> = {
-  meal: Utensils,
-  drink: Coffee,
-  event: Calendar,
-  date_idea: Heart,
-  gift_idea: Gift,
-  other: Pin,
-};
 
 interface SearchResult {
   id: string;
@@ -184,7 +165,7 @@ export function PlannerSearch({ onJump }: PlannerSearchProps) {
             results.map((result) => {
               const Icon = result.is_note
                 ? FileText
-                : CATEGORY_ICONS[result.category || "other"] || Pin;
+                : categoryUI(result.category || "other").icon;
               const dateKey = formatUtcDateString(
                 new Date(result.planned_date),
               );

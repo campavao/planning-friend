@@ -10,46 +10,22 @@ import {
   saveContent,
   updateContent,
 } from "@/lib/supabase";
-import { cookies } from "next/headers";
+import { createInternalToken, getSessionUser, INTERNAL_TOKEN_HEADER } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { NextRequest } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
-    // Get the user from the session cookie
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("session");
+    // Verify the session via the signed cookie (HMAC-checked, not just decoded)
+    const session = await getSessionUser();
 
-    if (!sessionCookie?.value) {
+    if (!session) {
       redirect(
         "/dashboard/share?error=" + encodeURIComponent("Please log in first")
       );
     }
 
-    // Parse the session to get user info (session cookie is base64 encoded)
-    let userId: string;
-    try {
-      const decoded = Buffer.from(sessionCookie.value, "base64").toString();
-      const session = JSON.parse(decoded);
-
-      // Check if session is expired
-      if (session.exp && session.exp < Date.now()) {
-        redirect(
-          "/dashboard/share?error=" + encodeURIComponent("Session expired")
-        );
-      }
-
-      if (!session.userId) {
-        redirect(
-          "/dashboard/share?error=" + encodeURIComponent("Invalid session")
-        );
-      }
-      userId = session.userId;
-    } catch {
-      redirect(
-        "/dashboard/share?error=" + encodeURIComponent("Invalid session")
-      );
-    }
+    const userId = session.userId;
 
     // Parse the multipart form data
     const formData = await request.formData();
@@ -81,7 +57,10 @@ export async function POST(request: NextRequest) {
       const processUrl = new URL("/api/process", request.url).toString();
       fetch(processUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          [INTERNAL_TOKEN_HEADER]: await createInternalToken(),
+        },
         body: JSON.stringify({
           contentId: processingContent.id,
           socialUrl: sharedUrl,
