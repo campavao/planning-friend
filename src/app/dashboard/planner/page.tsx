@@ -1,22 +1,24 @@
 "use client";
 
 import { TagFilter } from "@/components/tag-filter";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { usePlanner, type PlannerData } from "@/hooks/usePlanner";
+import {
+  usePlanner,
+  type PlannerData,
+  type PlanItemWithSharing,
+} from "@/hooks/usePlanner";
 import type {
   Content,
   ContentCategory,
   DrinkData,
   MealData,
-  PlanItem,
   SharedPlanItem,
   Tag,
 } from "@/lib/supabase";
 import {
   formatDateString,
+  getDateSlotInWeek,
   getOrderedDays,
   getWeekStartDay,
   getWeekStartForDate,
@@ -25,24 +27,19 @@ import {
 import html2canvas from "html2canvas";
 import {
   ArrowLeft,
-  ArrowRight,
   Calendar,
   Camera,
   Check,
   ChevronDown,
   ChevronRight,
   Coffee,
-  FileText,
   Gift,
-  Hand,
   Heart,
-  Pencil,
   Pin,
   Plus,
   ShoppingCart,
   Star,
   User,
-  Users,
   Utensils,
   X,
 } from "lucide-react";
@@ -52,13 +49,21 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
+import { useSWRConfig } from "swr";
 import { useSession } from "../useSession";
+import { DateJumpControls } from "./components/DateJumpControls";
+import { PlannerSearch } from "./components/PlannerSearch";
+import { SuggestionStrip } from "./components/SuggestionStrip";
+import { WeekSection } from "./components/WeekSection";
+import { getItemDateKey } from "./lib/date-helpers";
+import { usePlannerFilters } from "./hooks/usePlannerFilters";
 
-// Category icon mapping
+// Category icon mapping (used by the add-item modal)
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
   meal: Utensils,
   drink: Coffee,
@@ -68,17 +73,12 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
   other: Pin,
 };
 
-// Extended plan item with sharing info from API
-interface PlanItemWithSharing extends PlanItem {
-  is_owner: boolean;
-  is_auto_event?: boolean;
-  shared_with?: { userId: string; name: string }[];
-}
-
 interface ItemShareState {
   isOpen: boolean;
   itemId: string | null;
   itemTitle: string;
+  /** Week the item belongs to, for cache revalidation after sharing */
+  itemWeek: string | null;
   selectedFriendIds: string[];
   loading: boolean;
   error: string;
@@ -110,23 +110,35 @@ interface GroceryListState {
   error: string | null;
 }
 
-import { WeekNavigation } from "./components/WeekNavigation";
-import { SuggestionStrip } from "./components/SuggestionStrip";
-import { usePlannerFilters } from "./hooks/usePlannerFilters";
-
 interface UndoState {
   itemId: string;
-  dayIndex: number;
+  week: string;
   contentTitle: string;
   expiresAt: number;
 }
 
+interface PendingScroll {
+  dateKey: string;
+  smooth: boolean;
+}
+
+function addWeeksTo(weekStart: string, count: number): string {
+  const date = parseDateString(weekStart);
+  date.setDate(date.getDate() + count * 7);
+  return formatDateString(date);
+}
+
 function PlannerContent() {
-  const [weekStart, setWeekStart] = useState<string>("");
-  const [addingToDay, setAddingToDay] = useState<number | null>(null);
+  const [anchorDate, setAnchorDate] = useState<string>("");
+  const [weeks, setWeeks] = useState<string[]>([]);
+  const [pendingScroll, setPendingScroll] = useState<PendingScroll | null>(
+    null,
+  );
+  const [highlightDate, setHighlightDate] = useState<string | null>(null);
+
+  const [addingToDate, setAddingToDate] = useState<string | null>(null);
   const [quickNoteInput, setQuickNoteInput] = useState("");
   const [addingQuickNote, setAddingQuickNote] = useState(false);
-  const [hiddenAutoEvents, setHiddenAutoEvents] = useState<Set<string>>(new Set());
   const [plannedTime, setPlannedTime] = useState("19:00");
   const [editingItem, setEditingItem] = useState<PlanItemWithSharing | null>(
     null,
@@ -134,7 +146,7 @@ function PlannerContent() {
   const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(
     new Set(),
   );
-  const [refreshingDay, setRefreshingDay] = useState<number | null>(null);
+  const [refreshingKey, setRefreshingKey] = useState<string | null>(null);
   const [undoState, setUndoState] = useState<UndoState | null>(null);
 
   // Week start day preference (0=Sunday, 1=Monday, etc.)
@@ -161,6 +173,7 @@ function PlannerContent() {
     isOpen: false,
     itemId: null,
     itemTitle: "",
+    itemWeek: null,
     selectedFriendIds: [],
     loading: false,
     error: "",
@@ -187,16 +200,321 @@ function PlannerContent() {
   // Session management with SWR
   const { user, isLoading: sessionLoading } = useSession();
 
-  // Planner data with SWR
-  const {
-    data,
-    isLoading: plannerLoading,
-    isValidating: gridLoading,
-    mutate: mutatePlanner,
-  } = usePlanner(weekStart || null, { enabled: !!user && !!weekStart });
+  const { mutate: globalMutate } = useSWRConfig();
 
-  // Combined loading state
-  const loading = sessionLoading || (!!weekStart && plannerLoading && !data);
+  const weekOf = useCallback(
+    (dateKey: string) =>
+      getWeekStartForDate(parseDateString(dateKey), weekStartDay),
+    [weekStartDay],
+  );
+
+  /** Revalidate the SWR cache for the week containing dateKey. */
+  const revalidateWeek = useCallback(
+    (week: string) => globalMutate(`/api/planner?week=${week}`),
+    [globalMutate],
+  );
+  const revalidateDate = useCallback(
+    (dateKey: string) => revalidateWeek(weekOf(dateKey)),
+    [revalidateWeek, weekOf],
+  );
+
+  // Week the anchor date belongs to — drives week-independent data
+  // (available content, friends, tags) and the grocery list.
+  const anchorWeek = anchorDate ? weekOf(anchorDate) : null;
+  const { data } = usePlanner(anchorWeek, {
+    enabled: !!user && !!anchorWeek,
+  });
+
+  // Week the add/edit modal is targeting (for per-day suggestions and
+  // already-planned filtering).
+  const modalWeek = addingToDate ? weekOf(addingToDate) : null;
+  const { data: modalData } = usePlanner(modalWeek, {
+    enabled: !!user && !!modalWeek,
+  });
+  const modalDayIndex =
+    addingToDate && modalWeek
+      ? getDateSlotInWeek(addingToDate, modalWeek)
+      : -1;
+
+  // ============================================
+  // Infinite scroll + focus management
+  // ============================================
+
+  const headerRef = useRef<HTMLDivElement>(null);
+  const topSentinelRef = useRef<HTMLDivElement>(null);
+  const bottomSentinelRef = useRef<HTMLDivElement>(null);
+  const dayElementsRef = useRef(new Map<string, HTMLElement>());
+  const weeksRef = useRef<string[]>([]);
+  weeksRef.current = weeks;
+  const prependAnchorRef = useRef<{ key: string; top: number } | null>(null);
+  const suppressSpyUntilRef = useRef(0);
+  const focusHoldRef = useRef<{ dateKey: string; until: number } | null>(null);
+
+  const registerDayElement = useCallback(
+    (dateKey: string, el: HTMLElement | null) => {
+      if (el) {
+        dayElementsRef.current.set(dateKey, el);
+      } else {
+        dayElementsRef.current.delete(dateKey);
+      }
+    },
+    [],
+  );
+
+  const getHeaderOffset = () =>
+    (headerRef.current?.getBoundingClientRect().height ?? 0) + 12;
+
+  const scrollToDate = useCallback((dateKey: string, smooth: boolean) => {
+    const el = dayElementsRef.current.get(dateKey);
+    if (!el) return;
+    const top = Math.max(
+      el.getBoundingClientRect().top + window.scrollY - getHeaderOffset(),
+      0,
+    );
+    // Animate only short hops — a long smooth scroll outlives the
+    // scroll-spy suppression window and drags the selectors through
+    // every week in between.
+    const isNearby =
+      Math.abs(top - window.scrollY) < window.innerHeight * 2.5;
+    window.scrollTo({
+      top,
+      behavior: smooth && isNearby ? "smooth" : "auto",
+    });
+  }, []);
+
+  /**
+   * Move focus to a date: update selectors, make sure its week is
+   * mounted, and scroll it to the top of the page.
+   */
+  const jumpToDate = useCallback(
+    (
+      dateKey: string,
+      opts?: { smooth?: boolean; updateUrl?: boolean; highlight?: boolean },
+    ) => {
+      const { smooth = true, updateUrl = true, highlight = false } =
+        opts ?? {};
+      const week = weekOf(dateKey);
+      const alreadyMounted = weeksRef.current.includes(week);
+
+      setAnchorDate(dateKey);
+      if (!alreadyMounted) {
+        // Rebuild the window of weeks around the target date.
+        setWeeks([week, addWeeksTo(week, 1), addWeeksTo(week, 2)]);
+      }
+      const useSmooth = alreadyMounted && smooth;
+      setPendingScroll({ dateKey, smooth: useSmooth });
+      suppressSpyUntilRef.current = Date.now() + (useSmooth ? 1500 : 300);
+
+      if (highlight) setHighlightDate(dateKey);
+
+      if (updateUrl) {
+        const url = new URL(window.location.href);
+        url.searchParams.set("date", dateKey);
+        url.searchParams.delete("week");
+        window.history.replaceState({}, "", url.toString());
+      }
+    },
+    [weekOf],
+  );
+
+  // Initialize focus from URL (?date= or legacy ?week=) or today.
+  const initializedRef = useRef(false);
+  useEffect(() => {
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+    const urlDate = searchParams.get("date") || searchParams.get("week");
+    const target =
+      urlDate && /^\d{4}-\d{2}-\d{2}$/.test(urlDate)
+        ? urlDate
+        : formatDateString(new Date());
+    jumpToDate(target, { smooth: false, updateUrl: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // False while the early-return loading screen is up — the week grid
+  // (day cards, sentinels) isn't mounted until this flips true.
+  const contentReady = !sessionLoading && !!anchorDate;
+
+  // Compensate scroll position when a past week is prepended, so the
+  // content the user is looking at doesn't move. Measured against the
+  // previously-first day card's actual position, so it stays correct
+  // whether or not the browser's native scroll anchoring also kicks in.
+  useLayoutEffect(() => {
+    const anchor = prependAnchorRef.current;
+    if (!anchor) return;
+    prependAnchorRef.current = null;
+    const el = dayElementsRef.current.get(anchor.key);
+    if (!el) return;
+    const delta = el.getBoundingClientRect().top - anchor.top;
+    if (delta !== 0) window.scrollBy(0, delta);
+  }, [weeks]);
+
+  // After an instant jump, hold the target in place for a moment: week
+  // data streaming in above the viewport reflows the page, and browser
+  // scroll anchoring alone doesn't reliably keep the target pinned.
+  const startFocusHold = useCallback(
+    (dateKey: string) => {
+      // Generous window: it only pins while the user hasn't interacted
+      // (any wheel/touch/key/mouse input releases the hold immediately).
+      focusHoldRef.current = { dateKey, until: Date.now() + 8000 };
+      const step = () => {
+        const hold = focusHoldRef.current;
+        if (!hold || hold.dateKey !== dateKey) return;
+        if (Date.now() > hold.until) {
+          focusHoldRef.current = null;
+          return;
+        }
+        const el = dayElementsRef.current.get(dateKey);
+        if (el) {
+          const desired = Math.max(
+            el.getBoundingClientRect().top + window.scrollY - getHeaderOffset(),
+            0,
+          );
+          if (Math.abs(desired - window.scrollY) > 1) {
+            window.scrollTo({ top: desired });
+          }
+        }
+        requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    },
+    [],
+  );
+
+  // Any real user input releases the focus hold.
+  useEffect(() => {
+    const release = () => {
+      focusHoldRef.current = null;
+    };
+    window.addEventListener("wheel", release, { passive: true });
+    window.addEventListener("touchstart", release, { passive: true });
+    window.addEventListener("keydown", release);
+    window.addEventListener("mousedown", release);
+    return () => {
+      window.removeEventListener("wheel", release);
+      window.removeEventListener("touchstart", release);
+      window.removeEventListener("keydown", release);
+      window.removeEventListener("mousedown", release);
+    };
+  }, []);
+
+  // Execute a pending programmatic scroll once the target day has
+  // rendered (the loading screen may still be up when the jump is made).
+  useLayoutEffect(() => {
+    if (!pendingScroll) return;
+    if (!dayElementsRef.current.has(pendingScroll.dateKey)) return;
+    scrollToDate(pendingScroll.dateKey, pendingScroll.smooth);
+    if (!pendingScroll.smooth) startFocusHold(pendingScroll.dateKey);
+    setPendingScroll(null);
+  }, [pendingScroll, contentReady, scrollToDate, startFocusHold]);
+
+  const prependWeek = useCallback(() => {
+    if (prependAnchorRef.current) return;
+    const firstWeek = weeksRef.current[0];
+    if (!firstWeek) return;
+    const el = dayElementsRef.current.get(firstWeek);
+    if (!el) return;
+    prependAnchorRef.current = {
+      key: firstWeek,
+      top: el.getBoundingClientRect().top,
+    };
+    setWeeks((prev) =>
+      prev.length ? [addWeeksTo(prev[0], -1), ...prev] : prev,
+    );
+  }, []);
+
+  const appendWeek = useCallback(() => {
+    setWeeks((prev) =>
+      prev.length ? [...prev, addWeeksTo(prev[prev.length - 1], 1)] : prev,
+    );
+  }, []);
+
+  // Sentinel observers: extend the list of weeks in either direction as
+  // the user approaches the edges. `contentReady` matters: while the
+  // page shows the loading screen the sentinels aren't mounted, so the
+  // observers must (re)attach once the real layout renders.
+  useEffect(() => {
+    if (!contentReady || weeks.length === 0) return;
+    const top = topSentinelRef.current;
+    const bottom = bottomSentinelRef.current;
+    if (!top || !bottom) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          if (entry.target === top) prependWeek();
+          else if (entry.target === bottom) appendWeek();
+        }
+      },
+      { rootMargin: "200px 0px" },
+    );
+    observer.observe(top);
+    observer.observe(bottom);
+    return () => observer.disconnect();
+  }, [contentReady, weeks, prependWeek, appendWeek]);
+
+  // Scroll-spy: keep the month/day/year selectors in sync with the day
+  // at the top of the viewport.
+  const updateAnchorFromScroll = useCallback(() => {
+    if (focusHoldRef.current) return;
+    if (Date.now() < suppressSpyUntilRef.current) return;
+    const headerBottom =
+      headerRef.current?.getBoundingClientRect().bottom ?? 0;
+    let bestKey: string | null = null;
+    let bestTop = Infinity;
+    for (const [key, el] of dayElementsRef.current) {
+      const rect = el.getBoundingClientRect();
+      // A day only counts as "at the top" once a meaningful slice of it
+      // is visible — otherwise a few peeking pixels of the previous day
+      // win over the day the user actually scrolled to.
+      if (rect.bottom <= headerBottom + 40) continue;
+      if (rect.top < bestTop - 1) {
+        bestTop = rect.top;
+        bestKey = key;
+      }
+    }
+    if (!bestKey) return;
+    const nextKey = bestKey;
+    setAnchorDate((prev) => {
+      if (prev === nextKey) return prev;
+      // On desktop the whole week sits on one row, so the topmost day is
+      // always the week's first day. Keep the currently selected day
+      // while the user is still within the same week.
+      const isDesktop =
+        typeof window !== "undefined" &&
+        window.matchMedia("(min-width: 768px)").matches;
+      if (isDesktop && prev && weekOf(prev) === weekOf(nextKey)) return prev;
+      return nextKey;
+    });
+  }, [weekOf]);
+
+  useEffect(() => {
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        updateAnchorFromScroll();
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [updateAnchorFromScroll]);
+
+  // Clear the search-result highlight after a moment.
+  useEffect(() => {
+    if (!highlightDate) return;
+    const t = setTimeout(() => setHighlightDate(null), 2500);
+    return () => clearTimeout(t);
+  }, [highlightDate]);
+
+  // ============================================
+  // Item actions
+  // ============================================
 
   // Get last shared friend from localStorage for convenience
   const getLastSharedFriendIds = (): string[] => {
@@ -218,108 +536,17 @@ function PlannerContent() {
     }
   };
 
-  const getCurrentWeekStart = useCallback(() => {
-    return getWeekStartForDate(new Date(), weekStartDay);
-  }, [weekStartDay]);
-
-  // Initialize weekStart from URL or current week
-  useEffect(() => {
-    const urlWeek = searchParams.get("week");
-    const week = urlWeek || getCurrentWeekStart();
-    setWeekStart(week);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const navigateWeek = (direction: number) => {
-    const current = parseDateString(weekStart);
-    current.setDate(current.getDate() + direction * 7);
-    const newWeek = formatDateString(current);
-
-    const newUrl = new URL(window.location.href);
-    newUrl.searchParams.set("week", newWeek);
-    window.history.pushState({}, "", newUrl.toString());
-
-    setWeekStart(newWeek);
-    // Load hidden auto-events for new week
-    try {
-      const stored = localStorage.getItem(`hidden-auto-events-${newWeek}`);
-      setHiddenAutoEvents(stored ? new Set(JSON.parse(stored)) : new Set());
-    } catch {
-      setHiddenAutoEvents(new Set());
-    }
-  };
-
-  // Load hidden auto-events on initial mount
-  useEffect(() => {
-    if (!weekStart) return;
-    try {
-      const stored = localStorage.getItem(`hidden-auto-events-${weekStart}`);
-      setHiddenAutoEvents(stored ? new Set(JSON.parse(stored)) : new Set());
-    } catch {
-      setHiddenAutoEvents(new Set());
-    }
-  }, [weekStart]);
-
-  const hideAutoEvent = (contentId: string) => {
-    setHiddenAutoEvents((prev) => {
-      const next = new Set(prev);
-      next.add(contentId);
-      try {
-        localStorage.setItem(
-          `hidden-auto-events-${weekStart}`,
-          JSON.stringify([...next]),
-        );
-      } catch {}
-      return next;
-    });
-  };
-
-  const materializeAutoEvent = async (
-    item: PlanItemWithSharing,
-  ): Promise<PlanItemWithSharing | null> => {
-    if (!item.is_auto_event || !item.content_id) return item;
-    try {
-      const res = await fetch("/api/planner", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          weekStart,
-          contentId: item.content_id,
-          plannedDate: item.planned_date,
-        }),
-      });
-      if (res.ok) {
-        const result = await res.json();
-        await mutatePlanner();
-        return {
-          ...result.item,
-          is_owner: true,
-          is_auto_event: false,
-        } as PlanItemWithSharing;
-      }
-    } catch (error) {
-      console.error("Failed to materialize auto-event:", error);
-    }
-    return null;
-  };
-
-  const openAddModal = (dayIndex: number) => {
+  const openAddModal = (dateKey: string) => {
     setPlannedTime("19:00");
     setEditingItem(null);
     setQuickNoteInput("");
-    setAddingToDay(dayIndex);
+    setAddingToDate(dateKey);
   };
 
   const closeAddModal = () => {
-    setAddingToDay(null);
+    setAddingToDate(null);
     setEditingItem(null);
     setAddingQuickNote(false);
-  };
-
-  const deleteEditingItem = async () => {
-    if (!editingItem) return;
-    await removeFromDay(editingItem.id);
-    closeAddModal();
   };
 
   const getTimeInputValue = (plannedDate?: string | null) => {
@@ -331,18 +558,15 @@ function PlannerContent() {
     return `${hours}:${minutes}`;
   };
 
-  const openEditModal = (item: PlanItemWithSharing, dayIndex: number) => {
+  const openEditModal = (item: PlanItemWithSharing, dateKey: string) => {
     setEditingItem(item);
     setPlannedTime(getTimeInputValue(item.planned_date));
     setQuickNoteInput(item.note_title || "");
-    setAddingToDay(dayIndex);
+    setAddingToDate(dateKey);
   };
 
-  const getPlannedDateTime = (dayIndex: number, timeValue: string) => {
-    if (!weekStart) return null;
-    const date = parseDateString(weekStart);
-    date.setDate(date.getDate() + dayIndex);
-
+  const getPlannedDateTime = (dateKey: string, timeValue: string) => {
+    const date = parseDateString(dateKey);
     const [hours, minutes] = timeValue.split(":").map(Number);
     if (Number.isNaN(hours)) return null;
 
@@ -361,9 +585,28 @@ function PlannerContent() {
     return plannedUtc.toISOString();
   };
 
-  const addToDay = async (contentId: string, dayOfWeek: number) => {
+  const removeFromDay = async (itemId: string, week: string) => {
     try {
-      const plannedDate = getPlannedDateTime(dayOfWeek, plannedTime);
+      const res = await fetch(`/api/planner/item?id=${itemId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        revalidateWeek(week);
+      }
+    } catch (error) {
+      console.error("Failed to remove item:", error);
+    }
+  };
+
+  const deleteEditingItem = async () => {
+    if (!editingItem || !addingToDate) return;
+    await removeFromDay(editingItem.id, weekOf(addingToDate));
+    closeAddModal();
+  };
+
+  const addToDay = async (contentId: string, dateKey: string) => {
+    try {
+      const plannedDate = getPlannedDateTime(dateKey, plannedTime);
       if (!plannedDate) return;
       if (editingItem) {
         const res = await fetch("/api/planner/item", {
@@ -377,7 +620,7 @@ function PlannerContent() {
         });
 
         if (res.ok) {
-          mutatePlanner();
+          revalidateDate(dateKey);
         }
         closeAddModal();
         return;
@@ -386,27 +629,26 @@ function PlannerContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          weekStart,
           contentId,
           plannedDate,
         }),
       });
 
       if (res.ok) {
-        mutatePlanner();
+        revalidateDate(dateKey);
       }
     } catch (error) {
       console.error("Failed to add item:", error);
     }
-    setAddingToDay(null);
+    setAddingToDate(null);
   };
 
-  const addQuickNote = async (dayOfWeek: number) => {
+  const addQuickNote = async (dateKey: string) => {
     if (!quickNoteInput.trim()) return;
 
     setAddingQuickNote(true);
     try {
-      const plannedDate = getPlannedDateTime(dayOfWeek, plannedTime);
+      const plannedDate = getPlannedDateTime(dateKey, plannedTime);
       if (!plannedDate) return;
       if (editingItem) {
         const res = await fetch("/api/planner/item", {
@@ -421,7 +663,7 @@ function PlannerContent() {
 
         if (res.ok) {
           setQuickNoteInput("");
-          mutatePlanner();
+          revalidateDate(dateKey);
           closeAddModal();
         }
         return;
@@ -430,7 +672,6 @@ function PlannerContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          weekStart,
           noteTitle: quickNoteInput.trim(),
           plannedDate,
         }),
@@ -438,8 +679,8 @@ function PlannerContent() {
 
       if (res.ok) {
         setQuickNoteInput("");
-        mutatePlanner();
-        setAddingToDay(null);
+        revalidateDate(dateKey);
+        setAddingToDate(null);
       }
     } catch (error) {
       console.error("Failed to add quick note:", error);
@@ -448,16 +689,34 @@ function PlannerContent() {
     }
   };
 
-  const suggestions = data?.suggestions ?? {};
-  const suggestionsMeta = data?.suggestionsMeta ?? {
-    emptyPool: false,
-    poolSize: 0,
+  const saveEditingContent = async () => {
+    if (!editingItem || !editingItem.content_id) return;
+    if (!addingToDate) return;
+    try {
+      const plannedDate = getPlannedDateTime(addingToDate, plannedTime);
+      if (!plannedDate) return;
+      const res = await fetch("/api/planner/item", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingItem.id,
+          contentId: editingItem.content_id,
+          plannedDate,
+        }),
+      });
+
+      if (res.ok) {
+        revalidateDate(addingToDate);
+        closeAddModal();
+      }
+    } catch (error) {
+      console.error("Failed to update item:", error);
+    }
   };
-  // True while SWR is fetching a different week than the one currently in
-  // `data` — keepPreviousData holds the old payload, so we render
-  // suggestion skeletons instead of stale picks during the swap.
-  const isSuggestionsLoading =
-    !!weekStart && !!data?.plan && data.plan.week_start !== weekStart;
+
+  // ============================================
+  // Suggestions
+  // ============================================
 
   const contentById = useMemo(() => {
     const map = new Map<string, ContentWithTags>();
@@ -466,12 +725,6 @@ function PlannerContent() {
     }
     return map;
   }, [data?.availableContent]);
-
-  // Reset transient suggestion state when the week changes.
-  useEffect(() => {
-    setDismissedSuggestions(new Set());
-    setUndoState(null);
-  }, [weekStart]);
 
   // Auto-dismiss the undo pill after expiration.
   useEffect(() => {
@@ -485,18 +738,23 @@ function PlannerContent() {
     return () => clearTimeout(t);
   }, [undoState]);
 
-  const getDismissKey = (dayIndex: number, contentId: string) =>
-    `${dayIndex}:${contentId}`;
+  const getDismissKey = (week: string, dayIndex: number, contentId: string) =>
+    `${week}:${dayIndex}:${contentId}`;
 
-  const addSuggestionToDay = async (contentId: string, dayIndex: number) => {
-    const plannedDate = getPlannedDateTime(dayIndex, "19:00");
+  const addSuggestionToDay = async (
+    contentId: string,
+    dayIndex: number,
+    week: string,
+  ) => {
+    const date = parseDateString(week);
+    date.setDate(date.getDate() + dayIndex);
+    const plannedDate = getPlannedDateTime(formatDateString(date), "19:00");
     if (!plannedDate) return;
     try {
       const res = await fetch("/api/planner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          weekStart,
           contentId,
           plannedDate,
           source: "ai_suggested",
@@ -509,12 +767,12 @@ function PlannerContent() {
       if (itemId) {
         setUndoState({
           itemId,
-          dayIndex,
+          week,
           contentTitle: content?.title ?? "Suggestion",
           expiresAt: Date.now() + 4500,
         });
       }
-      mutatePlanner();
+      revalidateWeek(week);
     } catch (err) {
       console.error("Failed to add suggestion:", err);
     }
@@ -531,19 +789,23 @@ function PlannerContent() {
     } catch (err) {
       console.error("Failed to undo add:", err);
     }
-    mutatePlanner();
+    revalidateWeek(target.week);
   };
 
-  const dismissSuggestion = async (contentId: string, dayIndex: number) => {
+  const dismissSuggestion = async (
+    contentId: string,
+    dayIndex: number,
+    week: string,
+  ) => {
     setDismissedSuggestions((prev) => {
       const next = new Set(prev);
-      next.add(getDismissKey(dayIndex, contentId));
+      next.add(getDismissKey(week, dayIndex, contentId));
       return next;
     });
     try {
       await fetch(
         `/api/planner/suggestions?week=${encodeURIComponent(
-          weekStart,
+          week,
         )}&day=${dayIndex}&contentId=${encodeURIComponent(contentId)}`,
         { method: "DELETE" },
       );
@@ -552,43 +814,38 @@ function PlannerContent() {
     }
   };
 
-  const refreshDaySuggestions = async (dayIndex: number) => {
-    setRefreshingDay(dayIndex);
+  const refreshDaySuggestions = async (dayIndex: number, week: string) => {
+    setRefreshingKey(`${week}:${dayIndex}`);
     try {
       const res = await fetch("/api/planner/suggestions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ weekStart, dayIndex }),
+        body: JSON.stringify({ weekStart: week, dayIndex }),
       });
       if (res.ok) {
-        await mutatePlanner();
+        await revalidateWeek(week);
       }
     } catch (err) {
       console.error("Failed to refresh suggestions:", err);
     } finally {
-      setRefreshingDay(null);
+      setRefreshingKey(null);
     }
   };
 
-  const filterPicksForDay = (dayIndex: number) => {
-    const list = suggestions[dayIndex] ?? [];
+  const modalPicks = useMemo(() => {
+    if (!modalWeek || modalDayIndex < 0) return [];
+    const list = modalData?.suggestions?.[modalDayIndex] ?? [];
     return list.filter(
-      (p) => !dismissedSuggestions.has(getDismissKey(dayIndex, p.contentId)),
+      (p) =>
+        !dismissedSuggestions.has(
+          getDismissKey(modalWeek, modalDayIndex, p.contentId),
+        ),
     );
-  };
+  }, [modalWeek, modalDayIndex, modalData?.suggestions, dismissedSuggestions]);
 
-  const removeFromDay = async (itemId: string) => {
-    try {
-      const res = await fetch(`/api/planner/item?id=${itemId}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        mutatePlanner();
-      }
-    } catch (error) {
-      console.error("Failed to remove item:", error);
-    }
-  };
+  // ============================================
+  // Sharing
+  // ============================================
 
   // Open share modal for an item
   const openShareModal = (item: PlanItemWithSharing) => {
@@ -608,11 +865,13 @@ function PlannerContent() {
     }
 
     const itemTitle = item.note_title || item.content?.title || "Item";
+    const itemDateKey = getItemDateKey(item);
 
     setItemShare({
       isOpen: true,
       itemId: item.id,
       itemTitle,
+      itemWeek: itemDateKey ? weekOf(itemDateKey) : null,
       selectedFriendIds: preSelectedFriendIds,
       loading: false,
       error: "",
@@ -621,6 +880,35 @@ function PlannerContent() {
       newFriendName: "",
       newFriendPhone: "",
     });
+  };
+
+  // Materialize an auto-injected event into a real plan item, then share it
+  const shareAutoEvent = async (item: PlanItemWithSharing, week: string) => {
+    if (!item.is_auto_event || !item.content_id) {
+      openShareModal(item);
+      return;
+    }
+    try {
+      const res = await fetch("/api/planner", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contentId: item.content_id,
+          plannedDate: item.planned_date,
+        }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        await revalidateWeek(week);
+        openShareModal({
+          ...result.item,
+          is_owner: true,
+          is_auto_event: false,
+        } as PlanItemWithSharing);
+      }
+    } catch (error) {
+      console.error("Failed to materialize auto-event:", error);
+    }
   };
 
   // Share item with selected friends
@@ -650,7 +938,7 @@ function PlannerContent() {
         }!`,
       }));
 
-      mutatePlanner();
+      if (itemShare.itemWeek) revalidateWeek(itemShare.itemWeek);
 
       setTimeout(() => {
         setItemShare((s) => ({ ...s, isOpen: false }));
@@ -665,13 +953,13 @@ function PlannerContent() {
   };
 
   // Leave a shared item
-  const leaveSharedItem = async (itemId: string) => {
+  const leaveSharedItem = async (itemId: string, week: string) => {
     try {
       const res = await fetch(`/api/planner/item/share?itemId=${itemId}`, {
         method: "DELETE",
       });
       if (res.ok) {
-        mutatePlanner();
+        revalidateWeek(week);
       }
     } catch (error) {
       console.error("Failed to leave shared item:", error);
@@ -695,7 +983,8 @@ function PlannerContent() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
 
-      mutatePlanner();
+      // Refresh shareableFriends (served with the anchor week's payload)
+      if (anchorWeek) revalidateWeek(anchorWeek);
 
       if (result.friend?.linked_user_id) {
         setItemShare((s) => ({
@@ -736,105 +1025,25 @@ function PlannerContent() {
     }));
   };
 
-  const formatWeekRange = () => {
-    if (!weekStart) return "";
-    const start = parseDateString(weekStart);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 6);
-    const formatDate = (d: Date) =>
-      d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    return `${formatDate(start)} - ${formatDate(end)}`;
-  };
-
-  const isCurrentWeek = () => weekStart === getCurrentWeekStart();
-
-  const getDateForDay = (dayIndex: number) => {
-    if (!weekStart) return 0;
-    const date = parseDateString(weekStart);
-    date.setDate(date.getDate() + dayIndex);
-    return date.getDate();
-  };
-
-  const isToday = (dayIndex: number) => {
-    if (!weekStart) return false;
-    const today = new Date();
-    const dayDate = parseDateString(weekStart);
-    dayDate.setDate(dayDate.getDate() + dayIndex);
-    return today.toDateString() === dayDate.toDateString();
-  };
-
-  const getDayDateKey = (dayIndex: number) => {
-    if (!weekStart) return null;
-    const date = parseDateString(weekStart);
-    date.setDate(date.getDate() + dayIndex);
-    return formatDateString(date);
-  };
-
-  const formatUtcDateString = (date: Date) => {
-    const year = date.getUTCFullYear();
-    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-    const day = String(date.getUTCDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
-  const getItemDateKey = (item: DisplayItem) => {
-    if (item.planned_date) {
-      const planned = new Date(item.planned_date);
-      if (!Number.isNaN(planned.getTime())) {
-        return formatUtcDateString(planned);
-      }
-    }
-
-    if ("shared_date" in item && item.shared_date) {
-      return item.shared_date;
-    }
-    return null;
-  };
-
-  const formatItemTime = (item: DisplayItem) => {
-    if (!item.planned_date) return null;
-    const planned = new Date(item.planned_date);
-    if (Number.isNaN(planned.getTime())) return null;
-    return planned.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      timeZone: "UTC",
-    });
-  };
-
-  const saveEditingContent = async () => {
-    if (!editingItem || !editingItem.content_id) return;
-    if (addingToDay === null) return;
-    try {
-      const plannedDate = getPlannedDateTime(addingToDay, plannedTime);
-      if (!plannedDate) return;
-      const res = await fetch("/api/planner/item", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: editingItem.id,
-          contentId: editingItem.content_id,
-          plannedDate,
-        }),
-      });
-
-      if (res.ok) {
-        mutatePlanner();
-        closeAddModal();
-      }
-    } catch (error) {
-      console.error("Failed to update item:", error);
-    }
-  };
+  // ============================================
+  // Add-modal content filtering
+  // ============================================
 
   const hasActiveFilters =
     searchQuery || categoryFilter !== "all" || selectedTagIds.length > 0;
 
   const getFilteredContent = () => {
-    if (!data?.availableContent) return [];
+    // keepPreviousData means modalData can briefly belong to another week;
+    // only trust its plan items for used-item filtering once it matches.
+    const modalReady =
+      !!modalData && modalData.plan?.week_start === modalWeek;
+    const source = modalReady ? modalData : data;
+    if (!source?.availableContent) return [];
 
-    const planItems: PlanItemWithSharing[] = data.plan?.items || [];
-    const availableContent: ContentWithTags[] = data.availableContent || [];
+    const planItems: PlanItemWithSharing[] = modalReady
+      ? modalData.plan?.items || []
+      : [];
+    const availableContent: ContentWithTags[] = source.availableContent || [];
     const usedIds = new Set(
       planItems.map((i: PlanItemWithSharing) => i.content_id) || [],
     );
@@ -859,6 +1068,20 @@ function PlannerContent() {
       }
       return true;
     });
+  };
+
+  // ============================================
+  // Grocery list (for the week currently in focus)
+  // ============================================
+
+  const formatWeekRange = () => {
+    if (!anchorWeek) return "";
+    const start = parseDateString(anchorWeek);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    const formatDate = (d: Date) =>
+      d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    return `${formatDate(start)} - ${formatDate(end)}`;
   };
 
   // Generate grocery list
@@ -928,7 +1151,7 @@ function PlannerContent() {
       const response = await fetch("/api/planner/grocery-list", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipes, weekStart }),
+        body: JSON.stringify({ recipes, weekStart: anchorWeek }),
       });
 
       const result = await response.json();
@@ -1005,7 +1228,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
       document.body.removeChild(container);
 
       const link = document.createElement("a");
-      link.download = `grocery-list-${weekStart}.png`;
+      link.download = `grocery-list-${anchorWeek}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
     } catch (error) {
@@ -1027,7 +1250,16 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
     );
   }, [data?.plan?.items, data?.sharedItems]);
 
-  if (loading) {
+  const todayKey = formatDateString(new Date());
+
+  const formatModalDayLabel = (dateKey: string) =>
+    parseDateString(dateKey).toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+    });
+
+  if (sessionLoading || !anchorDate) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
@@ -1040,45 +1272,13 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
     );
   }
 
-  // Combine own items and shared items by day
-  type DisplayItem = (PlanItemWithSharing | SharedPlanItem) & {
-    isSharedWithMe?: boolean;
-  };
-
-  const planItems: PlanItemWithSharing[] = (data?.plan?.items || []).filter(
-    (item) => !item.is_auto_event || !hiddenAutoEvents.has(item.content_id || ""),
-  );
-  const sharedItemsList: SharedPlanItem[] = data?.sharedItems || [];
-  const itemsByDay: Record<number, DisplayItem[]> = {};
-  for (let i = 0; i <= 6; i++) {
-    const dayKey = getDayDateKey(i);
-    const ownItems: DisplayItem[] = (
-      planItems.filter(
-        (item: PlanItemWithSharing) =>
-          dayKey && getItemDateKey(item as DisplayItem) === dayKey,
-      ) || []
-    ).map((item: PlanItemWithSharing) => ({
-      ...item,
-      isSharedWithMe: false,
-    }));
-
-    const sharedItems: DisplayItem[] = (
-      sharedItemsList.filter(
-        (item: SharedPlanItem) =>
-          dayKey && getItemDateKey(item as DisplayItem) === dayKey,
-      ) || []
-    ).map((item: SharedPlanItem) => ({
-      ...item,
-      isSharedWithMe: true,
-    }));
-
-    itemsByDay[i] = [...ownItems, ...sharedItems];
-  }
-
   return (
     <main className="min-h-screen pb-28 md:pb-8 bg-background">
       {/* Header */}
-      <div className="bg-[var(--card)] border-b border-[var(--border)] sticky top-0 z-20">
+      <div
+        ref={headerRef}
+        className="bg-[var(--card)] border-b border-[var(--border)] sticky top-0 z-20"
+      >
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/dashboard" className="hidden md:inline-flex">
             <Button variant="ghost" className="btn-ghost">
@@ -1087,7 +1287,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
             </Button>
           </Link>
           <div className="md:hidden w-16" />
-          <h1 className="heading-2 text-xl md:text-2xl">Weekly Plan</h1>
+          <h1 className="heading-2 text-xl md:text-2xl">Planner</h1>
           <Button
             variant="ghost"
             onClick={generateGroceryList}
@@ -1103,513 +1303,46 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
             <span className="hidden sm:inline ml-2">Groceries</span>
           </Button>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
-        {/* Week Navigation */}
-        <WeekNavigation
-          weekRangeLabel={formatWeekRange()}
-          isCurrentWeek={isCurrentWeek()}
-          sharedCount={data?.sharedItems?.length ?? 0}
-          onPrev={() => navigateWeek(-1)}
-          onNext={() => navigateWeek(1)}
-          loading={gridLoading && !data}
-        />
+        {/* Date jump + search controls */}
+        <div className="max-w-7xl mx-auto px-4 pb-3 flex flex-wrap items-center gap-2">
+          <DateJumpControls
+            anchorDate={anchorDate}
+            onJump={(dateKey) => jumpToDate(dateKey)}
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => jumpToDate(todayKey)}
+            className="btn-ghost h-9 shrink-0"
+            disabled={anchorDate === todayKey}
+          >
+            Today
+          </Button>
+          <PlannerSearch
+            onJump={(dateKey) => jumpToDate(dateKey, { highlight: true })}
+          />
+        </div>
 
-        {/* Week Grid */}
-        <div className="relative">
-          {gridLoading && !data && (
-            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-2xl">
-              <div className="loading-spinner" />
-            </div>
-          )}
-          <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
-            {DAYS.map((day, dayIndex) => (
-              <Card
-                key={day}
-                className={`card-elevated overflow-hidden ${
-                  isToday(dayIndex) ? "ring-2 ring-[var(--primary)]" : ""
-                }`}
+        {/* Calendar weekday columns (desktop) */}
+        <div className="hidden md:block border-t border-[var(--border)]">
+          <div className="max-w-7xl mx-auto px-4 md:px-6 py-2 grid grid-cols-7 gap-3">
+            {DAYS.map((d) => (
+              <div
+                key={d}
+                className="text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground"
               >
-                {/* Mobile Layout */}
-                <div className="md:hidden">
-                  <div className="p-3">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-base font-semibold text-[var(--primary)]">
-                          {String(getDateForDay(dayIndex)).padStart(2, "0")}
-                        </span>
-                        <span className="text-sm font-medium">
-                          {DAYS_FULL[dayIndex]}
-                        </span>
-                        {isToday(dayIndex) && (
-                          <Badge className="bg-[var(--primary)] text-white text-[10px]">
-                            Today
-                          </Badge>
-                        )}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-xs rounded-lg hover:bg-[var(--muted)]"
-                        onClick={() => openAddModal(dayIndex)}
-                      >
-                        <Plus className="w-3 h-3 mr-1" />
-                        Add
-                      </Button>
-                    </div>
-
-                    {itemsByDay[dayIndex].length > 0 ? (
-                      <div className="space-y-2">
-                        {itemsByDay[dayIndex].map((item) => {
-                          const isShared = item.isSharedWithMe;
-                          const isAutoEvent = !isShared && (item as PlanItemWithSharing).is_auto_event;
-                          const sharedItem = isShared
-                            ? (item as SharedPlanItem)
-                            : null;
-                          const ownItem = !isShared
-                            ? (item as PlanItemWithSharing)
-                            : null;
-                          const isQuickNote =
-                            !item.content_id && item.note_title;
-                          const plannedTimeLabel = formatItemTime(item);
-
-                          // Quick note display (mobile)
-                          if (isQuickNote) {
-                            return (
-                              <div
-                                key={item.id}
-                                className="group relative bg-[var(--accent-light)] rounded-xl overflow-hidden p-3"
-                              >
-                                <div className="flex flex-col gap-1 pr-16">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <FileText className="w-4 h-4 text-[var(--accent)]" />
-                                    {plannedTimeLabel && (
-                                      <span className="text-[10px] bg-white/70 px-2 py-0.5 rounded-full font-semibold text-[var(--accent)]">
-                                        {plannedTimeLabel}
-                                      </span>
-                                    )}
-                                    {isShared && (
-                                      <span className="text-[10px] bg-[var(--muted)] px-1.5 py-0.5 rounded-full font-medium">
-                                        from {sharedItem?.owner_name}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="font-medium text-sm">
-                                    {item.note_title}
-                                  </p>
-                                </div>
-                                <div className="absolute top-2 right-2 flex gap-1">
-                                  {isShared ? (
-                                    <button
-                                      onClick={() => leaveSharedItem(item.id)}
-                                      className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
-                                      title="Leave"
-                                    >
-                                      <Hand className="w-3 h-3" />
-                                    </button>
-                                  ) : (
-                                    <>
-                                      <button
-                                        onClick={() => openShareModal(ownItem!)}
-                                        className="bg-white rounded-lg h-7 px-2 text-[10px] font-semibold flex items-center gap-1 shadow-sm hover:bg-[var(--muted)]"
-                                        title="Share"
-                                      >
-                                        <Users className="w-3 h-3" />
-                                        {ownItem?.shared_with?.length
-                                          ? ownItem.shared_with.length
-                                          : "Share"}
-                                      </button>
-                                      <button
-                                        onClick={() =>
-                                          openEditModal(ownItem!, dayIndex)
-                                        }
-                                        className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
-                                        title="Edit"
-                                      >
-                                        <Pencil className="w-3 h-3" />
-                                      </button>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          }
-
-                          const Icon =
-                            CATEGORY_ICONS[item.content?.category || "other"] ||
-                            Pin;
-
-                          // Content item display (mobile)
-                          return (
-                            <div
-                              key={item.id}
-                              className="group relative bg-white rounded-xl overflow-hidden border border-[var(--border)] flex items-stretch min-h-20"
-                            >
-                              {item.content?.thumbnail_url && (
-                                <div className="w-20 shrink-0 relative overflow-hidden">
-                                  <img
-                                    src={item.content.thumbnail_url}
-                                    alt=""
-                                    className="absolute inset-0 w-full h-full object-cover rounded-l-xl"
-                                  />
-                                </div>
-                              )}
-                              <div className="flex-1 min-w-0 p-2 flex flex-col gap-1.5">
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <Icon className="w-3.5 h-3.5 text-muted-foreground" />
-                                    <span className="text-xs text-muted-foreground capitalize">
-                                      {item.content?.category?.replace(
-                                        "_",
-                                        " ",
-                                      )}
-                                    </span>
-                                    {plannedTimeLabel && (
-                                      <span className="text-[10px] bg-[var(--accent-light)] text-[var(--accent-foreground)] px-2 py-0.5 rounded-full font-semibold">
-                                        {plannedTimeLabel}
-                                      </span>
-                                    )}
-                                    {isShared && (
-                                      <span className="text-[10px] bg-[var(--muted)] px-1.5 py-0.5 rounded-full font-medium">
-                                        from {sharedItem?.owner_name}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="flex gap-1 shrink-0">
-                                    {isAutoEvent ? (
-                                      <>
-                                        <button
-                                          onClick={async () => {
-                                            const real = await materializeAutoEvent(ownItem!);
-                                            if (real) openShareModal(real);
-                                          }}
-                                          className="bg-white rounded-lg h-7 px-2 text-[10px] font-semibold flex items-center gap-1 shadow-sm hover:bg-[var(--muted)]"
-                                          title="Share"
-                                        >
-                                          <Users className="w-3 h-3" />
-                                          Share
-                                        </button>
-                                        <button
-                                          onClick={() => hideAutoEvent(item.content_id!)}
-                                          className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
-                                          title="Hide from plan"
-                                        >
-                                          <X className="w-3 h-3" />
-                                        </button>
-                                      </>
-                                    ) : isShared ? (
-                                      <button
-                                        onClick={() => leaveSharedItem(item.id)}
-                                        className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
-                                        title="Leave"
-                                      >
-                                        <Hand className="w-3 h-3" />
-                                      </button>
-                                    ) : (
-                                      <>
-                                        <button
-                                          onClick={() =>
-                                            openShareModal(ownItem!)
-                                          }
-                                          className="bg-white rounded-lg h-7 px-2 text-[10px] font-semibold flex items-center gap-1 shadow-sm hover:bg-[var(--muted)]"
-                                          title="Share"
-                                        >
-                                          <Users className="w-3 h-3" />
-                                          {ownItem?.shared_with?.length
-                                            ? ownItem.shared_with.length
-                                            : "Share"}
-                                        </button>
-                                        <button
-                                          onClick={() =>
-                                            openEditModal(ownItem!, dayIndex)
-                                          }
-                                          className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
-                                          title="Edit"
-                                        >
-                                          <Pencil className="w-3 h-3" />
-                                        </button>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                                <Link
-                                  href={`/dashboard/${item.content_id}?from=planner&week=${weekStart}`}
-                                  className="block"
-                                >
-                                  <p className="font-medium text-sm line-clamp-2">
-                                    {item.content?.title}
-                                  </p>
-                                </Link>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <SuggestionStrip
-                        dayIndex={dayIndex}
-                        picks={filterPicksForDay(dayIndex)}
-                        contentById={contentById}
-                        weekStart={weekStart}
-                        onAdd={addSuggestionToDay}
-                        onDismiss={dismissSuggestion}
-                        onRefresh={refreshDaySuggestions}
-                        isRefreshing={refreshingDay === dayIndex}
-                        emptyPool={suggestionsMeta.emptyPool}
-                        loading={isSuggestionsLoading}
-                        layout="mobile"
-                      />
-                    )}
-                  </div>
-                </div>
-                {/* Desktop Layout */}
-                <div className="hidden md:block">
-                  <div className="px-3 py-2 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-lg font-semibold text-[var(--primary)]">
-                          {String(getDateForDay(dayIndex)).padStart(2, "0")}
-                        </span>
-                        <span className="text-xs font-medium uppercase text-muted-foreground">
-                          {DAYS[dayIndex]}
-                        </span>
-                      </div>
-                      {isToday(dayIndex) && (
-                        <Badge className="bg-[var(--primary)] text-white text-[10px]">
-                          Today
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-
-                  <CardContent className="p-2 space-y-2 min-h-[160px] bg-white rounded-b-2xl">
-                    {itemsByDay[dayIndex].map((item) => {
-                      const isShared = item.isSharedWithMe;
-                      const isAutoEvent = !isShared && (item as PlanItemWithSharing).is_auto_event;
-                      const sharedItem = isShared
-                        ? (item as SharedPlanItem)
-                        : null;
-                      const ownItem = !isShared
-                        ? (item as PlanItemWithSharing)
-                        : null;
-                      const isQuickNote = !item.content_id && item.note_title;
-                      const plannedTimeLabel = formatItemTime(item);
-
-                      // Quick note (desktop)
-                      if (isQuickNote) {
-                        return (
-                          <div
-                            key={item.id}
-                            className="group relative bg-[var(--accent-light)] rounded-lg overflow-hidden p-2"
-                          >
-                            <div className="flex flex-col gap-1">
-                              <div className="flex items-center gap-1 flex-wrap">
-                                <FileText className="w-3 h-3 text-[var(--accent)]" />
-                                {plannedTimeLabel && (
-                                  <span className="text-[8px] bg-white/70 px-1.5 py-0.5 rounded-full font-semibold text-[var(--accent)]">
-                                    {plannedTimeLabel}
-                                  </span>
-                                )}
-                                {isShared && (
-                                  <span className="text-[8px] bg-white/60 px-1 py-0.5 rounded font-medium">
-                                    {sharedItem?.owner_name}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-xs font-medium line-clamp-2">
-                                {item.note_title}
-                              </p>
-                            </div>
-                            <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                              {isShared ? (
-                                <button
-                                  onClick={() => leaveSharedItem(item.id)}
-                                  className="bg-white rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
-                                  title="Leave"
-                                >
-                                  <Hand className="w-3 h-3" />
-                                </button>
-                              ) : (
-                                <>
-                                  <button
-                                    onClick={() => openShareModal(ownItem!)}
-                                    className="bg-white rounded h-5 px-1.5 text-[9px] font-semibold flex items-center gap-0.5 shadow-sm"
-                                    title="Share"
-                                  >
-                                    <Users className="w-3 h-3" />
-                                    {ownItem?.shared_with?.length
-                                      ? ownItem.shared_with.length
-                                      : "Share"}
-                                  </button>
-                                  <button
-                                    onClick={() =>
-                                      openEditModal(ownItem!, dayIndex)
-                                    }
-                                    className="bg-white rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
-                                    title="Edit"
-                                  >
-                                    <Pencil className="w-3 h-3" />
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      const Icon =
-                        CATEGORY_ICONS[item.content?.category || "other"] ||
-                        Pin;
-
-                      // Content item (desktop)
-                      return (
-                        <div
-                          key={item.id}
-                          className="group relative bg-white rounded-lg overflow-hidden border border-[var(--border)]"
-                        >
-                          <div className="flex items-center justify-between px-2 pt-2">
-                            <div className="flex items-center gap-1 flex-wrap">
-                              <Icon className="w-3 h-3 text-muted-foreground" />
-                              {plannedTimeLabel && (
-                                <span className="text-[8px] bg-[var(--accent-light)] text-[var(--accent-foreground)] px-1.5 py-0.5 rounded-full font-semibold">
-                                  {plannedTimeLabel}
-                                </span>
-                              )}
-                              {isShared && (
-                                <span className="text-[8px] bg-[var(--muted)] px-1 py-0.5 rounded font-medium">
-                                  {sharedItem?.owner_name}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex gap-0.5">
-                              {isAutoEvent ? (
-                                <>
-                                  <button
-                                    onClick={async (e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      const real = await materializeAutoEvent(ownItem!);
-                                      if (real) openShareModal(real);
-                                    }}
-                                    className="bg-white/90 backdrop-blur rounded h-5 px-1.5 text-[9px] font-semibold flex items-center gap-0.5 shadow-sm"
-                                    title="Share"
-                                  >
-                                    <Users className="w-3 h-3" />
-                                    Share
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      hideAutoEvent(item.content_id!);
-                                    }}
-                                    className="bg-white/90 backdrop-blur rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
-                                    title="Hide from plan"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                </>
-                              ) : isShared ? (
-                                <button
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    leaveSharedItem(item.id);
-                                  }}
-                                  className="bg-white/90 backdrop-blur rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
-                                  title="Leave"
-                                >
-                                  <Hand className="w-3 h-3" />
-                                </button>
-                              ) : (
-                                <>
-                                  <button
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      openShareModal(ownItem!);
-                                    }}
-                                    className="bg-white/90 backdrop-blur rounded h-5 px-1.5 text-[9px] font-semibold flex items-center gap-0.5 shadow-sm"
-                                    title="Share"
-                                  >
-                                    <Users className="w-3 h-3" />
-                                    {ownItem?.shared_with?.length
-                                      ? ownItem.shared_with.length
-                                      : "Share"}
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      openEditModal(ownItem!, dayIndex);
-                                    }}
-                                    className="bg-white/90 backdrop-blur rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
-                                    title="Edit"
-                                  >
-                                    <Pencil className="w-3 h-3" />
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                          <Link
-                            href={`/dashboard/${item.content_id}?from=planner&week=${weekStart}`}
-                            className="block"
-                          >
-                            {item.content?.thumbnail_url && (
-                              <img
-                                src={item.content.thumbnail_url}
-                                alt=""
-                                className="w-full h-20 object-cover"
-                              />
-                            )}
-                            <div className="p-2 pt-1">
-                              <div className="flex flex-col gap-1">
-                                <p className="text-xs font-medium line-clamp-2">
-                                  {item.content?.title}
-                                </p>
-                              </div>
-                            </div>
-                          </Link>
-                        </div>
-                      );
-                    })}
-
-                    {itemsByDay[dayIndex].length === 0 && (
-                      <SuggestionStrip
-                        dayIndex={dayIndex}
-                        picks={filterPicksForDay(dayIndex)}
-                        contentById={contentById}
-                        weekStart={weekStart}
-                        onAdd={addSuggestionToDay}
-                        onDismiss={dismissSuggestion}
-                        onRefresh={refreshDaySuggestions}
-                        isRefreshing={refreshingDay === dayIndex}
-                        emptyPool={suggestionsMeta.emptyPool}
-                        loading={isSuggestionsLoading}
-                        layout="desktop"
-                      />
-                    )}
-
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full h-7 text-xs border border-dashed border-[var(--border)] rounded-lg hover:bg-[var(--muted)] text-muted-foreground"
-                      onClick={() => openAddModal(dayIndex)}
-                    >
-                      <Plus className="w-3 h-3" />
-                    </Button>
-                  </CardContent>
-                </div>
-              </Card>
+                {d}
+              </div>
             ))}
           </div>
         </div>
+      </div>
 
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
         {/* Empty State */}
-        {data?.availableContent.length === 0 && (
-          <div className="card-elevated p-8 mt-6 text-center">
+        {data?.availableContent?.length === 0 && (
+          <div className="card-elevated p-8 mb-6 text-center">
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--muted)] flex items-center justify-center">
               <Calendar className="w-8 h-8 text-muted-foreground" />
             </div>
@@ -1623,16 +1356,45 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
             </Link>
           </div>
         )}
+
+        {/* Infinite week list */}
+        <div>
+          <div ref={topSentinelRef} aria-hidden className="h-px" />
+          {weeks.map((week) => (
+            <WeekSection
+              key={week}
+              weekStart={week}
+              enabled={!!user}
+              days={DAYS}
+              daysFull={DAYS_FULL}
+              contentById={contentById}
+              highlightDate={highlightDate}
+              dismissedSuggestions={dismissedSuggestions}
+              refreshingKey={refreshingKey}
+              registerDayElement={registerDayElement}
+              onOpenAdd={openAddModal}
+              onOpenEdit={openEditModal}
+              onOpenShare={openShareModal}
+              onLeaveShared={leaveSharedItem}
+              onShareAutoEvent={shareAutoEvent}
+              onAddSuggestion={addSuggestionToDay}
+              onDismissSuggestion={dismissSuggestion}
+              onRefreshSuggestions={refreshDaySuggestions}
+            />
+          ))}
+          <div ref={bottomSentinelRef} aria-hidden className="h-px" />
+        </div>
       </div>
 
       {/* Add Item Modal */}
-      {addingToDay !== null && (
+      {addingToDate !== null && (
         <div className="fixed inset-0 modal-backdrop z-50 flex items-end md:items-center justify-center p-0 md:p-4">
           <div className="bg-[var(--card)] w-full md:max-w-lg md:rounded-2xl rounded-t-2xl max-h-[85vh] flex flex-col shadow-xl">
             <div className="p-4 border-b border-[var(--border)] flex items-center justify-between bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] md:rounded-t-2xl">
               <div>
                 <h3 className="font-semibold text-white">
-                  {editingItem ? "Edit" : "Add to"} {DAYS_FULL[addingToDay]}
+                  {editingItem ? "Edit" : "Add to"}{" "}
+                  {formatModalDayLabel(addingToDate)}
                 </h3>
                 {editingItem?.content_id && (
                   <p className="text-[11px] text-white/80 mt-1">
@@ -1679,7 +1441,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
-                    addQuickNote(addingToDay);
+                    addQuickNote(addingToDate);
                   }}
                   className="flex gap-2"
                 >
@@ -1780,30 +1542,34 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
               )}
 
               {/* Suggested for this day */}
-              {!editingItem &&
-                addingToDay !== null &&
-                filterPicksForDay(addingToDay).length > 0 && (
-                  <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--background-alt)]">
-                    <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-                      Suggested for {DAYS_FULL[addingToDay]}
-                    </p>
-                    <SuggestionStrip
-                      dayIndex={addingToDay}
-                      picks={filterPicksForDay(addingToDay)}
-                      contentById={contentById}
-                      weekStart={weekStart}
-                      onAdd={(contentId, dayIndex) => {
-                        addSuggestionToDay(contentId, dayIndex);
-                        closeAddModal();
-                      }}
-                      onDismiss={dismissSuggestion}
-                      onRefresh={refreshDaySuggestions}
-                      isRefreshing={refreshingDay === addingToDay}
-                      emptyPool={false}
-                      layout="mobile"
-                    />
-                  </div>
-                )}
+              {!editingItem && modalWeek && modalPicks.length > 0 && (
+                <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--background-alt)]">
+                  <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
+                    Suggested for {formatModalDayLabel(addingToDate)}
+                  </p>
+                  <SuggestionStrip
+                    dayIndex={modalDayIndex}
+                    picks={modalPicks}
+                    contentById={contentById}
+                    weekStart={modalWeek}
+                    onAdd={(contentId, dayIndex) => {
+                      addSuggestionToDay(contentId, dayIndex, modalWeek);
+                      closeAddModal();
+                    }}
+                    onDismiss={(contentId, dayIndex) =>
+                      dismissSuggestion(contentId, dayIndex, modalWeek)
+                    }
+                    onRefresh={(dayIndex) =>
+                      refreshDaySuggestions(dayIndex, modalWeek)
+                    }
+                    isRefreshing={
+                      refreshingKey === `${modalWeek}:${modalDayIndex}`
+                    }
+                    emptyPool={false}
+                    layout="mobile"
+                  />
+                </div>
+              )}
 
               {/* Content List */}
               <div className="p-4 space-y-2">
@@ -1812,7 +1578,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                   return (
                     <button
                       key={content.id}
-                      onClick={() => addToDay(content.id, addingToDay)}
+                      onClick={() => addToDay(content.id, addingToDate)}
                       className="w-full bg-white border border-[var(--border)] rounded-xl p-3 text-left flex items-center gap-3 hover:border-[var(--primary)]/30 hover:shadow-sm transition-all"
                     >
                       {content.thumbnail_url && (
@@ -2022,7 +1788,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                                         {item.sources.map((source, sIndex) => (
                                           <Link
                                             key={sIndex}
-                                            href={`/dashboard/${source.id}?from=planner&week=${weekStart}`}
+                                            href={`/dashboard/${source.id}?from=planner&week=${anchorWeek}`}
                                             className="block text-sm text-[var(--primary)] hover:underline py-0.5"
                                             onClick={() =>
                                               setGroceryList((s) => ({

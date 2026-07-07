@@ -536,6 +536,109 @@ export async function getEligibleContentPool(
   }));
 }
 
+export interface PlanItemSearchResult {
+  id: string;
+  planned_date: string;
+  title: string;
+  category: ContentCategory | null;
+  thumbnail_url: string | null;
+  is_note: boolean;
+}
+
+interface PlanItemSearchRow {
+  id: string;
+  planned_date: string | null;
+  note_title: string | null;
+  content?: {
+    id: string;
+    title: string;
+    category: ContentCategory;
+    thumbnail_url: string | null;
+  } | null;
+}
+
+/**
+ * Search a user's planned items (quick notes and scheduled content like
+ * meals or events) by title. Results are ordered newest-first.
+ */
+export async function searchPlanItems(
+  userId: string,
+  query: string,
+  limit: number = 20
+): Promise<PlanItemSearchResult[]> {
+  const supabase = createServerClient();
+  const sanitized = query.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+  const pattern = `%${sanitized}%`;
+
+  const noteMatchesPromise = supabase
+    .from("plan_items")
+    .select(
+      `
+      id,
+      planned_date,
+      note_title,
+      weekly_plans!inner(user_id)
+    `
+    )
+    .eq("weekly_plans.user_id", userId)
+    .ilike("note_title", pattern)
+    .not("planned_date", "is", null)
+    .order("planned_date", { ascending: false })
+    .limit(limit);
+
+  const contentMatchesPromise = supabase
+    .from("plan_items")
+    .select(
+      `
+      id,
+      planned_date,
+      note_title,
+      content:content_id!inner(id, title, category, thumbnail_url),
+      weekly_plans!inner(user_id)
+    `
+    )
+    .eq("weekly_plans.user_id", userId)
+    .ilike("content.title", pattern)
+    .not("planned_date", "is", null)
+    .order("planned_date", { ascending: false })
+    .limit(limit);
+
+  const [noteRes, contentRes] = await Promise.all([
+    noteMatchesPromise,
+    contentMatchesPromise,
+  ]);
+
+  if (noteRes.error) {
+    throw new Error(`Failed to search plan notes: ${noteRes.error.message}`);
+  }
+  if (contentRes.error) {
+    throw new Error(`Failed to search plan items: ${contentRes.error.message}`);
+  }
+
+  const merged = new Map<string, PlanItemSearchRow>();
+  for (const row of (noteRes.data ?? []) as unknown as PlanItemSearchRow[]) {
+    merged.set(row.id, row);
+  }
+  for (const row of (contentRes.data ?? []) as unknown as PlanItemSearchRow[]) {
+    if (!merged.has(row.id)) merged.set(row.id, row);
+  }
+
+  return Array.from(merged.values())
+    .filter((row): row is PlanItemSearchRow & { planned_date: string } =>
+      Boolean(row.planned_date)
+    )
+    .map((row) => ({
+      id: row.id,
+      planned_date: row.planned_date,
+      title: row.content?.title ?? row.note_title ?? "Untitled",
+      category: row.content?.category ?? null,
+      thumbnail_url: row.content?.thumbnail_url ?? null,
+      is_note: !row.content,
+    }))
+    .sort((a, b) => b.planned_date.localeCompare(a.planned_date))
+    .slice(0, limit);
+}
+
 export async function getPastWeeklyPlans(
   userId: string,
   limit: number = 4
