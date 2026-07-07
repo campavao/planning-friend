@@ -5,6 +5,7 @@ import { AddToHomeScreenPrompt } from "@/components/add-to-homescreen-button";
 import { CategoryTabs } from "@/components/category-tabs";
 import { NamePromptModal } from "@/components/name-prompt-modal";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { useContent } from "@/hooks/useContent";
 import {
   AlertCircle,
@@ -197,13 +198,13 @@ export default function Dashboard() {
               {/* Desktop Actions */}
               <div className="hidden md:flex items-center gap-3">
                 <Link href="/dashboard/planner">
-                  <Button className="btn-primary">
+                  <Button>
                     <Calendar className="w-4 h-4 mr-2" />
                     Plan Week
                   </Button>
                 </Link>
                 <Link href="/dashboard/gifts">
-                  <Button className="btn-outline">
+                  <Button variant="outline">
                     <Gift className="w-4 h-4 mr-2" />
                     Gifts
                   </Button>
@@ -213,7 +214,7 @@ export default function Dashboard() {
                   size="icon"
                   onClick={handleRefresh}
                   disabled={isValidating}
-                  className="btn-ghost w-10 h-10 rounded-xl"
+                  className="w-10 h-10 rounded-xl"
                 >
                   <RefreshCw
                     className={`w-4 h-4 ${isValidating ? "animate-spin" : ""}`}
@@ -270,7 +271,7 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
         {/* Processing Banner */}
         {processingCount > 0 && (
-          <div className="card-flat state-processing p-4 mb-6 animate-slide-up">
+          <Card className="border border-[var(--border)] shadow-none state-processing p-4 mb-6 animate-slide-up">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-[var(--accent)] flex items-center justify-center">
                 <Sparkles className="w-6 h-6 text-white animate-pulse-soft" />
@@ -283,12 +284,12 @@ export default function Dashboard() {
                 <div className="loading-bar mt-2 w-48" />
               </div>
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Failed Items Banner */}
         {failedCount > 0 && (
-          <div className="card-flat state-error p-4 mb-6 animate-slide-up">
+          <Card className="border border-[var(--border)] shadow-none state-error p-4 mb-6 animate-slide-up">
             <div className="flex items-center justify-between gap-4 mb-3">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center">
@@ -334,21 +335,21 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
         )}
 
         {error ? (
-          <div className="text-center py-16 card-elevated animate-scale-in">
+          <Card className="text-center py-16 animate-scale-in">
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-red-50 flex items-center justify-center">
               <AlertCircle className="w-8 h-8 text-destructive" />
             </div>
             <p className="text-destructive mb-4 font-medium">
               Failed to load content
             </p>
-            <Button onClick={handleRefresh} className="btn-primary">
+            <Button onClick={handleRefresh}>
               Try Again
             </Button>
-          </div>
+          </Card>
         ) : (
           <div className="animate-slide-up stagger-2">
             <CategoryTabs content={content} allTags={tags} />
@@ -359,13 +360,15 @@ export default function Dashboard() {
       {/* Dismissible Quick Tip */}
       {showTip && (
         <div className="hidden md:block fixed md:right-6 md:bottom-6 md:max-w-xs z-40">
-          <div className="card-elevated p-5 animate-slide-up">
-            <button
+          <Card className="p-5 animate-slide-up">
+            <Button
+              variant="ghost"
+              size="icon-sm"
               onClick={dismissTip}
-              className="absolute top-3 right-3 text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-muted transition-colors"
+              className="absolute top-3 right-3 text-muted-foreground hover:text-foreground"
             >
               <X className="w-4 h-4" />
-            </button>
+            </Button>
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] flex items-center justify-center shrink-0">
                 <Sparkles className="w-5 h-5 text-white" />
@@ -379,7 +382,7 @@ export default function Dashboard() {
                 <AddContactButton variant="button" className="w-full text-sm h-9" />
               </div>
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
