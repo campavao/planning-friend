@@ -3,6 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   usePlanner,
   type PlanItemWithSharing,
@@ -209,7 +210,7 @@ export function WeekSection({
               ref={(el: HTMLDivElement | null) =>
                 registerDayElement(dateKey, el)
               }
-              className={`card-elevated overflow-hidden transition-shadow ${
+              className={`overflow-hidden hover:-translate-y-1 hover:shadow-[var(--shadow-lg)] ${
                 isToday ? "ring-2 ring-[var(--primary)]" : ""
               } ${isHighlighted ? "ring-2 ring-[var(--accent)]" : ""}`}
             >
@@ -242,8 +243,8 @@ export function WeekSection({
                   </div>
 
                   {loading ? (
-                    <div className="space-y-2 animate-pulse">
-                      <div className="h-16 rounded-xl bg-[var(--muted)]" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-16 rounded-xl" />
                     </div>
                   ) : itemsByDay[dayIndex].length > 0 ? (
                     <div className="space-y-2">
@@ -272,14 +273,17 @@ export function WeekSection({
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <FileText className="w-4 h-4 text-[var(--accent)]" />
                                   {plannedTimeLabel && (
-                                    <span className="text-[10px] bg-white/70 px-2 py-0.5 rounded-full font-semibold text-[var(--accent)]">
+                                    <Badge className="bg-white/70 px-2 py-0.5 text-[10px] font-semibold text-[var(--accent)]">
                                       {plannedTimeLabel}
-                                    </span>
+                                    </Badge>
                                   )}
                                   {isShared && (
-                                    <span className="text-[10px] bg-[var(--muted)] px-1.5 py-0.5 rounded-full font-medium">
+                                    <Badge
+                                      variant="muted"
+                                      className="px-1.5 py-0.5 text-[10px] font-medium"
+                                    >
                                       from {sharedItem?.owner_name}
-                                    </span>
+                                    </Badge>
                                   )}
                                 </div>
                                 <p className="font-medium text-sm">
@@ -288,36 +292,42 @@ export function WeekSection({
                               </div>
                               <div className="absolute top-2 right-2 flex gap-1">
                                 {isShared ? (
-                                  <button
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-sm"
                                     onClick={() =>
                                       onLeaveShared(item.id, weekStart)
                                     }
-                                    className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
+                                    className="size-7 rounded-lg bg-white text-xs shadow-sm"
                                     title="Leave"
                                   >
-                                    <Hand className="w-3 h-3" />
-                                  </button>
+                                    <Hand className="size-3" />
+                                  </Button>
                                 ) : (
                                   <>
-                                    <button
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
                                       onClick={() => onOpenShare(ownItem!)}
-                                      className="bg-white rounded-lg h-7 px-2 text-[10px] font-semibold flex items-center gap-1 shadow-sm hover:bg-[var(--muted)]"
+                                      className="h-7 gap-1 rounded-lg bg-white px-2 text-[10px] font-semibold shadow-sm"
                                       title="Share"
                                     >
-                                      <Users className="w-3 h-3" />
+                                      <Users className="size-3" />
                                       {ownItem?.shared_with?.length
                                         ? ownItem.shared_with.length
                                         : "Share"}
-                                    </button>
-                                    <button
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon-sm"
                                       onClick={() =>
                                         onOpenEdit(ownItem!, dateKey)
                                       }
-                                      className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
+                                      className="size-7 rounded-lg bg-white text-xs shadow-sm"
                                       title="Edit"
                                     >
-                                      <Pencil className="w-3 h-3" />
-                                    </button>
+                                      <Pencil className="size-3" />
+                                    </Button>
                                   </>
                                 )}
                               </div>
@@ -352,70 +362,86 @@ export function WeekSection({
                                     {item.content?.category?.replace("_", " ")}
                                   </span>
                                   {plannedTimeLabel && (
-                                    <span className="text-[10px] bg-[var(--accent-light)] text-[var(--accent-foreground)] px-2 py-0.5 rounded-full font-semibold">
+                                    <Badge
+                                      variant="accent"
+                                      className="px-2 py-0.5 text-[10px] font-semibold"
+                                    >
                                       {plannedTimeLabel}
-                                    </span>
+                                    </Badge>
                                   )}
                                   {isShared && (
-                                    <span className="text-[10px] bg-[var(--muted)] px-1.5 py-0.5 rounded-full font-medium">
+                                    <Badge
+                                      variant="muted"
+                                      className="px-1.5 py-0.5 text-[10px] font-medium"
+                                    >
                                       from {sharedItem?.owner_name}
-                                    </span>
+                                    </Badge>
                                   )}
                                 </div>
                                 <div className="flex gap-1 shrink-0">
                                   {isAutoEvent ? (
                                     <>
-                                      <button
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
                                         onClick={() =>
                                           onShareAutoEvent(ownItem!, weekStart)
                                         }
-                                        className="bg-white rounded-lg h-7 px-2 text-[10px] font-semibold flex items-center gap-1 shadow-sm hover:bg-[var(--muted)]"
+                                        className="h-7 gap-1 rounded-lg bg-white px-2 text-[10px] font-semibold shadow-sm"
                                         title="Share"
                                       >
-                                        <Users className="w-3 h-3" />
+                                        <Users className="size-3" />
                                         Share
-                                      </button>
-                                      <button
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon-sm"
                                         onClick={() =>
                                           hideAutoEvent(item.content_id!)
                                         }
-                                        className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
+                                        className="size-7 rounded-lg bg-white text-xs shadow-sm"
                                         title="Hide from plan"
                                       >
-                                        <X className="w-3 h-3" />
-                                      </button>
+                                        <X className="size-3" />
+                                      </Button>
                                     </>
                                   ) : isShared ? (
-                                    <button
+                                    <Button
+                                      variant="ghost"
+                                      size="icon-sm"
                                       onClick={() =>
                                         onLeaveShared(item.id, weekStart)
                                       }
-                                      className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
+                                      className="size-7 rounded-lg bg-white text-xs shadow-sm"
                                       title="Leave"
                                     >
-                                      <Hand className="w-3 h-3" />
-                                    </button>
+                                      <Hand className="size-3" />
+                                    </Button>
                                   ) : (
                                     <>
-                                      <button
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
                                         onClick={() => onOpenShare(ownItem!)}
-                                        className="bg-white rounded-lg h-7 px-2 text-[10px] font-semibold flex items-center gap-1 shadow-sm hover:bg-[var(--muted)]"
+                                        className="h-7 gap-1 rounded-lg bg-white px-2 text-[10px] font-semibold shadow-sm"
                                         title="Share"
                                       >
-                                        <Users className="w-3 h-3" />
+                                        <Users className="size-3" />
                                         {ownItem?.shared_with?.length
                                           ? ownItem.shared_with.length
                                           : "Share"}
-                                      </button>
-                                      <button
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon-sm"
                                         onClick={() =>
                                           onOpenEdit(ownItem!, dateKey)
                                         }
-                                        className="bg-white rounded-lg w-7 h-7 text-xs flex items-center justify-center shadow-sm hover:bg-[var(--muted)]"
+                                        className="size-7 rounded-lg bg-white text-xs shadow-sm"
                                         title="Edit"
                                       >
-                                        <Pencil className="w-3 h-3" />
-                                      </button>
+                                        <Pencil className="size-3" />
+                                      </Button>
                                     </>
                                   )}
                                 </div>
@@ -479,9 +505,9 @@ export function WeekSection({
 
                 <CardContent className="p-2 space-y-2 min-h-[160px] bg-white rounded-b-2xl">
                   {loading ? (
-                    <div className="space-y-2 animate-pulse pt-1">
-                      <div className="h-16 rounded-lg bg-[var(--muted)]" />
-                      <div className="h-8 rounded-lg bg-[var(--muted)]" />
+                    <div className="space-y-2 pt-1">
+                      <Skeleton className="h-16 rounded-lg" />
+                      <Skeleton className="h-8 rounded-lg" />
                     </div>
                   ) : (
                     <>
@@ -510,14 +536,17 @@ export function WeekSection({
                                 <div className="flex items-center gap-1 flex-wrap">
                                   <FileText className="w-3 h-3 text-[var(--accent)]" />
                                   {plannedTimeLabel && (
-                                    <span className="text-[8px] bg-white/70 px-1.5 py-0.5 rounded-full font-semibold text-[var(--accent)]">
+                                    <Badge className="bg-white/70 px-1.5 py-0.5 text-[8px] font-semibold text-[var(--accent)]">
                                       {plannedTimeLabel}
-                                    </span>
+                                    </Badge>
                                   )}
                                   {isShared && (
-                                    <span className="text-[8px] bg-white/60 px-1 py-0.5 rounded font-medium">
+                                    <Badge
+                                      variant="muted"
+                                      className="rounded bg-white/60 px-1 py-0.5 text-[8px] font-medium"
+                                    >
                                       {sharedItem?.owner_name}
-                                    </span>
+                                    </Badge>
                                   )}
                                 </div>
                                 <p className="text-xs font-medium line-clamp-2">
@@ -526,36 +555,42 @@ export function WeekSection({
                               </div>
                               <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                 {isShared ? (
-                                  <button
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-sm"
                                     onClick={() =>
                                       onLeaveShared(item.id, weekStart)
                                     }
-                                    className="bg-white rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
+                                    className="size-5 rounded bg-white text-[10px] shadow-sm hover:bg-white"
                                     title="Leave"
                                   >
-                                    <Hand className="w-3 h-3" />
-                                  </button>
+                                    <Hand className="size-3" />
+                                  </Button>
                                 ) : (
                                   <>
-                                    <button
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
                                       onClick={() => onOpenShare(ownItem!)}
-                                      className="bg-white rounded h-5 px-1.5 text-[9px] font-semibold flex items-center gap-0.5 shadow-sm"
+                                      className="h-5 gap-0.5 rounded bg-white px-1.5 text-[9px] font-semibold shadow-sm hover:bg-white"
                                       title="Share"
                                     >
-                                      <Users className="w-3 h-3" />
+                                      <Users className="size-3" />
                                       {ownItem?.shared_with?.length
                                         ? ownItem.shared_with.length
                                         : "Share"}
-                                    </button>
-                                    <button
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon-sm"
                                       onClick={() =>
                                         onOpenEdit(ownItem!, dateKey)
                                       }
-                                      className="bg-white rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
+                                      className="size-5 rounded bg-white text-[10px] shadow-sm hover:bg-white"
                                       title="Edit"
                                     >
-                                      <Pencil className="w-3 h-3" />
-                                    </button>
+                                      <Pencil className="size-3" />
+                                    </Button>
                                   </>
                                 )}
                               </div>
@@ -577,82 +612,98 @@ export function WeekSection({
                               <div className="flex items-center gap-1 flex-wrap">
                                 <Icon className="w-3 h-3 text-muted-foreground" />
                                 {plannedTimeLabel && (
-                                  <span className="text-[8px] bg-[var(--accent-light)] text-[var(--accent-foreground)] px-1.5 py-0.5 rounded-full font-semibold">
+                                  <Badge
+                                    variant="accent"
+                                    className="px-1.5 py-0.5 text-[8px] font-semibold"
+                                  >
                                     {plannedTimeLabel}
-                                  </span>
+                                  </Badge>
                                 )}
                                 {isShared && (
-                                  <span className="text-[8px] bg-[var(--muted)] px-1 py-0.5 rounded font-medium">
+                                  <Badge
+                                    variant="muted"
+                                    className="rounded px-1 py-0.5 text-[8px] font-medium"
+                                  >
                                     {sharedItem?.owner_name}
-                                  </span>
+                                  </Badge>
                                 )}
                               </div>
                               <div className="flex gap-0.5">
                                 {isAutoEvent ? (
                                   <>
-                                    <button
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         onShareAutoEvent(ownItem!, weekStart);
                                       }}
-                                      className="bg-white/90 backdrop-blur rounded h-5 px-1.5 text-[9px] font-semibold flex items-center gap-0.5 shadow-sm"
+                                      className="h-5 gap-0.5 rounded bg-white/90 px-1.5 text-[9px] font-semibold shadow-sm backdrop-blur hover:bg-white/90"
                                       title="Share"
                                     >
-                                      <Users className="w-3 h-3" />
+                                      <Users className="size-3" />
                                       Share
-                                    </button>
-                                    <button
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon-sm"
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         hideAutoEvent(item.content_id!);
                                       }}
-                                      className="bg-white/90 backdrop-blur rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
+                                      className="size-5 rounded bg-white/90 text-[10px] shadow-sm backdrop-blur hover:bg-white/90"
                                       title="Hide from plan"
                                     >
-                                      <X className="w-3 h-3" />
-                                    </button>
+                                      <X className="size-3" />
+                                    </Button>
                                   </>
                                 ) : isShared ? (
-                                  <button
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-sm"
                                     onClick={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
                                       onLeaveShared(item.id, weekStart);
                                     }}
-                                    className="bg-white/90 backdrop-blur rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
+                                    className="size-5 rounded bg-white/90 text-[10px] shadow-sm backdrop-blur hover:bg-white/90"
                                     title="Leave"
                                   >
-                                    <Hand className="w-3 h-3" />
-                                  </button>
+                                    <Hand className="size-3" />
+                                  </Button>
                                 ) : (
                                   <>
-                                    <button
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         onOpenShare(ownItem!);
                                       }}
-                                      className="bg-white/90 backdrop-blur rounded h-5 px-1.5 text-[9px] font-semibold flex items-center gap-0.5 shadow-sm"
+                                      className="h-5 gap-0.5 rounded bg-white/90 px-1.5 text-[9px] font-semibold shadow-sm backdrop-blur hover:bg-white/90"
                                       title="Share"
                                     >
-                                      <Users className="w-3 h-3" />
+                                      <Users className="size-3" />
                                       {ownItem?.shared_with?.length
                                         ? ownItem.shared_with.length
                                         : "Share"}
-                                    </button>
-                                    <button
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon-sm"
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         onOpenEdit(ownItem!, dateKey);
                                       }}
-                                      className="bg-white/90 backdrop-blur rounded w-5 h-5 text-[10px] flex items-center justify-center shadow-sm"
+                                      className="size-5 rounded bg-white/90 text-[10px] shadow-sm backdrop-blur hover:bg-white/90"
                                       title="Edit"
                                     >
-                                      <Pencil className="w-3 h-3" />
-                                    </button>
+                                      <Pencil className="size-3" />
+                                    </Button>
                                   </>
                                 )}
                               </div>

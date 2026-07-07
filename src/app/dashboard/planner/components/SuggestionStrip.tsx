@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, RefreshCw, Sparkles, X } from "lucide-react";
 import type { Content, ContentCategory, Tag } from "@/lib/supabase";
 import { categoryUI } from "@/lib/categories";
@@ -41,16 +43,17 @@ function StripHeader({
         <Sparkles className="w-3 h-3" />
         Suggested
       </span>
-      <button
+      <Button
+        variant="ghost"
         onClick={() => onRefresh(dayIndex)}
         disabled={isRefreshing || loading}
-        className="flex items-center gap-1 hover:text-[var(--primary)] transition-colors disabled:opacity-50"
+        className="h-auto w-auto gap-1 p-0 hover:bg-transparent hover:text-[var(--primary)]"
         title="Refresh suggestions"
       >
         <RefreshCw
-          className={`w-3 h-3 ${isRefreshing || loading ? "animate-spin" : ""}`}
+          className={`size-3 ${isRefreshing || loading ? "animate-spin" : ""}`}
         />
-      </button>
+      </Button>
     </div>
   );
 }
@@ -58,20 +61,18 @@ function StripHeader({
 function SkeletonChip({ isCompact }: { isCompact: boolean }) {
   return (
     <div
-      className={`bg-[var(--background-alt)] border border-[var(--border)] rounded-xl flex items-stretch overflow-hidden animate-pulse ${
+      className={`bg-[var(--background-alt)] border border-[var(--border)] rounded-xl flex items-stretch overflow-hidden ${
         isCompact ? "min-h-[44px]" : "min-h-[52px]"
       }`}
     >
-      {!isCompact && <div className="w-12 shrink-0 bg-[var(--muted)]" />}
+      {!isCompact && <Skeleton className="w-12 shrink-0 rounded-none" />}
       <div className="flex-1 min-w-0 px-2 py-1.5 flex flex-col gap-1 justify-center">
-        <div className="h-2 w-12 rounded bg-[var(--muted)]" />
-        <div
-          className={`${isCompact ? "h-2.5" : "h-3"} w-3/4 rounded bg-[var(--muted)]`}
-        />
+        <Skeleton className="h-2 w-12 rounded" />
+        <Skeleton className={`${isCompact ? "h-2.5" : "h-3"} w-3/4 rounded`} />
       </div>
       <div className="flex flex-col gap-1 px-1.5 py-1 justify-center">
-        <div className="w-6 h-6 rounded-md bg-[var(--muted)]" />
-        <div className="w-6 h-6 rounded-md bg-[var(--muted)]" />
+        <Skeleton className="w-6 h-6 rounded-md" />
+        <Skeleton className="w-6 h-6 rounded-md" />
       </div>
     </div>
   );
@@ -183,28 +184,32 @@ export function SuggestionStrip({
                 </div>
               </Link>
               <div className="flex flex-col gap-1 px-1.5 py-1 justify-center">
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     onAdd(pick.contentId, dayIndex);
                   }}
-                  className="bg-[var(--primary)] text-white rounded-md w-6 h-6 flex items-center justify-center hover:bg-[var(--primary-dark)] transition-colors"
+                  className="size-6 rounded-md bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)] hover:text-white"
                   title="Add to plan"
                 >
-                  <Plus className="w-3 h-3" />
-                </button>
-                <button
+                  <Plus className="size-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     onDismiss(pick.contentId, dayIndex);
                   }}
-                  className="bg-white/70 text-muted-foreground rounded-md w-6 h-6 flex items-center justify-center hover:bg-[var(--muted)] transition-colors"
+                  className="size-6 rounded-md bg-white/70 text-muted-foreground hover:bg-[var(--muted)] hover:text-muted-foreground"
                   title="Dismiss"
                 >
-                  <X className="w-3 h-3" />
-                </button>
+                  <X className="size-3" />
+                </Button>
               </div>
             </div>
           );

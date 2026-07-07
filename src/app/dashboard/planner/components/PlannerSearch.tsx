@@ -1,5 +1,8 @@
 "use client";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { ContentCategory } from "@/lib/supabase";
 import { parseDateString } from "@/lib/date-utils";
 import { CalendarArrowDown, FileText, Search, X } from "lucide-react";
@@ -109,7 +112,7 @@ export function PlannerSearch({ onJump }: PlannerSearchProps) {
     >
       <div className="relative">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-        <input
+        <Input
           type="text"
           value={query}
           onChange={(e) => {
@@ -122,28 +125,30 @@ export function PlannerSearch({ onJump }: PlannerSearchProps) {
             if (e.key === "Enter" && dateMatch) jump(dateMatch);
           }}
           placeholder="Search a date, meal, or event..."
-          className="w-full h-9 rounded-lg border border-[var(--border)] bg-[var(--card)] pl-8 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40"
+          className="h-9 rounded-lg border border-[var(--border)] bg-[var(--card)] pl-8 pr-8 text-sm focus:border-[var(--border)] focus:ring-2 focus:ring-[var(--primary)]/40"
         />
         {query && (
-          <button
+          <Button
+            variant="ghost"
             onClick={() => {
               setQuery("");
               setOpen(false);
             }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            className="absolute right-2 top-1/2 h-auto w-auto -translate-y-1/2 p-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
             title="Clear search"
           >
             <X className="w-4 h-4" />
-          </button>
+          </Button>
         )}
       </div>
 
       {showDropdown && (
         <div className="absolute left-0 right-0 top-full mt-1 z-40 bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-lg overflow-hidden max-h-80 overflow-y-auto">
           {dateMatch && (
-            <button
+            <Button
+              variant="ghost"
               onClick={() => jump(dateMatch)}
-              className="w-full px-3 py-2.5 text-left flex items-center gap-2 hover:bg-[var(--muted)] transition-colors border-b border-[var(--border)]"
+              className="h-auto w-full justify-start gap-2 whitespace-normal rounded-none border-b border-[var(--border)] px-3 py-2.5 text-left font-normal"
             >
               <CalendarArrowDown className="w-4 h-4 text-[var(--primary)] shrink-0" />
               <span className="text-sm">
@@ -152,7 +157,7 @@ export function PlannerSearch({ onJump }: PlannerSearchProps) {
                   {formatResultDate(dateMatch)}
                 </span>
               </span>
-            </button>
+            </Button>
           )}
 
           {searching && (
@@ -170,10 +175,11 @@ export function PlannerSearch({ onJump }: PlannerSearchProps) {
                 new Date(result.planned_date),
               );
               return (
-                <button
+                <Button
                   key={result.id}
+                  variant="ghost"
                   onClick={() => jump(dateKey)}
-                  className="w-full px-3 py-2 text-left flex items-center gap-2.5 hover:bg-[var(--muted)] transition-colors"
+                  className="h-auto w-full justify-start gap-2.5 whitespace-normal rounded-none px-3 py-2 text-left font-normal"
                 >
                   {result.thumbnail_url ? (
                     <img
@@ -193,13 +199,16 @@ export function PlannerSearch({ onJump }: PlannerSearchProps) {
                     <p className="text-xs text-muted-foreground">
                       {formatResultDate(dateKey)}
                       {result.owner_name && (
-                        <span className="ml-1.5 bg-[var(--muted)] px-1.5 py-0.5 rounded-full text-[10px] font-medium">
+                        <Badge
+                          variant="muted"
+                          className="ml-1.5 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                        >
                           from {result.owner_name}
-                        </span>
+                        </Badge>
                       )}
                     </p>
                   </div>
-                </button>
+                </Button>
               );
             })}
 

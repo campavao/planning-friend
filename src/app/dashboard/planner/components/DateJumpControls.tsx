@@ -1,5 +1,12 @@
 "use client";
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatDateString, parseDateString } from "@/lib/date-utils";
 import { useMemo } from "react";
 
@@ -24,8 +31,8 @@ interface DateJumpControlsProps {
   onJump: (dateKey: string) => void;
 }
 
-const selectClass =
-  "h-9 rounded-lg bg-[var(--card)] px-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40";
+const triggerClass =
+  "data-[size=default]:h-9 rounded-lg border-0 bg-[var(--card)] px-2 text-sm font-medium focus:ring-2 focus:ring-[var(--primary)]/40";
 
 export function DateJumpControls({ anchorDate, onJump }: DateJumpControlsProps) {
   const anchor = parseDateString(anchorDate);
@@ -51,44 +58,53 @@ export function DateJumpControls({ anchorDate, onJump }: DateJumpControlsProps) 
 
   return (
     <div className="flex items-center gap-2">
-      <select
-        aria-label="Month"
-        className={selectClass}
-        value={month}
-        onChange={(e) => jumpTo(year, parseInt(e.target.value, 10), day)}
+      <Select
+        value={String(month)}
+        onValueChange={(v) => jumpTo(year, parseInt(v, 10), day)}
       >
-        {MONTH_LABELS.map((label, i) => (
-          <option key={label} value={i}>
-            {label}
-          </option>
-        ))}
-      </select>
-      <select
-        aria-label="Day"
-        className={selectClass}
-        value={day}
-        onChange={(e) => jumpTo(year, month, parseInt(e.target.value, 10))}
+        <SelectTrigger aria-label="Month" className={triggerClass}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {MONTH_LABELS.map((label, i) => (
+            <SelectItem key={label} value={String(i)}>
+              {label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select
+        value={String(day)}
+        onValueChange={(v) => jumpTo(year, month, parseInt(v, 10))}
       >
-        {Array.from({ length: daysInMonth(year, month) }, (_, i) => i + 1).map(
-          (d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ),
-        )}
-      </select>
-      <select
-        aria-label="Year"
-        className={selectClass}
-        value={year}
-        onChange={(e) => jumpTo(parseInt(e.target.value, 10), month, day)}
+        <SelectTrigger aria-label="Day" className={triggerClass}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {Array.from({ length: daysInMonth(year, month) }, (_, i) => i + 1).map(
+            (d) => (
+              <SelectItem key={d} value={String(d)}>
+                {d}
+              </SelectItem>
+            ),
+          )}
+        </SelectContent>
+      </Select>
+      <Select
+        value={String(year)}
+        onValueChange={(v) => jumpTo(parseInt(v, 10), month, day)}
       >
-        {years.map((y) => (
-          <option key={y} value={y}>
-            {y}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger aria-label="Year" className={triggerClass}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {years.map((y) => (
+            <SelectItem key={y} value={String(y)}>
+              {y}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
