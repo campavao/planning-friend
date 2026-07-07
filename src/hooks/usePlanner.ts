@@ -9,7 +9,7 @@ import { fetcher } from "@/lib/swr-config";
 import useSWR from "swr";
 
 // Extended plan item with sharing info from API
-interface PlanItemWithSharing extends PlanItem {
+export interface PlanItemWithSharing extends PlanItem {
   is_owner: boolean;
   is_auto_event?: boolean;
   shared_with?: { userId: string; name: string }[];
@@ -22,7 +22,7 @@ interface WeeklyPlanWithSharingItems
 }
 
 // Friend that can be shared with (has a linked account)
-interface ShareableFriend {
+export interface ShareableFriend {
   id: string;
   name: string;
   linkedUserId: string;
@@ -44,14 +44,25 @@ export interface SuggestionsMeta {
   poolSize: number;
 }
 
+// Week-scoped planner payload (GET /api/planner?week=...&fields=week)
 export interface PlannerData {
   plan: WeeklyPlanWithSharingItems | null;
   sharedItems: SharedPlanItem[];
-  availableContent: ContentWithTags[];
   suggestions: Record<number, SuggestionPick[]>;
   suggestionsMeta?: SuggestionsMeta;
+}
+
+// Week-independent planner payload (GET /api/planner/library)
+export interface PlannerLibraryData {
+  availableContent: ContentWithTags[];
+  allTags: Tag[];
   shareableFriends: ShareableFriend[];
-  allTags?: Tag[];
+}
+
+export const PLANNER_LIBRARY_KEY = "/api/planner/library";
+
+export function plannerWeekKey(weekStart: string) {
+  return `/api/planner?week=${weekStart}&fields=week`;
 }
 
 interface UsePlannerOptions {
@@ -64,7 +75,7 @@ export function usePlanner(
 ) {
   const { data, error, isLoading, isValidating, mutate } =
     useSWR<PlannerData>(
-      enabled && weekStart ? `/api/planner?week=${weekStart}` : null,
+      enabled && weekStart ? plannerWeekKey(weekStart) : null,
       fetcher,
       {
         revalidateOnFocus: true,
@@ -77,16 +88,35 @@ export function usePlanner(
     data: data ?? null,
     plan: data?.plan ?? null,
     sharedItems: data?.sharedItems ?? [],
-    availableContent: data?.availableContent ?? [],
     suggestions: data?.suggestions ?? {},
     suggestionsMeta: data?.suggestionsMeta ?? { emptyPool: false, poolSize: 0 },
-    shareableFriends: data?.shareableFriends ?? [],
-    allTags: data?.allTags ?? [],
     isLoading,
     isValidating,
     error,
     mutate,
     // Helper to invalidate and refetch
     refresh: () => mutate(),
+  };
+}
+
+export function usePlannerLibrary({ enabled = true }: UsePlannerOptions = {}) {
+  const { data, error, isLoading, mutate } = useSWR<PlannerLibraryData>(
+    enabled ? PLANNER_LIBRARY_KEY : null,
+    fetcher,
+    {
+      revalidateOnFocus: true,
+      keepPreviousData: true,
+      dedupingInterval: 5000,
+    }
+  );
+
+  return {
+    data: data ?? null,
+    availableContent: data?.availableContent ?? [],
+    allTags: data?.allTags ?? [],
+    shareableFriends: data?.shareableFriends ?? [],
+    isLoading,
+    error,
+    mutate,
   };
 }

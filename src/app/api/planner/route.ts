@@ -15,6 +15,7 @@ import {
   type SharedPlanItem,
 } from "@/lib/supabase";
 import { parseDateString } from "@/lib/utils";
+import { parseEventDate } from "@/lib/event-date";
 import { requireSession } from "@/lib/auth";
 import { addPlanItemBodySchema } from "@/lib/schemas/planner";
 import {
@@ -38,16 +39,21 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const weekStart = searchParams.get("week") || getWeekStart();
+    // fields=week: return only week-scoped data. The content library,
+    // tags, and friends list are served by /api/planner/library instead
+    // of being duplicated into every week's payload.
+    const weekFieldsOnly = searchParams.get("fields") === "week";
 
     // Get plan with items
     const plan = await getWeeklyPlanWithItems(session.userId, weekStart);
 
-    // Get all user's content with tags for adding to plan
+    // Get all user's content with tags (needed internally for
+    // auto-events and suggestions even when not serialized)
     const allContent = await getContentWithTags(session.userId);
     const availableContent = allContent.filter((c) => c.status === "completed");
 
     // Get all user tags for the filter UI
-    const allTags = await getUserTags(session.userId);
+    const allTags = weekFieldsOnly ? [] : await getUserTags(session.userId);
 
     // Get items shared with this user for this week
     let sharedItems: SharedPlanItem[] = [];
@@ -159,7 +165,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    const weekPayload = {
       success: true,
       plan: plan
         ? {
@@ -168,9 +174,17 @@ export async function GET(request: NextRequest) {
           }
         : null,
       sharedItems,
-      availableContent,
       suggestions,
       suggestionsMeta,
+    };
+
+    if (weekFieldsOnly) {
+      return NextResponse.json(weekPayload);
+    }
+
+    return NextResponse.json({
+      ...weekPayload,
+      availableContent,
       shareableFriends,
       allTags,
     });
@@ -246,33 +260,6 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
-}
-
-// Parse a free-form event date string (e.g. "Saturday, April 18, 2026") into a Date
-function parseEventDate(dateStr?: string, timeStr?: string): Date | null {
-  if (!dateStr) return null;
-
-  // Try parsing the date string directly - works for many natural formats
-  // Remove day-of-week prefix like "Saturday, " if present
-  const cleaned = dateStr.replace(/^[A-Za-z]+,\s*/, "");
-  const parsed = new Date(cleaned);
-  if (!Number.isNaN(parsed.getTime())) {
-    // Apply time if provided
-    if (timeStr) {
-      const timeMatch = timeStr.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM|am|pm)?/);
-      if (timeMatch) {
-        let hours = parseInt(timeMatch[1], 10);
-        const minutes = parseInt(timeMatch[2] || "0", 10);
-        const period = timeMatch[3]?.toUpperCase();
-        if (period === "PM" && hours < 12) hours += 12;
-        if (period === "AM" && hours === 12) hours = 0;
-        parsed.setHours(hours, minutes, 0, 0);
-      }
-    }
-    return parsed;
-  }
-
-  return null;
 }
 
 // Create synthetic plan items for events with dates in the current week
