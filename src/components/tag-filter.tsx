@@ -1,5 +1,6 @@
 "use client";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Tag } from "@/lib/supabase";
 import { ChevronDown, ChevronUp, X } from "lucide-react";
@@ -63,34 +64,39 @@ export function TagFilter({
       {displayTags.map((tag) => {
         const isSelected = selectedTags.includes(tag.id);
         return (
-          <button
+          <Badge
             key={tag.id}
-            onClick={() => onToggle(tag.id)}
-            className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all ${
-              isSelected
-                ? "bg-[var(--primary)] text-white shadow-sm"
-                : "bg-[var(--muted)] hover:bg-[var(--border)] text-[var(--foreground)]"
-            }`}
+            asChild
+            variant={isSelected ? "default" : "muted"}
+            className={isSelected ? "shadow-sm" : "hover:bg-[var(--border)]"}
           >
-            {tag.name}
-          </button>
+            <button
+              onClick={() => onToggle(tag.id)}
+              className="px-3 py-1.5 font-medium transition-all"
+            >
+              {tag.name}
+            </button>
+          </Badge>
         );
       })}
       {hasMoreTags && (
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="text-xs px-3 py-1.5 rounded-full bg-[var(--accent-light)] hover:bg-[var(--accent)] transition-colors font-medium flex items-center gap-1"
-        >
-          {isExpanded ? (
-            <>
-              Less <ChevronUp className="w-3 h-3" />
-            </>
-          ) : (
-            <>
-              +{tags.length - MAX_COLLAPSED_TAGS} <ChevronDown className="w-3 h-3" />
-            </>
-          )}
-        </button>
+        <Badge asChild variant="accent" className="hover:bg-[var(--accent)]">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="px-3 py-1.5 font-medium transition-colors gap-1"
+          >
+            {isExpanded ? (
+              <>
+                Less <ChevronUp className="w-3 h-3" />
+              </>
+            ) : (
+              <>
+                +{tags.length - MAX_COLLAPSED_TAGS}{" "}
+                <ChevronDown className="w-3 h-3" />
+              </>
+            )}
+          </button>
+        </Badge>
       )}
       {selectedTags.length > 0 && (
         <Button

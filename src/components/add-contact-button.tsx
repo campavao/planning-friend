@@ -68,12 +68,13 @@ END:VCARD`;
 
   if (variant === "link") {
     return (
-      <button
+      <Button
+        variant="link"
         onClick={handleAddContact}
-        className={`text-[var(--primary)] font-semibold hover:underline font-mono ${className}`}
+        className={`h-auto p-0 font-semibold font-mono ${className}`}
       >
         {formatPhoneNumber(phoneNumber)}
-      </button>
+      </Button>
     );
   }
 
@@ -83,12 +84,13 @@ END:VCARD`;
         <span className="text-[var(--primary)] font-semibold font-mono">
           {formatPhoneNumber(phoneNumber)}
         </span>
-        <button
+        <Button
+          variant="link"
           onClick={handleAddContact}
-          className="text-xs text-muted-foreground hover:text-[var(--primary)] underline"
+          className="h-auto p-0 text-xs text-muted-foreground hover:text-[var(--primary)] underline"
         >
           (add)
-        </button>
+        </Button>
       </span>
     );
   }

@@ -3,6 +3,13 @@
 import { AddContactButton } from "@/components/add-contact-button";
 import { ContentCard } from "@/components/content-card";
 import { TagFilter } from "@/components/tag-filter";
+import { Card } from "@/components/ui/card";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import type { ContentWithTags, Tag } from "@/lib/supabase";
 import {
   Calendar,
@@ -73,7 +80,7 @@ function EmptyState({ category, hasTagFilters }: { category: string; hasTagFilte
   const Icon = TABS.find((t) => t.id === category)?.icon || Smartphone;
 
   return (
-    <div className="col-span-full flex flex-col items-center justify-center py-16 text-center card-elevated">
+    <Card className="col-span-full flex flex-col items-center justify-center py-16 text-center">
       <div className="w-20 h-20 mx-auto mb-5 rounded-2xl bg-[var(--muted)] flex items-center justify-center">
         <Icon className="w-10 h-10 text-muted-foreground" />
       </div>
@@ -88,7 +95,7 @@ function EmptyState({ category, hasTagFilters }: { category: string; hasTagFilte
           : "Text a TikTok or Instagram link to save it here."}
       </p>
       {!hasTagFilters && <AddContactButton variant="button" />}
-    </div>
+    </Card>
   );
 }
 
@@ -108,50 +115,56 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
 
   const counts = getCounts(content, selectedTags);
 
-  const currentTab = TABS.find((t) => t.id === activeTab);
-  const currentContent = getFilteredContent(content, selectedTags, currentTab?.category);
-
   return (
-    <div className="w-full">
+    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full gap-0">
       {/* Tabs */}
-      <div className="tabs-container mb-5 hide-scrollbar">
+      <TabsList className="mb-5 hide-scrollbar h-auto w-full justify-start gap-2 overflow-x-auto rounded-none bg-transparent p-0 pb-2">
         {TABS.map((tab) => {
           const count = counts[tab.id as keyof typeof counts];
           const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
 
           return (
-            <button
+            <TabsTrigger
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`tab-item ${isActive ? "active" : ""}`}
+              value={tab.id}
+              className="h-auto flex-none gap-2 rounded-full border-none px-4 py-2.5 text-sm font-medium text-muted-foreground shadow-none transition-all hover:bg-[var(--muted)] hover:text-foreground data-[state=active]:bg-[var(--primary)] data-[state=active]:text-[var(--primary-foreground)] data-[state=active]:shadow-none"
             >
               {Icon && <Icon className="w-4 h-4" />}
               <span>{tab.label}</span>
               <span className="text-xs opacity-70">({count})</span>
-            </button>
+            </TabsTrigger>
           );
         })}
-      </div>
+      </TabsList>
 
       {/* Tag Filter */}
       {allTags.length > 0 && (
-        <div className="mb-6 card-flat p-4">
+        <Card className="mb-6 border border-[var(--border)] p-4 shadow-none">
           <TagFilter
             tags={allTags}
             selectedTags={selectedTags}
             onToggle={(tagId) => setSelectedTags((prev) => toggleTag(prev, tagId))}
             onClear={() => setSelectedTags([])}
           />
-        </div>
+        </Card>
       )}
 
       {/* Content */}
-      {currentContent.length === 0 ? (
-        <EmptyState category={activeTab} hasTagFilters={selectedTags.length > 0} />
-      ) : (
-        <ContentGrid items={currentContent} />
-      )}
-    </div>
+      {TABS.map((tab) => {
+        const items = getFilteredContent(content, selectedTags, tab.category);
+        return (
+          <TabsContent key={tab.id} value={tab.id}>
+            {items.length === 0 ? (
+              <EmptyState
+                category={tab.id}
+                hasTagFilters={selectedTags.length > 0}
+              />
+            ) : (
+              <ContentGrid items={items} />
+            )}
+          </TabsContent>
+        );
+      })}
+    </Tabs>
   );
 }

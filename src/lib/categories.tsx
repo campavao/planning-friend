@@ -22,48 +22,56 @@ export interface CategoryUI {
   label: string;
   text: string; // text-color class
   bg: string; // background class
+  badge: "meal" | "drink" | "event" | "date" | "gift" | "travel" | "other"; // ui/badge variant
 }
 
 export const CATEGORY_UI: Record<string, CategoryUI> = {
   meal: {
     icon: Utensils,
     label: CATEGORY_CONFIG.meal.label,
+    badge: "meal",
     text: "text-[var(--meal)]",
     bg: "bg-[var(--meal-bg)]",
   },
   drink: {
     icon: Coffee,
     label: CATEGORY_CONFIG.drink.label,
+    badge: "drink",
     text: "text-[var(--drink)]",
     bg: "bg-[var(--drink-bg)]",
   },
   event: {
     icon: Calendar,
     label: CATEGORY_CONFIG.event.label,
+    badge: "event",
     text: "text-[var(--event)]",
     bg: "bg-[var(--event-bg)]",
   },
   date_idea: {
     icon: Heart,
     label: CATEGORY_CONFIG.date_idea.label,
+    badge: "date",
     text: "text-[var(--date)]",
     bg: "bg-[var(--date-bg)]",
   },
   gift_idea: {
     icon: Gift,
     label: CATEGORY_CONFIG.gift_idea.label,
+    badge: "gift",
     text: "text-[var(--gift)]",
     bg: "bg-[var(--gift-bg)]",
   },
   travel: {
     icon: Plane,
     label: CATEGORY_CONFIG.travel.label,
+    badge: "travel",
     text: "text-[var(--travel)]",
     bg: "bg-[var(--travel-bg)]",
   },
   other: {
     icon: Pin,
     label: CATEGORY_CONFIG.other.label,
+    badge: "other",
     text: "text-[var(--other)]",
     bg: "bg-[var(--other-bg)]",
   },
