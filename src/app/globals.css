@@ -480,6 +480,33 @@
   100% { transform: translateX(300%); }
 }
 
+/* Indeterminate top sync bar: a highlight sweeps across a faint track. */
+.sync-progress-line {
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--primary) 50%,
+      transparent 100%
+    ),
+    var(--primary-light, var(--primary));
+  background-size: 45% 100%, 100% 100%;
+  background-repeat: no-repeat;
+  background-position: -45% 0, 0 0;
+  animation: sync-slide 1.15s ease-in-out infinite;
+}
+@keyframes sync-slide {
+  0% { background-position: -45% 0, 0 0; }
+  100% { background-position: 145% 0, 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sync-progress-line {
+    animation: none;
+    background: var(--primary);
+    opacity: 0.6;
+  }
+}
+
 /* ===== ANIMATIONS ===== */
 
 @keyframes fade-in {

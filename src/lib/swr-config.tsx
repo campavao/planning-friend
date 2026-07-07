@@ -1,8 +1,88 @@
 "use client";
 
 import { ReactNode, useEffect, useLayoutEffect } from "react";
-import type { Cache, State } from "swr";
+import type { Cache, Middleware, State, SWRHook } from "swr";
 import { SWRConfig, useSWRConfig } from "swr";
+
+// ---------------------------------------------------------------------------
+// Global sync tracker
+//
+// Instead of per-page loading spinners/skeletons, the app always renders
+// whatever data it has and surfaces background fetching through one thin bar
+// at the top. This tracks how many SWR fetches are in flight app-wide and when
+// the last one finished, exposed via useSyncExternalStore.
+// ---------------------------------------------------------------------------
+const LAST_SYNC_KEY = "planning-friend-last-sync";
+
+let inflight = 0;
+let lastSyncedAt: number | null = null;
+// A stable snapshot object; only replaced when values change so
+// useSyncExternalStore doesn't loop.
+let syncSnapshot: { syncing: boolean; lastSyncedAt: number | null } = {
+  syncing: false,
+  lastSyncedAt: null,
+};
+const syncListeners = new Set<() => void>();
+
+function emitSync() {
+  syncSnapshot = { syncing: inflight > 0, lastSyncedAt };
+  syncListeners.forEach((l) => l());
+}
+
+export function subscribeSync(cb: () => void): () => void {
+  syncListeners.add(cb);
+  return () => syncListeners.delete(cb);
+}
+
+export function getSyncSnapshot() {
+  return syncSnapshot;
+}
+
+const SERVER_SYNC_SNAPSHOT = { syncing: false, lastSyncedAt: null };
+export function getSyncServerSnapshot() {
+  return SERVER_SYNC_SNAPSHOT;
+}
+
+// Seed lastSyncedAt from storage so "Updated Xm ago" is meaningful right after
+// a reload, before the first fresh fetch completes.
+if (typeof window !== "undefined") {
+  const stored = Number(localStorage.getItem(LAST_SYNC_KEY));
+  if (stored) {
+    lastSyncedAt = stored;
+    syncSnapshot = { syncing: false, lastSyncedAt: stored };
+  }
+}
+
+// SWR middleware: wrap the fetcher to count in-flight requests and stamp the
+// last successful sync time. Non-fetching hooks (key=null, cache mutations)
+// are unaffected.
+const syncTrackerMiddleware: Middleware =
+  (useSWRNext: SWRHook) => (key, fetcher, config) => {
+    const wrappedFetcher =
+      fetcher == null
+        ? fetcher
+        : (...args: unknown[]) => {
+            inflight += 1;
+            emitSync();
+            return Promise.resolve(
+              (fetcher as (...a: unknown[]) => unknown)(...args)
+            )
+              .then((res) => {
+                lastSyncedAt = Date.now();
+                try {
+                  localStorage.setItem(LAST_SYNC_KEY, String(lastSyncedAt));
+                } catch {
+                  // ignore storage errors
+                }
+                return res;
+              })
+              .finally(() => {
+                inflight = Math.max(0, inflight - 1);
+                emitSync();
+              });
+          };
+    return useSWRNext(key, wrappedFetcher as typeof fetcher, config);
+  };
 
 const CACHE_KEY = "planning-friend-cache";
 // v2: entries are persisted as { data } only (no error/loading flags) and
@@ -124,6 +204,7 @@ export function SWRProvider({ children }: SWRProviderProps) {
       value={{
         provider: localStorageProvider as unknown as () => Cache<SWRCacheState>,
         fetcher,
+        use: [syncTrackerMiddleware],
         revalidateOnFocus: true,
         revalidateOnReconnect: true,
         dedupingInterval: 5000,

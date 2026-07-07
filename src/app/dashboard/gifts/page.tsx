@@ -29,7 +29,7 @@ import { useCallback, useState } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/swr-config";
 import { useSession } from "../useSession";
-import { ListSkeleton } from "@/components/Skeletons";
+import { SyncCaption } from "@/components/TopProgressBar";
 
 export default function GiftPlannerPage() {
   const [newRecipientName, setNewRecipientName] = useState("");
@@ -39,18 +39,13 @@ export default function GiftPlannerPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showGiven, setShowGiven] = useState(false);
 
-  // Session handling (redirect to login if unauthenticated) is consistent
-  // with the rest of the dashboard.
-  const { isLoading: sessionLoading } = useSession();
+  // Redirect to login if unauthenticated (side-effect only; data renders
+  // as-is with sync surfaced by the top progress bar).
+  useSession();
 
-  const {
-    data: recipientsData,
-    isLoading: recipientsLoading,
-    mutate: mutateRecipients,
-  } = useSWR<{ recipients: GiftRecipientWithAssignments[] }>(
-    "/api/gifts/recipients?include=assignments",
-    fetcher
-  );
+  const { data: recipientsData, mutate: mutateRecipients } = useSWR<{
+    recipients: GiftRecipientWithAssignments[];
+  }>("/api/gifts/recipients?include=assignments", fetcher);
   const { data: giftsData, mutate: mutateGifts } = useSWR<{
     giftIdeas: Content[];
   }>("/api/gifts/assignments", fetcher);
@@ -64,8 +59,6 @@ export default function GiftPlannerPage() {
     mutateRecipients();
     mutateGifts();
   }, [mutateRecipients, mutateGifts]);
-
-  const loading = sessionLoading || (recipientsLoading && !recipientsData);
 
   const addRecipient = async () => {
     if (!newRecipientName.trim()) return;
@@ -198,21 +191,13 @@ export default function GiftPlannerPage() {
             Back
           </Button>
         </Link>
-        <h1 className="heading-1 text-white">Gift Ideas</h1>
+        <div>
+          <h1 className="heading-1 text-white">Gift Ideas</h1>
+          <SyncCaption className="text-white/70 mt-0.5" />
+        </div>
       </div>
     </div>
   );
-
-  if (loading) {
-    return (
-      <main className="min-h-screen pb-28 md:pb-8 bg-[var(--background)]">
-        {GiftsHeader}
-        <div className="max-w-4xl mx-auto px-3 md:px-4 py-6">
-          <ListSkeleton count={4} />
-        </div>
-      </main>
-    );
-  }
 
   return (
     <main className="min-h-screen pb-28 md:pb-8 bg-[var(--background)]">

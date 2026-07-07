@@ -19,7 +19,7 @@ import { useCallback, useRef, useState } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/swr-config";
 import { useSession } from "../useSession";
-import { ListSkeleton } from "@/components/Skeletons";
+import { SyncCaption } from "@/components/TopProgressBar";
 
 // Type for Contact Picker API
 interface ContactInfo {
@@ -50,18 +50,16 @@ export default function FriendsPage() {
   const [editName, setEditName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Session handling (redirect to login if unauthenticated) matches the rest
-  // of the dashboard.
-  const { isLoading: sessionLoading } = useSession();
+  // Redirect to login if unauthenticated (side-effect only; data renders
+  // as-is with sync surfaced by the top progress bar).
+  useSession();
 
-  const {
-    data,
-    isLoading: friendsLoading,
-    mutate,
-  } = useSWR<{ friends: Friend[] }>("/api/friends", fetcher);
+  const { data, mutate } = useSWR<{ friends: Friend[] }>(
+    "/api/friends",
+    fetcher
+  );
 
   const friends = data?.friends ?? [];
-  const loading = sessionLoading || (friendsLoading && !data);
 
   // Re-fetch the list after a mutation.
   const fetchFriends = useCallback(() => {
@@ -307,21 +305,13 @@ export default function FriendsPage() {
             Back
           </Button>
         </Link>
-        <h1 className="heading-1 text-white">Friends</h1>
+        <div>
+          <h1 className="heading-1 text-white">Friends</h1>
+          <SyncCaption className="text-white/70 mt-0.5" />
+        </div>
       </div>
     </div>
   );
-
-  if (loading) {
-    return (
-      <main className="min-h-screen pb-28 md:pb-8 bg-[var(--background)]">
-        {FriendsHeader}
-        <div className="max-w-4xl mx-auto px-3 md:px-4 py-6">
-          <ListSkeleton count={5} />
-        </div>
-      </main>
-    );
-  }
 
   return (
     <main className="min-h-screen pb-28 md:pb-8 bg-[var(--background)]">

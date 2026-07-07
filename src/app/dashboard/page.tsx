@@ -12,7 +12,6 @@ import {
   Coffee,
   Gift,
   Heart,
-  Loader2,
   RefreshCw,
   Utensils,
   X,
@@ -21,7 +20,7 @@ import {
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSession } from "./useSession";
-import { CardGridSkeleton, StatRowSkeleton } from "@/components/Skeletons";
+import { SyncCaption } from "@/components/TopProgressBar";
 
 // Initialize tip visibility from localStorage
 function getInitialTipVisibility() {
@@ -37,21 +36,27 @@ export default function Dashboard() {
   // so it can't race the session-active flag across components.
 
   // Session management with SWR
-  const { user, isLoading: sessionLoading } = useSession();
+  const {
+    user,
+    isAuthenticated,
+    isLoading: sessionLoading,
+  } = useSession();
 
-  // Content fetching with SWR - only fetch when session is validated
+  // Content fetching with SWR. Fetch while authenticated OR while the session
+  // is still being checked, so cached content (hydrated from localStorage)
+  // renders immediately on a fresh load instead of waiting on the session
+  // round-trip. If the session resolves unauthenticated, useSession redirects.
   const {
     content,
     tags,
-    isLoading: contentLoading,
     isValidating,
     error,
     mutate: mutateContent,
-  } = useContent({ enabled: !!user });
+  } = useContent({ enabled: isAuthenticated || sessionLoading });
 
-  // Combined loading state - show loading only on initial load, not revalidation
-  const isInitialLoading =
-    sessionLoading || (!!user && contentLoading && content.length === 0);
+  // No loading gate: content (from cache or fresh) always renders as-is, and
+  // background fetching is surfaced by the top progress bar + sync caption
+  // rather than a skeleton.
 
   const dismissTip = () => {
     setShowTip(false);
@@ -153,30 +158,6 @@ export default function Dashboard() {
     (c) => c.category === "gift_idea"
   ).length;
 
-  if (isInitialLoading) {
-    return (
-      <main className="min-h-screen pb-28 md:pb-8 bg-background">
-        <div className="sticky top-0 z-20 bg-[var(--background)]">
-          <div className="relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary-light)]/20 via-transparent to-[var(--accent)]/10" />
-            <div className="relative max-w-7xl mx-auto px-4 md:px-6 pt-4 pb-3">
-              <h1 className="heading-1">My Collection</h1>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                Loading your collection…
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="max-w-7xl mx-auto px-4 md:px-6 pb-4 pt-2">
-          <StatRowSkeleton />
-        </div>
-        <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
-          <CardGridSkeleton />
-        </div>
-      </main>
-    );
-  }
-
   return (
     <main className="min-h-screen pb-28 md:pb-8 bg-background">
       {/* Sticky Header */}
@@ -189,8 +170,9 @@ export default function Dashboard() {
                 <h1 className="heading-1">
                   My Collection
                 </h1>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  {completedContent.length} saved items
+                <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-2">
+                  <span>{completedContent.length} saved items</span>
+                  <SyncCaption />
                 </p>
               </div>
 

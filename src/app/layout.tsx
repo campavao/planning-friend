@@ -1,4 +1,5 @@
 import { BottomNav } from "@/components/bottom-nav";
+import { TopProgressBar } from "@/components/TopProgressBar";
 import { SWRProvider } from "@/lib/swr-config";
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
@@ -64,6 +65,7 @@ export default function RootLayout({
         className={`${dmSans.variable} ${fraunces.variable} font-sans antialiased min-h-screen bg-background`}
       >
         <SWRProvider>
+          <TopProgressBar />
           {children}
           <BottomNav />
         </SWRProvider>
