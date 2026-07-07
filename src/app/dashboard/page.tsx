@@ -13,7 +13,6 @@ import {
   Coffee,
   Gift,
   Heart,
-  Loader2,
   RefreshCw,
   Utensils,
   X,

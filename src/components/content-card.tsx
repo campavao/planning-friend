@@ -120,7 +120,7 @@ function ProcessingCard({
           <Button
             variant="secondary"
             size="sm"
-            className="w-full mt-3 text-xs btn-secondary"
+            className="w-full mt-3 text-xs"
             onClick={handleRetry}
             disabled={isRetrying || retryState === "success"}
           >

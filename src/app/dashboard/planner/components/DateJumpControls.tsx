@@ -8,7 +8,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDateString, parseDateString } from "@/lib/date-utils";
-import { useMemo } from "react";
 
 const MONTH_LABELS = [
   "January",
@@ -34,22 +33,25 @@ interface DateJumpControlsProps {
 const triggerClass =
   "data-[size=default]:h-9 rounded-lg border-0 bg-[var(--card)] px-2 text-sm font-medium focus:ring-2 focus:ring-[var(--primary)]/40";
 
+const daysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
+
+// ±10 years around the current year, widened to include the anchor year.
+function yearRange(year: number): number[] {
+  const current = new Date().getFullYear();
+  const min = Math.min(year, current - 10);
+  const max = Math.max(year, current + 10);
+  const list: number[] = [];
+  for (let y = min; y <= max; y++) list.push(y);
+  return list;
+}
+
 export function DateJumpControls({ anchorDate, onJump }: DateJumpControlsProps) {
   const anchor = parseDateString(anchorDate);
   const year = anchor.getFullYear();
   const month = anchor.getMonth();
   const day = anchor.getDate();
 
-  const years = useMemo(() => {
-    const current = new Date().getFullYear();
-    const min = Math.min(year, current - 10);
-    const max = Math.max(year, current + 10);
-    const list: number[] = [];
-    for (let y = min; y <= max; y++) list.push(y);
-    return list;
-  }, [year]);
-
-  const daysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
+  const years = yearRange(year);
 
   const jumpTo = (y: number, m: number, d: number) => {
     const clampedDay = Math.min(d, daysInMonth(y, m));

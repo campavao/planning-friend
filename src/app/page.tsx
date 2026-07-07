@@ -303,7 +303,7 @@ export default function Home() {
 
         {/* Feature highlights */}
         <div className="mt-10 w-full max-w-lg px-4 animate-slide-up stagger-4">
-          <div className="card-gradient p-5 rounded-2xl">
+          <Card className="bg-gradient-to-br from-[var(--card)] to-[var(--background-alt)] shadow-[var(--shadow-md)] p-5">
             <div className="grid grid-cols-4 gap-3 text-center">
               <div>
                 <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-[var(--meal-bg)] flex items-center justify-center">
@@ -330,7 +330,7 @@ export default function Home() {
                 <p className="text-xs font-medium">Travel</p>
               </div>
             </div>
-          </div>
+          </Card>
         </div>
       </div>
 
