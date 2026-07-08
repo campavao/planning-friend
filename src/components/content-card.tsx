@@ -56,7 +56,6 @@ interface ContentCardProps {
 
 function ProcessingCard({
   content,
-  index = 0,
 }: {
   content: Content;
   index?: number;
@@ -99,8 +98,7 @@ function ProcessingCard({
   return (
     <Link href={`/dashboard/${content.id}`}>
       <div
-        className={`card-elevated overflow-hidden cursor-pointer h-full animate-slide-up`}
-        style={{ animationDelay: `${Math.min(index, 5) * 0.1}s` }}
+        className={`card-elevated overflow-hidden cursor-pointer h-full`}
       >
         <div className="aspect-square bg-[var(--accent-light)] flex items-center justify-center">
           <div className="text-center">
@@ -141,7 +139,6 @@ function ProcessingCard({
 
 function FailedCard({
   content,
-  index = 0,
 }: {
   content: Content;
   index?: number;
@@ -149,8 +146,7 @@ function FailedCard({
   return (
     <Link href={`/dashboard/${content.id}`}>
       <div
-        className={`card-elevated overflow-hidden cursor-pointer h-full animate-slide-up state-error`}
-        style={{ animationDelay: `${Math.min(index, 5) * 0.1}s` }}
+        className={`card-elevated overflow-hidden cursor-pointer h-full state-error`}
       >
         <div className="aspect-square bg-red-50 flex items-center justify-center">
           <div className="text-center">
@@ -176,7 +172,6 @@ function FailedCard({
 function ContentCardInner({
   content,
   tags,
-  index = 0,
   meta,
 }: {
   content: Content;
@@ -192,8 +187,7 @@ function ContentCardInner({
   return (
     <Link href={`/dashboard/${content.id}`}>
       <div
-        className={`card-elevated overflow-hidden cursor-pointer h-full animate-slide-up`}
-        style={{ animationDelay: `${Math.min(index, 5) * 0.1}s` }}
+        className={`card-elevated overflow-hidden cursor-pointer h-full`}
       >
         {/* Image */}
         <div className="relative">
