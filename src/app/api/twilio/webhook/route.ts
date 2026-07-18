@@ -1,6 +1,7 @@
 import { createProcessingContent, getOrCreateUser } from "@/lib/supabase";
 import {
   extractSocialMediaUrl,
+  getWebhookUrlCandidates,
   normalizePhoneNumber,
   validateTwilioRequest,
 } from "@/lib/twilio";
@@ -19,22 +20,6 @@ function twimlResponse(status = 200): NextResponse {
     status,
     headers: { "Content-Type": "text/xml" },
   });
-}
-
-// The webhook URL Twilio signed. Must match exactly what was configured in the
-// Twilio console, so prefer the explicit app URL over the (proxy-rewritten)
-// request URL.
-function getWebhookUrl(request: NextRequest): string {
-  if (
-    process.env.NEXT_PUBLIC_APP_URL &&
-    !process.env.NEXT_PUBLIC_APP_URL.includes("localhost")
-  ) {
-    return `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/api/twilio/webhook`;
-  }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}/api/twilio/webhook`;
-  }
-  return new URL(request.url).toString();
 }
 
 // Get the base URL dynamically
@@ -73,13 +58,16 @@ export async function POST(request: NextRequest) {
       for (const [key, value] of formData.entries()) {
         if (typeof value === "string") params[key] = value;
       }
-      const valid = validateTwilioRequest(
-        signature,
-        getWebhookUrl(request),
-        params
+      const candidates = getWebhookUrlCandidates(request);
+      const valid = candidates.some((url) =>
+        validateTwilioRequest(signature, url, params)
       );
       if (!valid) {
-        console.error("Rejected Twilio webhook: invalid signature");
+        // Log the URLs we validated against — a rejection is almost always a
+        // mismatch between these and the URL configured in the Twilio console.
+        console.error(
+          `Rejected Twilio webhook: invalid signature (tried: ${candidates.join(", ")})`
+        );
         return twimlResponse(403);
       }
     } else {

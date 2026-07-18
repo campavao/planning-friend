@@ -137,6 +137,36 @@ async function main() {
   r = await req("/api/process", { method: "POST", cookie: cookieA, body: { contentId: "x", socialUrl: "https://example.com", userId: A } });
   check("/api/process rejects without internal token", r.status === 403, `status ${r.status}`);
 
+  // --- twilio webhook signature gate ---
+  // A prod deploy once rejected every real text for days because the server
+  // validated signatures against the wrong URL (VERCEL_URL instead of the
+  // public domain Twilio signed). This canary sends a correctly signed
+  // synthetic webhook; the body contains no link and no media, so the handler
+  // ACKs with empty TwiML before any user/content row is created — zero side
+  // effects. Requires TWILIO_AUTH_TOKEN matching the deployed app's.
+  const twilioToken = process.env.TWILIO_AUTH_TOKEN;
+  if (twilioToken) {
+    const whUrl = `${BASE}/api/twilio/webhook`;
+    const params = { From: "+15005550006", Body: "regression canary (no link)" };
+    // Twilio signature: base64(HMAC-SHA1(authToken, url + sortedKey1val1key2val2...))
+    const sorted = Object.keys(params).sort().map((k) => k + params[k]).join("");
+    const goodSig = crypto.createHmac("sha1", twilioToken).update(whUrl + sorted).digest("base64");
+    const postWebhook = (sig) => fetch(whUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        ...(sig ? { "X-Twilio-Signature": sig } : {}),
+      },
+      body: new URLSearchParams(params).toString(),
+    });
+    let res = await postWebhook(goodSig);
+    check("twilio webhook accepts a correctly signed request", res.status === 200, `status ${res.status}`);
+    res = await postWebhook("bogus-signature");
+    check("twilio webhook rejects a bad signature", res.status === 403, `status ${res.status}`);
+  } else {
+    console.log("SKIP  twilio webhook canary (TWILIO_AUTH_TOKEN not provided)");
+  }
+
   // --- cleanup ---
   console.log("\n-- cleanup --");
   for (const id of made.planItemIds) console.log(`  plan item ${id.slice(0, 8)}: ${(await req(`/api/planner/item?id=${id}`, { method: "DELETE", cookie: cookieA })).status}`);
