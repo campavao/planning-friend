@@ -1,0 +1,58 @@
+name: Recover dropped SMS
+
+# Manually replays inbound Twilio messages from a time window through the
+# production webhook (signed), for recovering texts dropped during a webhook
+# outage. See scripts/recover-dropped-sms.mjs.
+#
+# Requires repository secrets TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN
+# (matching the deployed app's).
+
+on:
+  workflow_dispatch:
+    inputs:
+      since:
+        description: "Replay messages sent after this ISO time (e.g. 2026-07-06T04:29:00Z)"
+        required: true
+      webhook_url:
+        description: "Webhook URL to replay against"
+        required: false
+        default: "https://tiktok-helper.vercel.app/api/twilio/webhook"
+      dry_run:
+        description: "Dry run (list only, send nothing)"
+        type: boolean
+        default: true
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Replay messages
+        env:
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          SINCE: ${{ github.event.inputs.since }}
+          URL: ${{ github.event.inputs.webhook_url }}
+          DRY: ${{ github.event.inputs.dry_run }}
+        run: |
+          if [ -z "$TWILIO_ACCOUNT_SID" ] || [ -z "$TWILIO_AUTH_TOKEN" ]; then
+            echo "::error::Missing TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN repository secrets."
+            exit 1
+          fi
+          flags="--since $SINCE --url $URL"
+          if [ "$DRY" = "true" ]; then flags="$flags --dry-run"; fi
+          {
+            echo "### SMS recovery ($flags)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          status=0
+          node scripts/recover-dropped-sms.mjs $flags | tee -a "$GITHUB_STEP_SUMMARY" || status=$?
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          exit $status
