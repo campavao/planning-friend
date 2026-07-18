@@ -32,31 +32,32 @@ jobs:
           const crypto = require("crypto");
           const TOKEN = process.env.TWILIO_AUTH_TOKEN;
           const params = { From: "+15005550006", Body: "webhook diagnostic (no link)" };
-          const targets = [
-            ["prod (old code)", "https://tiktok-helper.vercel.app/api/twilio/webhook"],
-            ["preview (fix)", "https://tiktok-helper-git-claude-bespoke-shad-04a53d-campavaos-projects.vercel.app/api/twilio/webhook"],
-          ];
+          const OLD = "https://tiktok-helper.vercel.app/api/twilio/webhook";
+          const NEW = "https://www.planning-friend.com/api/twilio/webhook";
           const sign = (url) => {
             const sorted = Object.keys(params).sort().map((k) => k + params[k]).join("");
             return crypto.createHmac("sha1", TOKEN).update(url + sorted).digest("base64");
           };
+          const post = (url, sig, redirect) => fetch(url, {
+            method: "POST",
+            redirect,
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              "X-Twilio-Signature": sig,
+            },
+            body: new URLSearchParams(params).toString(),
+          });
           (async () => {
-            for (const [label, url] of targets) {
-              for (const [kind, sig] of [["signed", sign(url)], ["bad-sig", "bogus"]]) {
-                try {
-                  const res = await fetch(url, {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/x-www-form-urlencoded",
-                      "X-Twilio-Signature": sig,
-                    },
-                    body: new URLSearchParams(params).toString(),
-                  });
-                  console.log(`${label} ${kind}: HTTP ${res.status}`);
-                } catch (e) {
-                  console.log(`${label} ${kind}: ERROR ${e.message}`);
-                }
-              }
-            }
-          })();
+            // 1. Does the old vercel.app domain redirect POSTs to the custom domain?
+            let r = await post(OLD, sign(OLD), "manual");
+            console.log(`old domain, no follow: HTTP ${r.status} Location=${r.headers.get("location")}`);
+            // 2. Twilio's exact scenario: request lands on the custom domain,
+            //    signature computed over the custom-domain URL.
+            r = await post(NEW, sign(NEW), "manual");
+            console.log(`custom domain, signed over custom URL: HTTP ${r.status}`);
+            // 3. Control: custom domain, signature computed over the OLD URL —
+            //    matches what the old code derives from NEXT_PUBLIC_APP_URL.
+            r = await post(NEW, sign(OLD), "manual");
+            console.log(`custom domain, signed over old URL: HTTP ${r.status}`);
+          })().catch((e) => { console.error(e); process.exit(1); });
           EOF
