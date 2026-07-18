@@ -39,7 +39,7 @@ const getArg = (name) => {
 };
 const since = getArg("--since");
 const webhookUrl =
-  getArg("--url") ?? "https://tiktok-helper.vercel.app/api/twilio/webhook";
+  getArg("--url") ?? "https://www.planning-friend.com/api/twilio/webhook";
 const dryRun = args.includes("--dry-run");
 
 if (!since || Number.isNaN(Date.parse(since))) {
