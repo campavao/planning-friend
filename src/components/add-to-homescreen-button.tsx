@@ -1,6 +1,13 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useEffect, useState } from "react";
 
 const HOMESCREEN_PROMPT_KEY = "homescreen-prompt-dismissed";
@@ -59,12 +66,13 @@ export function AddToHomeScreenButton({
   return (
     <>
       {variant === "link" ? (
-        <button
+        <Button
+          variant='link'
           onClick={handleClick}
-          className={`text-[var(--primary)] font-medium hover:underline ${className}`}
+          className={`h-auto p-0 font-medium ${className}`}
         >
           {buttonContent}
-        </button>
+        </Button>
       ) : (
         <Button
           variant='outline'
@@ -129,23 +137,17 @@ function HomeScreenModal({
   onDismiss: () => void;
 }) {
   return (
-    <div
-      className='fixed inset-0 modal-backdrop z-50 flex items-end md:items-center justify-center p-4'
-      onClick={onDismiss}
-    >
-      <div
-        className='bg-[var(--card)] rounded-2xl p-6 max-w-sm w-full shadow-xl border border-[var(--border)]'
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className='text-center mb-4'>
-          <div className='w-14 h-14 mx-auto rounded-2xl bg-[var(--primary)]/10 flex items-center justify-center mb-3'>
+    <Dialog open onOpenChange={(open) => !open && onDismiss()}>
+      <DialogContent className='max-w-sm' showCloseButton={false}>
+        <DialogHeader className='text-center sm:text-center'>
+          <div className='w-14 h-14 mx-auto rounded-2xl bg-[var(--primary)]/10 flex items-center justify-center mb-1'>
             <span className='text-2xl'>📲</span>
           </div>
-          <h3 className='font-semibold text-lg'>Add to Home Screen</h3>
-          <p className='text-sm text-muted-foreground mt-1'>
+          <DialogTitle>Add to Home Screen</DialogTitle>
+          <DialogDescription>
             Get quick access like a real app!
-          </p>
-        </div>
+          </DialogDescription>
+        </DialogHeader>
 
         {isIOS ? (
           <div className='space-y-2'>
@@ -240,14 +242,11 @@ function HomeScreenModal({
           </div>
         )}
 
-        <button
-          onClick={onDismiss}
-          className='w-full mt-5 btn-primary'
-        >
+        <Button onClick={onDismiss} className='w-full mt-2'>
           Got it!
-        </button>
-      </div>
-    </div>
+        </Button>
+      </DialogContent>
+    </Dialog>
   );
 }
 

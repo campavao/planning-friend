@@ -2,6 +2,13 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
 interface NamePromptModalProps {
@@ -53,25 +60,30 @@ export function NamePromptModal({ onComplete }: NamePromptModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
-      <div className="card-elevated w-full max-w-md relative overflow-hidden">
+    <Dialog open>
+      {/* Forced prompt: no close button, and outside/escape dismissal is disabled */}
+      <DialogContent
+        showCloseButton={false}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+        className="max-w-md p-0 overflow-hidden"
+      >
         {/* Gradient header accent */}
         <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-[var(--primary)] via-[var(--accent)] to-[var(--secondary)]" />
 
         <div className="p-6 pt-8">
-          {/* Header */}
-          <div className="text-center mb-6">
+          <DialogHeader className="text-center sm:text-center mb-6">
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--primary)]/10 flex items-center justify-center">
               <span className="text-3xl" role="img" aria-label="wave">
                 👋
               </span>
             </div>
-            <h2 className="heading-1 mb-2">Welcome!</h2>
-            <p className="text-sm text-muted-foreground">
+            <DialogTitle className="heading-1">Welcome!</DialogTitle>
+            <DialogDescription>
               What should we call you? Your friends will see this name when you
               share plans with them.
-            </p>
-          </div>
+            </DialogDescription>
+          </DialogHeader>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -84,7 +96,7 @@ export function NamePromptModal({ onComplete }: NamePromptModalProps) {
                   setName(e.target.value);
                   setError("");
                 }}
-                className="input-modern text-center text-lg h-14"
+                className="text-center text-lg h-14"
                 maxLength={100}
                 autoFocus
               />
@@ -96,14 +108,14 @@ export function NamePromptModal({ onComplete }: NamePromptModalProps) {
 
             <Button
               type="submit"
-              className="btn-primary w-full h-12 text-base"
+              className="w-full h-12 text-base"
               disabled={saving || !name.trim()}
             >
               {saving ? "Saving..." : "Continue"}
             </Button>
           </form>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

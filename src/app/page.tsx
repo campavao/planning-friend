@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSWRConfig } from "swr";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { AddContactButton } from "@/components/add-contact-button";
 import { formatPhoneNumber } from "@/lib/utils";
 import { ArrowRight, Calendar, MessageCircle, Sparkles, Compass, Heart, ChefHat } from "lucide-react";
@@ -158,7 +160,7 @@ export default function Home() {
 
         {/* Login Card */}
         <div className="w-full max-w-sm px-4 animate-slide-up stagger-2">
-          <div className="card-elevated overflow-hidden">
+          <Card className="overflow-hidden">
             <div className="bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] px-5 py-4">
               <h2 className="text-lg font-semibold text-white">
                 {step === "phone" ? "Welcome Back" : "Enter Code"}
@@ -174,15 +176,15 @@ export default function Home() {
               {step === "phone" ? (
                 <form onSubmit={handleSendCode} className="space-y-4">
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground mb-2 block">
+                    <Label className="text-sm font-medium text-muted-foreground mb-2 block">
                       Phone Number
-                    </label>
+                    </Label>
                     <Input
                       type="tel"
                       placeholder="(555) 123-4567"
                       value={phoneNumber}
                       onChange={handlePhoneChange}
-                      className="input-modern text-center text-lg h-14"
+                      className="text-center text-lg h-14"
                       maxLength={14}
                     />
                   </div>
@@ -193,7 +195,7 @@ export default function Home() {
                   )}
                   <Button
                     type="submit"
-                    className="btn-primary w-full h-12 text-base"
+                    className="w-full h-12 text-base"
                     disabled={
                       loading || phoneNumber.replace(/\D/g, "").length < 10
                     }
@@ -205,9 +207,9 @@ export default function Home() {
               ) : (
                 <form onSubmit={handleVerify} className="space-y-4">
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground mb-2 block">
+                    <Label className="text-sm font-medium text-muted-foreground mb-2 block">
                       Verification Code
-                    </label>
+                    </Label>
                     <Input
                       type="text"
                       inputMode="numeric"
@@ -220,7 +222,7 @@ export default function Home() {
                         );
                         setError("");
                       }}
-                      className="input-modern text-center text-2xl tracking-[0.3em] h-14"
+                      className="text-center text-2xl tracking-[0.3em] h-14"
                       maxLength={6}
                     />
                   </div>
@@ -231,7 +233,7 @@ export default function Home() {
                   )}
                   <Button
                     type="submit"
-                    className="btn-primary w-full h-12 text-base"
+                    className="w-full h-12 text-base"
                     disabled={loading || verificationCode.length < 6}
                   >
                     {loading ? "Verifying..." : "Continue"}
@@ -240,7 +242,7 @@ export default function Home() {
                   <Button
                     type="button"
                     variant="ghost"
-                    className="w-full btn-ghost"
+                    className="w-full"
                     onClick={() => {
                       setStep("phone");
                       setVerificationCode("");
@@ -252,7 +254,7 @@ export default function Home() {
                 </form>
               )}
             </div>
-          </div>
+          </Card>
         </div>
 
         {/* How it works */}
@@ -262,7 +264,7 @@ export default function Home() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Step 1 */}
-            <div className="card-elevated p-4 text-center group">
+            <Card className="p-4 text-center group">
               <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-[var(--secondary)] to-[var(--secondary-dark)] flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                 <MessageCircle className="w-6 h-6 text-white" />
               </div>
@@ -271,10 +273,10 @@ export default function Home() {
               <p className="text-muted-foreground text-xs">
                 Send any TikTok, Instagram, or website link
               </p>
-            </div>
+            </Card>
 
             {/* Step 2 */}
-            <div className="card-elevated p-4 text-center group">
+            <Card className="p-4 text-center group">
               <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-[var(--accent)] to-[#E09048] flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                 <Sparkles className="w-6 h-6 text-white" />
               </div>
@@ -283,10 +285,10 @@ export default function Home() {
               <p className="text-muted-foreground text-xs">
                 We pull out recipes, places, and ideas for you
               </p>
-            </div>
+            </Card>
 
             {/* Step 3 */}
-            <div className="card-elevated p-4 text-center group">
+            <Card className="p-4 text-center group">
               <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                 <Calendar className="w-6 h-6 text-white" />
               </div>
@@ -295,13 +297,13 @@ export default function Home() {
               <p className="text-muted-foreground text-xs">
                 Browse and plan with your organized collection
               </p>
-            </div>
+            </Card>
           </div>
         </div>
 
         {/* Feature highlights */}
         <div className="mt-10 w-full max-w-lg px-4 animate-slide-up stagger-4">
-          <div className="card-gradient p-5 rounded-2xl">
+          <Card className="bg-gradient-to-br from-[var(--card)] to-[var(--background-alt)] shadow-[var(--shadow-md)] p-5">
             <div className="grid grid-cols-4 gap-3 text-center">
               <div>
                 <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-[var(--meal-bg)] flex items-center justify-center">
@@ -328,7 +330,7 @@ export default function Home() {
                 <p className="text-xs font-medium">Travel</p>
               </div>
             </div>
-          </div>
+          </Card>
         </div>
       </div>
 

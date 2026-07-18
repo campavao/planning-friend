@@ -3,7 +3,15 @@
 import { TagPills } from "@/components/tag-pills";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useContentById, useTags } from "@/hooks/useContent";
 import { DEFAULT_TAGS } from "@/lib/constants";
 import type {
@@ -18,7 +26,6 @@ import {
   ArrowLeft,
   BookmarkPlus,
   Calendar,
-  ChevronDown,
   Clock,
   ExternalLink,
   Gift,
@@ -285,12 +292,12 @@ export default function ContentDetailPage() {
   if (!content) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="card-elevated p-8 text-center">
+        <Card className="p-8 text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--muted)] flex items-center justify-center">
             <XCircle className="w-8 h-8 text-muted-foreground" />
           </div>
           <p className="font-medium">Content not found</p>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -303,11 +310,7 @@ export default function ContentDetailPage() {
       {/* Header */}
       <div className="bg-[var(--card)] border-b border-[var(--border)] sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Button
-            variant="ghost"
-            onClick={handleBack}
-            className="btn-ghost"
-          >
+          <Button variant="ghost" onClick={handleBack}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
           </Button>
@@ -317,7 +320,6 @@ export default function ContentDetailPage() {
                 variant="ghost"
                 size="icon"
                 onClick={handleShare}
-                className="btn-ghost"
                 title="Share"
               >
                 {linkCopied ? (
@@ -334,7 +336,6 @@ export default function ContentDetailPage() {
                   size="icon"
                   onClick={handleRetryProcessing}
                   disabled={retrying}
-                  className="btn-ghost"
                 >
                   <RefreshCw
                     className={`w-4 h-4 ${retrying ? "animate-spin" : ""}`}
@@ -344,7 +345,6 @@ export default function ContentDetailPage() {
                   variant="ghost"
                   size="icon"
                   onClick={() => setEditing(!editing)}
-                  className="btn-ghost"
                 >
                   <Pencil className="w-4 h-4" />
                 </Button>
@@ -366,7 +366,7 @@ export default function ContentDetailPage() {
       <div className="max-w-4xl mx-auto px-4 py-6">
         {/* Processing State */}
         {content.status === "processing" && (
-          <div className="card-elevated state-processing p-8 text-center mb-8 animate-slide-up">
+          <Card className="state-processing p-8 text-center mb-8 animate-slide-up">
             <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-[var(--accent)] flex items-center justify-center">
               <Loader2 className="w-10 h-10 text-white animate-spin" />
             </div>
@@ -378,16 +378,15 @@ export default function ContentDetailPage() {
               size="sm"
               onClick={handleRetryProcessing}
               disabled={retrying}
-              className="btn-secondary"
             >
               {retrying ? "..." : "Retry"}
             </Button>
-          </div>
+          </Card>
         )}
 
         {/* Failed State */}
         {content.status === "failed" && (
-          <div className="card-elevated state-error p-8 text-center mb-8 animate-slide-up">
+          <Card className="state-error p-8 text-center mb-8 animate-slide-up">
             <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-red-100 flex items-center justify-center">
               <XCircle className="w-10 h-10 text-destructive" />
             </div>
@@ -399,7 +398,6 @@ export default function ContentDetailPage() {
               <Button
                 onClick={handleRetryProcessing}
                 disabled={retrying}
-                className="btn-primary"
               >
                 {retrying ? "..." : "Retry"}
               </Button>
@@ -407,17 +405,17 @@ export default function ContentDetailPage() {
                 variant="outline"
                 onClick={handleDelete}
                 disabled={deleting}
-                className="btn-outline border-destructive text-destructive hover:bg-destructive hover:text-white"
+                className="border-destructive text-destructive hover:bg-destructive hover:text-white"
               >
                 Delete
               </Button>
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Shared item banner — anyone can view, only the owner can edit */}
         {!isEditable && content.status === "completed" && (
-          <div className="card-elevated p-4 mb-6 animate-slide-up">
+          <Card className="p-4 mb-6 animate-slide-up">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="font-semibold">
@@ -433,16 +431,12 @@ export default function ContentDetailPage() {
                 <Button
                   onClick={handleCopyToCollection}
                   disabled={copying}
-                  className="btn-primary"
                 >
                   <BookmarkPlus className="w-4 h-4 mr-2" />
                   {copying ? "Saving..." : "Save to my collection"}
                 </Button>
               ) : (
-                <Button
-                  onClick={() => router.push("/")}
-                  className="btn-primary"
-                >
+                <Button onClick={() => router.push("/")}>
                   Sign In
                 </Button>
               )}
@@ -450,11 +444,11 @@ export default function ContentDetailPage() {
             {copyError && (
               <p className="text-destructive text-sm mt-2">{copyError}</p>
             )}
-          </div>
+          </Card>
         )}
 
         {/* Main Content Card */}
-        <div className="card-elevated overflow-hidden animate-slide-up">
+        <Card className="overflow-hidden animate-slide-up">
           {content.thumbnail_url && (
             <div className="relative h-56 md:h-80">
               <Image
@@ -470,27 +464,25 @@ export default function ContentDetailPage() {
           {/* Category Badge */}
           <div className="px-6 pt-6">
             {editing ? (
-              <div className="relative inline-block">
-                <select
-                  value={editCategory}
-                  onChange={(e) => setEditCategory(e.target.value)}
-                  className="input-modern text-sm pl-4 pr-10 py-2 font-semibold appearance-none cursor-pointer"
-                >
-                  <option value="meal">Recipe</option>
-                  <option value="drink">Drink</option>
-                  <option value="event">Event</option>
-                  <option value="date_idea">Date</option>
-                  <option value="gift_idea">Gift</option>
-                  <option value="travel">Travel</option>
-                  <option value="other">Other</option>
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" />
-              </div>
+              <Select value={editCategory} onValueChange={setEditCategory}>
+                <SelectTrigger className="text-sm font-semibold cursor-pointer">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="meal">Recipe</SelectItem>
+                  <SelectItem value="drink">Drink</SelectItem>
+                  <SelectItem value="event">Event</SelectItem>
+                  <SelectItem value="date_idea">Date</SelectItem>
+                  <SelectItem value="gift_idea">Gift</SelectItem>
+                  <SelectItem value="travel">Travel</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
             ) : (
-              <span className={`badge ${config.bg} ${config.text}`}>
+              <Badge variant={config.badge}>
                 <Icon className="w-3.5 h-3.5" />
                 {config.label}
-              </span>
+              </Badge>
             )}
           </div>
 
@@ -500,14 +492,10 @@ export default function ContentDetailPage() {
                 <Input
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
-                  className="input-modern text-xl font-semibold"
+                  className="text-xl font-semibold"
                   placeholder="Title"
                 />
-                <Button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="btn-primary"
-                >
+                <Button onClick={handleSave} disabled={saving}>
                   {saving ? "..." : "Save"}
                 </Button>
               </div>
@@ -561,15 +549,16 @@ export default function ContentDetailPage() {
             {/* Source Link */}
             {!isImageOnlyContent(content.tiktok_url) && (
               <div className="pt-6 border-t border-[var(--border)]">
-                <a
-                  href={content.tiktok_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-primary inline-flex items-center gap-2 px-6 py-3 rounded-xl"
-                >
-                  {getSourceLinkText(content.tiktok_url)}
-                  <ExternalLink className="w-4 h-4" />
-                </a>
+                <Button asChild className="h-auto px-6 py-3">
+                  <a
+                    href={content.tiktok_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {getSourceLinkText(content.tiktok_url)}
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                </Button>
               </div>
             )}
 
@@ -578,7 +567,7 @@ export default function ContentDetailPage() {
               Saved {new Date(content.created_at).toLocaleDateString()}
             </p>
           </div>
-        </div>
+        </Card>
       </div>
     </main>
   );
@@ -596,7 +585,7 @@ function MealContent({ data }: { data: MealData }) {
       {(data.prep_time || data.cook_time || data.servings) && (
         <div className="flex flex-wrap gap-3 pt-4">
           {data.prep_time && (
-            <div className="card-flat px-4 py-3 rounded-xl">
+            <Card className="border border-[var(--border)] shadow-none px-4 py-3 rounded-xl">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">
                 Prep
               </p>
@@ -604,10 +593,10 @@ function MealContent({ data }: { data: MealData }) {
                 <Clock className="w-4 h-4 text-[var(--primary)]" />
                 {data.prep_time}
               </p>
-            </div>
+            </Card>
           )}
           {data.cook_time && (
-            <div className="card-flat px-4 py-3 rounded-xl">
+            <Card className="border border-[var(--border)] shadow-none px-4 py-3 rounded-xl">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">
                 Cook
               </p>
@@ -615,15 +604,15 @@ function MealContent({ data }: { data: MealData }) {
                 <Clock className="w-4 h-4 text-[var(--primary)]" />
                 {data.cook_time}
               </p>
-            </div>
+            </Card>
           )}
           {data.servings && (
-            <div className="card-flat px-4 py-3 rounded-xl">
+            <Card className="border border-[var(--border)] shadow-none px-4 py-3 rounded-xl">
               <p className="text-xs text-muted-foreground uppercase tracking-wide">
                 Servings
               </p>
               <p className="font-semibold mt-1">{data.servings}</p>
-            </div>
+            </Card>
           )}
         </div>
       )}
@@ -639,7 +628,7 @@ function EventContent({ data }: { data: EventData }) {
       )}
 
       {(data.date || data.time) && (
-        <div className="flex items-start gap-4 p-4 card-flat rounded-xl">
+        <Card className="flex items-start gap-4 p-4 border border-[var(--border)] shadow-none rounded-xl">
           <div className="w-12 h-12 rounded-xl bg-[var(--event-bg)] flex items-center justify-center">
             <Calendar className="w-6 h-6 text-[var(--event)]" />
           </div>
@@ -653,7 +642,7 @@ function EventContent({ data }: { data: EventData }) {
               {data.time}
             </p>
           </div>
-        </div>
+        </Card>
       )}
 
       {data.description && (
@@ -705,7 +694,7 @@ function GiftIdeaContent({ data }: { data: GiftIdeaData }) {
   return (
     <div className="space-y-4">
       {data.cost && (
-        <div className="flex items-start gap-4 p-4 card-flat rounded-xl bg-[var(--gift-bg)]">
+        <Card className="flex items-start gap-4 p-4 border border-[var(--border)] shadow-none rounded-xl bg-[var(--gift-bg)]">
           <div className="w-12 h-12 rounded-xl bg-[var(--gift)] flex items-center justify-center">
             <Gift className="w-6 h-6 text-white" />
           </div>
@@ -717,7 +706,7 @@ function GiftIdeaContent({ data }: { data: GiftIdeaData }) {
               {data.cost}
             </p>
           </div>
-        </div>
+        </Card>
       )}
 
       {data.description && (
@@ -729,26 +718,32 @@ function GiftIdeaContent({ data }: { data: GiftIdeaData }) {
 
       <div className="flex flex-wrap gap-3 pt-4">
         {data.amazon_link && (
-          <a
-            href={data.amazon_link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-secondary inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-500 text-white hover:bg-orange-600"
+          <Button
+            asChild
+            variant="secondary"
+            className="h-auto px-5 py-2.5 bg-orange-500 text-white hover:bg-orange-600"
           >
-            <ShoppingCart className="w-4 h-4" />
-            Amazon
-          </a>
+            <a
+              href={data.amazon_link}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ShoppingCart className="w-4 h-4" />
+              Amazon
+            </a>
+          </Button>
         )}
         {data.purchase_link && (
-          <a
-            href={data.purchase_link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-primary inline-flex items-center gap-2 px-5 py-2.5 rounded-xl"
-          >
-            <ExternalLink className="w-4 h-4" />
-            Buy Now
-          </a>
+          <Button asChild className="h-auto px-5 py-2.5">
+            <a
+              href={data.purchase_link}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Buy Now
+            </a>
+          </Button>
         )}
       </div>
     </div>
@@ -790,7 +785,7 @@ function TravelContent({ data }: { data: TravelData }) {
       )}
 
       {(data.destination_city || data.destination_country) && (
-        <div className="flex items-start gap-4 p-4 card-flat rounded-xl">
+        <Card className="flex items-start gap-4 p-4 border border-[var(--border)] shadow-none rounded-xl">
           <div className="w-12 h-12 rounded-xl bg-[var(--travel-bg)] flex items-center justify-center">
             <Plane className="w-6 h-6 text-[var(--travel)]" />
           </div>
@@ -804,7 +799,7 @@ function TravelContent({ data }: { data: TravelData }) {
               {data.destination_country}
             </p>
           </div>
-        </div>
+        </Card>
       )}
 
       <div className="flex flex-wrap gap-2">

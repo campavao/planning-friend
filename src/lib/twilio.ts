@@ -79,6 +79,48 @@ export function validateTwilioRequest(
   return twilio.validateRequest(authToken, signature, url, params);
 }
 
+// Candidate URLs the Twilio signature may have been computed over. Twilio
+// signs the EXACT URL configured in its console, which is the public domain
+// the request arrived on — NOT process.env.VERCEL_URL (that is the
+// per-deployment *-<hash>.vercel.app host; validating against it rejected
+// every real webhook in production). The public host survives Vercel's proxy
+// in x-forwarded-host/x-forwarded-proto, so that derivation comes first after
+// the explicit TWILIO_WEBHOOK_URL override; the legacy derivations stay as
+// fallbacks for self-hosted setups.
+export function getWebhookUrlCandidates(request: {
+  url: string;
+  headers: { get(name: string): string | null };
+}): string[] {
+  const path = "/api/twilio/webhook";
+  const candidates = new Set<string>();
+
+  if (process.env.TWILIO_WEBHOOK_URL) {
+    candidates.add(process.env.TWILIO_WEBHOOK_URL);
+  }
+
+  const host =
+    request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  if (host) {
+    const proto = request.headers.get("x-forwarded-proto") ?? "https";
+    candidates.add(`${proto}://${host}${path}`);
+  }
+
+  if (
+    process.env.NEXT_PUBLIC_APP_URL &&
+    !process.env.NEXT_PUBLIC_APP_URL.includes("localhost")
+  ) {
+    candidates.add(
+      `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}${path}`
+    );
+  }
+  if (process.env.VERCEL_URL) {
+    candidates.add(`https://${process.env.VERCEL_URL}${path}`);
+  }
+  candidates.add(new URL(request.url).toString());
+
+  return [...candidates];
+}
+
 // Extract TikTok URL from message body
 export function extractTikTokUrl(messageBody: string): string | null {
   // Match various TikTok URL formats

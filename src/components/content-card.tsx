@@ -1,6 +1,8 @@
 "use client";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import type {
   Content,
   ContentWithTags,
@@ -98,8 +100,8 @@ function ProcessingCard({
 
   return (
     <Link href={`/dashboard/${content.id}`}>
-      <div
-        className={`card-elevated overflow-hidden cursor-pointer h-full animate-slide-up`}
+      <Card
+        className="overflow-hidden cursor-pointer h-full animate-slide-up hover:-translate-y-1 hover:shadow-[var(--shadow-lg)]"
         style={{ animationDelay: `${Math.min(index, 5) * 0.1}s` }}
       >
         <div className="aspect-square bg-[var(--accent-light)] flex items-center justify-center">
@@ -118,7 +120,7 @@ function ProcessingCard({
           <Button
             variant="secondary"
             size="sm"
-            className="w-full mt-3 text-xs btn-secondary"
+            className="w-full mt-3 text-xs"
             onClick={handleRetry}
             disabled={isRetrying || retryState === "success"}
           >
@@ -134,7 +136,7 @@ function ProcessingCard({
             </p>
           )}
         </div>
-      </div>
+      </Card>
     </Link>
   );
 }
@@ -148,8 +150,8 @@ function FailedCard({
 }) {
   return (
     <Link href={`/dashboard/${content.id}`}>
-      <div
-        className={`card-elevated overflow-hidden cursor-pointer h-full animate-slide-up state-error`}
+      <Card
+        className="overflow-hidden cursor-pointer h-full animate-slide-up hover:-translate-y-1 hover:shadow-[var(--shadow-lg)] state-error"
         style={{ animationDelay: `${Math.min(index, 5) * 0.1}s` }}
       >
         <div className="aspect-square bg-red-50 flex items-center justify-center">
@@ -168,7 +170,7 @@ function FailedCard({
             Tap to retry
           </p>
         </div>
-      </div>
+      </Card>
     </Link>
   );
 }
@@ -184,15 +186,19 @@ function ContentCardInner({
   index?: number;
   meta?: React.ReactNode;
 }) {
-  const { icon: Icon, label, text: textColor, bg: bgColor } = categoryUI(
-    content.category
-  );
+  const {
+    icon: Icon,
+    label,
+    badge: badgeVariant,
+    text: textColor,
+    bg: bgColor,
+  } = categoryUI(content.category);
   const colors = { text: textColor, bg: bgColor };
 
   return (
     <Link href={`/dashboard/${content.id}`}>
-      <div
-        className={`card-elevated overflow-hidden cursor-pointer h-full animate-slide-up`}
+      <Card
+        className="overflow-hidden cursor-pointer h-full animate-slide-up hover:-translate-y-1 hover:shadow-[var(--shadow-lg)]"
         style={{ animationDelay: `${Math.min(index, 5) * 0.1}s` }}
       >
         {/* Image */}
@@ -217,10 +223,10 @@ function ContentCardInner({
           
           {/* Category badge overlay */}
           <div className="absolute top-3 left-3">
-            <span className={`badge ${colors.bg} ${colors.text} shadow-sm`}>
+            <Badge variant={badgeVariant} className="shadow-sm">
               <Icon className="w-3 h-3" />
               {label}
-            </span>
+            </Badge>
           </div>
         </div>
 
@@ -234,7 +240,7 @@ function ContentCardInner({
             <div className="mt-2 text-muted-foreground">{meta}</div>
           )}
         </div>
-      </div>
+      </Card>
     </Link>
   );
 }

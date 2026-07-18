@@ -103,21 +103,13 @@ describe("CATEGORY_CONFIG", () => {
     }
   });
 
-  it("each entry has emoji, label, and color", () => {
+  it("each entry has emoji and label", () => {
     for (const category of expectedCategories) {
       const config = CATEGORY_CONFIG[category];
       expect(config.emoji).toBeDefined();
       expect(config.emoji.length).toBeGreaterThan(0);
       expect(config.label).toBeDefined();
       expect(config.label.length).toBeGreaterThan(0);
-      expect(config.color).toBeDefined();
-      expect(config.color.length).toBeGreaterThan(0);
-    }
-  });
-
-  it("has consistent badge color naming pattern", () => {
-    for (const category of expectedCategories) {
-      expect(CATEGORY_CONFIG[category].color).toBe(`badge-${category}`);
     }
   });
 

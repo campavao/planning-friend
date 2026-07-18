@@ -2,6 +2,8 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 function ShareStatusContent() {
   const router = useRouter();
@@ -41,7 +43,7 @@ function ShareStatusContent() {
   }, [status, router]);
 
   return (
-    <div className="card-elevated p-8 max-w-md w-full text-center">
+    <Card className="p-8 max-w-md w-full text-center">
       {status === "processing" && (
         <>
           <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--primary)]/10 flex items-center justify-center">
@@ -69,26 +71,23 @@ function ShareStatusContent() {
           </div>
           <h1 className="heading-2 mb-2">Oops!</h1>
           <p className="text-muted-foreground text-sm mb-4">{message}</p>
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="btn-primary"
-          >
+          <Button onClick={() => router.push("/dashboard")}>
             Go to Dashboard
-          </button>
+          </Button>
         </>
       )}
-    </div>
+    </Card>
   );
 }
 
 function LoadingFallback() {
   return (
-    <div className="card-elevated p-8 max-w-md w-full text-center">
+    <Card className="p-8 max-w-md w-full text-center">
       <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--primary)]/10 flex items-center justify-center">
         <div className="loading-spinner" />
       </div>
       <h1 className="heading-2 mb-2">Loading...</h1>
-    </div>
+    </Card>
   );
 }
 

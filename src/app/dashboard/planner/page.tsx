@@ -1,8 +1,12 @@
 "use client";
 
 import { TagFilter } from "@/components/tag-filter";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   PLANNER_LIBRARY_KEY,
   plannerWeekKey,
@@ -1275,7 +1279,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
       >
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/dashboard" className="hidden md:inline-flex">
-            <Button variant="ghost" className="btn-ghost">
+            <Button variant="ghost">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
@@ -1286,7 +1290,6 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
             variant="ghost"
             onClick={generateGroceryList}
             disabled={!hasMealOrDrinkItems}
-            className="btn-ghost"
             title={
               hasMealOrDrinkItems
                 ? "Generate grocery list"
@@ -1308,7 +1311,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
             variant="ghost"
             size="sm"
             onClick={() => jumpToDate(todayKey)}
-            className="btn-ghost h-9 shrink-0"
+            className="h-9 shrink-0"
             disabled={anchorDate === todayKey}
           >
             Today
@@ -1336,7 +1339,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
         {/* Empty State */}
         {library?.availableContent?.length === 0 && (
-          <div className="card-elevated p-8 mb-6 text-center">
+          <Card className="p-8 mb-6 text-center">
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--muted)] flex items-center justify-center">
               <Calendar className="w-8 h-8 text-muted-foreground" />
             </div>
@@ -1346,9 +1349,9 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
               ideas.
             </p>
             <Link href="/dashboard">
-              <Button className="btn-primary">Go to Dashboard</Button>
+              <Button>Go to Dashboard</Button>
             </Link>
-          </div>
+          </Card>
         )}
 
         {/* Infinite week list */}
@@ -1382,14 +1385,22 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
       {/* Add Item Modal */}
       {addingToDate !== null && (
-        <div className="fixed inset-0 modal-backdrop z-50 flex items-end md:items-center justify-center p-0 md:p-4">
-          <div className="bg-[var(--card)] w-full md:max-w-lg md:rounded-2xl rounded-t-2xl max-h-[85vh] flex flex-col shadow-xl">
+        <Dialog
+          open
+          onOpenChange={(o) => {
+            if (!o) closeAddModal();
+          }}
+        >
+          <DialogContent
+            showCloseButton={false}
+            className="top-auto bottom-0 translate-y-0 md:top-1/2 md:bottom-auto md:translate-y-[-50%] w-full max-w-full sm:max-w-full md:max-w-lg md:rounded-2xl rounded-t-2xl rounded-b-none max-h-[85vh] flex flex-col gap-0 p-0 overflow-hidden"
+          >
             <div className="p-4 border-b border-[var(--border)] flex items-center justify-between bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] md:rounded-t-2xl">
               <div>
-                <h3 className="font-semibold text-white">
+                <DialogTitle className="text-base leading-normal font-semibold text-white">
                   {editingItem ? "Edit" : "Add to"}{" "}
                   {formatModalDayLabel(addingToDate)}
-                </h3>
+                </DialogTitle>
                 {editingItem?.content_id && (
                   <p className="text-[11px] text-white/80 mt-1">
                     Update time or choose a new item below
@@ -1417,12 +1428,14 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     Delete
                   </Button>
                 )}
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
                   onClick={closeAddModal}
-                  className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+                  className="text-white/80 hover:text-white hover:bg-white/10"
                 >
-                  <X className="w-5 h-5" />
-                </button>
+                  <X className="size-5" />
+                </Button>
               </div>
             </div>
 
@@ -1444,12 +1457,11 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     placeholder='e.g., "Salmon", "Date night"'
                     value={quickNoteInput}
                     onChange={(e) => setQuickNoteInput(e.target.value)}
-                    className="input-modern flex-1"
+                    className="flex-1"
                     autoFocus
                   />
                   <Button
                     type="submit"
-                    className="btn-primary"
                     disabled={!quickNoteInput.trim() || addingQuickNote}
                   >
                     {addingQuickNote ? "..." : editingItem ? "Save" : "Add"}
@@ -1463,7 +1475,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     type="time"
                     value={plannedTime}
                     onChange={(e) => setPlannedTime(e.target.value)}
-                    className="input-modern max-w-[140px]"
+                    className="max-w-[140px]"
                   />
                   <span className="text-[10px] text-muted-foreground">
                     Default 7:00 PM
@@ -1483,7 +1495,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     placeholder="Search saved items..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="input-modern flex-1"
+                    className="flex-1"
                   />
                   {hasActiveFilters && (
                     <Button
@@ -1595,12 +1607,13 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                         {content.tags && content.tags.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
                             {content.tags.slice(0, 3).map((tag: Tag) => (
-                              <span
+                              <Badge
                                 key={tag.id}
-                                className="text-[10px] px-1.5 py-0.5 bg-[var(--accent-light)] rounded-full"
+                                variant="accent"
+                                className="text-[10px] px-1.5 py-0.5 font-normal text-[var(--foreground)]"
                               >
                                 {tag.name}
-                              </span>
+                              </Badge>
                             ))}
                             {content.tags.length > 3 && (
                               <span className="text-[10px] text-muted-foreground">
@@ -1622,7 +1635,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                         variant="ghost"
                         size="sm"
                         onClick={clearAllFilters}
-                        className="mt-2 btn-ghost text-xs"
+                        className="mt-2 text-xs"
                       >
                         Clear all filters
                       </Button>
@@ -1631,20 +1644,28 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                 )}
               </div>
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Grocery List Modal */}
       {groceryList.isOpen && (
-        <div className="fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--card)] w-full max-w-lg max-h-[85vh] flex flex-col rounded-2xl shadow-xl">
+        <Dialog
+          open
+          onOpenChange={(o) => {
+            if (!o) setGroceryList((s) => ({ ...s, isOpen: false }));
+          }}
+        >
+          <DialogContent
+            showCloseButton={false}
+            className="max-h-[85vh] flex flex-col gap-0 p-0 overflow-hidden"
+          >
             <div className="flex items-center justify-between p-4 border-b border-[var(--border)] bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] rounded-t-2xl">
               <div>
-                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                <DialogTitle className="text-lg leading-normal font-semibold text-white flex items-center gap-2">
                   <ShoppingCart className="w-5 h-5" />
                   Grocery List
-                </h2>
+                </DialogTitle>
                 <p className="text-xs text-white/80">{formatWeekRange()}</p>
               </div>
               <div className="flex gap-2">
@@ -1696,7 +1717,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="mt-4 btn-ghost"
+                    className="mt-4"
                     onClick={() =>
                       setGroceryList((s) => ({ ...s, isOpen: false }))
                     }
@@ -1838,17 +1859,27 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                 </div>
               )}
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Item Share Modal */}
       {itemShare.isOpen && (
-        <div className="fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--card)] w-full max-w-md max-h-[80vh] flex flex-col rounded-2xl shadow-xl">
+        <Dialog
+          open
+          onOpenChange={(o) => {
+            if (!o) setItemShare((s) => ({ ...s, isOpen: false }));
+          }}
+        >
+          <DialogContent
+            showCloseButton={false}
+            className="sm:max-w-md max-h-[80vh] flex flex-col gap-0 p-0 overflow-hidden"
+          >
             <div className="flex items-center justify-between p-4 border-b border-[var(--border)] bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] rounded-t-2xl">
               <div>
-                <h2 className="text-lg font-semibold text-white">Share Item</h2>
+                <DialogTitle className="text-lg leading-normal font-semibold text-white">
+                  Share Item
+                </DialogTitle>
                 <p className="text-xs text-white/80 line-clamp-1">
                   {itemShare.itemTitle}
                 </p>
@@ -1951,21 +1982,22 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                 </>
               ) : (
                 <div className="space-y-4">
-                  <button
+                  <Button
+                    variant="link"
                     onClick={() =>
                       setItemShare((s) => ({ ...s, showAddFriend: false }))
                     }
-                    className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
+                    className="h-auto p-0 text-sm font-normal text-muted-foreground hover:text-foreground hover:no-underline gap-1"
                   >
                     <ArrowLeft className="w-4 h-4" />
                     Back to friends
-                  </button>
+                  </Button>
 
                   <div className="space-y-3">
                     <div>
-                      <label className="text-sm font-medium mb-1.5 block">
+                      <Label className="text-sm font-medium mb-1.5 block">
                         Name
-                      </label>
+                      </Label>
                       <Input
                         value={itemShare.newFriendName}
                         onChange={(e) =>
@@ -1975,17 +2007,16 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                           }))
                         }
                         placeholder="Friend's name"
-                        className="input-modern"
                         autoFocus
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-medium mb-1.5 block">
+                      <Label className="text-sm font-medium mb-1.5 block">
                         Phone{" "}
                         <span className="text-muted-foreground font-normal">
                           (optional)
                         </span>
-                      </label>
+                      </Label>
                       <Input
                         value={itemShare.newFriendPhone}
                         onChange={(e) =>
@@ -1996,7 +2027,6 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                         }
                         placeholder="(555) 123-4567"
                         type="tel"
-                        className="input-modern"
                       />
                       <p className="text-xs text-muted-foreground mt-1.5">
                         If they have Planning Friend, they&apos;ll be linked
@@ -2009,7 +2039,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                       disabled={
                         itemShare.loading || !itemShare.newFriendName.trim()
                       }
-                      className="btn-primary w-full"
+                      className="w-full"
                     >
                       {itemShare.loading ? "Adding..." : "Add Friend"}
                     </Button>
@@ -2036,7 +2066,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     itemShare.loading ||
                     itemShare.selectedFriendIds.length === 0
                   }
-                  className="btn-primary w-full"
+                  className="w-full"
                 >
                   {itemShare.loading
                     ? "Sharing..."
@@ -2048,8 +2078,8 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                 </Button>
               </div>
             )}
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Undo pill for AI-suggested adds */}

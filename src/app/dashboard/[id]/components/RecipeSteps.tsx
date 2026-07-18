@@ -2,6 +2,7 @@
 
 import { Check } from "lucide-react";
 import { useState } from "react";
+import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 type Variant = "meal" | "drink";
@@ -63,7 +64,7 @@ export function RecipeSteps({
       {ingredients.length > 0 && (
         <div>
           <h3 className="heading-3 mb-3">Ingredients</h3>
-          <div className="card-flat overflow-hidden divide-y divide-[var(--border)]">
+          <Card className="border border-[var(--border)] shadow-none overflow-hidden divide-y divide-[var(--border)]">
             {ingredients.map((ingredient, i) => {
               const isChecked = checkedIngredients.has(i);
               return (
@@ -96,7 +97,7 @@ export function RecipeSteps({
                 </button>
               );
             })}
-          </div>
+          </Card>
         </div>
       )}
 

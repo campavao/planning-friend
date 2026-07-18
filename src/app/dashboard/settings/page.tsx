@@ -6,7 +6,16 @@ import {
 } from "@/components/add-contact-button";
 import { AddToHomeScreenButton } from "@/components/add-to-homescreen-button";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { clearSWRCache, fetcher } from "@/lib/swr-config";
 import { getWeekStartDay, setWeekStartDay } from "@/lib/utils";
@@ -15,7 +24,6 @@ import { useSession } from "../useSession";
 import {
   Bell,
   Calendar,
-  ChevronDown,
   Hand,
   Info,
   Loader2,
@@ -194,7 +202,7 @@ export default function SettingsPage() {
 
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
         {/* Profile / Name */}
-        <div className="card-elevated">
+        <Card>
           <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center">
               <User className="w-5 h-5 text-[var(--primary)]" />
@@ -211,14 +219,13 @@ export default function SettingsPage() {
 
           <div className="p-4 space-y-4">
             <div>
-              <label className="text-sm font-medium mb-1.5 block">
+              <Label className="mb-1.5">
                 Your Name
-              </label>
+              </Label>
               <Input
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
                 placeholder="Enter your name"
-                className="input-modern"
                 maxLength={100}
               />
             </div>
@@ -226,7 +233,6 @@ export default function SettingsPage() {
               <Button
                 onClick={handleSaveName}
                 disabled={savingName || !userName.trim()}
-                className="btn-primary"
               >
                 {savingName ? "Saving..." : "Save Name"}
               </Button>
@@ -243,10 +249,10 @@ export default function SettingsPage() {
               )}
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Home Location */}
-        <div className="card-elevated">
+        <Card>
           <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[var(--secondary)]/10 flex items-center justify-center">
               <MapPin className="w-5 h-5 text-[var(--secondary)]" />
@@ -263,32 +269,29 @@ export default function SettingsPage() {
 
           <div className="p-4 space-y-4">
             <div>
-              <label className="text-sm font-medium mb-1.5 block">
+              <Label className="mb-1.5">
                 City / Region
-              </label>
+              </Label>
               <Input
                 value={homeRegion}
                 onChange={(e) => setHomeRegion(e.target.value)}
                 placeholder="e.g., Chicago, IL"
-                className="input-modern"
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-1.5 block">
+              <Label className="mb-1.5">
                 Country
-              </label>
+              </Label>
               <Input
                 value={homeCountry}
                 onChange={(e) => setHomeCountry(e.target.value)}
                 placeholder="e.g., United States"
-                className="input-modern"
               />
             </div>
             <div className="flex items-center gap-3">
               <Button
                 onClick={handleSave}
                 disabled={saving}
-                className="btn-primary"
               >
                 {saving ? "Saving..." : "Save Location"}
               </Button>
@@ -299,10 +302,10 @@ export default function SettingsPage() {
               )}
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Calendar Preferences */}
-        <div className="card-elevated">
+        <Card>
           <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[var(--accent)]/20 flex items-center justify-center">
               <Calendar className="w-5 h-5 text-[var(--accent)]" />
@@ -319,34 +322,33 @@ export default function SettingsPage() {
 
           <div className="p-4 space-y-4">
             <div>
-              <label className="text-sm font-medium mb-1.5 block">
+              <Label className="mb-1.5">
                 Week starts on
-              </label>
-              <div className="relative w-full max-w-xs">
-                <select
-                  value={weekStartDayValue}
-                  onChange={(e) =>
-                    handleWeekStartChange(Number(e.target.value))
-                  }
-                  className="input-modern w-full pr-10 appearance-none cursor-pointer"
-                >
+              </Label>
+              <Select
+                value={String(weekStartDayValue)}
+                onValueChange={(v) => handleWeekStartChange(Number(v))}
+              >
+                <SelectTrigger className="w-full max-w-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
                   {WEEK_START_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
+                    <SelectItem key={option.value} value={String(option.value)}>
                       {option.label}
-                    </option>
+                    </SelectItem>
                   ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-muted-foreground" />
-              </div>
+                </SelectContent>
+              </Select>
               <p className="text-xs text-muted-foreground mt-2">
                 Changes take effect immediately
               </p>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Push Notifications */}
-        <div className="card-elevated">
+        <Card>
           <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
               <Bell className="w-5 h-5 text-blue-500" />
@@ -399,7 +401,6 @@ export default function SettingsPage() {
                   <Button
                     onClick={subscribe}
                     disabled={pushLoading}
-                    className="btn-primary"
                   >
                     <Bell className="w-4 h-4 mr-2" />
                     {pushLoading ? "Enabling..." : "Enable Notifications"}
@@ -413,10 +414,10 @@ export default function SettingsPage() {
               </div>
             )}
           </div>
-        </div>
+        </Card>
 
         {/* Planner Sharing */}
-        <div className="card-elevated">
+        <Card>
           <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
               <Users className="w-5 h-5 text-purple-500" />
@@ -441,10 +442,10 @@ export default function SettingsPage() {
               Go to Planner
             </Button>
           </div>
-        </div>
+        </Card>
 
         {/* About */}
-        <div className="card-elevated">
+        <Card>
           <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[var(--muted)] flex items-center justify-center">
               <Info className="w-5 h-5 text-muted-foreground" />
@@ -475,10 +476,10 @@ export default function SettingsPage() {
               Version 1.0
             </p>
           </div>
-        </div>
+        </Card>
 
         {/* Sign Out */}
-        <div className="card-elevated border-red-200">
+        <Card className="border-red-200">
           <div className="p-4 border-b border-red-200 bg-red-50 rounded-t-2xl flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
               <Hand className="w-5 h-5 text-destructive" />
@@ -503,7 +504,7 @@ export default function SettingsPage() {
               Sign Out
             </Button>
           </div>
-        </div>
+        </Card>
       </div>
     </main>
   );

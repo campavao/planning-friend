@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import type { Friend } from "@/lib/supabase";
 import { formatPhoneNumber } from "@/lib/utils";
@@ -335,7 +336,7 @@ export default function FriendsPage() {
             placeholder="Search friends..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="input-modern w-full"
+            className="w-full"
           />
         </div>
 
@@ -361,7 +362,8 @@ export default function FriendsPage() {
           </Button>
           <Button
             onClick={() => setShowAddManual(!showAddManual)}
-            className="flex-1 btn-secondary"
+            variant="secondary"
+            className="flex-1"
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Manually
@@ -370,7 +372,7 @@ export default function FriendsPage() {
 
         {/* Manual Add Form */}
         {showAddManual && (
-          <div className="card-elevated mb-6">
+          <Card className="mb-6">
             <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl">
               <h2 className="font-semibold text-base flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-[var(--secondary)]/10 flex items-center justify-center">
@@ -384,7 +386,6 @@ export default function FriendsPage() {
                 placeholder="Name *"
                 value={newFriendName}
                 onChange={(e) => setNewFriendName(e.target.value)}
-                className="input-modern"
                 autoFocus
               />
               <Input
@@ -394,7 +395,6 @@ export default function FriendsPage() {
                 onChange={(e) =>
                   setNewFriendPhone(formatPhoneNumber(e.target.value))
                 }
-                className="input-modern"
               />
               <div className="flex gap-2">
                 <Button
@@ -404,7 +404,8 @@ export default function FriendsPage() {
                     !newFriendName.trim() ||
                     newFriendPhone.replace(/\D/g, "").length < 10
                   }
-                  className="flex-1 btn-secondary"
+                  variant="secondary"
+                  className="flex-1"
                 >
                   {addingFriend ? "Adding..." : "Add Friend"}
                 </Button>
@@ -421,12 +422,12 @@ export default function FriendsPage() {
                 </Button>
               </div>
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Friends List */}
         {filteredFriends.length === 0 ? (
-          <div className="card-elevated p-8 text-center">
+          <Card className="p-8 text-center">
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--secondary)]/10 flex items-center justify-center">
               <Users className="w-8 h-8 text-[var(--secondary)]" />
             </div>
@@ -438,13 +439,13 @@ export default function FriendsPage() {
                 ? "Try a different search term"
                 : "Add friends to share your plans with them!"}
             </p>
-          </div>
+          </Card>
         ) : (
           <div className="space-y-2">
             {filteredFriends.map((friend) => (
-              <div
+              <Card
                 key={friend.id}
-                className="card-elevated p-4 flex items-center gap-3 group"
+                className="p-4 flex items-center gap-3 group hover:-translate-y-1 hover:shadow-[var(--shadow-lg)]"
               >
                 {/* Favorite Star */}
                 <button
@@ -475,13 +476,13 @@ export default function FriendsPage() {
                         onKeyDown={(e) =>
                           e.key === "Enter" && handleUpdateName(friend.id)
                         }
-                        className="input-modern flex-1"
+                        className="flex-1"
                         autoFocus
                       />
                       <Button
                         size="sm"
+                        variant="secondary"
                         onClick={() => handleUpdateName(friend.id)}
-                        className="btn-secondary"
                       >
                         Save
                       </Button>
@@ -536,7 +537,7 @@ export default function FriendsPage() {
                     </Button>
                   </div>
                 )}
-              </div>
+              </Card>
             ))}
           </div>
         )}

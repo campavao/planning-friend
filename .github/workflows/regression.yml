@@ -8,6 +8,8 @@ name: Regression (auth & authorization)
 # Requires one repository secret: SESSION_SECRET (must match the deployed app's
 # SESSION_SECRET, so the test session cookie verifies). Add it under
 # Settings → Secrets and variables → Actions → New repository secret.
+# Optional secret TWILIO_AUTH_TOKEN (matching the deployed app's) additionally
+# runs a signed Twilio-webhook canary against the deployment.
 #
 # Optional repository variable REGRESSION_BASE_URL overrides the default target.
 
@@ -60,6 +62,10 @@ jobs:
       - name: Run regression
         env:
           SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          # Optional: enables the signed Twilio-webhook canary (catches the
+          # signature-URL-mismatch class of outage where every real text gets
+          # a 403). Must match the deployed app's TWILIO_AUTH_TOKEN.
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
           BASE_URL: ${{ steps.target.outputs.url }}
         run: |
           if [ -z "$SESSION_SECRET" ]; then
