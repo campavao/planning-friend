@@ -1,0 +1,62 @@
+name: Webhook signature diagnostic
+
+# TEMPORARY diagnostic for the Twilio webhook 403s — sends a correctly signed
+# synthetic webhook (no link, no media: the handler ACKs before writing
+# anything, zero side effects) to production (old code) and the PR preview
+# (candidate-URL fix). Remove after the outage investigation closes.
+
+on:
+  push:
+    branches: [claude/bespoke-shadcn-migration-dn3qjw]
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Signed probe against prod and preview
+        env:
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+        run: |
+          if [ -z "$TWILIO_AUTH_TOKEN" ]; then
+            echo "::error::Missing TWILIO_AUTH_TOKEN repo secret"; exit 1
+          fi
+          node - <<'EOF'
+          const crypto = require("crypto");
+          const TOKEN = process.env.TWILIO_AUTH_TOKEN;
+          const params = { From: "+15005550006", Body: "webhook diagnostic (no link)" };
+          const targets = [
+            ["prod (old code)", "https://tiktok-helper.vercel.app/api/twilio/webhook"],
+            ["preview (fix)", "https://tiktok-helper-git-claude-bespoke-shad-04a53d-campavaos-projects.vercel.app/api/twilio/webhook"],
+          ];
+          const sign = (url) => {
+            const sorted = Object.keys(params).sort().map((k) => k + params[k]).join("");
+            return crypto.createHmac("sha1", TOKEN).update(url + sorted).digest("base64");
+          };
+          (async () => {
+            for (const [label, url] of targets) {
+              for (const [kind, sig] of [["signed", sign(url)], ["bad-sig", "bogus"]]) {
+                try {
+                  const res = await fetch(url, {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/x-www-form-urlencoded",
+                      "X-Twilio-Signature": sig,
+                    },
+                    body: new URLSearchParams(params).toString(),
+                  });
+                  console.log(`${label} ${kind}: HTTP ${res.status}`);
+                } catch (e) {
+                  console.log(`${label} ${kind}: ERROR ${e.message}`);
+                }
+              }
+            }
+          })();
+          EOF
