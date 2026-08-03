@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useSWRConfig } from "swr";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +9,17 @@ import { AddContactButton } from "@/components/add-contact-button";
 import { formatPhoneNumber } from "@/lib/utils";
 import { ArrowRight, Calendar, MessageCircle, Sparkles, Compass, Heart, ChefHat } from "lucide-react";
 
+// Leaving the login page ALWAYS goes through a full document load rather than
+// router.push(). The session lives in an httpOnly cookie, so the state the
+// server routes on has just changed underneath the client router — and that
+// router may still hold a /dashboard entry that redirects back here from when
+// we were signed out. Reusing it lands us on "/" again, which reads as the
+// submit button doing nothing at all. A document load re-runs middleware with
+// the new cookie and starts from a clean client cache.
+function goToDashboard() {
+  window.location.replace("/dashboard");
+}
+
 export default function Home() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
@@ -18,29 +27,26 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [checkingSession, setCheckingSession] = useState(true);
-  const router = useRouter();
-  const { mutate } = useSWRConfig();
 
   // Check if already logged in
   useEffect(() => {
     async function checkSession() {
       try {
-        const res = await fetch("/api/auth/session");
+        // no-store: a cached "authenticated" answer here would bounce us to
+        // /dashboard, where middleware disagrees and sends us back — a reload loop.
+        const res = await fetch("/api/auth/session", { cache: "no-store" });
         const data = await res.json();
         if (data.authenticated) {
-          // Seed the SWR session cache so the dashboard doesn't redirect
-          // back here based on a stale cached "unauthenticated" entry
-          await mutate("/api/auth/session", data, { revalidate: false });
-          router.push("/dashboard");
+          goToDashboard();
+          return;
         }
       } catch {
         // Not logged in
-      } finally {
-        setCheckingSession(false);
       }
+      setCheckingSession(false);
     }
     checkSession();
-  }, [router, mutate]);
+  }, []);
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhoneNumber(e.target.value);
@@ -92,22 +98,14 @@ export default function Home() {
         throw new Error(data.error || "Invalid code");
       }
 
-      // Seed the SWR session cache with the fresh login before navigating.
-      // Without this the dashboard can read a stale "unauthenticated" entry
-      // and bounce back to the login page instead of redirecting.
-      await mutate(
-        "/api/auth/session",
-        {
-          authenticated: true,
-          user: { id: data.user.id, phoneNumber: data.user.phoneNumber },
-        },
-        { revalidate: false }
-      );
-
-      router.push("/dashboard");
+      // The session cookie is set on this response. Hand off with a document
+      // load and keep the button in its "Verifying..." state until the new
+      // page takes over — the OTP is already spent, so re-submitting can only
+      // ever fail with "invalid code".
+      goToDashboard();
+      return;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
       setLoading(false);
     }
   };

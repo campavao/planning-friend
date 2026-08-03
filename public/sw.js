@@ -1,18 +1,19 @@
 // Service Worker for Planning Friend PWA
 // Handles push notifications and static asset caching for instant loads
 
-const CACHE_VERSION = "v2";
+// v3: HTML pages are no longer precached and auth/RSC traffic never touches
+// the cache. Bumping the version drops the poisoned v2 entries (see below).
+const CACHE_VERSION = "v3";
 const STATIC_CACHE = `planning-friend-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `planning-friend-dynamic-${CACHE_VERSION}`;
 
-// Static assets to precache for instant app shell loading
+// Icons and the manifest only. HTML pages are deliberately NOT precached:
+// every /dashboard route redirects to the login page while signed out, so
+// precaching them stores the login page — as a `redirected` response — under
+// the dashboard's cache key. Replaying a redirected response for a navigation
+// is a hard failure (navigations use redirect mode "manual"), so the tap that
+// should have opened the dashboard silently does nothing.
 const STATIC_ASSETS = [
-  "/",
-  "/dashboard",
-  "/dashboard/planner",
-  "/dashboard/gifts",
-  "/dashboard/friends",
-  "/dashboard/settings",
   "/android-chrome-192x192.png",
   "/android-chrome-512x512.png",
   "/apple-touch-icon.png",
@@ -85,6 +86,13 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Auth and navigation payloads go straight to the network, untouched: a
+  // cached session answer or a cached redirect breaks sign-in in ways that
+  // only clear when the app is force-quit.
+  if (isAuthRequest(url) || isRscRequest(request, url)) {
+    return;
+  }
+
   // API requests - Network first with cache fallback for offline
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(networkFirstWithCache(request));
@@ -97,18 +105,36 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // HTML pages - Stale while revalidate for fast loads
-  if (
-    request.destination === "document" ||
-    request.headers.get("accept")?.includes("text/html")
-  ) {
-    event.respondWith(staleWhileRevalidate(request));
+  // HTML pages - Network first. These carry the signed-in/signed-out decision
+  // and the current build's script tags, so cache is an offline fallback only.
+  if (isDocumentRequest(request)) {
+    event.respondWith(networkFirstDocument(request));
     return;
   }
 
   // Default - Network with cache fallback
   event.respondWith(networkFirstWithCache(request));
 });
+
+// Session state must never be read from a cache — stale either way logs the
+// user into the wrong state.
+function isAuthRequest(url) {
+  return url.pathname.startsWith("/api/auth/");
+}
+
+// Next.js client-side navigations. Their responses encode a specific build and
+// route tree, and middleware may answer with a redirect.
+function isRscRequest(request, url) {
+  return request.headers.has("rsc") || url.searchParams.has("_rsc");
+}
+
+function isDocumentRequest(request) {
+  return (
+    request.mode === "navigate" ||
+    request.destination === "document" ||
+    request.headers.get("accept")?.includes("text/html")
+  );
+}
 
 // Check if URL is from a trusted CDN (for thumbnails, etc.)
 function isTrustedCDN(url) {
@@ -161,50 +187,57 @@ async function cacheFirst(request) {
     return response;
   } catch (error) {
     console.error("[SW] Cache-first fetch failed:", error);
-    // Return offline fallback if available
-    return caches.match("/") || new Response("Offline", { status: 503 });
+    return new Response("Offline", { status: 503 });
   }
 }
 
-// Stale-while-revalidate - Best for HTML pages
-async function staleWhileRevalidate(request) {
+// Network-first for HTML pages, cache used only when the network is gone.
+async function networkFirstDocument(request) {
   const cache = await caches.open(DYNAMIC_CACHE);
-  const cached = await cache.match(request);
 
-  // Start network fetch in background
-  const fetchPromise = fetch(request)
-    .then((response) => {
-      if (response.ok) {
-        cache.put(request, response.clone());
-      }
-      return response;
-    })
-    .catch((error) => {
-      console.warn("[SW] SWR fetch failed:", error);
-      return null;
+  try {
+    const response = await fetch(request);
+
+    // Only store real, final pages. A redirect (the signed-out bounce from
+    // /dashboard to /) must never be cached: replaying it for a navigation is
+    // rejected by the browser and the navigation dies silently.
+    if (response.ok && !response.redirected) {
+      cache.put(request, response.clone());
+    }
+
+    return response;
+  } catch (error) {
+    console.warn("[SW] Document fetch failed, trying cache:", error);
+
+    const cached = await cache.match(request);
+    if (cached && !cached.redirected) {
+      return cached;
+    }
+
+    return new Response(OFFLINE_PAGE, {
+      status: 503,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
     });
-
-  // Return cached immediately if available, otherwise wait for network
-  if (cached) {
-    return cached;
   }
-
-  const networkResponse = await fetchPromise;
-  if (networkResponse) {
-    return networkResponse;
-  }
-
-  // Fallback to app shell
-  return caches.match("/dashboard") || caches.match("/");
 }
+
+const OFFLINE_PAGE = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Offline</title>
+<style>body{font-family:system-ui,-apple-system,sans-serif;background:#f8f3ed;color:#4a4a4a;
+display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center}
+p{max-width:20rem;line-height:1.5}</style></head>
+<body><p><strong>You're offline.</strong><br>Reconnect and reopen Planning Friend.</p></body></html>`;
 
 // Network-first with cache fallback - Best for API data
 async function networkFirstWithCache(request) {
   try {
     const response = await fetch(request);
 
-    // Cache successful API responses for offline use
-    if (response.ok && request.url.includes("/api/")) {
+    // Cache successful API responses for offline use. Redirects are skipped
+    // for the same reason as documents, and /api/auth/* never reaches here.
+    if (response.ok && !response.redirected && request.url.includes("/api/")) {
       const cache = await caches.open(DYNAMIC_CACHE);
       cache.put(request, response.clone());
     }
