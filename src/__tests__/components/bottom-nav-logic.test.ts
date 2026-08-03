@@ -3,7 +3,7 @@
  * Imports real exports — no duplicated logic
  */
 
-import { NAV_ITEMS, TAB_PATHS, isNavItemActive } from "@/components/bottom-nav";
+import { NAV_ITEMS, isNavItemActive } from "@/components/bottom-nav";
 
 // ============================================
 // NAV_ITEMS configuration
@@ -30,23 +30,6 @@ describe("NAV_ITEMS configuration", () => {
   it("all hrefs are unique", () => {
     const hrefs = NAV_ITEMS.map((item) => item.href);
     expect(new Set(hrefs).size).toBe(hrefs.length);
-  });
-});
-
-// ============================================
-// TAB_PATHS set
-// ============================================
-describe("TAB_PATHS", () => {
-  it("contains all nav item hrefs", () => {
-    for (const item of NAV_ITEMS) {
-      expect(TAB_PATHS.has(item.href)).toBe(true);
-    }
-  });
-
-  it("does not contain non-tab paths", () => {
-    expect(TAB_PATHS.has("/dashboard/share")).toBe(false);
-    expect(TAB_PATHS.has("/")).toBe(false);
-    expect(TAB_PATHS.has("/dashboard/123")).toBe(false);
   });
 });
 
@@ -101,20 +84,5 @@ describe("isNavItemActive", () => {
         expect(isNavItemActive(item.href, "/")).toBe(false);
       }
     });
-  });
-});
-
-// ============================================
-// Tab persistence logic
-// ============================================
-describe("tab persistence logic", () => {
-  it("only saves known tab paths", () => {
-    const shouldSave = (pathname: string) => TAB_PATHS.has(pathname);
-
-    expect(shouldSave("/dashboard")).toBe(true);
-    expect(shouldSave("/dashboard/planner")).toBe(true);
-
-    expect(shouldSave("/dashboard/123")).toBe(false);
-    expect(shouldSave("/")).toBe(false);
   });
 });

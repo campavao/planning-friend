@@ -146,19 +146,21 @@ export default function DashboardHome() {
   const [showNamePrompt, setShowNamePrompt] = useState(false);
   const now = useNow();
 
-  const { user, isLoading: sessionLoading } = useSession();
+  // Kept for the redirect when a session expires — but nothing on this page
+  // waits for it. Middleware already refused the request without a valid
+  // session, so gating the data hooks on the session fetch only bought a
+  // serial round trip: cached content couldn't paint until the session
+  // resolved, and the page visibly rebuilt itself when it did.
+  const { user } = useSession();
 
   const today = now ? formatDateString(now) : null;
   const weekStart = now ? getWeekStartForDate(now, getWeekStartDay()) : null;
 
-  const { content, isLoading: contentLoading } = useContent({ enabled: !!user });
-  const { plan, sharedItems, isLoading: plannerLoading } = usePlanner(
-    weekStart,
-    { enabled: !!user }
-  );
+  const { content, isLoading: contentLoading } = useContent();
+  const { plan, sharedItems, isLoading: plannerLoading } = usePlanner(weekStart);
   const { data: giftData, isLoading: giftsLoading } = useSWR<{
     recipients: GiftRecipientWithAssignments[];
-  }>(user ? "/api/gifts/recipients?include=assignments" : null, fetcher);
+  }>("/api/gifts/recipients?include=assignments", fetcher);
 
   // Check if user needs to set their name
   useEffect(() => {
@@ -201,6 +203,11 @@ export default function DashboardHome() {
   const savedCount = content.filter((c) => c.status === "completed").length;
   const recipients = giftData?.recipients ?? [];
 
+  // Without a clock there's no "today" to query yet, so the rail is still
+  // loading — showing its empty state here would claim nothing is planned and
+  // then take it back a frame later.
+  const todayLoading = !now || (plannerLoading && todayItems.length === 0);
+
   const header = (
     <div className="sticky top-0 z-20 bg-[var(--background)]">
       <div>
@@ -220,18 +227,6 @@ export default function DashboardHome() {
     </div>
   );
 
-  if (sessionLoading || !now) {
-    return (
-      <main className="min-h-screen pb-28 md:pb-8 bg-background">
-        {header}
-        <div className="py-6 space-y-8">
-          <CardRailSkeleton withTitle />
-          <CardRailSkeleton withTitle />
-        </div>
-      </main>
-    );
-  }
-
   return (
     <main className="min-h-screen pb-28 md:pb-8 bg-background">
       {header}
@@ -248,7 +243,7 @@ export default function DashboardHome() {
                 : undefined
             }
           />
-          {plannerLoading && todayItems.length === 0 ? (
+          {todayLoading ? (
             <CardRailSkeleton count={2} />
           ) : todayItems.length === 0 ? (
             <EmptySection>

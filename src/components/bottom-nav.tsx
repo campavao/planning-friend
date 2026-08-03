@@ -2,8 +2,7 @@
 
 import { Calendar, Gift, Home, Settings, Users } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { useTabPrefetch } from "@/hooks/useTabPrefetch";
 
 export const NAV_ITEMS = [
@@ -13,8 +12,6 @@ export const NAV_ITEMS = [
   { href: "/dashboard/friends", icon: Users, label: "Friends" },
   { href: "/dashboard/settings", icon: Settings, label: "Settings" },
 ];
-
-export const TAB_PATHS = new Set(NAV_ITEMS.map((item) => item.href));
 
 // Pages that sit under Home in the IA but have no tab of their own, so Home
 // stays lit while you're on them.
@@ -29,41 +26,14 @@ export function isNavItemActive(itemHref: string, pathname: string): boolean {
 
 export function BottomNav() {
   const pathname = usePathname();
-  const router = useRouter();
 
   // Warm the other tabs' data once we're on the dashboard, so switching tabs
   // is instant instead of showing a full-screen spinner each time.
   useTabPrefetch(!!pathname?.startsWith("/dashboard"));
 
-  // Tab persistence lives entirely here (root layout) so the "session
-  // active" flag and the "restore last tab" redirect can't race each other
-  // across components:
-  // - The first dashboard page seen in this browsing session marks the
-  //   session active, from ANY dashboard page — reopening the app directly
-  //   on e.g. /dashboard/planner must stop a later tap on Home from
-  //   rubberbanding back to the planner.
-  // - Only a true fresh open landing on Home restores the remembered tab.
-  useEffect(() => {
-    if (!pathname?.startsWith("/dashboard")) return;
-    try {
-      if (!sessionStorage.getItem("sessionActive")) {
-        sessionStorage.setItem("sessionActive", "true");
-        if (pathname === "/dashboard") {
-          const lastTab = localStorage.getItem("lastTab");
-          if (lastTab && lastTab !== "/dashboard" && TAB_PATHS.has(lastTab)) {
-            router.replace(lastTab);
-            // Keep the remembered tab; don't overwrite it with /dashboard
-            return;
-          }
-        }
-      }
-      if (TAB_PATHS.has(pathname)) {
-        localStorage.setItem("lastTab", pathname);
-      }
-    } catch {
-      // Ignore storage errors
-    }
-  }, [pathname, router]);
+  // Opening the app always lands on Home. It used to restore the last tab you
+  // were on, which meant a fresh open rendered Home and then navigated away
+  // from it — the app visibly built itself twice.
 
   // Don't show on login page
   if (pathname === "/") return null;

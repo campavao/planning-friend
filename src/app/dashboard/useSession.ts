@@ -53,16 +53,28 @@ export function useSession({
       return;
     }
 
+    // A failed request tells us the network hiccuped, not that the session is
+    // gone — and middleware already refused this page without a valid one.
+    // Redirecting here sends you to the login page, which finds the session
+    // intact and throws you straight back: the app builds itself twice for
+    // one dropped request.
+    if (error) return;
+
     // Not authenticated according to the current (possibly cached) data.
     // Wait for any in-flight revalidation to settle before redirecting so a
     // stale persisted "unauthenticated" entry can't bounce a freshly
     // logged-in user back to the login page.
     if (isValidating) return;
 
+    // Only an explicit { authenticated: false } from the server is grounds
+    // for a redirect.
+    if (!data) return;
+
     if (!allowUnauthenticated) {
       router.push("/");
     }
   }, [
+    data,
     isLoading,
     isValidating,
     isAuthenticated,

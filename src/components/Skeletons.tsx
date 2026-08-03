@@ -21,20 +21,10 @@ export function CardGridSkeleton({ count = 6 }: { count?: number }) {
   );
 }
 
-/**
- * Placeholder for a horizontal card rail on the dashboard. Pass withTitle when
- * the section header hasn't rendered yet either.
- */
-export function CardRailSkeleton({
-  count = 3,
-  withTitle = false,
-}: {
-  count?: number;
-  withTitle?: boolean;
-}) {
+/** Placeholder for a horizontal card rail on the dashboard. */
+export function CardRailSkeleton({ count = 3 }: { count?: number }) {
   return (
     <div className="max-w-7xl mx-auto">
-      {withTitle && <Skeleton className="h-6 w-32 mx-4 md:mx-6 mb-3" />}
       <div className="flex gap-3 overflow-hidden px-4 md:px-6">
         {Array.from({ length: count }).map((_, i) => (
           <div key={i} className="w-36 md:w-44 shrink-0">
