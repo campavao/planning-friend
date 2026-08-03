@@ -211,14 +211,9 @@ function ContentCardInner({
   meta?: React.ReactNode;
   href?: string | null;
 }) {
-  const {
-    icon: Icon,
-    label,
-    badge: badgeVariant,
-    text: textColor,
-    bg: bgColor,
-  } = categoryUI(content.category);
-  const colors = { text: textColor, bg: bgColor };
+  const { icon: Icon, label, badge: badgeVariant } = categoryUI(
+    content.category
+  );
 
   return (
     <CardLink href={resolveHref(content, href)}>
@@ -226,9 +221,11 @@ function ContentCardInner({
         className="overflow-hidden cursor-pointer h-full animate-slide-up hover:-translate-y-1 hover:shadow-[var(--shadow-lg)]"
         style={{ animationDelay: `${Math.min(index, 5) * 0.1}s` }}
       >
-        {/* Image */}
-        <div className="relative">
-          {content.thumbnail_url ? (
+        {/* Image. Items without one — quick notes, anything whose thumbnail
+            didn't come through — drop the block entirely rather than show a
+            placeholder, and carry their category badge inline instead. */}
+        {content.thumbnail_url && (
+          <div className="relative">
             <div className="relative aspect-square overflow-hidden">
               <img
                 src={content.thumbnail_url}
@@ -238,25 +235,25 @@ function ContentCardInner({
               {/* Gradient overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
             </div>
-          ) : (
-            <div className={`aspect-square flex items-center justify-center ${colors.bg}`}>
-              <div className="w-16 h-16 rounded-2xl bg-white/80 flex items-center justify-center">
-                <Icon className={`w-8 h-8 ${colors.text}`} />
-              </div>
+
+            {/* Category badge overlay */}
+            <div className="absolute top-3 left-3">
+              <Badge variant={badgeVariant} className="shadow-sm">
+                <Icon className="w-3 h-3" />
+                {label}
+              </Badge>
             </div>
-          )}
-          
-          {/* Category badge overlay */}
-          <div className="absolute top-3 left-3">
-            <Badge variant={badgeVariant} className="shadow-sm">
-              <Icon className="w-3 h-3" />
-              {label}
-            </Badge>
           </div>
-        </div>
+        )}
 
         {/* Content */}
         <div className="p-4">
+          {!content.thumbnail_url && (
+            <Badge variant={badgeVariant} className="mb-2">
+              <Icon className="w-3 h-3" />
+              {label}
+            </Badge>
+          )}
           <h3 className="font-semibold text-sm line-clamp-2 leading-snug mb-1">
             {content.title}
           </h3>

@@ -94,18 +94,18 @@ function SectionHeader({
  */
 function CardRail({ children }: { children: ReactNode }) {
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="flex gap-3 overflow-x-auto hide-scrollbar snap-x px-4 md:px-6 pb-1">
-        {children}
-      </div>
+    <div className="max-w-7xl mx-auto overflow-x-auto hide-scrollbar">
+      {/* The padding lives on the track rather than the scroll container: a
+          scroll container's leading padding is scrolled away (and snapping
+          aligns the first card flush past it), which left the row starting
+          hard against the screen edge while its header was indented. */}
+      <div className="flex w-max gap-3 px-4 md:px-6 pb-1">{children}</div>
     </div>
   );
 }
 
 function RailItem({ children }: { children: ReactNode }) {
-  return (
-    <div className="w-36 md:w-44 shrink-0 snap-start">{children}</div>
-  );
+  return <div className="w-36 md:w-44 shrink-0">{children}</div>;
 }
 
 /** Dashed tile that closes out a rail — "add another", "see everything". */
@@ -203,11 +203,10 @@ export default function DashboardHome() {
 
   const header = (
     <div className="sticky top-0 z-20 bg-[var(--background)]">
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary-light)]/20 via-transparent to-[var(--accent)]/10" />
-        <div className="relative max-w-7xl mx-auto px-4 md:px-6 pt-4 pb-3">
-          <h1 className="heading-1">{now ? greetingFor(now) : "Hello"}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+      <div>
+        <div className="max-w-7xl mx-auto px-4 md:px-6 pt-2 pb-3">
+          <h1 className="heading-2">{now ? greetingFor(now) : "Hello"}</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
             {now
               ? now.toLocaleDateString(undefined, {
                   weekday: "long",
