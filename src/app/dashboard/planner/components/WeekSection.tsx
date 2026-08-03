@@ -22,7 +22,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { categoryUI } from "@/lib/categories";
 import { SuggestionStrip } from "./SuggestionStrip";
-import { formatItemTime, getItemDateKey } from "../lib/date-helpers";
+import { formatItemTime, getItemDateKey } from "@/lib/plan-dates";
 
 type ContentWithTags = Content & { tags?: Tag[] };
 

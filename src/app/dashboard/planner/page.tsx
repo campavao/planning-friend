@@ -66,7 +66,7 @@ import { DateJumpControls } from "./components/DateJumpControls";
 import { PlannerSearch } from "./components/PlannerSearch";
 import { SuggestionStrip } from "./components/SuggestionStrip";
 import { WeekSection } from "./components/WeekSection";
-import { getItemDateKey } from "./lib/date-helpers";
+import { getItemDateKey } from "@/lib/plan-dates";
 import { usePlannerFilters } from "./hooks/usePlannerFilters";
 
 interface ItemShareState {

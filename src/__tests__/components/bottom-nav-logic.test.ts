@@ -55,11 +55,15 @@ describe("TAB_PATHS", () => {
 // ============================================
 describe("isNavItemActive", () => {
   describe("dashboard home (/dashboard)", () => {
-    it("is active only on exact /dashboard", () => {
+    it("is active on exact /dashboard", () => {
       expect(isNavItemActive("/dashboard", "/dashboard")).toBe(true);
     });
 
-    it("is NOT active on sub-pages", () => {
+    it("stays active on the collection, which has no tab of its own", () => {
+      expect(isNavItemActive("/dashboard", "/dashboard/collection")).toBe(true);
+    });
+
+    it("is NOT active on sub-pages that own a tab or a detail view", () => {
       expect(isNavItemActive("/dashboard", "/dashboard/planner")).toBe(false);
       expect(isNavItemActive("/dashboard", "/dashboard/settings")).toBe(false);
       expect(isNavItemActive("/dashboard", "/dashboard/123")).toBe(false);

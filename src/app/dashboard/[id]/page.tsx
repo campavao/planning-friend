@@ -130,8 +130,11 @@ export default function ContentDetailPage() {
 
     if (from === "planner" && week) {
       router.push(`/dashboard/planner?week=${week}`);
-    } else {
+    } else if (from === "home") {
       router.push("/dashboard");
+    } else {
+      // Items are opened from the collection unless they say otherwise.
+      router.push("/dashboard/collection");
     }
   }, [router, searchParams, user]);
 
@@ -250,7 +253,7 @@ export default function ContentDetailPage() {
     try {
       const res = await fetch(`/api/content/${id}`, { method: "DELETE" });
       if (res.ok) {
-        router.push("/dashboard");
+        router.push("/dashboard/collection");
       }
     } catch (error) {
       console.error("Failed to delete:", error);

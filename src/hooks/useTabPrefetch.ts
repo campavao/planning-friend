@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { preload } from "swr";
 import { fetcher } from "@/lib/swr-config";
+import { plannerWeekKey } from "@/hooks/usePlanner";
 import { getWeekStartDay, getWeekStartForDate } from "@/lib/utils";
 
 // The SWR keys each bottom-nav tab fetches on mount. Warming them once the
@@ -16,7 +17,9 @@ function tabKeys(): string[] {
     "/api/gifts/assignments", // Gifts
     "/api/settings", // Settings
     "/api/users/name", // Settings
-    `/api/planner?week=${week}`, // Plan
+    // Must be the exact key usePlanner reads, or the warmed entry is dead
+    // weight and the Plan tab still blanks on arrival.
+    plannerWeekKey(week), // Plan
   ];
 }
 

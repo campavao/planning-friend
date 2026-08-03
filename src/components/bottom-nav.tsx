@@ -16,10 +16,14 @@ export const NAV_ITEMS = [
 
 export const TAB_PATHS = new Set(NAV_ITEMS.map((item) => item.href));
 
+// Pages that sit under Home in the IA but have no tab of their own, so Home
+// stays lit while you're on them.
+const HOME_CHILD_PATHS = new Set(["/dashboard/collection"]);
+
 // Determine if a nav item is active based on pathname
 export function isNavItemActive(itemHref: string, pathname: string): boolean {
   return itemHref === "/dashboard"
-    ? pathname === "/dashboard"
+    ? pathname === "/dashboard" || HOME_CHILD_PATHS.has(pathname)
     : pathname.startsWith(itemHref);
 }
 

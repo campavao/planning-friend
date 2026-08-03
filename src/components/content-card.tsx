@@ -54,6 +54,29 @@ interface ContentCardProps {
   content: Content | ContentWithTags;
   index?: number;
   tags?: Tag[];
+  /**
+   * Where the card navigates. Defaults to the item's detail page; pass null to
+   * render an unlinked card (a planner quick note has no content row behind it).
+   */
+  href?: string | null;
+  /** Replaces the category's own meta line — e.g. a planned time. */
+  meta?: React.ReactNode;
+}
+
+/** Resolve the card's destination: undefined means "the usual detail page". */
+function resolveHref(content: Content, href?: string | null): string | null {
+  return href === undefined ? `/dashboard/${content.id}` : href;
+}
+
+function CardLink({
+  href,
+  children,
+}: {
+  href: string | null;
+  children: React.ReactNode;
+}) {
+  if (href === null) return <>{children}</>;
+  return <Link href={href}>{children}</Link>;
 }
 
 function ProcessingCard({
@@ -180,11 +203,13 @@ function ContentCardInner({
   tags,
   index = 0,
   meta,
+  href,
 }: {
   content: Content;
   tags?: Tag[];
   index?: number;
   meta?: React.ReactNode;
+  href?: string | null;
 }) {
   const {
     icon: Icon,
@@ -196,7 +221,7 @@ function ContentCardInner({
   const colors = { text: textColor, bg: bgColor };
 
   return (
-    <Link href={`/dashboard/${content.id}`}>
+    <CardLink href={resolveHref(content, href)}>
       <Card
         className="overflow-hidden cursor-pointer h-full animate-slide-up hover:-translate-y-1 hover:shadow-[var(--shadow-lg)]"
         style={{ animationDelay: `${Math.min(index, 5) * 0.1}s` }}
@@ -241,7 +266,7 @@ function ContentCardInner({
           )}
         </div>
       </Card>
-    </Link>
+    </CardLink>
   );
 }
 
@@ -250,17 +275,20 @@ function MealCard({
   data,
   tags,
   index = 0,
+  href,
 }: {
   content: Content;
   data: MealData;
   tags?: Tag[];
   index?: number;
+  href?: string | null;
 }) {
   return (
     <ContentCardInner
       content={content}
       tags={tags}
       index={index}
+      href={href}
       meta={
         <div className="hidden md:flex flex-wrap gap-2 text-xs">
           {data.ingredients && data.ingredients.length > 0 && (
@@ -283,17 +311,20 @@ function DrinkCard({
   data,
   tags,
   index = 0,
+  href,
 }: {
   content: Content;
   data: DrinkData;
   tags?: Tag[];
   index?: number;
+  href?: string | null;
 }) {
   return (
     <ContentCardInner
       content={content}
       tags={tags}
       index={index}
+      href={href}
       meta={
         <div className="hidden md:flex flex-wrap gap-2 text-xs">
           {data.ingredients && data.ingredients.length > 0 && (
@@ -311,17 +342,20 @@ function EventCard({
   data,
   tags,
   index = 0,
+  href,
 }: {
   content: Content;
   data: EventData;
   tags?: Tag[];
   index?: number;
+  href?: string | null;
 }) {
   return (
     <ContentCardInner
       content={content}
       tags={tags}
       index={index}
+      href={href}
       meta={
         <div className="hidden md:block space-y-1 text-xs">
           {data.location && <LocationLink location={data.location} />}
@@ -341,17 +375,20 @@ function DateIdeaCard({
   data,
   tags,
   index = 0,
+  href,
 }: {
   content: Content;
   data: DateIdeaData;
   tags?: Tag[];
   index?: number;
+  href?: string | null;
 }) {
   return (
     <ContentCardInner
       content={content}
       tags={tags}
       index={index}
+      href={href}
       meta={
         <div className="hidden md:block space-y-1 text-xs">
           {data.location && <LocationLink location={data.location} />}
@@ -369,17 +406,20 @@ function GiftIdeaCard({
   data,
   tags,
   index = 0,
+  href,
 }: {
   content: Content;
   data: GiftIdeaData;
   tags?: Tag[];
   index?: number;
+  href?: string | null;
 }) {
   return (
     <ContentCardInner
       content={content}
       tags={tags}
       index={index}
+      href={href}
       meta={
         data.cost && (
           <p className="text-sm font-semibold text-[var(--gift)]">{data.cost}</p>
@@ -394,17 +434,20 @@ function TravelCard({
   data,
   tags,
   index = 0,
+  href,
 }: {
   content: Content;
   data: TravelData;
   tags?: Tag[];
   index?: number;
+  href?: string | null;
 }) {
   return (
     <ContentCardInner
       content={content}
       tags={tags}
       index={index}
+      href={href}
       meta={
         <div className="hidden md:block space-y-1 text-xs">
           {data.location && <LocationLink location={data.location} />}
@@ -425,10 +468,12 @@ function OtherCard({
   content,
   tags,
   index = 0,
+  href,
 }: {
   content: Content;
   tags?: Tag[];
   index?: number;
+  href?: string | null;
 }) {
   const data = content.data as { description?: string };
 
@@ -437,6 +482,7 @@ function OtherCard({
       content={content}
       tags={tags}
       index={index}
+      href={href}
       meta={
         data.description && (
           <p className="hidden md:block text-xs line-clamp-2 text-muted-foreground">
@@ -448,7 +494,13 @@ function OtherCard({
   );
 }
 
-export function ContentCard({ content, index = 0, tags }: ContentCardProps) {
+export function ContentCard({
+  content,
+  index = 0,
+  tags,
+  href,
+  meta,
+}: ContentCardProps) {
   // Get tags from content if it's ContentWithTags, or use provided tags
   const contentTags = tags || ("tags" in content ? content.tags : undefined);
 
@@ -461,6 +513,20 @@ export function ContentCard({ content, index = 0, tags }: ContentCardProps) {
     return <FailedCard content={content} index={index} />;
   }
 
+  // An explicit meta replaces the per-category one, so callers like the
+  // planner can show a planned time in the same slot.
+  if (meta !== undefined) {
+    return (
+      <ContentCardInner
+        content={content}
+        tags={contentTags}
+        index={index}
+        href={href}
+        meta={meta}
+      />
+    );
+  }
+
   switch (content.category) {
     case "meal":
       return (
@@ -469,6 +535,7 @@ export function ContentCard({ content, index = 0, tags }: ContentCardProps) {
           data={content.data as MealData}
           tags={contentTags}
           index={index}
+          href={href}
         />
       );
     case "drink":
@@ -478,6 +545,7 @@ export function ContentCard({ content, index = 0, tags }: ContentCardProps) {
           data={content.data as DrinkData}
           tags={contentTags}
           index={index}
+          href={href}
         />
       );
     case "event":
@@ -487,6 +555,7 @@ export function ContentCard({ content, index = 0, tags }: ContentCardProps) {
           data={content.data as EventData}
           tags={contentTags}
           index={index}
+          href={href}
         />
       );
     case "date_idea":
@@ -496,6 +565,7 @@ export function ContentCard({ content, index = 0, tags }: ContentCardProps) {
           data={content.data as DateIdeaData}
           tags={contentTags}
           index={index}
+          href={href}
         />
       );
     case "gift_idea":
@@ -505,6 +575,7 @@ export function ContentCard({ content, index = 0, tags }: ContentCardProps) {
           data={content.data as GiftIdeaData}
           tags={contentTags}
           index={index}
+          href={href}
         />
       );
     case "travel":
@@ -514,9 +585,17 @@ export function ContentCard({ content, index = 0, tags }: ContentCardProps) {
           data={content.data as TravelData}
           tags={contentTags}
           index={index}
+          href={href}
         />
       );
     default:
-      return <OtherCard content={content} tags={contentTags} index={index} />;
+      return (
+        <OtherCard
+          content={content}
+          tags={contentTags}
+          index={index}
+          href={href}
+        />
+      );
   }
 }

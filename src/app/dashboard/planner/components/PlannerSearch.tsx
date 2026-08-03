@@ -8,7 +8,7 @@ import { parseDateString } from "@/lib/date-utils";
 import { CalendarArrowDown, FileText, Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { categoryUI } from "@/lib/categories";
-import { formatUtcDateString } from "../lib/date-helpers";
+import { formatUtcDateString } from "@/lib/plan-dates";
 import { parseSearchDate } from "../lib/parse-search-date";
 
 interface SearchResult {
