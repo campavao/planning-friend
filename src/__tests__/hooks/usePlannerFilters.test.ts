@@ -14,7 +14,6 @@ describe("usePlannerFilters", () => {
   it("initializes with default values", () => {
     const { result } = renderHook(() => usePlannerFilters());
 
-    expect(result.current.searchQuery).toBe("");
     expect(result.current.categoryFilter).toBe("all");
     expect(result.current.selectedTagIds).toEqual([]);
   });
@@ -23,7 +22,6 @@ describe("usePlannerFilters", () => {
     localStorage.setItem(
       "planner_item_filter",
       JSON.stringify({
-        searchQuery: "pasta",
         categoryFilter: "meal",
         selectedTagIds: ["tag-1"],
       })
@@ -31,19 +29,36 @@ describe("usePlannerFilters", () => {
 
     const { result } = renderHook(() => usePlannerFilters());
 
-    expect(result.current.searchQuery).toBe("pasta");
     expect(result.current.categoryFilter).toBe("meal");
     expect(result.current.selectedTagIds).toEqual(["tag-1"]);
   });
 
-  it("updates search query", () => {
+  it("ignores a search query left in storage by an older version", () => {
+    localStorage.setItem(
+      "planner_item_filter",
+      JSON.stringify({
+        searchQuery: "pasta",
+        categoryFilter: "meal",
+        selectedTagIds: [],
+      })
+    );
+
     const { result } = renderHook(() => usePlannerFilters());
 
-    act(() => {
-      result.current.setSearchQuery("tacos");
-    });
+    expect(result.current).not.toHaveProperty("searchQuery");
+    expect(result.current.categoryFilter).toBe("meal");
+  });
 
-    expect(result.current.searchQuery).toBe("tacos");
+  it("falls back to defaults when stored filters are partial", () => {
+    localStorage.setItem(
+      "planner_item_filter",
+      JSON.stringify({ categoryFilter: "drink" })
+    );
+
+    const { result } = renderHook(() => usePlannerFilters());
+
+    expect(result.current.categoryFilter).toBe("drink");
+    expect(result.current.selectedTagIds).toEqual([]);
   });
 
   it("updates category filter", () => {
@@ -70,7 +85,6 @@ describe("usePlannerFilters", () => {
     localStorage.setItem(
       "planner_item_filter",
       JSON.stringify({
-        searchQuery: "",
         categoryFilter: "all",
         selectedTagIds: ["tag-1", "tag-2"],
       })
@@ -90,7 +104,6 @@ describe("usePlannerFilters", () => {
     const { result } = renderHook(() => usePlannerFilters());
 
     act(() => {
-      result.current.setSearchQuery("pizza");
       result.current.setCategoryFilter("meal");
       result.current.toggleTagSelection("tag-1");
     });
@@ -99,7 +112,6 @@ describe("usePlannerFilters", () => {
       result.current.clearAllFilters();
     });
 
-    expect(result.current.searchQuery).toBe("");
     expect(result.current.categoryFilter).toBe("all");
     expect(result.current.selectedTagIds).toEqual([]);
   });
@@ -110,12 +122,12 @@ describe("usePlannerFilters", () => {
     const { result } = renderHook(() => usePlannerFilters());
 
     act(() => {
-      result.current.setSearchQuery("sushi");
+      result.current.setCategoryFilter("drink");
     });
 
     expect(spy).toHaveBeenCalledWith(
       "planner_item_filter",
-      expect.stringContaining("sushi")
+      expect.stringContaining("drink")
     );
   });
 
@@ -124,7 +136,6 @@ describe("usePlannerFilters", () => {
 
     const { result } = renderHook(() => usePlannerFilters());
 
-    expect(result.current.searchQuery).toBe("");
     expect(result.current.categoryFilter).toBe("all");
     expect(result.current.selectedTagIds).toEqual([]);
   });

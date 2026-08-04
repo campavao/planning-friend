@@ -62,7 +62,11 @@ const SEARCHABLE_DATA_FIELDS = [
   "ingredients",
 ];
 
-function searchableText(item: ContentWithTags) {
+// Structural shape rather than ContentWithTags, so the planner's add-modal —
+// whose items carry optional tags — can search the same way this page does.
+type Searchable = { title: string; tags?: Tag[]; data?: unknown };
+
+function searchableText(item: Searchable) {
   const parts = [item.title, ...(item.tags?.map((t) => t.name) || [])];
   const data = item.data as Record<string, unknown> | undefined;
 
@@ -79,7 +83,7 @@ function searchableText(item: ContentWithTags) {
 }
 
 // Filter content by a free-text query
-export function filterBySearch(items: ContentWithTags[], search: string) {
+export function filterBySearch<T extends Searchable>(items: T[], search: string) {
   const query = search.trim().toLowerCase();
   if (!query) return items;
   return items.filter((item) => searchableText(item).includes(query));

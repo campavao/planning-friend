@@ -5,28 +5,35 @@ import type { ContentCategory } from "@/lib/supabase";
 
 const FILTER_STORAGE_KEY = "planner_item_filter";
 
-function getStoredFilters(): {
-  searchQuery: string;
+// The add-modal's text field is deliberately not persisted: what you type
+// there can become a quick note, and a phrase left over from last week
+// shouldn't be sitting in the box waiting to be added as one.
+interface PlannerFilters {
   categoryFilter: ContentCategory | "all";
   selectedTagIds: string[];
-} {
-  if (typeof window === "undefined")
-    return { searchQuery: "", categoryFilter: "all", selectedTagIds: [] };
+}
+
+const DEFAULT_FILTERS: PlannerFilters = {
+  categoryFilter: "all",
+  selectedTagIds: [],
+};
+
+function getStoredFilters(): PlannerFilters {
+  if (typeof window === "undefined") return DEFAULT_FILTERS;
   try {
     const stored = localStorage.getItem(FILTER_STORAGE_KEY);
-    return stored
-      ? JSON.parse(stored)
-      : { searchQuery: "", categoryFilter: "all", selectedTagIds: [] };
+    if (!stored) return DEFAULT_FILTERS;
+    const parsed = JSON.parse(stored);
+    return {
+      categoryFilter: parsed?.categoryFilter ?? DEFAULT_FILTERS.categoryFilter,
+      selectedTagIds: parsed?.selectedTagIds ?? DEFAULT_FILTERS.selectedTagIds,
+    };
   } catch {
-    return { searchQuery: "", categoryFilter: "all", selectedTagIds: [] };
+    return DEFAULT_FILTERS;
   }
 }
 
-function saveFilters(filters: {
-  searchQuery: string;
-  categoryFilter: ContentCategory | "all";
-  selectedTagIds: string[];
-}) {
+function saveFilters(filters: PlannerFilters) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(filters));
@@ -37,7 +44,6 @@ function saveFilters(filters: {
 
 export function usePlannerFilters() {
   const stored = useMemo(() => getStoredFilters(), []);
-  const [searchQuery, setSearchQuery] = useState(stored.searchQuery);
   const [categoryFilter, setCategoryFilter] = useState<
     ContentCategory | "all"
   >(stored.categoryFilter);
@@ -46,11 +52,10 @@ export function usePlannerFilters() {
   );
 
   useEffect(() => {
-    saveFilters({ searchQuery, categoryFilter, selectedTagIds });
-  }, [searchQuery, categoryFilter, selectedTagIds]);
+    saveFilters({ categoryFilter, selectedTagIds });
+  }, [categoryFilter, selectedTagIds]);
 
   const clearAllFilters = useCallback(() => {
-    setSearchQuery("");
     setCategoryFilter("all");
     setSelectedTagIds([]);
   }, []);
@@ -62,8 +67,6 @@ export function usePlannerFilters() {
   }, []);
 
   return {
-    searchQuery,
-    setSearchQuery,
     categoryFilter,
     setCategoryFilter,
     selectedTagIds,

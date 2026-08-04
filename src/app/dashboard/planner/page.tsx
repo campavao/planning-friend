@@ -1,5 +1,6 @@
 "use client";
 
+import { filterBySearch } from "@/components/category-tabs";
 import { TagFilter } from "@/components/tag-filter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,7 +42,9 @@ import {
   ChevronRight,
   Coffee,
   Heart,
+  PenLine,
   Plus,
+  Search,
   ShoppingCart,
   Star,
   User,
@@ -164,7 +167,9 @@ function PlannerContent() {
   const [highlightDate, setHighlightDate] = useState<string | null>(null);
 
   const [addingToDate, setAddingToDate] = useState<string | null>(null);
-  const [quickNoteInput, setQuickNoteInput] = useState("");
+  // One field for the whole add-modal: it filters saved items as you type and
+  // doubles as the title if you add what you typed as a quick note.
+  const [entryQuery, setEntryQuery] = useState("");
   const [addingQuickNote, setAddingQuickNote] = useState(false);
   const [plannedTime, setPlannedTime] = useState("19:00");
   const [editingItem, setEditingItem] = useState<PlanItemWithSharing | null>(
@@ -183,8 +188,6 @@ function PlannerContent() {
   );
 
   const {
-    searchQuery,
-    setSearchQuery,
     categoryFilter,
     setCategoryFilter,
     selectedTagIds,
@@ -551,13 +554,14 @@ function PlannerContent() {
   const openAddModal = (dateKey: string) => {
     setPlannedTime("19:00");
     setEditingItem(null);
-    setQuickNoteInput("");
+    setEntryQuery("");
     setAddingToDate(dateKey);
   };
 
   const closeAddModal = () => {
     setAddingToDate(null);
     setEditingItem(null);
+    setEntryQuery("");
     setAddingQuickNote(false);
   };
 
@@ -573,7 +577,8 @@ function PlannerContent() {
   const openEditModal = (item: PlanItemWithSharing, dateKey: string) => {
     setEditingItem(item);
     setPlannedTime(getTimeInputValue(item.planned_date));
-    setQuickNoteInput(item.note_title || "");
+    // A note opens with its own title in the field, ready to be reworded.
+    setEntryQuery(item.note_title || "");
     setAddingToDate(dateKey);
   };
 
@@ -656,7 +661,7 @@ function PlannerContent() {
   };
 
   const addQuickNote = async (dateKey: string) => {
-    if (!quickNoteInput.trim()) return;
+    if (!entryQuery.trim()) return;
 
     setAddingQuickNote(true);
     try {
@@ -668,13 +673,12 @@ function PlannerContent() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             id: editingItem.id,
-            noteTitle: quickNoteInput.trim(),
+            noteTitle: entryQuery.trim(),
             plannedDate,
           }),
         });
 
         if (res.ok) {
-          setQuickNoteInput("");
           revalidateDate(dateKey);
           closeAddModal();
         }
@@ -684,13 +688,13 @@ function PlannerContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          noteTitle: quickNoteInput.trim(),
+          noteTitle: entryQuery.trim(),
           plannedDate,
         }),
       });
 
       if (res.ok) {
-        setQuickNoteInput("");
+        setEntryQuery("");
         revalidateDate(dateKey);
         setAddingToDate(null);
       }
@@ -1043,7 +1047,7 @@ function PlannerContent() {
   // ============================================
 
   const hasActiveFilters =
-    searchQuery || categoryFilter !== "all" || selectedTagIds.length > 0;
+    categoryFilter !== "all" || selectedTagIds.length > 0;
 
   const getFilteredContent = () => {
     if (!library?.availableContent) return [];
@@ -1061,7 +1065,7 @@ function PlannerContent() {
       planItems.map((i: PlanItemWithSharing) => i.content_id) || [],
     );
 
-    return availableContent.filter((c: ContentWithTags) => {
+    const matching = availableContent.filter((c: ContentWithTags) => {
       if (usedIds.has(c.id)) return false;
       if (c.category === "gift_idea") return false;
       if (categoryFilter !== "all" && c.category !== categoryFilter)
@@ -1075,12 +1079,12 @@ function PlannerContent() {
         if (!hasMatchingTag) return false;
       }
 
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        return c.title.toLowerCase().includes(query);
-      }
       return true;
     });
+
+    // Same matching as the collection page, so typing an ingredient or a
+    // place name finds the item whose title doesn't mention it.
+    return filterBySearch(matching, entryQuery);
   };
 
   // ============================================
@@ -1453,34 +1457,40 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
             </div>
 
             <div className="flex-1 overflow-y-auto overscroll-contain">
-              {/* Quick Note Input */}
-              <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)]">
-                <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-                  Quick note
-                </p>
+              {/* One field: filters saved items, or becomes a quick note */}
+              <div className="p-4 border-b border-[var(--border)] space-y-3 sticky top-0 bg-white z-10">
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
                     addQuickNote(addingToDate);
                   }}
-                  className="flex gap-2"
                 >
-                  <Input
-                    type="text"
-                    placeholder='e.g., "Salmon", "Date night"'
-                    value={quickNoteInput}
-                    onChange={(e) => setQuickNoteInput(e.target.value)}
-                    className="flex-1"
-                    autoFocus
-                  />
-                  <Button
-                    type="submit"
-                    disabled={!quickNoteInput.trim() || addingQuickNote}
-                  >
-                    {addingQuickNote ? "..." : editingItem ? "Save" : "Add"}
-                  </Button>
+                  <div className="relative">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                    <Input
+                      type="text"
+                      placeholder="Search saved items, or type a note..."
+                      value={entryQuery}
+                      onChange={(e) => setEntryQuery(e.target.value)}
+                      className="pl-10 pr-10"
+                      autoFocus
+                    />
+                    {entryQuery && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => setEntryQuery("")}
+                        aria-label="Clear"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
                 </form>
-                <div className="mt-3 flex items-center gap-3">
+
+                <div className="flex items-center gap-3">
                   <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                     Time
                   </div>
@@ -1494,22 +1504,32 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     Default 7:00 PM
                   </span>
                 </div>
-              </div>
 
-              <div className="px-4 py-2 text-xs text-muted-foreground text-center bg-[var(--muted)] border-b border-[var(--border)]">
-                Or pick from saved items
-              </div>
-
-              {/* Search & Filters */}
-              <div className="p-4 border-b border-[var(--border)] space-y-3 sticky top-0 bg-white z-10">
-                <div className="flex gap-2">
-                  <Input
-                    type="text"
-                    placeholder="Search saved items..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="flex-1"
-                  />
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar flex-1">
+                    {[
+                      { id: "all", label: "All", icon: null },
+                      { id: "meal", label: "Meals", icon: Utensils },
+                      { id: "drink", label: "Drinks", icon: Coffee },
+                      { id: "event", label: "Events", icon: Calendar },
+                      { id: "date_idea", label: "Dates", icon: Heart },
+                    ].map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() =>
+                          setCategoryFilter(cat.id as ContentCategory | "all")
+                        }
+                        className={`shrink-0 px-3 py-1.5 text-xs font-medium rounded-full transition-colors flex items-center gap-1 ${
+                          categoryFilter === cat.id
+                            ? "bg-[var(--primary)] text-white"
+                            : "bg-[var(--muted)] text-[var(--foreground)] hover:bg-[var(--border)]"
+                        }`}
+                      >
+                        {cat.icon && <cat.icon className="w-3 h-3" />}
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
                   {hasActiveFilters && (
                     <Button
                       variant="ghost"
@@ -1520,31 +1540,6 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                       Clear
                     </Button>
                   )}
-                </div>
-
-                <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
-                  {[
-                    { id: "all", label: "All", icon: null },
-                    { id: "meal", label: "Meals", icon: Utensils },
-                    { id: "drink", label: "Drinks", icon: Coffee },
-                    { id: "event", label: "Events", icon: Calendar },
-                    { id: "date_idea", label: "Dates", icon: Heart },
-                  ].map((cat) => (
-                    <button
-                      key={cat.id}
-                      onClick={() =>
-                        setCategoryFilter(cat.id as ContentCategory | "all")
-                      }
-                      className={`shrink-0 px-3 py-1.5 text-xs font-medium rounded-full transition-colors flex items-center gap-1 ${
-                        categoryFilter === cat.id
-                          ? "bg-[var(--primary)] text-white"
-                          : "bg-[var(--muted)] text-[var(--foreground)] hover:bg-[var(--border)]"
-                      }`}
-                    >
-                      {cat.icon && <cat.icon className="w-3 h-3" />}
-                      {cat.label}
-                    </button>
-                  ))}
                 </div>
               </div>
 
@@ -1560,8 +1555,9 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                 </div>
               )}
 
-              {/* Suggested for this day */}
-              {!editingItem && modalWeek && modalPicks.length > 0 && (
+              {/* Suggested for this day — set aside once you start typing,
+                  so the results you asked for stay at the top */}
+              {!entryQuery.trim() && !editingItem && modalWeek && modalPicks.length > 0 && (
                 <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--background-alt)]">
                   <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
                     Suggested for {formatModalDayLabel(addingToDate)}
@@ -1590,8 +1586,31 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                 </div>
               )}
 
-              {/* Content List */}
+              {/* Results: the typed text as a note first, then saved items */}
               <div className="p-4 space-y-2">
+                {entryQuery.trim() && (
+                  <button
+                    onClick={() => addQuickNote(addingToDate)}
+                    disabled={addingQuickNote}
+                    className="w-full bg-white border border-[var(--primary)]/40 rounded-xl p-3 text-left flex items-center gap-3 hover:border-[var(--primary)] hover:shadow-sm transition-all disabled:opacity-60"
+                  >
+                    <div className="w-14 h-14 shrink-0 rounded-lg bg-[var(--primary)]/10 flex items-center justify-center">
+                      <PenLine className="w-5 h-5 text-[var(--primary)]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium line-clamp-1">
+                        {editingItem ? "Save note" : "Add"} &ldquo;
+                        {entryQuery.trim()}&rdquo;
+                      </span>
+                      <p className="text-xs text-muted-foreground">
+                        {addingQuickNote
+                          ? "Saving..."
+                          : "Quick note — no saved item needed"}
+                      </p>
+                    </div>
+                  </button>
+                )}
+
                 {getFilteredContent().map((content: ContentWithTags) => {
                   const Icon = categoryUI(content.category).icon;
                   return (
@@ -1642,7 +1661,11 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
                 {getFilteredContent().length === 0 && (
                   <div className="text-center py-8 text-muted-foreground">
-                    <p className="text-sm font-medium">No items found</p>
+                    <p className="text-sm font-medium">
+                      {entryQuery.trim()
+                        ? "No saved items match — add it as a note above"
+                        : "No items found"}
+                    </p>
                     {hasActiveFilters && (
                       <Button
                         variant="ghost"
