@@ -3,7 +3,9 @@
 import { AddContactButton } from "@/components/add-contact-button";
 import { ContentCard } from "@/components/content-card";
 import { TagFilter } from "@/components/tag-filter";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Tabs,
   TabsContent,
@@ -18,8 +20,10 @@ import {
   Heart,
   Pin,
   Plane,
+  Search,
   Smartphone,
   Utensils,
+  X,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -47,13 +51,47 @@ export function filterByTags(items: ContentWithTags[], selectedTags: string[]) {
   );
 }
 
+// The `data` fields worth matching on — the details someone would actually
+// remember a saved item by when they can't recall its title.
+const SEARCHABLE_DATA_FIELDS = [
+  "name",
+  "description",
+  "location",
+  "destination_city",
+  "destination_country",
+  "ingredients",
+];
+
+function searchableText(item: ContentWithTags) {
+  const parts = [item.title, ...(item.tags?.map((t) => t.name) || [])];
+  const data = item.data as Record<string, unknown> | undefined;
+
+  for (const field of SEARCHABLE_DATA_FIELDS) {
+    const value = data?.[field];
+    if (typeof value === "string") {
+      parts.push(value);
+    } else if (Array.isArray(value)) {
+      parts.push(value.filter((v) => typeof v === "string").join(" "));
+    }
+  }
+
+  return parts.join(" ").toLowerCase();
+}
+
+// Filter content by a free-text query
+export function filterBySearch(items: ContentWithTags[], search: string) {
+  const query = search.trim().toLowerCase();
+  if (!query) return items;
+  return items.filter((item) => searchableText(item).includes(query));
+}
+
 // Get filtered content for a category
-export function getFilteredContent(content: ContentWithTags[], selectedTags: string[], category?: string) {
+export function getFilteredContent(content: ContentWithTags[], selectedTags: string[], category?: string, search = "") {
   let items = content;
   if (category) {
     items = content.filter((c) => c.category === category);
   }
-  return filterByTags(items, selectedTags);
+  return filterBySearch(filterByTags(items, selectedTags), search);
 }
 
 // Toggle a tag in the selected list
@@ -62,21 +100,23 @@ export function toggleTag(prev: string[], tagId: string): string[] {
 }
 
 // Get counts for each category
-export function getCounts(content: ContentWithTags[], selectedTags: string[]) {
-  const filtered = filterByTags(content, selectedTags);
+export function getCounts(content: ContentWithTags[], selectedTags: string[], search = "") {
+  const count = (category?: string) =>
+    getFilteredContent(content, selectedTags, category, search).length;
+
   return {
-    all: filtered.length,
-    meals: filterByTags(content.filter((c) => c.category === "meal"), selectedTags).length,
-    drinks: filterByTags(content.filter((c) => c.category === "drink"), selectedTags).length,
-    events: filterByTags(content.filter((c) => c.category === "event"), selectedTags).length,
-    dates: filterByTags(content.filter((c) => c.category === "date_idea"), selectedTags).length,
-    gifts: filterByTags(content.filter((c) => c.category === "gift_idea"), selectedTags).length,
-    travel: filterByTags(content.filter((c) => c.category === "travel"), selectedTags).length,
-    other: filterByTags(content.filter((c) => c.category === "other"), selectedTags).length,
+    all: count(),
+    meals: count("meal"),
+    drinks: count("drink"),
+    events: count("event"),
+    dates: count("date_idea"),
+    gifts: count("gift_idea"),
+    travel: count("travel"),
+    other: count("other"),
   };
 }
 
-function EmptyState({ category, hasTagFilters }: { category: string; hasTagFilters: boolean }) {
+function EmptyState({ category, hasFilters }: { category: string; hasFilters: boolean }) {
   const Icon = TABS.find((t) => t.id === category)?.icon || Smartphone;
 
   return (
@@ -85,16 +125,16 @@ function EmptyState({ category, hasTagFilters }: { category: string; hasTagFilte
         <Icon className="w-10 h-10 text-muted-foreground" />
       </div>
       <h3 className="heading-3 mb-2">
-        {hasTagFilters
-          ? `No ${category} match tags`
+        {hasFilters
+          ? `No ${category} match your filters`
           : `No ${category} saved`}
       </h3>
       <p className="text-muted-foreground max-w-md mb-5 text-sm">
-        {hasTagFilters
-          ? "Try removing some tag filters."
+        {hasFilters
+          ? "Try a different search or clearing some filters."
           : "Text a TikTok or Instagram link to save it here."}
       </p>
-      {!hasTagFilters && <AddContactButton variant="button" />}
+      {!hasFilters && <AddContactButton variant="button" />}
     </Card>
   );
 }
@@ -112,11 +152,40 @@ function ContentGrid({ items }: { items: ContentWithTags[] }) {
 export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
   const [activeTab, setActiveTab] = useState("all");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
 
-  const counts = getCounts(content, selectedTags);
+  const counts = getCounts(content, selectedTags, search);
+  const hasFilters = selectedTags.length > 0 || search.trim().length > 0;
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full gap-0">
+      {/* Search */}
+      <div className="relative mb-4">
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        <Input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setSearch("");
+          }}
+          placeholder="Search your collection..."
+          aria-label="Search your collection"
+          className="pl-10 pr-10 text-sm [&::-webkit-search-cancel-button]:hidden"
+        />
+        {search && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setSearch("")}
+            aria-label="Clear search"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
+
       {/* Tabs */}
       <TabsList className="mb-5 hide-scrollbar h-auto w-full justify-start gap-2 overflow-x-auto rounded-none bg-transparent p-0 pb-2">
         {TABS.map((tab) => {
@@ -151,14 +220,11 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
 
       {/* Content */}
       {TABS.map((tab) => {
-        const items = getFilteredContent(content, selectedTags, tab.category);
+        const items = getFilteredContent(content, selectedTags, tab.category, search);
         return (
           <TabsContent key={tab.id} value={tab.id}>
             {items.length === 0 ? (
-              <EmptyState
-                category={tab.id}
-                hasTagFilters={selectedTags.length > 0}
-              />
+              <EmptyState category={tab.id} hasFilters={hasFilters} />
             ) : (
               <ContentGrid items={items} />
             )}

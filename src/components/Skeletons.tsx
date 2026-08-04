@@ -42,20 +42,6 @@ export function CardRailSkeleton({ count = 3 }: { count?: number }) {
   );
 }
 
-export function StatRowSkeleton() {
-  return (
-    <div className="grid grid-cols-5 gap-2">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="stat-card">
-          <Skeleton className="w-8 h-8 mx-auto mb-1.5" />
-          <Skeleton className="h-5 w-6 mx-auto mb-1" />
-          <Skeleton className="h-2.5 w-10 mx-auto" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export function ListSkeleton({ count = 4 }: { count?: number }) {
   return (
     <div className="space-y-3">

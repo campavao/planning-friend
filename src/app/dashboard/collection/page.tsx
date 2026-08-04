@@ -9,11 +9,8 @@ import {
   AlertCircle,
   ArrowLeft,
   Calendar,
-  Coffee,
   Gift,
-  Heart,
   RefreshCw,
-  Utensils,
   X,
   Sparkles,
 } from "lucide-react";
@@ -21,7 +18,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSession } from "../useSession";
 import { useSlideIn } from "@/hooks/useSlideIn";
-import { CardGridSkeleton, StatRowSkeleton } from "@/components/Skeletons";
+import { CardGridSkeleton } from "@/components/Skeletons";
 
 // Initialize tip visibility from localStorage
 function getInitialTipVisibility() {
@@ -109,23 +106,6 @@ export default function CollectionPage() {
   const processingCount = processingItems.length;
   const failedCount = failedItems.length;
 
-  // Category counts
-  const mealCount = completedContent.filter(
-    (c) => c.category === "meal"
-  ).length;
-  const drinkCount = completedContent.filter(
-    (c) => c.category === "drink"
-  ).length;
-  const eventCount = completedContent.filter(
-    (c) => c.category === "event"
-  ).length;
-  const dateCount = completedContent.filter(
-    (c) => c.category === "date_idea"
-  ).length;
-  const giftCount = completedContent.filter(
-    (c) => c.category === "gift_idea"
-  ).length;
-
   if (isInitialLoading) {
     return (
       <main className="min-h-screen pb-28 md:pb-8 bg-background">
@@ -139,9 +119,6 @@ export default function CollectionPage() {
               </p>
             </div>
           </div>
-        </div>
-        <div className="max-w-7xl mx-auto px-4 md:px-6 pb-4 pt-2">
-          <StatRowSkeleton />
         </div>
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
           <CardGridSkeleton />
@@ -207,49 +184,8 @@ export default function CollectionPage() {
         </div>
       </div>
 
-      {/* Stats Row */}
-      <div className="max-w-7xl mx-auto px-4 md:px-6 pb-4">
-          <div className={`grid grid-cols-5 gap-2 ${slideIn}`}>
-            <div className="stat-card">
-              <div className="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-[var(--meal-bg)] flex items-center justify-center">
-                <Utensils className="w-4 h-4 text-[var(--meal)]" />
-              </div>
-              <div className="stat-value">{mealCount}</div>
-              <div className="stat-label">Meals</div>
-            </div>
-            <div className="stat-card">
-              <div className="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-[var(--drink-bg)] flex items-center justify-center">
-                <Coffee className="w-4 h-4 text-[var(--drink)]" />
-              </div>
-              <div className="stat-value">{drinkCount}</div>
-              <div className="stat-label">Drinks</div>
-            </div>
-            <div className="stat-card">
-              <div className="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-[var(--event-bg)] flex items-center justify-center">
-                <Calendar className="w-4 h-4 text-[var(--event)]" />
-              </div>
-              <div className="stat-value">{eventCount}</div>
-              <div className="stat-label">Events</div>
-            </div>
-            <div className="stat-card">
-              <div className="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-[var(--date-bg)] flex items-center justify-center">
-                <Heart className="w-4 h-4 text-[var(--date)]" />
-              </div>
-              <div className="stat-value">{dateCount}</div>
-              <div className="stat-label">Dates</div>
-            </div>
-            <div className="stat-card">
-              <div className="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-[var(--gift-bg)] flex items-center justify-center">
-                <Gift className="w-4 h-4 text-[var(--gift)]" />
-              </div>
-              <div className="stat-value">{giftCount}</div>
-              <div className="stat-label">Gifts</div>
-            </div>
-          </div>
-      </div>
-
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 pt-4 pb-6">
         {/* Processing Banner */}
         {processingCount > 0 && (
           <Card className="border border-[var(--border)] shadow-none state-processing p-4 mb-6 animate-slide-up">
@@ -332,7 +268,7 @@ export default function CollectionPage() {
             </Button>
           </Card>
         ) : (
-          <div className={`${slideIn} stagger-2`}>
+          <div className={slideIn}>
             <CategoryTabs content={content} allTags={tags} />
           </div>
         )}

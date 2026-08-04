@@ -5,6 +5,7 @@
 
 import {
   filterByTags,
+  filterBySearch,
   getFilteredContent,
   getCounts,
   toggleTag,
@@ -61,6 +62,56 @@ describe("filterByTags", () => {
 });
 
 // ============================================
+// filterBySearch
+// ============================================
+const searchContent = [
+  { id: "1", category: "meal", title: "Salmon Tacos", status: "completed", data: { ingredients: ["salmon", "tortillas"] }, tags: [{ id: "t1", name: "quick" }] },
+  { id: "2", category: "date_idea", title: "Rooftop Bar", status: "completed", data: { description: "Sunset views downtown", location: "Chicago" }, tags: [] },
+  { id: "3", category: "gift_idea", title: "Birthday Present", status: "completed", data: { name: "Espresso Machine" } },
+  { id: "4", category: "travel", title: "Weekend Trip", status: "completed", data: { destination_city: "Lisbon", destination_country: "Portugal" }, tags: [] },
+] as unknown as ContentWithTags[];
+
+describe("filterBySearch", () => {
+  it("returns all items for an empty or whitespace query", () => {
+    expect(filterBySearch(searchContent, "")).toEqual(searchContent);
+    expect(filterBySearch(searchContent, "   ")).toEqual(searchContent);
+  });
+
+  it("matches titles case-insensitively", () => {
+    expect(filterBySearch(searchContent, "TACOS").map((r) => r.id)).toEqual(["1"]);
+  });
+
+  it("matches tag names", () => {
+    expect(filterBySearch(searchContent, "quick").map((r) => r.id)).toEqual(["1"]);
+  });
+
+  it("matches string fields inside data", () => {
+    expect(filterBySearch(searchContent, "sunset").map((r) => r.id)).toEqual(["2"]);
+    expect(filterBySearch(searchContent, "chicago").map((r) => r.id)).toEqual(["2"]);
+    expect(filterBySearch(searchContent, "espresso").map((r) => r.id)).toEqual(["3"]);
+    expect(filterBySearch(searchContent, "portugal").map((r) => r.id)).toEqual(["4"]);
+  });
+
+  it("matches array fields inside data", () => {
+    expect(filterBySearch(searchContent, "tortillas").map((r) => r.id)).toEqual(["1"]);
+  });
+
+  it("ignores surrounding whitespace in the query", () => {
+    expect(filterBySearch(searchContent, "  tacos  ").map((r) => r.id)).toEqual(["1"]);
+  });
+
+  it("returns empty when nothing matches", () => {
+    expect(filterBySearch(searchContent, "kayaking")).toHaveLength(0);
+  });
+
+  it("handles items with missing tags or data", () => {
+    const sparse = [{ id: "1", title: "Plain" }] as unknown as ContentWithTags[];
+    expect(filterBySearch(sparse, "plain")).toHaveLength(1);
+    expect(filterBySearch(sparse, "other")).toHaveLength(0);
+  });
+});
+
+// ============================================
 // getFilteredContent
 // ============================================
 describe("getFilteredContent", () => {
@@ -89,6 +140,16 @@ describe("getFilteredContent", () => {
   it("returns empty when category has no matching tags", () => {
     const result = getFilteredContent(testContent, ["t5"], "meal");
     expect(result).toHaveLength(0);
+  });
+
+  it("narrows a category by search query", () => {
+    const result = getFilteredContent(searchContent, [], "meal", "salmon");
+    expect(result.map((r) => r.id)).toEqual(["1"]);
+  });
+
+  it("combines tags and search", () => {
+    expect(getFilteredContent(searchContent, ["t1"], undefined, "tacos")).toHaveLength(1);
+    expect(getFilteredContent(searchContent, ["t1"], undefined, "rooftop")).toHaveLength(0);
   });
 });
 
@@ -126,6 +187,14 @@ describe("getCounts", () => {
     const counts = getCounts([], []);
     expect(counts.all).toBe(0);
     expect(counts.meals).toBe(0);
+  });
+
+  it("narrows counts by search query", () => {
+    const counts = getCounts(searchContent, [], "tacos");
+    expect(counts.all).toBe(1);
+    expect(counts.meals).toBe(1);
+    expect(counts.dates).toBe(0);
+    expect(counts.travel).toBe(0);
   });
 
   it("sum of individual categories equals total when no tags", () => {
