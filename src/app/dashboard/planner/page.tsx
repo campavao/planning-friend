@@ -124,10 +124,42 @@ function addWeeksTo(weekStart: string, count: number): string {
 }
 
 function PlannerContent() {
-  const [anchorDate, setAnchorDate] = useState<string>("");
-  const [weeks, setWeeks] = useState<string[]>([]);
+  const searchParams = useSearchParams();
+
+  // Week start day preference (0=Sunday, 1=Monday, etc.)
+  const weekStartDay = useMemo(() => getWeekStartDay(), []);
+
+  /**
+   * The focused date is resolved during the first render, not in an effect.
+   * PlannerContent sits behind a Suspense boundary (it calls
+   * useSearchParams), so it never runs during the prerender — reading the URL
+   * and the clock here is client-only and can't desync from server HTML.
+   *
+   * Deferring it to an effect meant the first committed frame had no date
+   * yet. WebKit paints that commit, so on iOS the header appeared 44px
+   * shorter with an empty control row and a spinner before snapping to full
+   * size and scrolling to today. Chromium happened to flush the effect before
+   * painting, which is why it only ever showed up on the phone.
+   */
+  const [initialAnchor] = useState(() => {
+    const urlDate = searchParams.get("date") || searchParams.get("week");
+    return urlDate && /^\d{4}-\d{2}-\d{2}$/.test(urlDate)
+      ? urlDate
+      : formatDateString(new Date());
+  });
+
+  const [anchorDate, setAnchorDate] = useState<string>(initialAnchor);
+  const [weeks, setWeeks] = useState<string[]>(() => {
+    const week = getWeekStartForDate(
+      parseDateString(initialAnchor),
+      weekStartDay,
+    );
+    return [week, addWeeksTo(week, 1), addWeeksTo(week, 2)];
+  });
+  // Scrolling still waits for layout, but the day elements now exist in the
+  // same commit, so the layout effect lands it before the first paint.
   const [pendingScroll, setPendingScroll] = useState<PendingScroll | null>(
-    null,
+    () => ({ dateKey: initialAnchor, smooth: false }),
   );
   const [highlightDate, setHighlightDate] = useState<string | null>(null);
 
@@ -143,9 +175,6 @@ function PlannerContent() {
   );
   const [refreshingKey, setRefreshingKey] = useState<string | null>(null);
   const [undoState, setUndoState] = useState<UndoState | null>(null);
-
-  // Week start day preference (0=Sunday, 1=Monday, etc.)
-  const weekStartDay = useMemo(() => getWeekStartDay(), []);
 
   // Dynamic day name arrays based on user's week start preference
   const { days: DAYS, daysFull: DAYS_FULL } = useMemo(
@@ -189,8 +218,6 @@ function PlannerContent() {
     error: null,
   });
   const groceryListRef = useRef<HTMLDivElement>(null);
-
-  const searchParams = useSearchParams();
 
   // Session management with SWR
   const { user, isLoading: sessionLoading } = useSession();
@@ -244,7 +271,9 @@ function PlannerContent() {
   const weeksRef = useRef<string[]>([]);
   weeksRef.current = weeks;
   const prependAnchorRef = useRef<{ key: string; top: number } | null>(null);
-  const suppressSpyUntilRef = useRef(0);
+  // Briefly suppressed at mount too: the initial scroll to the focused date
+  // must not be overwritten by the spy reacting to it.
+  const suppressSpyUntilRef = useRef(Date.now() + 300);
   const focusHoldRef = useRef<{ dateKey: string; until: number } | null>(null);
 
   const registerDayElement = useCallback(
@@ -314,22 +343,8 @@ function PlannerContent() {
     [weekOf],
   );
 
-  // Initialize focus from URL (?date= or legacy ?week=) or today.
-  const initializedRef = useRef(false);
-  useEffect(() => {
-    if (initializedRef.current) return;
-    initializedRef.current = true;
-    const urlDate = searchParams.get("date") || searchParams.get("week");
-    const target =
-      urlDate && /^\d{4}-\d{2}-\d{2}$/.test(urlDate)
-        ? urlDate
-        : formatDateString(new Date());
-    jumpToDate(target, { smooth: false, updateUrl: false });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // False while the early-return loading screen is up — the week grid
-  // (day cards, sentinels) isn't mounted until this flips true.
+  // The week grid (day cards, sentinels) is mounted from the first render;
+  // this only gates on the session still being unknown on a cold load.
   const contentReady = !sessionLoading && !!anchorDate;
 
   // Compensate scroll position when a past week is prepended, so the
@@ -1293,30 +1308,22 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
         {/* Date jump + search controls */}
         <div className="max-w-7xl mx-auto px-4 pb-3 flex flex-wrap items-center gap-2">
-          {anchorDate ? (
-            <>
-              <DateJumpControls
-                anchorDate={anchorDate}
-                onJump={(dateKey) => jumpToDate(dateKey)}
-              />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => jumpToDate(todayKey)}
-                className="h-9 shrink-0"
-                disabled={anchorDate === todayKey}
-              >
-                Today
-              </Button>
-              <PlannerSearch
-                onJump={(dateKey) => jumpToDate(dateKey, { highlight: true })}
-              />
-            </>
-          ) : (
-            // Holds the row's height for the frame before the focused date
-            // resolves, so the header doesn't resize under the user.
-            <div className="h-9" />
-          )}
+          <DateJumpControls
+            anchorDate={anchorDate}
+            onJump={(dateKey) => jumpToDate(dateKey)}
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => jumpToDate(todayKey)}
+            className="h-9 shrink-0"
+            disabled={anchorDate === todayKey}
+          >
+            Today
+          </Button>
+          <PlannerSearch
+            onJump={(dateKey) => jumpToDate(dateKey, { highlight: true })}
+          />
         </div>
 
         {/* Calendar weekday columns (desktop) */}
