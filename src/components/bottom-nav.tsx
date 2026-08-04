@@ -53,6 +53,13 @@ export function BottomNav() {
         <div className="flex justify-around items-center px-2 py-1">
           {NAV_ITEMS.map((item) => {
             const isActive = isNavItemActive(item.href, pathname);
+            // Tapping the tab you're already on is a no-op. It used to
+            // re-navigate to the bare path, which scrolled the planner back to
+            // the top and let its scroll-spy rewrite the focused date — so
+            // tapping Plan while on Plan moved you off the week you were
+            // reading. Compared against the exact path, not isActive, so Home
+            // still works from the collection page underneath it.
+            const isCurrent = pathname === item.href;
 
             const Icon = item.icon;
 
@@ -60,6 +67,10 @@ export function BottomNav() {
               <Link
                 key={item.href}
                 href={item.href}
+                aria-current={isCurrent ? "page" : undefined}
+                onClick={(e) => {
+                  if (isCurrent) e.preventDefault();
+                }}
                 className="nav-item flex-1"
               >
                 <div

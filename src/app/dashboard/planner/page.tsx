@@ -1257,19 +1257,9 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
       day: "numeric",
     });
 
-  if (sessionLoading || !anchorDate) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="loading-spinner mx-auto mb-4" />
-          <p className="text-muted-foreground text-sm">
-            Loading your planner...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
+  // The header renders no matter what. Swapping the whole page for a spinner
+  // until the focused date resolved meant the header tore down and slid back
+  // in every single time you tapped the Plan tab.
   return (
     <main className="min-h-screen pb-28 md:pb-8 bg-background">
       {/* Header */}
@@ -1303,22 +1293,30 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
         {/* Date jump + search controls */}
         <div className="max-w-7xl mx-auto px-4 pb-3 flex flex-wrap items-center gap-2">
-          <DateJumpControls
-            anchorDate={anchorDate}
-            onJump={(dateKey) => jumpToDate(dateKey)}
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => jumpToDate(todayKey)}
-            className="h-9 shrink-0"
-            disabled={anchorDate === todayKey}
-          >
-            Today
-          </Button>
-          <PlannerSearch
-            onJump={(dateKey) => jumpToDate(dateKey, { highlight: true })}
-          />
+          {anchorDate ? (
+            <>
+              <DateJumpControls
+                anchorDate={anchorDate}
+                onJump={(dateKey) => jumpToDate(dateKey)}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => jumpToDate(todayKey)}
+                className="h-9 shrink-0"
+                disabled={anchorDate === todayKey}
+              >
+                Today
+              </Button>
+              <PlannerSearch
+                onJump={(dateKey) => jumpToDate(dateKey, { highlight: true })}
+              />
+            </>
+          ) : (
+            // Holds the row's height for the frame before the focused date
+            // resolves, so the header doesn't resize under the user.
+            <div className="h-9" />
+          )}
         </div>
 
         {/* Calendar weekday columns (desktop) */}
@@ -1357,6 +1355,14 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
         {/* Infinite week list */}
         <div>
           <div ref={topSentinelRef} aria-hidden className="h-px" />
+          {!contentReady && (
+            <div className="py-16 text-center">
+              <div className="loading-spinner mx-auto mb-4" />
+              <p className="text-muted-foreground text-sm">
+                Loading your planner...
+              </p>
+            </div>
+          )}
           {weeks.map((week) => (
             <WeekSection
               key={week}

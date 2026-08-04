@@ -9,6 +9,7 @@ import { CardRailSkeleton } from "@/components/Skeletons";
 import { Card } from "@/components/ui/card";
 import { useContent } from "@/hooks/useContent";
 import { usePlanner } from "@/hooks/usePlanner";
+import { useSlideIn } from "@/hooks/useSlideIn";
 import { getItemDateKey } from "@/lib/plan-dates";
 import { fetcher } from "@/lib/swr-config";
 import type { GiftRecipientWithAssignments, PlanItem } from "@/lib/supabase";
@@ -145,6 +146,9 @@ function EmptySection({ children }: { children: ReactNode }) {
 export default function DashboardHome() {
   const [showNamePrompt, setShowNamePrompt] = useState(false);
   const now = useNow();
+  // Sections slide in the first time the dashboard is shown, then stay put on
+  // every return trip from another tab.
+  const slideIn = useSlideIn("dashboard-section") ? "animate-slide-up" : "";
 
   // Kept for the redirect when a session expires — but nothing on this page
   // waits for it. Middleware already refused the request without a valid
@@ -233,7 +237,7 @@ export default function DashboardHome() {
 
       <div className="py-6 space-y-8">
         {/* Today */}
-        <section className="animate-slide-up">
+        <section className={slideIn}>
           <SectionHeader
             title="Today"
             href="/dashboard/planner"
@@ -286,7 +290,7 @@ export default function DashboardHome() {
         </section>
 
         {/* Collection */}
-        <section className="animate-slide-up stagger-2">
+        <section className={`${slideIn} stagger-2`}>
           <SectionHeader
             title="Collection"
             href="/dashboard/collection"
@@ -331,7 +335,7 @@ export default function DashboardHome() {
         </section>
 
         {/* Gifts */}
-        <section className="animate-slide-up stagger-2">
+        <section className={`${slideIn} stagger-2`}>
           <SectionHeader title="Gifts" href="/dashboard/gifts" />
           {giftsLoading && recipients.length === 0 ? (
             <CardRailSkeleton count={2} />

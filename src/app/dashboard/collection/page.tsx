@@ -20,6 +20,7 @@ import {
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSession } from "../useSession";
+import { useSlideIn } from "@/hooks/useSlideIn";
 import { CardGridSkeleton, StatRowSkeleton } from "@/components/Skeletons";
 
 // Initialize tip visibility from localStorage
@@ -30,6 +31,8 @@ function getInitialTipVisibility() {
 
 export default function CollectionPage() {
   const [showTip, setShowTip] = useState(getInitialTipVisibility);
+  // First arrival only — coming back from another tab shouldn't replay it.
+  const slideIn = useSlideIn("collection-page") ? "animate-slide-up" : "";
 
   // Session management with SWR
   const { user, isLoading: sessionLoading } = useSession();
@@ -206,7 +209,7 @@ export default function CollectionPage() {
 
       {/* Stats Row */}
       <div className="max-w-7xl mx-auto px-4 md:px-6 pb-4">
-          <div className="grid grid-cols-5 gap-2 animate-slide-up">
+          <div className={`grid grid-cols-5 gap-2 ${slideIn}`}>
             <div className="stat-card">
               <div className="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-[var(--meal-bg)] flex items-center justify-center">
                 <Utensils className="w-4 h-4 text-[var(--meal)]" />
@@ -329,7 +332,7 @@ export default function CollectionPage() {
             </Button>
           </Card>
         ) : (
-          <div className="animate-slide-up stagger-2">
+          <div className={`${slideIn} stagger-2`}>
             <CategoryTabs content={content} allTags={tags} />
           </div>
         )}

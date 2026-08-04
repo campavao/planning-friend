@@ -24,6 +24,19 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 import { categoryUI } from "@/lib/categories";
+import { useSlideIn } from "@/hooks/useSlideIn";
+
+const SLIDE_IN_GROUP = "content-card";
+
+/** Animation props for a card, or nothing once the group has already played. */
+function slideInProps(play: boolean, index: number) {
+  return play
+    ? {
+        className: "animate-slide-up",
+        style: { animationDelay: `${Math.min(index, 5) * 0.1}s` },
+      }
+    : { className: "", style: undefined };
+}
 
 // Generate Google Maps URL from location string
 export function getGoogleMapsUrl(location: string): string {
@@ -120,12 +133,13 @@ function ProcessingCard({
   };
 
   const isRetrying = retryState === "pending";
+  const slide = slideInProps(useSlideIn(SLIDE_IN_GROUP), index);
 
   return (
     <Link href={`/dashboard/${content.id}`}>
       <Card
-        className="overflow-hidden cursor-pointer h-full animate-slide-up hover:-translate-y-1 hover:shadow-[var(--shadow-lg)]"
-        style={{ animationDelay: `${Math.min(index, 5) * 0.1}s` }}
+        className={`overflow-hidden cursor-pointer h-full hover:-translate-y-1 hover:shadow-[var(--shadow-lg)] ${slide.className}`}
+        style={slide.style}
       >
         <div className="aspect-square bg-[var(--accent-light)] flex items-center justify-center">
           <div className="text-center">
@@ -171,11 +185,13 @@ function FailedCard({
   content: Content;
   index?: number;
 }) {
+  const slide = slideInProps(useSlideIn(SLIDE_IN_GROUP), index);
+
   return (
     <Link href={`/dashboard/${content.id}`}>
       <Card
-        className="overflow-hidden cursor-pointer h-full animate-slide-up hover:-translate-y-1 hover:shadow-[var(--shadow-lg)] state-error"
-        style={{ animationDelay: `${Math.min(index, 5) * 0.1}s` }}
+        className={`overflow-hidden cursor-pointer h-full hover:-translate-y-1 hover:shadow-[var(--shadow-lg)] state-error ${slide.className}`}
+        style={slide.style}
       >
         <div className="aspect-square bg-red-50 flex items-center justify-center">
           <div className="text-center">
@@ -214,12 +230,13 @@ function ContentCardInner({
   const { icon: Icon, label, badge: badgeVariant } = categoryUI(
     content.category
   );
+  const slide = slideInProps(useSlideIn(SLIDE_IN_GROUP), index);
 
   return (
     <CardLink href={resolveHref(content, href)}>
       <Card
-        className="overflow-hidden cursor-pointer h-full animate-slide-up hover:-translate-y-1 hover:shadow-[var(--shadow-lg)]"
-        style={{ animationDelay: `${Math.min(index, 5) * 0.1}s` }}
+        className={`overflow-hidden cursor-pointer h-full hover:-translate-y-1 hover:shadow-[var(--shadow-lg)] ${slide.className}`}
+        style={slide.style}
       >
         {/* Image. Items without one — quick notes, anything whose thumbnail
             didn't come through — drop the block entirely rather than show a
