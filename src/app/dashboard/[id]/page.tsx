@@ -1,5 +1,6 @@
 "use client";
 
+import { FavoriteButton } from "@/components/favorite-button";
 import { TagPills } from "@/components/tag-pills";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { useContentById, useTags } from "@/hooks/useContent";
 import { DEFAULT_TAGS } from "@/lib/constants";
+import { isFavorite, saveFavorite } from "@/lib/favorites";
 import type {
   DateIdeaData,
   DrinkData,
@@ -262,6 +264,24 @@ export default function ContentDetailPage() {
     }
   };
 
+  const handleToggleFavorite = async () => {
+    if (!content) return;
+    const next = !isFavorite(content);
+
+    // Star the cached item first, without revalidating, so the header responds
+    // on the tap rather than after the round trip.
+    mutateContent(
+      (current) =>
+        current && { ...current, content: { ...current.content, is_favorite: next } },
+      { revalidate: false }
+    );
+
+    // A failed write refetches, which visibly undoes the star.
+    if (!(await saveFavorite(id, next))) {
+      mutateContent();
+    }
+  };
+
   const handleRetryProcessing = async () => {
     if (!content) return;
 
@@ -334,6 +354,10 @@ export default function ContentDetailPage() {
             )}
             {content.status === "completed" && isEditable && (
               <>
+                <FavoriteButton
+                  isFavorite={isFavorite(content)}
+                  onToggle={handleToggleFavorite}
+                />
                 <Button
                   variant="ghost"
                   size="icon"

@@ -207,6 +207,67 @@ describe("getCounts", () => {
 });
 
 // ============================================
+// Starred filter composition
+// ============================================
+// Starring is an extra axis on top of category/tag/search, so these fixtures
+// carry all four — plus a row saved before the is_favorite column existed.
+const starredContent = [
+  { id: "1", category: "meal", title: "Salmon Tacos", status: "completed", data: {}, is_favorite: true, tags: [{ id: "t1", name: "quick" }] },
+  { id: "2", category: "meal", title: "Beef Stew", status: "completed", data: {}, is_favorite: false, tags: [{ id: "t1", name: "quick" }] },
+  { id: "3", category: "drink", title: "Espresso Martini", status: "completed", data: {}, is_favorite: true, tags: [] },
+  { id: "4", category: "travel", title: "Lisbon Weekend", status: "completed", data: {} },
+] as unknown as ContentWithTags[];
+
+describe("starred filtering in getFilteredContent", () => {
+  it("is off by default", () => {
+    expect(getFilteredContent(starredContent, [])).toHaveLength(4);
+    expect(getFilteredContent(starredContent, [], undefined, "", false)).toHaveLength(4);
+  });
+
+  it("keeps only starred items when on", () => {
+    const result = getFilteredContent(starredContent, [], undefined, "", true);
+    expect(result.map((r) => r.id)).toEqual(["1", "3"]);
+  });
+
+  it("treats a row saved before the migration as unstarred", () => {
+    const result = getFilteredContent(starredContent, [], "travel", "", true);
+    expect(result).toHaveLength(0);
+  });
+
+  it("narrows a category rather than replacing it", () => {
+    const result = getFilteredContent(starredContent, [], "meal", "", true);
+    expect(result.map((r) => r.id)).toEqual(["1"]);
+  });
+
+  it("composes with the tag filter", () => {
+    expect(getFilteredContent(starredContent, ["t1"], undefined, "", true).map((r) => r.id)).toEqual(["1"]);
+    // The starred drink carries no tags, so the tag filter still excludes it.
+    expect(getFilteredContent(starredContent, ["t1"], undefined, "", true)).toHaveLength(1);
+  });
+
+  it("composes with search", () => {
+    expect(getFilteredContent(starredContent, [], undefined, "tacos", true)).toHaveLength(1);
+    expect(getFilteredContent(starredContent, [], undefined, "stew", true)).toHaveLength(0);
+  });
+});
+
+describe("starred filtering in getCounts", () => {
+  it("leaves counts untouched when off", () => {
+    const counts = getCounts(starredContent, [], "", false);
+    expect(counts.all).toBe(4);
+    expect(counts.meals).toBe(2);
+  });
+
+  it("narrows every category count when on", () => {
+    const counts = getCounts(starredContent, [], "", true);
+    expect(counts.all).toBe(2);
+    expect(counts.meals).toBe(1);
+    expect(counts.drinks).toBe(1);
+    expect(counts.travel).toBe(0);
+  });
+});
+
+// ============================================
 // toggleTag
 // ============================================
 describe("toggleTag", () => {
