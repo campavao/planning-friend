@@ -134,6 +134,9 @@ export interface Content {
     | Record<string, unknown>;
   thumbnail_url?: string;
   status: ContentStatus;
+  // Optional rather than boolean: rows read before schema-favorites.sql has
+  // been applied come back without the column at all.
+  is_favorite?: boolean;
   created_at: string;
   updated_at?: string;
 }

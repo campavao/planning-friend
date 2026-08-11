@@ -3,6 +3,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { FavoriteButton } from "@/components/favorite-button";
+import { isFavorite } from "@/lib/favorites";
 import type {
   Content,
   ContentWithTags,
@@ -74,6 +76,11 @@ interface ContentCardProps {
   href?: string | null;
   /** Replaces the category's own meta line — e.g. a planned time. */
   meta?: React.ReactNode;
+  /**
+   * Renders the star. Left off wherever the item isn't the viewer's to star:
+   * the planner shows friends' shared items through this same card.
+   */
+  onToggleFavorite?: (next: boolean) => void;
 }
 
 /** Resolve the card's destination: undefined means "the usual detail page". */
@@ -220,17 +227,27 @@ function ContentCardInner({
   index = 0,
   meta,
   href,
+  onToggleFavorite,
 }: {
   content: Content;
   tags?: Tag[];
   index?: number;
   meta?: React.ReactNode;
   href?: string | null;
+  onToggleFavorite?: (next: boolean) => void;
 }) {
   const { icon: Icon, label, badge: badgeVariant } = categoryUI(
     content.category
   );
   const slide = slideInProps(useSlideIn(SLIDE_IN_GROUP), index);
+  const starred = isFavorite(content);
+  const star = onToggleFavorite ? (
+    <FavoriteButton
+      isFavorite={starred}
+      onToggle={() => onToggleFavorite(!starred)}
+      variant="overlay"
+    />
+  ) : null;
 
   return (
     <CardLink href={resolveHref(content, href)}>
@@ -260,16 +277,23 @@ function ContentCardInner({
                 {label}
               </Badge>
             </div>
+
+            {star && <div className="absolute top-3 right-3">{star}</div>}
           </div>
         )}
 
         {/* Content */}
         <div className="p-4">
+          {/* Without a photo there's no overlay to sit in, so the badge row
+              carries the star instead. */}
           {!content.thumbnail_url && (
-            <Badge variant={badgeVariant} className="mb-2">
-              <Icon className="w-3 h-3" />
-              {label}
-            </Badge>
+            <div className="flex items-center justify-between gap-2 mb-2 -mr-1.5">
+              <Badge variant={badgeVariant}>
+                <Icon className="w-3 h-3" />
+                {label}
+              </Badge>
+              {star}
+            </div>
           )}
           <h3 className="font-semibold text-sm line-clamp-2 leading-snug mb-1">
             {content.title}
@@ -290,12 +314,14 @@ function MealCard({
   tags,
   index = 0,
   href,
+  onToggleFavorite,
 }: {
   content: Content;
   data: MealData;
   tags?: Tag[];
   index?: number;
   href?: string | null;
+  onToggleFavorite?: (next: boolean) => void;
 }) {
   return (
     <ContentCardInner
@@ -303,6 +329,7 @@ function MealCard({
       tags={tags}
       index={index}
       href={href}
+      onToggleFavorite={onToggleFavorite}
       meta={
         <div className="hidden md:flex flex-wrap gap-2 text-xs">
           {data.ingredients && data.ingredients.length > 0 && (
@@ -326,12 +353,14 @@ function DrinkCard({
   tags,
   index = 0,
   href,
+  onToggleFavorite,
 }: {
   content: Content;
   data: DrinkData;
   tags?: Tag[];
   index?: number;
   href?: string | null;
+  onToggleFavorite?: (next: boolean) => void;
 }) {
   return (
     <ContentCardInner
@@ -339,6 +368,7 @@ function DrinkCard({
       tags={tags}
       index={index}
       href={href}
+      onToggleFavorite={onToggleFavorite}
       meta={
         <div className="hidden md:flex flex-wrap gap-2 text-xs">
           {data.ingredients && data.ingredients.length > 0 && (
@@ -357,12 +387,14 @@ function EventCard({
   tags,
   index = 0,
   href,
+  onToggleFavorite,
 }: {
   content: Content;
   data: EventData;
   tags?: Tag[];
   index?: number;
   href?: string | null;
+  onToggleFavorite?: (next: boolean) => void;
 }) {
   return (
     <ContentCardInner
@@ -370,6 +402,7 @@ function EventCard({
       tags={tags}
       index={index}
       href={href}
+      onToggleFavorite={onToggleFavorite}
       meta={
         <div className="hidden md:block space-y-1 text-xs">
           {data.location && <LocationLink location={data.location} />}
@@ -390,12 +423,14 @@ function DateIdeaCard({
   tags,
   index = 0,
   href,
+  onToggleFavorite,
 }: {
   content: Content;
   data: DateIdeaData;
   tags?: Tag[];
   index?: number;
   href?: string | null;
+  onToggleFavorite?: (next: boolean) => void;
 }) {
   return (
     <ContentCardInner
@@ -403,6 +438,7 @@ function DateIdeaCard({
       tags={tags}
       index={index}
       href={href}
+      onToggleFavorite={onToggleFavorite}
       meta={
         <div className="hidden md:block space-y-1 text-xs">
           {data.location && <LocationLink location={data.location} />}
@@ -421,12 +457,14 @@ function GiftIdeaCard({
   tags,
   index = 0,
   href,
+  onToggleFavorite,
 }: {
   content: Content;
   data: GiftIdeaData;
   tags?: Tag[];
   index?: number;
   href?: string | null;
+  onToggleFavorite?: (next: boolean) => void;
 }) {
   return (
     <ContentCardInner
@@ -434,6 +472,7 @@ function GiftIdeaCard({
       tags={tags}
       index={index}
       href={href}
+      onToggleFavorite={onToggleFavorite}
       meta={
         data.cost && (
           <p className="text-sm font-semibold text-[var(--gift)]">{data.cost}</p>
@@ -449,12 +488,14 @@ function TravelCard({
   tags,
   index = 0,
   href,
+  onToggleFavorite,
 }: {
   content: Content;
   data: TravelData;
   tags?: Tag[];
   index?: number;
   href?: string | null;
+  onToggleFavorite?: (next: boolean) => void;
 }) {
   return (
     <ContentCardInner
@@ -462,6 +503,7 @@ function TravelCard({
       tags={tags}
       index={index}
       href={href}
+      onToggleFavorite={onToggleFavorite}
       meta={
         <div className="hidden md:block space-y-1 text-xs">
           {data.location && <LocationLink location={data.location} />}
@@ -483,11 +525,13 @@ function OtherCard({
   tags,
   index = 0,
   href,
+  onToggleFavorite,
 }: {
   content: Content;
   tags?: Tag[];
   index?: number;
   href?: string | null;
+  onToggleFavorite?: (next: boolean) => void;
 }) {
   const data = content.data as { description?: string };
 
@@ -497,6 +541,7 @@ function OtherCard({
       tags={tags}
       index={index}
       href={href}
+      onToggleFavorite={onToggleFavorite}
       meta={
         data.description && (
           <p className="hidden md:block text-xs line-clamp-2 text-muted-foreground">
@@ -514,6 +559,7 @@ export function ContentCard({
   tags,
   href,
   meta,
+  onToggleFavorite,
 }: ContentCardProps) {
   // Get tags from content if it's ContentWithTags, or use provided tags
   const contentTags = tags || ("tags" in content ? content.tags : undefined);
@@ -536,6 +582,7 @@ export function ContentCard({
         tags={contentTags}
         index={index}
         href={href}
+        onToggleFavorite={onToggleFavorite}
         meta={meta}
       />
     );
@@ -550,6 +597,7 @@ export function ContentCard({
           tags={contentTags}
           index={index}
           href={href}
+          onToggleFavorite={onToggleFavorite}
         />
       );
     case "drink":
@@ -560,6 +608,7 @@ export function ContentCard({
           tags={contentTags}
           index={index}
           href={href}
+          onToggleFavorite={onToggleFavorite}
         />
       );
     case "event":
@@ -570,6 +619,7 @@ export function ContentCard({
           tags={contentTags}
           index={index}
           href={href}
+          onToggleFavorite={onToggleFavorite}
         />
       );
     case "date_idea":
@@ -580,6 +630,7 @@ export function ContentCard({
           tags={contentTags}
           index={index}
           href={href}
+          onToggleFavorite={onToggleFavorite}
         />
       );
     case "gift_idea":
@@ -590,6 +641,7 @@ export function ContentCard({
           tags={contentTags}
           index={index}
           href={href}
+          onToggleFavorite={onToggleFavorite}
         />
       );
     case "travel":
@@ -600,6 +652,7 @@ export function ContentCard({
           tags={contentTags}
           index={index}
           href={href}
+          onToggleFavorite={onToggleFavorite}
         />
       );
     default:
@@ -609,6 +662,7 @@ export function ContentCard({
           tags={contentTags}
           index={index}
           href={href}
+          onToggleFavorite={onToggleFavorite}
         />
       );
   }

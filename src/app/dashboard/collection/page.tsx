@@ -5,6 +5,7 @@ import { CategoryTabs } from "@/components/category-tabs";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useContent } from "@/hooks/useContent";
+import { saveFavorite, setFavorite } from "@/lib/favorites";
 import {
   AlertCircle,
   ArrowLeft,
@@ -95,6 +96,26 @@ export default function CollectionPage() {
     } catch (error) {
       console.error("Failed to dismiss content:", error);
       // Revalidate to restore state on error
+      mutateContent();
+    }
+  };
+
+  const handleToggleFavorite = async (contentId: string, next: boolean) => {
+    // Star the cached row first and hold off revalidation, so the star doesn't
+    // flicker back while the PATCH is still in flight.
+    mutateContent(
+      (currentData) => {
+        if (!currentData) return currentData;
+        return {
+          ...currentData,
+          content: setFavorite(currentData.content, contentId, next),
+        };
+      },
+      { revalidate: false }
+    );
+
+    // A failed write refetches, which visibly undoes the star.
+    if (!(await saveFavorite(contentId, next))) {
       mutateContent();
     }
   };
@@ -269,7 +290,11 @@ export default function CollectionPage() {
           </Card>
         ) : (
           <div className={slideIn}>
-            <CategoryTabs content={content} allTags={tags} />
+            <CategoryTabs
+              content={content}
+              allTags={tags}
+              onToggleFavorite={handleToggleFavorite}
+            />
           </div>
         )}
       </div>

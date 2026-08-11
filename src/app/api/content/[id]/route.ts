@@ -79,12 +79,15 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { title, category, data } = body;
+    const { title, category, data, is_favorite } = body;
 
     const updates: Record<string, unknown> = {};
     if (title !== undefined) updates.title = title;
     if (category !== undefined) updates.category = category;
     if (data !== undefined) updates.data = data;
+    // Starring is a flag and only a flag — a non-boolean is dropped rather
+    // than written through, so the column can't pick up a "true" string.
+    if (typeof is_favorite === "boolean") updates.is_favorite = is_favorite;
 
     const updatedContent = await updateContent(id, updates);
 
