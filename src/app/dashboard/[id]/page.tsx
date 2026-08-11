@@ -1,5 +1,6 @@
 "use client";
 
+import { FavoriteButton } from "@/components/favorite-button";
 import { TagPills } from "@/components/tag-pills";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { useContentById, useTags } from "@/hooks/useContent";
 import { DEFAULT_TAGS } from "@/lib/constants";
+import { isFavorite, saveFavorite } from "@/lib/favorites";
 import type {
   DateIdeaData,
   DrinkData,
@@ -45,20 +47,14 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "../useSession";
 import { categoryUI } from "@/lib/categories";
+import { isImageSourcedItem } from "@/lib/content-source";
 import { RecipeSteps } from "./components/RecipeSteps";
 import { LocationCard } from "./components/LocationCard";
+import { SourcePhotoDialog } from "./components/SourcePhotoDialog";
 
-
-// Check if the URL is an image-only placeholder (not a real URL)
-function isImageOnlyContent(url: string): boolean {
-  return url.startsWith("mms://image/");
-}
 
 // Get appropriate link text for the source URL
-function getSourceLinkText(url: string): string | null {
-  if (isImageOnlyContent(url)) {
-    return null;
-  }
+function getSourceLinkText(url: string): string {
   if (
     url.includes("tiktok.com") ||
     url.includes("vm.tiktok.com") ||
@@ -262,6 +258,24 @@ export default function ContentDetailPage() {
     }
   };
 
+  const handleToggleFavorite = async () => {
+    if (!content) return;
+    const next = !isFavorite(content);
+
+    // Star the cached item first, without revalidating, so the header responds
+    // on the tap rather than after the round trip.
+    mutateContent(
+      (current) =>
+        current && { ...current, content: { ...current.content, is_favorite: next } },
+      { revalidate: false }
+    );
+
+    // A failed write refetches, which visibly undoes the star.
+    if (!(await saveFavorite(id, next))) {
+      mutateContent();
+    }
+  };
+
   const handleRetryProcessing = async () => {
     if (!content) return;
 
@@ -308,6 +322,12 @@ export default function ContentDetailPage() {
   const config = categoryUI(content.category);
   const Icon = config.icon;
 
+  // A texted-in photo has no page to visit, so its source opens in place. The
+  // upload can fail, in which case thumbnail_url is empty and there is nothing
+  // to offer.
+  const isImageSourced = isImageSourcedItem(content.tiktok_url);
+  const sourcePhotoUrl = isImageSourced ? content.thumbnail_url : undefined;
+
   return (
     <main className="min-h-screen pb-28 md:pb-8 bg-background">
       {/* Header */}
@@ -334,6 +354,10 @@ export default function ContentDetailPage() {
             )}
             {content.status === "completed" && isEditable && (
               <>
+                <FavoriteButton
+                  isFavorite={isFavorite(content)}
+                  onToggle={handleToggleFavorite}
+                />
                 <Button
                   variant="ghost"
                   size="icon"
@@ -549,8 +573,17 @@ export default function ContentDetailPage() {
               <OtherContent data={content.data as { description?: string }} />
             )}
 
-            {/* Source Link */}
-            {!isImageOnlyContent(content.tiktok_url) && (
+            {/* Source */}
+            {sourcePhotoUrl && (
+              <div className="pt-6 border-t border-[var(--border)]">
+                <SourcePhotoDialog
+                  imageUrl={sourcePhotoUrl}
+                  itemTitle={content.title}
+                />
+              </div>
+            )}
+
+            {!isImageSourced && (
               <div className="pt-6 border-t border-[var(--border)]">
                 <Button asChild className="h-auto px-6 py-3">
                   <a

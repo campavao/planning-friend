@@ -1,3 +1,4 @@
+import { createImageSourceUrl } from "@/lib/content-source";
 import { createProcessingContent, getOrCreateUser } from "@/lib/supabase";
 import {
   extractSocialMediaUrl,
@@ -130,7 +131,7 @@ export async function POST(request: NextRequest) {
     const platform = isImageOnlyMessage ? "image" : socialMedia!.platform;
     // For image-only, we don't have a real URL - use a placeholder that identifies it as an image
     const contentUrl = isImageOnlyMessage
-      ? `mms://image/${Date.now()}`
+      ? createImageSourceUrl()
       : socialMedia!.url;
 
     console.log(

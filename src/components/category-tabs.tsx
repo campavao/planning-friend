@@ -3,6 +3,7 @@
 import { AddContactButton } from "@/components/add-contact-button";
 import { ContentCard } from "@/components/content-card";
 import { TagFilter } from "@/components/tag-filter";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import type { ContentWithTags, Tag } from "@/lib/supabase";
+import { filterByFavorites } from "@/lib/favorites";
 import {
   Calendar,
   Coffee,
@@ -22,6 +24,7 @@ import {
   Plane,
   Search,
   Smartphone,
+  Star,
   Utensils,
   X,
 } from "lucide-react";
@@ -30,6 +33,8 @@ import { useState } from "react";
 interface CategoryTabsProps {
   content: ContentWithTags[];
   allTags?: Tag[];
+  /** Omitted for a read-only grid; the collection owns its items, so it passes it. */
+  onToggleFavorite?: (contentId: string, next: boolean) => void;
 }
 
 export const TABS = [
@@ -89,13 +94,18 @@ export function filterBySearch<T extends Searchable>(items: T[], search: string)
   return items.filter((item) => searchableText(item).includes(query));
 }
 
-// Get filtered content for a category
-export function getFilteredContent(content: ContentWithTags[], selectedTags: string[], category?: string, search = "") {
+// Get filtered content for a category. Every axis narrows the last one, so
+// starred composes with the category tabs, the tag pills and the search box
+// rather than replacing any of them.
+export function getFilteredContent(content: ContentWithTags[], selectedTags: string[], category?: string, search = "", starredOnly = false) {
   let items = content;
   if (category) {
     items = content.filter((c) => c.category === category);
   }
-  return filterBySearch(filterByTags(items, selectedTags), search);
+  return filterByFavorites(
+    filterBySearch(filterByTags(items, selectedTags), search),
+    starredOnly
+  );
 }
 
 // Toggle a tag in the selected list
@@ -104,9 +114,9 @@ export function toggleTag(prev: string[], tagId: string): string[] {
 }
 
 // Get counts for each category
-export function getCounts(content: ContentWithTags[], selectedTags: string[], search = "") {
+export function getCounts(content: ContentWithTags[], selectedTags: string[], search = "", starredOnly = false) {
   const count = (category?: string) =>
-    getFilteredContent(content, selectedTags, category, search).length;
+    getFilteredContent(content, selectedTags, category, search, starredOnly).length;
 
   return {
     all: count(),
@@ -143,23 +153,54 @@ function EmptyState({ category, hasFilters }: { category: string; hasFilters: bo
   );
 }
 
-function ContentGrid({ items }: { items: ContentWithTags[] }) {
+function ContentGrid({
+  items,
+  onToggleFavorite,
+}: {
+  items: ContentWithTags[];
+  onToggleFavorite?: (contentId: string, next: boolean) => void;
+}) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5">
       {items.map((item, index) => (
-        <ContentCard key={item.id} content={item} index={index} />
+        <ContentCard
+          key={item.id}
+          content={item}
+          index={index}
+          onToggleFavorite={
+            onToggleFavorite &&
+            ((next) => onToggleFavorite(item.id, next))
+          }
+        />
       ))}
     </div>
   );
 }
 
-export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
+export function CategoryTabs({
+  content,
+  allTags = [],
+  onToggleFavorite,
+}: CategoryTabsProps) {
   const [activeTab, setActiveTab] = useState("all");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [search, setSearch] = useState("");
+  const [starredOnly, setStarredOnly] = useState(false);
 
-  const counts = getCounts(content, selectedTags, search);
-  const hasFilters = selectedTags.length > 0 || search.trim().length > 0;
+  const counts = getCounts(content, selectedTags, search, starredOnly);
+  const hasFilters =
+    selectedTags.length > 0 || search.trim().length > 0 || starredOnly;
+
+  // What turning the star filter on would leave, given everything else that's
+  // already selected — so the pill shows a reachable number, never a dead end.
+  const activeCategory = TABS.find((t) => t.id === activeTab)?.category;
+  const starredCount = getFilteredContent(
+    content,
+    selectedTags,
+    activeCategory,
+    search,
+    true
+  ).length;
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full gap-0">
@@ -210,6 +251,28 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
         })}
       </TabsList>
 
+      {/* Starred. Its own row rather than a tab, because it narrows whichever
+          category is open instead of being one of them. */}
+      <div className="mb-5 flex items-center gap-2">
+        <Badge
+          asChild
+          variant={starredOnly ? "default" : "muted"}
+          className={starredOnly ? "shadow-sm" : "hover:bg-[var(--border)]"}
+        >
+          <button
+            onClick={() => setStarredOnly((prev) => !prev)}
+            aria-pressed={starredOnly}
+            className="px-3 py-1.5 font-medium transition-all"
+          >
+            <Star
+              className={`w-3.5 h-3.5 ${starredOnly ? "fill-current" : ""}`}
+            />
+            Starred
+            <span className="text-xs opacity-70">({starredCount})</span>
+          </button>
+        </Badge>
+      </div>
+
       {/* Tag Filter */}
       {allTags.length > 0 && (
         <Card className="mb-6 border border-[var(--border)] p-4 shadow-none">
@@ -224,13 +287,13 @@ export function CategoryTabs({ content, allTags = [] }: CategoryTabsProps) {
 
       {/* Content */}
       {TABS.map((tab) => {
-        const items = getFilteredContent(content, selectedTags, tab.category, search);
+        const items = getFilteredContent(content, selectedTags, tab.category, search, starredOnly);
         return (
           <TabsContent key={tab.id} value={tab.id}>
             {items.length === 0 ? (
               <EmptyState category={tab.id} hasFilters={hasFilters} />
             ) : (
-              <ContentGrid items={items} />
+              <ContentGrid items={items} onToggleFavorite={onToggleFavorite} />
             )}
           </TabsContent>
         );

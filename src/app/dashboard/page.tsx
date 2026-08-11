@@ -95,12 +95,21 @@ function SectionHeader({
  */
 function CardRail({ children }: { children: ReactNode }) {
   return (
-    <div className="max-w-7xl mx-auto overflow-x-auto hide-scrollbar">
-      {/* The padding lives on the track rather than the scroll container: a
-          scroll container's leading padding is scrolled away (and snapping
-          aligns the first card flush past it), which left the row starting
-          hard against the screen edge while its header was indented. */}
-      <div className="flex w-max gap-3 px-4 md:px-6 pb-1">{children}</div>
+    // overflow-x-auto forces the computed overflow-y to auto as well, so this
+    // box clips vertically too and shaves the cards' shadows off. The track's
+    // vertical padding clears them — --shadow-card and --shadow-lg are both
+    // 0 8px 24px, which reaches 20px below a card (8px offset plus half the
+    // 24px blur) and 8px above one that's hover-lifted — and these negative
+    // margins hand back exactly what that padding added, 4px of the bottom
+    // having been there already, so the rows sit where they always did.
+    <div className="max-w-7xl mx-auto -mt-2 -mb-4 overflow-x-auto hide-scrollbar">
+      {/* The horizontal padding lives on the track rather than the scroll
+          container: a scroll container's leading padding is scrolled away (and
+          snapping aligns the first card flush past it), which left the row
+          starting hard against the screen edge while its header was indented.
+          It doubles as the side clearance the shadows need: 16px of it against
+          a 12px reach. */}
+      <div className="flex w-max gap-3 px-4 md:px-6 pt-2 pb-5">{children}</div>
     </div>
   );
 }
