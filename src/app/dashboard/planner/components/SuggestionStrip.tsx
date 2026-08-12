@@ -21,7 +21,10 @@ export interface SuggestionStripProps {
   onDismiss: (contentId: string, dayIndex: number) => void;
   onRefresh: (dayIndex: number) => void;
   isRefreshing?: boolean;
+  /** The library is too small for the engine to rank anything. */
   emptyPool?: boolean;
+  /** False when the suggestion feature is switched off server-side. */
+  featureEnabled?: boolean;
   loading?: boolean;
   layout?: "mobile" | "desktop";
 }
@@ -88,6 +91,7 @@ export function SuggestionStrip({
   onRefresh,
   isRefreshing = false,
   emptyPool = false,
+  featureEnabled = true,
   loading = false,
   layout = "mobile",
 }: SuggestionStripProps) {
@@ -110,6 +114,16 @@ export function SuggestionStrip({
     );
   }
 
+  // Nothing to suggest because the feature is off — say what an empty day is,
+  // not that the engine came up short.
+  if (!featureEnabled) {
+    return (
+      <div className="text-center py-6 text-muted-foreground text-sm">
+        No plans yet
+      </div>
+    );
+  }
+
   if (emptyPool) {
     return (
       <div className="text-xs text-muted-foreground text-center px-3 py-4 border border-dashed border-[var(--border)] rounded-lg">
@@ -118,11 +132,23 @@ export function SuggestionStrip({
     );
   }
 
+  // The engine ran and had nothing for this day: everything in the library is
+  // either planned already or dismissed. Keep the header so the refresh
+  // affordance stays, and say so — an empty day is a state, not a failure.
   const visiblePicks = picks.filter((p) => contentById.has(p.contentId));
   if (visiblePicks.length === 0) {
     return (
-      <div className="text-center py-6 text-muted-foreground text-sm">
-        No plans yet
+      <div className="space-y-2">
+        <StripHeader
+          isRefreshing={isRefreshing}
+          loading={false}
+          onRefresh={onRefresh}
+          dayIndex={dayIndex}
+        />
+        <p className="text-xs text-muted-foreground text-center px-3 py-3 border border-dashed border-[var(--border)] rounded-lg">
+          Nothing left to suggest for this day — refresh, or add something
+          yourself.
+        </p>
       </div>
     );
   }

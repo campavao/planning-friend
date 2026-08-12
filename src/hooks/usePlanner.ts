@@ -40,8 +40,11 @@ export interface SuggestionPick {
 }
 
 export interface SuggestionsMeta {
+  /** False when NEXT_PUBLIC_SMART_SUGGESTIONS_ENABLED is not set on the server. */
+  enabled: boolean;
   emptyPool: boolean;
   poolSize: number;
+  source?: string;
 }
 
 // Week-scoped planner payload (GET /api/planner?week=...&fields=week)
@@ -89,7 +92,11 @@ export function usePlanner(
     plan: data?.plan ?? null,
     sharedItems: data?.sharedItems ?? [],
     suggestions: data?.suggestions ?? {},
-    suggestionsMeta: data?.suggestionsMeta ?? { emptyPool: false, poolSize: 0 },
+    suggestionsMeta: data?.suggestionsMeta ?? {
+      enabled: false,
+      emptyPool: false,
+      poolSize: 0,
+    },
     isLoading,
     isValidating,
     error,

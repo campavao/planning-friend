@@ -58,10 +58,21 @@ export async function POST(request: NextRequest) {
       process.env.NEXT_PUBLIC_SMART_SUGGESTIONS_ENABLED === "true";
 
     if (!featureEnabled) {
+      // A refresh that returns nothing because the flag is off used to look
+      // exactly like a refresh that found nothing. Say which it is.
+      console.log(
+        "[suggestions] refresh skipped: NEXT_PUBLIC_SMART_SUGGESTIONS_ENABLED is not 'true'",
+        JSON.stringify({ weekStart, dayIndex })
+      );
       return NextResponse.json({
         success: true,
         suggestions: {},
-        suggestionsMeta: { emptyPool: false, poolSize: 0, source: "fallback" },
+        suggestionsMeta: {
+          enabled: false,
+          emptyPool: false,
+          poolSize: 0,
+          source: "disabled",
+        },
       });
     }
 
@@ -80,6 +91,7 @@ export async function POST(request: NextRequest) {
       success: true,
       suggestions: result.payload,
       suggestionsMeta: {
+        enabled: true,
         emptyPool: result.emptyPool,
         poolSize: result.poolSize,
         source: result.source,

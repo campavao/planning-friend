@@ -143,6 +143,7 @@ export function WeekSection({
 
   const suggestions = data?.suggestions ?? {};
   const suggestionsMeta = data?.suggestionsMeta ?? {
+    enabled: false,
     emptyPool: false,
     poolSize: 0,
   };
@@ -202,6 +203,13 @@ export function WeekSection({
           const isToday = dateKey === todayKey;
           const isHighlighted = highlightDate === dateKey;
           const dayRefreshing = refreshingKey === `${weekStart}:${dayIndex}`;
+          const dayPicks = filterPicksForDay(dayIndex);
+          // The engine owns the "is this day full?" rule — a day holding one
+          // item still gets picks. The client just shows what it was sent.
+          // A completely empty day always keeps the strip so it can explain
+          // itself rather than rendering blank.
+          const showSuggestions =
+            itemsByDay[dayIndex].length === 0 || dayPicks.length > 0;
 
           return (
             <Card
@@ -246,7 +254,7 @@ export function WeekSection({
                     <div className="space-y-2">
                       <Skeleton className="h-16 rounded-xl" />
                     </div>
-                  ) : itemsByDay[dayIndex].length > 0 ? (
+                  ) : (
                     <div className="space-y-2">
                       {itemsByDay[dayIndex].map((item) => {
                         const isShared = item.isSharedWithMe;
@@ -458,25 +466,30 @@ export function WeekSection({
                           </div>
                         );
                       })}
+
+                      {showSuggestions && (
+                        <SuggestionStrip
+                          dayIndex={dayIndex}
+                          picks={dayPicks}
+                          contentById={contentById}
+                          weekStart={weekStart}
+                          onAdd={(contentId, di) =>
+                            onAddSuggestion(contentId, di, weekStart)
+                          }
+                          onDismiss={(contentId, di) =>
+                            onDismissSuggestion(contentId, di, weekStart)
+                          }
+                          onRefresh={(di) =>
+                            onRefreshSuggestions(di, weekStart)
+                          }
+                          isRefreshing={dayRefreshing}
+                          emptyPool={suggestionsMeta.emptyPool}
+                          featureEnabled={suggestionsMeta.enabled}
+                          loading={loading}
+                          layout="mobile"
+                        />
+                      )}
                     </div>
-                  ) : (
-                    <SuggestionStrip
-                      dayIndex={dayIndex}
-                      picks={filterPicksForDay(dayIndex)}
-                      contentById={contentById}
-                      weekStart={weekStart}
-                      onAdd={(contentId, di) =>
-                        onAddSuggestion(contentId, di, weekStart)
-                      }
-                      onDismiss={(contentId, di) =>
-                        onDismissSuggestion(contentId, di, weekStart)
-                      }
-                      onRefresh={(di) => onRefreshSuggestions(di, weekStart)}
-                      isRefreshing={dayRefreshing}
-                      emptyPool={suggestionsMeta.emptyPool}
-                      loading={loading}
-                      layout="mobile"
-                    />
                   )}
                 </div>
               </div>
@@ -731,10 +744,10 @@ export function WeekSection({
                         );
                       })}
 
-                      {itemsByDay[dayIndex].length === 0 && (
+                      {showSuggestions && (
                         <SuggestionStrip
                           dayIndex={dayIndex}
-                          picks={filterPicksForDay(dayIndex)}
+                          picks={dayPicks}
                           contentById={contentById}
                           weekStart={weekStart}
                           onAdd={(contentId, di) =>
@@ -748,6 +761,7 @@ export function WeekSection({
                           }
                           isRefreshing={dayRefreshing}
                           emptyPool={suggestionsMeta.emptyPool}
+                          featureEnabled={suggestionsMeta.enabled}
                           loading={loading}
                           layout="desktop"
                         />

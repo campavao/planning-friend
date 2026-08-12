@@ -10,8 +10,15 @@ import {
   type DismissalMap,
   type SuggestionPayload,
 } from "@/lib/db/suggestions";
-import { rankForDay, type ScoredCandidate } from "./scorer";
-import { curate, type CuratorContext } from "./curator";
+import type { ScoredCandidate } from "./scorer";
+import {
+  WEEK_DAY_INDEXES,
+  planWeekCoverage,
+  summariseWeekItems,
+  type DayDiagnostics,
+  type WeekItemRef,
+} from "./coverage";
+import { curate } from "./curator";
 
 const ELIGIBLE_POOL_THRESHOLD = 3;
 
@@ -24,12 +31,7 @@ export interface SuggestionsResult {
   source: "cache" | "ai" | "fallback";
 }
 
-export interface ThisWeekItemRef {
-  plannedDate: string;
-  contentId?: string | null;
-  category?: string | null;
-  title?: string | null;
-}
+export type ThisWeekItemRef = WeekItemRef;
 
 export interface ComputeArgs {
   userId: string;
@@ -39,12 +41,6 @@ export interface ComputeArgs {
   onlyDayIndex?: number;
   curatorEnabled?: boolean;
   now?: Date;
-}
-
-function mondayIndex(value: string): number | null {
-  const planned = new Date(value);
-  if (Number.isNaN(planned.getTime())) return null;
-  return (planned.getUTCDay() + 6) % 7;
 }
 
 function buildPatternProfile(history: DecayedHistory) {
@@ -64,6 +60,17 @@ function buildPatternProfile(history: DecayedHistory) {
     if (cats.length > 0) parts.push(`${dayLabels[d]}=${cats.join("+")}`);
   }
   return parts.length > 0 ? parts.join(", ") : "no clear pattern yet";
+}
+
+/**
+ * A day with no picks is a real answer, not a missing one, so every targeted
+ * day gets a key. Callers merge their picks over this so the payload always
+ * covers the visible week.
+ */
+function emptyDaysPayload(days: number[]): SuggestionPayload {
+  const out: SuggestionPayload = {};
+  for (const day of days) out[day] = [];
+  return out;
 }
 
 function payloadFromCandidates(
@@ -91,10 +98,48 @@ function poolFromCandidates(
   return out;
 }
 
+/**
+ * One line per computation, carrying the arithmetic for every day we looked
+ * at. "Why was Thursday empty?" should be answerable by reading this back,
+ * not by re-deriving the run.
+ */
+function logCoverage(args: {
+  userId: string;
+  weekStart: string;
+  source: string;
+  poolSize: number;
+  emptyPool: boolean;
+  diagnostics: DayDiagnostics[];
+}) {
+  console.log(
+    "[suggestions] coverage",
+    JSON.stringify({
+      userId: args.userId,
+      weekStart: args.weekStart,
+      source: args.source,
+      poolSize: args.poolSize,
+      emptyPool: args.emptyPool,
+      days: args.diagnostics.map((d) => ({
+        day: d.dayIndex,
+        status: d.status,
+        planned: d.plannedCount,
+        pool: d.poolSize,
+        dismissed: d.filteredDismissed,
+        alreadyPlanned: d.filteredPlanned,
+        eligible: d.eligibleCount,
+        ranked: d.rankedCount,
+        relaxed: d.relaxed,
+      })),
+    })
+  );
+}
+
 export async function getOrComputeSuggestions(
   args: ComputeArgs
 ): Promise<SuggestionsResult> {
   const now = args.now ?? new Date();
+  const targetDays =
+    args.onlyDayIndex !== undefined ? [args.onlyDayIndex] : WEEK_DAY_INDEXES;
 
   if (!args.force) {
     const cached = await getCached(args.userId, args.weekStart, now);
@@ -103,11 +148,8 @@ export async function getOrComputeSuggestions(
         payload: cached.payload,
         candidatePool: cached.candidate_pool,
         dismissed: cached.dismissed,
-        emptyPool: false,
-        poolSize: Object.values(cached.candidate_pool).reduce(
-          (n, ids) => n + ids.length,
-          0
-        ),
+        emptyPool: cached.emptyPool,
+        poolSize: cached.poolSize,
         source: "cache",
       };
     }
@@ -119,12 +161,24 @@ export async function getOrComputeSuggestions(
   ]);
 
   if (pool.length < ELIGIBLE_POOL_THRESHOLD) {
-    const emptyPayload: SuggestionPayload = {};
+    // Still emit every day: the strip needs to know the library is too small,
+    // which is a different message from "no picks today".
+    const emptyPayload = emptyDaysPayload(WEEK_DAY_INDEXES);
+    logCoverage({
+      userId: args.userId,
+      weekStart: args.weekStart,
+      source: "fallback",
+      poolSize: pool.length,
+      emptyPool: true,
+      diagnostics: [],
+    });
     await upsertCache({
       userId: args.userId,
       weekStart: args.weekStart,
       payload: emptyPayload,
       candidatePool: {},
+      poolSize: pool.length,
+      emptyPool: true,
       now,
     });
     return {
@@ -137,90 +191,72 @@ export async function getOrComputeSuggestions(
     };
   }
 
-  const filledDays = new Set<number>();
-  const thisWeekContentIds = new Set<string>();
-  const alreadyPlanned: CuratorContext["alreadyPlanned"] = [];
-  for (const item of args.thisWeekItems) {
-    const day = mondayIndex(item.plannedDate);
-    if (day === null) continue;
-    filledDays.add(day);
-    if (item.contentId) thisWeekContentIds.add(item.contentId);
-    if (item.title && item.category) {
-      alreadyPlanned.push({
-        dayIndex: day,
-        title: item.title,
-        category: item.category,
-      });
-    }
-  }
+  const summary = summariseWeekItems(args.thisWeekItems);
 
   const cachedRow = await getCached(args.userId, args.weekStart, now).catch(
     () => null
   );
   const dismissalMap: DismissalMap = cachedRow?.dismissed ?? {};
-  const targetDays =
-    args.onlyDayIndex !== undefined ? [args.onlyDayIndex] : [0, 1, 2, 3, 4, 5, 6];
 
-  const candidatesByDay: Record<number, ScoredCandidate[]> = {};
-  for (const day of targetDays) {
-    if (filledDays.has(day)) continue;
-    const dismissedIds = new Set(dismissalMap[day] ?? []);
-    const ranked = rankForDay({
-      pool,
-      history,
-      thisWeekContentIds,
-      dismissedIds,
-      dayIndex: day,
-      weekStart: args.weekStart,
-      now,
-      topN: 8,
-    });
-    if (ranked.length > 0) candidatesByDay[day] = ranked;
+  const { candidatesByDay, diagnostics } = planWeekCoverage({
+    pool,
+    history,
+    summary,
+    dismissedByDay: dismissalMap,
+    weekStart: args.weekStart,
+    now,
+    targetDays,
+    topN: 8,
+  });
+
+  // The curator only sees days it can actually pick from; days that ranked
+  // nothing keep their explicit empty entry from the skeleton below.
+  const daysWithCandidates: Record<number, ScoredCandidate[]> = {};
+  for (const [dayStr, list] of Object.entries(candidatesByDay)) {
+    if (list.length > 0) daysWithCandidates[Number(dayStr)] = list;
   }
 
-  if (Object.keys(candidatesByDay).length === 0) {
-    await upsertCache({
-      userId: args.userId,
-      weekStart: args.weekStart,
-      payload: {},
-      candidatePool: {},
-      dismissed: dismissalMap,
-      now,
-    });
-    return {
-      payload: {},
-      candidatePool: {},
-      dismissed: dismissalMap,
-      emptyPool: false,
-      poolSize: pool.length,
-      source: "fallback",
-    };
-  }
-
-  let payload: SuggestionPayload;
+  let picks: SuggestionPayload;
   let source: "ai" | "fallback";
-  if (args.curatorEnabled) {
-    const profile = buildPatternProfile(history);
+  if (args.curatorEnabled && Object.keys(daysWithCandidates).length > 0) {
     const result = await curate({
       weekStart: args.weekStart,
-      alreadyPlanned,
-      patternProfile: profile,
-      candidatesByDay,
+      alreadyPlanned: summary.alreadyPlanned,
+      patternProfile: buildPatternProfile(history),
+      candidatesByDay: daysWithCandidates,
     });
-    payload = result.picks;
+    picks = result.picks;
     source = result.source;
   } else {
-    payload = payloadFromCandidates(candidatesByDay, 3);
+    picks = payloadFromCandidates(daysWithCandidates, 3);
     source = "fallback";
   }
 
-  let candidatePool = poolFromCandidates(candidatesByDay);
+  // Invariant: the payload covers the whole visible week even on a single-day
+  // refresh. A missing day renders as nothing at all, which is the bug this
+  // is guarding against.
+  const payload: SuggestionPayload = emptyDaysPayload(WEEK_DAY_INDEXES);
+  let candidatePool: CandidatePool = {};
 
-  // Preserve cached entries for days outside the refresh scope.
+  // Days outside the refresh scope keep whatever was cached for them.
   if (args.onlyDayIndex !== undefined && cachedRow) {
-    payload = { ...cachedRow.payload, ...payload };
-    candidatePool = { ...cachedRow.candidate_pool, ...candidatePool };
+    Object.assign(payload, cachedRow.payload);
+    candidatePool = { ...cachedRow.candidate_pool };
   }
+
+  for (const day of targetDays) {
+    payload[day] = picks[day] ?? [];
+  }
+  candidatePool = { ...candidatePool, ...poolFromCandidates(candidatesByDay) };
+
+  logCoverage({
+    userId: args.userId,
+    weekStart: args.weekStart,
+    source,
+    poolSize: pool.length,
+    emptyPool: false,
+    diagnostics,
+  });
 
   await upsertCache({
     userId: args.userId,
@@ -228,6 +264,8 @@ export async function getOrComputeSuggestions(
     payload,
     candidatePool,
     dismissed: dismissalMap,
+    poolSize: pool.length,
+    emptyPool: false,
     now,
   });
 
