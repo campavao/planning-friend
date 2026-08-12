@@ -27,12 +27,30 @@ export interface ScoredCandidate {
 export interface RankInput {
   pool: ContentWithTags[];
   history: DecayedHistory;
-  thisWeekContentIds: Set<string>;
+  /**
+   * Content already committed to the plan. The caller decides how wide this
+   * net is: the whole week on the first pass, just this day on the relaxed
+   * retry. The scorer only knows "don't offer these".
+   */
+  excludedContentIds: Set<string>;
   dismissedIds: Set<string>;
   dayIndex: number;
   weekStart: string;
   now?: Date;
   topN?: number;
+}
+
+/**
+ * Ranking plus the arithmetic behind it. The counts are the whole reason an
+ * empty day is explainable after the fact: poolSize minus the two filtered
+ * counts is what was actually available to score.
+ */
+export interface RankResult {
+  candidates: ScoredCandidate[];
+  poolSize: number;
+  filteredDismissed: number;
+  filteredPlanned: number;
+  eligibleCount: number;
 }
 
 interface DayDistributions {
@@ -143,11 +161,11 @@ function stableHash(input: string): number {
   return h / 0xffffffff;
 }
 
-export function rankForDay(input: RankInput): ScoredCandidate[] {
+export function rankForDay(input: RankInput): RankResult {
   const {
     pool,
     history,
-    thisWeekContentIds,
+    excludedContentIds,
     dismissedIds,
     dayIndex,
     weekStart,
@@ -166,11 +184,24 @@ export function rankForDay(input: RankInput): ScoredCandidate[] {
   const tagDistForDay = dists.tagPerDay[dayIndex];
   const tagSignalActive = dists.taggedHistoryCount >= TAG_SPARSITY_THRESHOLD;
 
-  const filtered = pool.filter(
-    (c) => !dismissedIds.has(c.id) && !thisWeekContentIds.has(c.id)
-  );
+  // Counted in this order so the two tallies stay disjoint and
+  // `filteredDismissed + filteredPlanned + eligibleCount === poolSize` holds.
+  let filteredDismissed = 0;
+  let filteredPlanned = 0;
+  const eligible: ContentWithTags[] = [];
+  for (const c of pool) {
+    if (dismissedIds.has(c.id)) {
+      filteredDismissed += 1;
+      continue;
+    }
+    if (excludedContentIds.has(c.id)) {
+      filteredPlanned += 1;
+      continue;
+    }
+    eligible.push(c);
+  }
 
-  const scored: ScoredCandidate[] = filtered.map((content) => {
+  const scored: ScoredCandidate[] = eligible.map((content) => {
     const catScore = blendedCat[content.category] ?? 0;
 
     let tagScore = 0;
@@ -198,5 +229,11 @@ export function rankForDay(input: RankInput): ScoredCandidate[] {
   });
 
   scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, topN);
+  return {
+    candidates: scored.slice(0, topN),
+    poolSize: pool.length,
+    filteredDismissed,
+    filteredPlanned,
+    eligibleCount: eligible.length,
+  };
 }

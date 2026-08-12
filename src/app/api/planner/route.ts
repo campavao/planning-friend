@@ -143,9 +143,18 @@ export async function GET(request: NextRequest) {
       number,
       { contentId: string; why: string | null }[]
     > = {};
-    let suggestionsMeta: { emptyPool: boolean; poolSize: number } = {
+    // `enabled` lets the client tell "the feature is off" apart from "the
+    // engine ran and had nothing for you" — they render differently.
+    let suggestionsMeta: {
+      enabled: boolean;
+      emptyPool: boolean;
+      poolSize: number;
+      source: string;
+    } = {
+      enabled: featureEnabled,
       emptyPool: false,
       poolSize: 0,
+      source: featureEnabled ? "error" : "disabled",
     };
     if (featureEnabled) {
       try {
@@ -157,8 +166,10 @@ export async function GET(request: NextRequest) {
         });
         suggestions = result.payload;
         suggestionsMeta = {
+          enabled: true,
           emptyPool: result.emptyPool,
           poolSize: result.poolSize,
+          source: result.source,
         };
       } catch (err) {
         console.error("Failed to compute suggestions:", err);
