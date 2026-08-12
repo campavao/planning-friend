@@ -34,14 +34,10 @@ ALTER TABLE weekly_plans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE plan_items ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
-CREATE POLICY "Users can view own plans" ON weekly_plans
-  FOR SELECT USING (true);
 
 CREATE POLICY "Service role can manage plans" ON weekly_plans
   FOR ALL USING (auth.role() = 'service_role');
 
-CREATE POLICY "Users can view own plan items" ON plan_items
-  FOR SELECT USING (true);
 
 CREATE POLICY "Service role can manage plan items" ON plan_items
   FOR ALL USING (auth.role() = 'service_role');

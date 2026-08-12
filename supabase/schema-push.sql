@@ -23,8 +23,6 @@ ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for push_subscriptions table
 DROP POLICY IF EXISTS "Users can view own subscriptions" ON push_subscriptions;
-CREATE POLICY "Users can view own subscriptions" ON push_subscriptions
-  FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Service role can manage subscriptions" ON push_subscriptions;
 CREATE POLICY "Service role can manage subscriptions" ON push_subscriptions

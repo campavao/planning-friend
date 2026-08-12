@@ -22,8 +22,6 @@ ALTER TABLE plan_item_shares ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for plan_item_shares
 DROP POLICY IF EXISTS "Users can view plan item shares" ON plan_item_shares;
-CREATE POLICY "Users can view plan item shares" ON plan_item_shares
-  FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Service role can manage plan item shares" ON plan_item_shares;
 CREATE POLICY "Service role can manage plan item shares" ON plan_item_shares

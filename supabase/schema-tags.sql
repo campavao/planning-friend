@@ -35,8 +35,6 @@ ALTER TABLE content_tags ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for tags table
 DROP POLICY IF EXISTS "Users can view own tags" ON tags;
-CREATE POLICY "Users can view own tags" ON tags
-  FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Service role can manage tags" ON tags;
 CREATE POLICY "Service role can manage tags" ON tags
@@ -44,8 +42,6 @@ CREATE POLICY "Service role can manage tags" ON tags
 
 -- RLS Policies for content_tags table
 DROP POLICY IF EXISTS "Users can view content tags" ON content_tags;
-CREATE POLICY "Users can view content tags" ON content_tags
-  FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Service role can manage content tags" ON content_tags;
 CREATE POLICY "Service role can manage content tags" ON content_tags

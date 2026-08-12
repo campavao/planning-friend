@@ -58,15 +58,11 @@ ALTER TABLE content ENABLE ROW LEVEL SECURITY;
 ALTER TABLE verification_codes ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for users table
-CREATE POLICY "Users can view own data" ON users
-  FOR SELECT USING (true);
 
 CREATE POLICY "Service role can manage users" ON users
   FOR ALL USING (auth.role() = 'service_role');
 
 -- RLS Policies for content table
-CREATE POLICY "Users can view own content" ON content
-  FOR SELECT USING (true);
 
 CREATE POLICY "Service role can manage content" ON content
   FOR ALL USING (auth.role() = 'service_role');

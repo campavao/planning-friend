@@ -42,8 +42,6 @@ ALTER TABLE gift_assignments ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for gift_recipients table
 DROP POLICY IF EXISTS "Users can view own recipients" ON gift_recipients;
-CREATE POLICY "Users can view own recipients" ON gift_recipients
-  FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Service role can manage recipients" ON gift_recipients;
 CREATE POLICY "Service role can manage recipients" ON gift_recipients
@@ -51,8 +49,6 @@ CREATE POLICY "Service role can manage recipients" ON gift_recipients
 
 -- RLS Policies for gift_assignments table
 DROP POLICY IF EXISTS "Users can view assignments" ON gift_assignments;
-CREATE POLICY "Users can view assignments" ON gift_assignments
-  FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Service role can manage assignments" ON gift_assignments;
 CREATE POLICY "Service role can manage assignments" ON gift_assignments

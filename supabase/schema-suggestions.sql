@@ -19,8 +19,6 @@ CREATE INDEX IF NOT EXISTS idx_weekly_plan_suggestions_user_week
 
 ALTER TABLE weekly_plan_suggestions ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view own suggestions" ON weekly_plan_suggestions
-  FOR SELECT USING (true);
 
 CREATE POLICY "Service role can manage suggestions" ON weekly_plan_suggestions
   FOR ALL USING (auth.role() = 'service_role');

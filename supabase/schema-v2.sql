@@ -33,8 +33,6 @@ ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for user_settings
 DROP POLICY IF EXISTS "Users can view own settings" ON user_settings;
-CREATE POLICY "Users can view own settings" ON user_settings
-  FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Service role can manage user settings" ON user_settings;
 CREATE POLICY "Service role can manage user settings" ON user_settings
@@ -60,8 +58,6 @@ ALTER TABLE plan_shares ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for plan_shares
 DROP POLICY IF EXISTS "Users can view plan shares" ON plan_shares;
-CREATE POLICY "Users can view plan shares" ON plan_shares
-  FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Service role can manage plan shares" ON plan_shares;
 CREATE POLICY "Service role can manage plan shares" ON plan_shares
@@ -87,8 +83,6 @@ ALTER TABLE share_invites ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for share_invites
 DROP POLICY IF EXISTS "Users can view share invites" ON share_invites;
-CREATE POLICY "Users can view share invites" ON share_invites
-  FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Service role can manage share invites" ON share_invites;
 CREATE POLICY "Service role can manage share invites" ON share_invites

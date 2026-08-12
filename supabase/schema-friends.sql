@@ -32,8 +32,6 @@ ALTER TABLE friends ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for friends table
 DROP POLICY IF EXISTS "Users can view own friends" ON friends;
-CREATE POLICY "Users can view own friends" ON friends
-  FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Service role can manage friends" ON friends;
 CREATE POLICY "Service role can manage friends" ON friends
