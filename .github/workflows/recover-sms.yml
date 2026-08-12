@@ -16,7 +16,7 @@ on:
       webhook_url:
         description: "Webhook URL to replay against"
         required: false
-        default: "https://tiktok-helper.vercel.app/api/twilio/webhook"
+        default: "https://www.planning-friend.com/api/twilio/webhook"
       dry_run:
         description: "Dry run (list only, send nothing)"
         type: boolean

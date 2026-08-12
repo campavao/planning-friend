@@ -27,7 +27,7 @@ on:
       app_url:
         description: "App URL to ping"
         required: false
-        default: "https://tiktok-helper.vercel.app"
+        default: "https://www.planning-friend.com"
 
 jobs:
   remind:
@@ -36,7 +36,7 @@ jobs:
       - name: Trigger note reminders
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          APP_URL: ${{ github.event.inputs.app_url || vars.APP_URL || 'https://tiktok-helper.vercel.app' }}
+          APP_URL: ${{ github.event.inputs.app_url || vars.APP_URL || 'https://www.planning-friend.com' }}
         run: |
           if [ -z "$CRON_SECRET" ]; then
             echo "::error::Missing CRON_SECRET repository secret."

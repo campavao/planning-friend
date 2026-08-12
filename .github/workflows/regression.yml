@@ -54,7 +54,7 @@ jobs:
           elif [ -n "$VAR_URL" ]; then
             url="$VAR_URL"
           else
-            url="https://tiktok-helper.vercel.app"
+            url="https://www.planning-friend.com"
           fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Testing: $url"
