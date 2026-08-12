@@ -30,26 +30,18 @@ export function getGoogleMapsUrl(
 }
 
 /**
- * Uber's universal link. The Uber app intercepts m.uber.com/ul when installed;
- * otherwise the same URL renders the mobile web ride request, so there is no
- * dead link to guard against.
+ * Route to our own redirect rather than straight to Uber.
+ *
+ * Uber will not pre-fill a destination from `dropoff[formatted_address]` — that
+ * parameter is only a display label, so linking directly opened the app with an
+ * empty destination. Only `dropoff[latitude]`/`dropoff[longitude]` actually set
+ * it. /api/uber geocodes the address server-side (cached indefinitely) and then
+ * redirects with real coordinates attached.
+ *
+ * `nickname` is the item's title, which Uber shows as the destination's name.
  */
-export function getUberUrl(
-  location: string,
-  coordinates?: Coordinates
-): string {
-  // Uber resolves `my_location` from the device, which is what turns this into
-  // a one-tap action instead of dropping the rider on a pickup picker.
-  const params = ["action=setPickup", "pickup=my_location"];
-
-  // Uber geocodes a formatted address itself and can land on the wrong branch of
-  // a chain, so coordinates take priority whenever we have them. The address
-  // still rides along as the human-readable label on the destination pin.
-  if (coordinates) {
-    params.push(`dropoff[latitude]=${coordinates.latitude}`);
-    params.push(`dropoff[longitude]=${coordinates.longitude}`);
-  }
-  params.push(`dropoff[formatted_address]=${encodeURIComponent(location)}`);
-
-  return `https://m.uber.com/ul/?${params.join("&")}`;
+export function getUberUrl(location: string, nickname?: string): string {
+  const params = new URLSearchParams({ q: location });
+  if (nickname) params.set("n", nickname);
+  return `/api/uber?${params.toString()}`;
 }

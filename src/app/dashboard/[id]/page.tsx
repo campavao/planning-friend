@@ -555,10 +555,10 @@ export default function ContentDetailPage() {
               <MealContent data={content.data as MealData} />
             )}
             {content.category === "event" && (
-              <EventContent data={content.data as EventData} />
+              <EventContent data={content.data as EventData} title={content.title} />
             )}
             {content.category === "date_idea" && (
-              <DateIdeaContent data={content.data as DateIdeaData} />
+              <DateIdeaContent data={content.data as DateIdeaData} title={content.title} />
             )}
             {content.category === "gift_idea" && (
               <GiftIdeaContent data={content.data as GiftIdeaData} />
@@ -567,7 +567,7 @@ export default function ContentDetailPage() {
               <DrinkContent data={content.data as DrinkData} />
             )}
             {content.category === "travel" && (
-              <TravelContent data={content.data as TravelData} />
+              <TravelContent data={content.data as TravelData} title={content.title} />
             )}
             {content.category === "other" && (
               <OtherContent data={content.data as { description?: string }} />
@@ -656,11 +656,11 @@ function MealContent({ data }: { data: MealData }) {
   );
 }
 
-function EventContent({ data }: { data: EventData }) {
+function EventContent({ data, title }: { data: EventData; title: string }) {
   return (
     <div className="space-y-4">
       {data.location && (
-        <LocationCard location={data.location} label="Location" />
+        <LocationCard location={data.location} label="Location" nickname={title} />
       )}
 
       {(data.date || data.time) && (
@@ -700,11 +700,11 @@ function EventContent({ data }: { data: EventData }) {
   );
 }
 
-function DateIdeaContent({ data }: { data: DateIdeaData }) {
+function DateIdeaContent({ data, title }: { data: DateIdeaData; title: string }) {
   return (
     <div className="space-y-4">
       {data.location && (
-        <LocationCard location={data.location} label="Location" />
+        <LocationCard location={data.location} label="Location" nickname={title} />
       )}
 
       <div className="flex flex-wrap gap-2">
@@ -813,11 +813,11 @@ function DrinkContent({ data }: { data: DrinkData }) {
   );
 }
 
-function TravelContent({ data }: { data: TravelData }) {
+function TravelContent({ data, title }: { data: TravelData; title: string }) {
   return (
     <div className="space-y-4">
       {data.location && (
-        <LocationCard location={data.location} label="Location" />
+        <LocationCard location={data.location} label="Location" nickname={title} />
       )}
 
       {(data.destination_city || data.destination_country) && (

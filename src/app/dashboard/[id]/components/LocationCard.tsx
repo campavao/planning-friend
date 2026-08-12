@@ -3,25 +3,21 @@
 import { Car, MapPin, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { type Coordinates, getGoogleMapsUrl, getUberUrl } from "@/lib/map-links";
+import { getGoogleMapsUrl, getUberUrl } from "@/lib/map-links";
 import { cn } from "@/lib/utils";
 
 interface LocationCardProps {
   location: string;
   label?: string;
-  /**
-   * Not supplied by anything yet — no item persists coordinates. Present so the
-   * more reliable coordinate dropoff can be switched on without touching the
-   * card's markup. See src/lib/map-links.ts.
-   */
-  coordinates?: Coordinates;
+  /** Item title. Uber shows it as the destination's name. */
+  nickname?: string;
   className?: string;
 }
 
 export function LocationCard({
   location,
   label = "Location",
-  coordinates,
+  nickname,
   className,
 }: LocationCardProps) {
   // Both CTAs need somewhere to go, so a blank location drops the whole card
@@ -50,7 +46,7 @@ export function LocationCard({
       <div className="flex gap-2 px-4 pb-4">
         <Button asChild variant="outline" size="sm" className="flex-1">
           <a
-            href={getGoogleMapsUrl(location, coordinates)}
+            href={getGoogleMapsUrl(location)}
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -60,7 +56,7 @@ export function LocationCard({
         </Button>
         <Button asChild variant="outline" size="sm" className="flex-1">
           <a
-            href={getUberUrl(location, coordinates)}
+            href={getUberUrl(location, nickname)}
             target="_blank"
             rel="noopener noreferrer"
           >

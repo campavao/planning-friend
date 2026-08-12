@@ -61,47 +61,35 @@ describe("getGoogleMapsUrl", () => {
 // getUberUrl
 // ============================================
 describe("getUberUrl", () => {
-  it("builds an address dropoff with the rider's current location as pickup", () => {
-    expect(getUberUrl("Central Park")).toBe(
-      "https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=Central%20Park"
+  // These assert the shape of OUR url, not Uber's behaviour. The previous
+  // version of this suite passed while the feature was broken in the app:
+  // it linked straight to m.uber.com with only dropoff[formatted_address],
+  // which Uber treats as a display label and ignores as a destination. The
+  // real fix lives in /api/uber, which attaches geocoded coordinates.
+  it("routes through our geocoding redirect rather than straight to Uber", () => {
+    expect(getUberUrl("Central Park")).toBe("/api/uber?q=Central+Park");
+  });
+
+  it("never links directly to m.uber.com", () => {
+    expect(getUberUrl("Central Park")).not.toContain("m.uber.com");
+  });
+
+  it("passes the item title through as the destination nickname", () => {
+    expect(getUberUrl("4662 N Broadway, Chicago, IL 60640", "Cariño")).toBe(
+      "/api/uber?q=4662+N+Broadway%2C+Chicago%2C+IL+60640&n=Cari%C3%B1o"
     );
   });
 
-  it("percent-encodes commas in the address", () => {
-    expect(getUberUrl("123 Main St, New York, NY 10001")).toBe(
-      "https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=123%20Main%20St%2C%20New%20York%2C%20NY%2010001"
-    );
+  it("omits the nickname param when there is no title", () => {
+    expect(getUberUrl("Central Park")).not.toContain("n=");
   });
 
-  it("encodes accented and non-latin characters as UTF-8", () => {
+  it("encodes commas, accents and non-latin characters", () => {
     expect(getUberUrl("Café de Flore, Saint-Germain")).toBe(
-      "https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=Caf%C3%A9%20de%20Flore%2C%20Saint-Germain"
+      "/api/uber?q=Caf%C3%A9+de+Flore%2C+Saint-Germain"
     );
     expect(getUberUrl("東京タワー")).toBe(
-      "https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=%E6%9D%B1%E4%BA%AC%E3%82%BF%E3%83%AF%E3%83%BC"
+      "/api/uber?q=%E6%9D%B1%E4%BA%AC%E3%82%BF%E3%83%AF%E3%83%BC"
     );
-  });
-
-  it("adds a coordinate dropoff and keeps the address as the pin label", () => {
-    expect(
-      getUberUrl("Café de Flore", { latitude: 48.854, longitude: 2.3324 })
-    ).toBe(
-      "https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[latitude]=48.854&dropoff[longitude]=2.3324&dropoff[formatted_address]=Caf%C3%A9%20de%20Flore"
-    );
-  });
-
-  it("keeps negative coordinates intact", () => {
-    const url = getUberUrl("Sydney Opera House", {
-      latitude: -33.8568,
-      longitude: 151.2153,
-    });
-    expect(url).toContain("dropoff[latitude]=-33.8568");
-    expect(url).toContain("dropoff[longitude]=151.2153");
-  });
-
-  it("omits the coordinate params entirely on the address path", () => {
-    const url = getUberUrl("Central Park");
-    expect(url).not.toContain("dropoff[latitude]");
-    expect(url).not.toContain("dropoff[longitude]");
   });
 });

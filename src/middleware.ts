@@ -9,6 +9,10 @@ export const PUBLIC_API_PATHS = [
   "/api/twilio/webhook",
   "/api/share",
   "/api/process",
+  // Geocode-and-redirect helper for the Uber CTA. Stateless, reads nothing —
+  // and content detail pages are publicly viewable, so a shared item's
+  // location CTA has to work without a session.
+  "/api/uber",
   "/api/push/subscribe",
   "/api/push/vapid-key",
   "/api/alexa",
