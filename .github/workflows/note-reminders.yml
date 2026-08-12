@@ -1,0 +1,62 @@
+name: Note reminders
+
+# Pings the note-reminder endpoint, which sends the "how was it?" push for plan
+# items whose time has passed and that have no note yet.
+#
+# This lives here rather than in vercel.json because the project is on Vercel's
+# Hobby plan, which caps cron jobs at one invocation per day. A daily check
+# would make the user-configurable delay meaningless — a 2-hour offset would
+# fire up to 24 hours late — and, worse, Vercel rejects a sub-daily schedule
+# outright: the deployment builds cleanly and then refuses to serve. GitHub's
+# scheduler has no such cap and costs nothing.
+#
+# Requires repository secrets CRON_SECRET (matching the deployed app's) and
+# optionally APP_URL to override the target.
+#
+# Note: GitHub disables scheduled workflows on a repo with no activity for 60
+# days. If reminders quietly stop, check that before debugging the endpoint.
+
+on:
+  schedule:
+    # Every 15 minutes. The endpoint is idempotent and the query is a single
+    # indexed range scan that usually matches nothing, so a tight cadence is
+    # cheap; it bounds how late a reminder lands relative to the chosen delay.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      app_url:
+        description: "App URL to ping"
+        required: false
+        default: "https://tiktok-helper.vercel.app"
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger note reminders
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ github.event.inputs.app_url || vars.APP_URL || 'https://tiktok-helper.vercel.app' }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::Missing CRON_SECRET repository secret."
+            exit 1
+          fi
+          body=$(mktemp)
+          code=$(curl -sS -o "$body" -w "%{http_code}" --max-time 120 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/cron/note-reminders")
+          {
+            echo "### Note reminders — HTTP $code"
+            echo '```json'
+            cat "$body"
+            echo
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Fail loudly on anything but 2xx. A silently failing reminder job is
+          # indistinguishable from "nothing was due", which is the failure mode
+          # worth avoiding.
+          case "$code" in
+            2*) exit 0 ;;
+            *) echo "::error::Reminder endpoint returned $code"; exit 1 ;;
+          esac

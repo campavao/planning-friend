@@ -48,7 +48,19 @@ const WEEK_START_OPTIONS = [
 interface UserSettings {
   home_region?: string;
   home_country?: string;
+  note_reminders_enabled?: boolean;
+  note_reminder_delay_minutes?: number;
 }
+
+// Offsets from the scheduled time, phrased the way someone thinks about
+// "when should I be asked how it went".
+const NOTE_REMINDER_DELAY_OPTIONS = [
+  { value: 60, label: "1 hour later" },
+  { value: 120, label: "2 hours later" },
+  { value: 240, label: "4 hours later" },
+  { value: 720, label: "12 hours later" },
+  { value: 1440, label: "The next day" },
+];
 
 export default function SettingsPage() {
   const [homeRegion, setHomeRegion] = useState("");
@@ -59,6 +71,11 @@ export default function SettingsPage() {
   const [savingName, setSavingName] = useState(false);
   const [nameMessage, setNameMessage] = useState("");
   const [weekStartDayValue, setWeekStartDayValue] = useState(0);
+  // Default on, matching the server's resolved defaults — a user who has never
+  // saved settings still has reminders.
+  const [noteRemindersEnabled, setNoteRemindersEnabled] = useState(true);
+  const [noteReminderDelay, setNoteReminderDelay] = useState(120);
+  const [noteReminderMessage, setNoteReminderMessage] = useState("");
   const router = useRouter();
   const {
     permission,
@@ -101,6 +118,12 @@ export default function SettingsPage() {
     seededRef.current = true;
     setHomeRegion(settingsData.settings?.home_region || "");
     setHomeCountry(settingsData.settings?.home_country || "");
+    if (typeof settingsData.settings?.note_reminders_enabled === "boolean") {
+      setNoteRemindersEnabled(settingsData.settings.note_reminders_enabled);
+    }
+    if (typeof settingsData.settings?.note_reminder_delay_minutes === "number") {
+      setNoteReminderDelay(settingsData.settings.note_reminder_delay_minutes);
+    }
   }, [settingsData]);
 
   const nameSeededRef = useRef(false);
@@ -113,6 +136,42 @@ export default function SettingsPage() {
   const handleWeekStartChange = (value: number) => {
     setWeekStartDayValue(value);
     setWeekStartDay(value);
+  };
+
+  // Saved on change rather than behind a button: it's a preference, not a
+  // form. The POST carries only the reminder fields, so the location inputs
+  // the user may be mid-edit are untouched.
+  const saveNoteReminders = async (changes: {
+    note_reminders_enabled?: boolean;
+    note_reminder_delay_minutes?: number;
+  }) => {
+    setNoteReminderMessage("");
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(changes),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      const data = await res.json();
+      mutateSettings({ settings: data.settings }, { revalidate: false });
+      setNoteReminderMessage("Saved!");
+      setTimeout(() => setNoteReminderMessage(""), 3000);
+    } catch (error) {
+      console.error("Failed to save note reminder settings:", error);
+      setNoteReminderMessage("Failed to save");
+    }
+  };
+
+  const handleToggleNoteReminders = () => {
+    const next = !noteRemindersEnabled;
+    setNoteRemindersEnabled(next);
+    saveNoteReminders({ note_reminders_enabled: next });
+  };
+
+  const handleNoteReminderDelayChange = (minutes: number) => {
+    setNoteReminderDelay(minutes);
+    saveNoteReminders({ note_reminder_delay_minutes: minutes });
   };
 
   const handleSaveName = async () => {
@@ -413,6 +472,71 @@ export default function SettingsPage() {
                 )}
               </div>
             )}
+
+            {/* Post-event note reminders. Shown regardless of push support:
+                the preference is stored server-side and the reminder is what
+                the push would be delivering. */}
+            <div className="mt-4 pt-4 border-t border-[var(--border)] space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium text-sm">
+                    Ask how it went
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    A nudge to note down how a planned item actually was
+                  </p>
+                </div>
+                <Button
+                  variant={noteRemindersEnabled ? "outline" : "default"}
+                  size="sm"
+                  onClick={handleToggleNoteReminders}
+                  aria-pressed={noteRemindersEnabled}
+                  className="rounded-lg"
+                >
+                  {noteRemindersEnabled ? "Turn Off" : "Turn On"}
+                </Button>
+              </div>
+
+              {noteRemindersEnabled && (
+                <div>
+                  <Label className="mb-1.5">
+                    When to ask
+                  </Label>
+                  <Select
+                    value={String(noteReminderDelay)}
+                    onValueChange={(v) =>
+                      handleNoteReminderDelayChange(Number(v))
+                    }
+                  >
+                    <SelectTrigger className="w-full max-w-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {NOTE_REMINDER_DELAY_OPTIONS.map((option) => (
+                        <SelectItem
+                          key={option.value}
+                          value={String(option.value)}
+                        >
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {noteReminderMessage && (
+                <p
+                  className={`text-sm font-medium ${
+                    noteReminderMessage.includes("Failed")
+                      ? "text-destructive"
+                      : "text-[var(--primary)]"
+                  }`}
+                >
+                  {noteReminderMessage}
+                </p>
+              )}
+            </div>
           </div>
         </Card>
 

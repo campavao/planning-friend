@@ -6,6 +6,7 @@ export * from "./planner";
 export * from "./gifts";
 export * from "./tags";
 export * from "./settings";
+export * from "./item-notes";
 export * from "./friends";
 export * from "./sharing";
 export * from "./ownership";

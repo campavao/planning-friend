@@ -14,7 +14,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useContentById, useTags } from "@/hooks/useContent";
-import { DEFAULT_TAGS } from "@/lib/constants";
+import {
+  DEFAULT_TAGS,
+  NOTE_COMPOSER_PARAM,
+  NOTE_COMPOSER_VALUE,
+} from "@/lib/constants";
 import { isFavorite, saveFavorite } from "@/lib/favorites";
 import type {
   DateIdeaData,
@@ -51,6 +55,7 @@ import { isImageSourcedItem } from "@/lib/content-source";
 import { RecipeSteps } from "./components/RecipeSteps";
 import { LocationCard } from "./components/LocationCard";
 import { SourcePhotoDialog } from "./components/SourcePhotoDialog";
+import { ItemNotes } from "./components/ItemNotes";
 
 
 // Get appropriate link text for the source URL
@@ -106,6 +111,11 @@ export default function ContentDetailPage() {
 
   const isEditable = !!user && content?.user_id === user.id;
   const loading = sessionLoading || (contentLoading && !content);
+
+  // The note reminder deep-links here with the composer already open, so the
+  // push can be acted on in one tap.
+  const openNoteComposer =
+    searchParams.get(NOTE_COMPOSER_PARAM) === NOTE_COMPOSER_VALUE;
 
   useEffect(() => {
     if (content) {
@@ -596,6 +606,15 @@ export default function ContentDetailPage() {
                   </a>
                 </Button>
               </div>
+            )}
+
+            {/* Notes — the owner's record of how it actually went. Private,
+                so a shared link never shows them. */}
+            {isEditable && content.status === "completed" && (
+              <ItemNotes
+                contentId={content.id}
+                autoOpenComposer={openNoteComposer}
+              />
             )}
 
             {/* Metadata */}
