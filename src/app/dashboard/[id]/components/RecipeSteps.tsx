@@ -5,9 +5,13 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-type Variant = "meal" | "drink";
+export type RecipeVariant = "meal" | "drink";
 
-const VARIANT_CLASSES: Record<
+type Variant = RecipeVariant;
+
+/** Exported so the edit-mode list editor wears the same colours as the view
+ *  it replaces — the two are meant to read as one thing in two states. */
+export const RECIPE_VARIANT_CLASSES: Record<
   Variant,
   { ingredientBg: string; ingredientBorder: string; stepBg: string }
 > = {
@@ -57,7 +61,7 @@ export function RecipeSteps({
     });
   };
 
-  const classes = VARIANT_CLASSES[variant];
+  const classes = RECIPE_VARIANT_CLASSES[variant];
 
   return (
     <div className="space-y-6">

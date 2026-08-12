@@ -2,6 +2,7 @@ import { createServerClient } from "./client";
 import type { Content, ContentCategory } from "./types";
 import { bustAllUserWeeks } from "./suggestions";
 import { getWeekStart } from "./planner";
+import { clearGroceryListCache } from "./grocery-cache";
 
 export async function createProcessingContent(
   userId: string,
@@ -56,6 +57,15 @@ export async function updateContent(
   if (updates.status === "completed" || updates.category !== undefined) {
     bustAllUserWeeks(result.user_id, getWeekStart()).catch((err) => {
       console.error("Failed to bust suggestion cache after update:", err);
+    });
+  }
+
+  // A rewritten blob can mean different ingredients, and the grocery list is
+  // cached against which recipes are in the week rather than what is in them —
+  // so nothing else would ever notice the edit.
+  if (updates.data !== undefined) {
+    clearGroceryListCache(result.user_id).catch((err) => {
+      console.error("Failed to clear grocery list cache after update:", err);
     });
   }
 

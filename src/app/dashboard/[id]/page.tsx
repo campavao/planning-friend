@@ -21,6 +21,7 @@ import {
 } from "@/lib/constants";
 import { isFavorite, saveFavorite } from "@/lib/favorites";
 import type {
+  ContentCategory,
   DateIdeaData,
   DrinkData,
   EventData,
@@ -28,6 +29,7 @@ import type {
   MealData,
   TravelData,
 } from "@/lib/supabase";
+import { diffContentData, hasManualEdits } from "@/lib/schemas/content";
 import {
   ArrowLeft,
   BookmarkPlus,
@@ -56,6 +58,7 @@ import { RecipeSteps } from "./components/RecipeSteps";
 import { LocationCard } from "./components/LocationCard";
 import { SourcePhotoDialog } from "./components/SourcePhotoDialog";
 import { ItemNotes } from "./components/ItemNotes";
+import { ContentDataEditor } from "./components/ContentDataEditor";
 
 
 // Get appropriate link text for the source URL
@@ -102,6 +105,12 @@ export default function ContentDetailPage() {
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editCategory, setEditCategory] = useState("");
+  // The working copy of the category-specific blob, plus the snapshot it was
+  // seeded from — the save sends the difference between the two, never the
+  // whole thing.
+  const [editData, setEditData] = useState<Record<string, unknown>>({});
+  const [editBaseline, setEditBaseline] = useState<Record<string, unknown>>({});
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [retrying, setRetrying] = useState(false);
@@ -117,12 +126,18 @@ export default function ContentDetailPage() {
   const openNoteComposer =
     searchParams.get(NOTE_COMPOSER_PARAM) === NOTE_COMPOSER_VALUE;
 
+  // Seeding is skipped while the form is open: a background revalidation would
+  // otherwise reset half-typed edits back to what the server still holds.
   useEffect(() => {
-    if (content) {
-      setEditTitle(content.title);
-      setEditCategory(content.category);
-    }
-  }, [content]);
+    if (!content || editing) return;
+
+    setEditTitle(content.title);
+    setEditCategory(content.category);
+
+    const snapshot = { ...(content.data as Record<string, unknown>) };
+    setEditData(snapshot);
+    setEditBaseline(snapshot);
+  }, [content, editing]);
 
   const handleBack = useCallback(() => {
     // Logged-out visitors (viewing a shared link) can't access the dashboard
@@ -234,22 +249,49 @@ export default function ContentDetailPage() {
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError(null);
     try {
+      const body: Record<string, unknown> = {
+        title: editTitle,
+        category: editCategory,
+      };
+
+      // Only the keys the user actually changed travel; the route merges them
+      // over what is stored, so anything this editor never showed — an older
+      // extraction's fields, an image URL — is left exactly as it was.
+      const dataPatch = diffContentData(editBaseline, editData);
+      if (Object.keys(dataPatch).length > 0) {
+        body.data = dataPatch;
+      }
+
       const res = await fetch(`/api/content/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: editTitle, category: editCategory }),
+        body: JSON.stringify(body),
       });
 
-      if (res.ok) {
-        mutateContent();
-        setEditing(false);
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        throw new Error(payload?.error || "Failed to save");
       }
+
+      mutateContent();
+      setEditing(false);
     } catch (error) {
       console.error("Failed to save:", error);
+      setSaveError(
+        error instanceof Error ? error.message : "Failed to save"
+      );
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleCancelEdit = () => {
+    setSaveError(null);
+    // Dropping out of edit mode lets the seeding effect restore the form from
+    // the item as it is stored, which is what makes this a real cancel.
+    setEditing(false);
   };
 
   const handleDelete = async () => {
@@ -288,6 +330,17 @@ export default function ContentDetailPage() {
 
   const handleRetryProcessing = async () => {
     if (!content) return;
+
+    // Re-processing re-rolls the whole item from its source, so a hand-edited
+    // ingredient list is gone the moment it finishes. Say so before starting —
+    // but only for an item that has details to lose; retrying one that is stuck
+    // or failed stays a single tap.
+    if (content.status === "completed") {
+      const warning = hasManualEdits(content.data)
+        ? "Re-processing reads the original source again and replaces everything here, including the edits you made by hand. Continue?"
+        : "Re-processing reads the original source again and replaces the details on this item. Continue?";
+      if (!confirm(warning)) return;
+    }
 
     setRetrying(true);
     try {
@@ -381,7 +434,9 @@ export default function ContentDetailPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setEditing(!editing)}
+                  onClick={() => (editing ? handleCancelEdit() : setEditing(true))}
+                  aria-pressed={editing}
+                  title={editing ? "Stop editing" : "Edit"}
                 >
                   <Pencil className="w-4 h-4" />
                 </Button>
@@ -501,6 +556,10 @@ export default function ContentDetailPage() {
           {/* Category Badge */}
           <div className="px-6 pt-6">
             {editing ? (
+              // Changing the category leaves `data` alone — see the reasoning in
+              // PATCH /api/content/[id]. The fields below simply swap to the new
+              // shape, and anything the new shape doesn't show is still there if
+              // the category is switched back.
               <Select value={editCategory} onValueChange={setEditCategory}>
                 <SelectTrigger className="text-sm font-semibold cursor-pointer">
                   <SelectValue />
@@ -525,17 +584,13 @@ export default function ContentDetailPage() {
 
           <div className="px-6 pt-4 pb-2">
             {editing ? (
-              <div className="flex gap-2">
-                <Input
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  className="text-xl font-semibold"
-                  placeholder="Title"
-                />
-                <Button onClick={handleSave} disabled={saving}>
-                  {saving ? "..." : "Save"}
-                </Button>
-              </div>
+              <Input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="text-xl font-semibold"
+                placeholder="Title"
+                aria-label="Title"
+              />
             ) : (
               <h1 className="heading-2">{content.title}</h1>
             )}
@@ -560,27 +615,58 @@ export default function ContentDetailPage() {
           </div>
 
           <div className="px-6 pb-6 space-y-6">
-            {/* Category-specific content */}
-            {content.category === "meal" && (
-              <MealContent data={content.data as MealData} />
-            )}
-            {content.category === "event" && (
-              <EventContent data={content.data as EventData} title={content.title} />
-            )}
-            {content.category === "date_idea" && (
-              <DateIdeaContent data={content.data as DateIdeaData} title={content.title} />
-            )}
-            {content.category === "gift_idea" && (
-              <GiftIdeaContent data={content.data as GiftIdeaData} />
-            )}
-            {content.category === "drink" && (
-              <DrinkContent data={content.data as DrinkData} />
-            )}
-            {content.category === "travel" && (
-              <TravelContent data={content.data as TravelData} title={content.title} />
-            )}
-            {content.category === "other" && (
-              <OtherContent data={content.data as { description?: string }} />
+            {/* Category-specific content — the same fields, read-only or not */}
+            {editing ? (
+              <>
+                <ContentDataEditor
+                  category={editCategory as ContentCategory}
+                  data={editData}
+                  onChange={setEditData}
+                />
+
+                {saveError && (
+                  <p className="text-destructive text-sm" role="alert">
+                    {saveError}
+                  </p>
+                )}
+
+                <div className="flex gap-2">
+                  <Button onClick={handleSave} disabled={saving}>
+                    {saving ? "Saving..." : "Save changes"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleCancelEdit}
+                    disabled={saving}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                {content.category === "meal" && (
+                  <MealContent data={content.data as MealData} />
+                )}
+                {content.category === "event" && (
+                  <EventContent data={content.data as EventData} title={content.title} />
+                )}
+                {content.category === "date_idea" && (
+                  <DateIdeaContent data={content.data as DateIdeaData} title={content.title} />
+                )}
+                {content.category === "gift_idea" && (
+                  <GiftIdeaContent data={content.data as GiftIdeaData} />
+                )}
+                {content.category === "drink" && (
+                  <DrinkContent data={content.data as DrinkData} />
+                )}
+                {content.category === "travel" && (
+                  <TravelContent data={content.data as TravelData} title={content.title} />
+                )}
+                {content.category === "other" && (
+                  <OtherContent data={content.data as { description?: string }} />
+                )}
+              </>
             )}
 
             {/* Source */}
