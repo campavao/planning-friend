@@ -8,6 +8,11 @@ import {
 } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, requireSession } from "@/lib/auth";
+import {
+  applyContentDataPatch,
+  MANUAL_EDIT_STAMP_KEY,
+  updateContentBodySchema,
+} from "@/lib/schemas/content";
 
 // GET single content — public so extracted content can be shared by link.
 // Editing (PATCH/DELETE) remains owner-only below.
@@ -78,16 +83,61 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { title, category, data, is_favorite } = body;
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+    }
 
-    const updates: Record<string, unknown> = {};
+    const parsed = updateContentBodySchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message ?? "Invalid request" },
+        { status: 400 }
+      );
+    }
+
+    const { title, category, data, is_favorite } = parsed.data;
+
+    const updates: Parameters<typeof updateContent>[1] = {};
     if (title !== undefined) updates.title = title;
     if (category !== undefined) updates.category = category;
-    if (data !== undefined) updates.data = data;
-    // Starring is a flag and only a flag — a non-boolean is dropped rather
-    // than written through, so the column can't pick up a "true" string.
-    if (typeof is_favorite === "boolean") updates.is_favorite = is_favorite;
+    if (is_favorite !== undefined) updates.is_favorite = is_favorite;
+
+    // An empty patch is a save with nothing in it — leave `data` out of the
+    // update entirely rather than rewriting the column with itself.
+    if (data !== undefined && Object.keys(data).length > 0) {
+      // Validated against the category the item is *becoming*: when the same
+      // save fixes a mis-classification and the details in one go, the details
+      // belong to the new shape.
+      //
+      // What does not happen here: the stored blob is not wiped or filtered
+      // when the category changes. Re-categorising is how a user corrects our
+      // mistake — a drink filed as a meal — and the extracted fields are mostly
+      // still right (ingredients/recipe mean the same thing in both; so do
+      // location and description across event/date/travel). Dropping the keys
+      // the new view happens not to render would punish exactly the user who is
+      // fixing our error, and the change would be irreversible. Instead the
+      // keys stay, inert, and reappear if the category is switched back.
+      const patched = applyContentDataPatch(
+        category ?? content.category,
+        content.data,
+        data
+      );
+
+      if (!patched.success) {
+        return NextResponse.json({ error: patched.error }, { status: 400 });
+      }
+
+      // Marks the blob as hand-edited so the detail page can warn that a
+      // re-process throws the edit away. Re-processing rewrites `data` whole,
+      // which clears the mark on its own.
+      updates.data = {
+        ...patched.data,
+        [MANUAL_EDIT_STAMP_KEY]: new Date().toISOString(),
+      };
+    }
 
     const updatedContent = await updateContent(id, updates);
 

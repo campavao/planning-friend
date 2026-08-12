@@ -35,6 +35,25 @@ export async function getGroceryListCache(
   return data as CachedGroceryList;
 }
 
+/**
+ * Drop every cached list for a user.
+ *
+ * The cache hits whenever the week still holds the same *set* of recipes, which
+ * says nothing about what is inside them — so editing a recipe's ingredients
+ * would otherwise keep serving the pre-edit shopping list indefinitely.
+ */
+export async function clearGroceryListCache(userId: string): Promise<void> {
+  const supabase = createServerClient();
+  const { error } = await supabase
+    .from("grocery_list_cache")
+    .delete()
+    .eq("user_id", userId);
+
+  if (error) {
+    throw new Error(`Failed to clear grocery list cache: ${error.message}`);
+  }
+}
+
 export async function upsertGroceryListCache(
   userId: string,
   weekStart: string,
