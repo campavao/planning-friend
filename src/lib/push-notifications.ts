@@ -1,6 +1,10 @@
 import webpush from "web-push";
 import { createServerClient } from "./supabase";
-import { categoryEmoji } from "./constants";
+import {
+  categoryEmoji,
+  NOTE_COMPOSER_PARAM,
+  NOTE_COMPOSER_VALUE,
+} from "./constants";
 
 // Configure web-push with VAPID keys
 // You'll need to set these environment variables:
@@ -230,6 +234,26 @@ export async function notifyItemShared(
     icon: "/android-chrome-192x192.png",
     badge: "/android-chrome-192x192.png",
     url: `/dashboard/planner?week=${weekStart}`,
+  });
+}
+
+/**
+ * Send the post-event nudge to write down how something went. The link opens
+ * the item with the composer already open — the reminder is worthless if it
+ * costs three taps to act on.
+ */
+export async function notifyAddNote(
+  userId: string,
+  contentId: string,
+  title: string
+): Promise<void> {
+  await sendPushNotification(userId, {
+    title: "📝 How was it?",
+    body: `Add a note about ${title}`,
+    icon: "/android-chrome-192x192.png",
+    badge: "/android-chrome-192x192.png",
+    url: `/dashboard/${contentId}?${NOTE_COMPOSER_PARAM}=${NOTE_COMPOSER_VALUE}`,
+    contentId,
   });
 }
 

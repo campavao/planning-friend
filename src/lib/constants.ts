@@ -61,3 +61,9 @@ export function categoryEmoji(category: string): string {
   return CATEGORY_CONFIG[category]?.emoji ?? "✨";
 }
 
+// Deep link the note reminder uses to open the detail page with the note
+// composer already open. It lives here rather than next to the push helper so
+// the client page can read it without pulling web-push into the bundle.
+export const NOTE_COMPOSER_PARAM = "note";
+export const NOTE_COMPOSER_VALUE = "new";
+

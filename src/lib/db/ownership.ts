@@ -74,6 +74,13 @@ export async function userOwnsPlanItem(
   return (plan as { user_id: string }).user_id === userId;
 }
 
+export function userOwnsItemNote(
+  noteId: string,
+  userId: string
+): Promise<boolean> {
+  return ownsByUserIdColumn("item_notes", noteId, userId);
+}
+
 export async function userOwnsWeeklyPlan(
   planId: string,
   userId: string

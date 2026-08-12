@@ -99,6 +99,11 @@ export interface UserSettings {
   user_id: string;
   home_region?: string;
   home_country?: string;
+  // Optional for the same reason as Content.is_favorite: rows read before
+  // schema-item-notes.sql has been applied come back without these columns.
+  // resolveNoteReminderSettings() supplies the defaults.
+  note_reminders_enabled?: boolean;
+  note_reminder_delay_minutes?: number;
   created_at: string;
   updated_at?: string;
 }
@@ -170,8 +175,36 @@ export interface PlanItem {
   slot_order: number;
   notes?: string;
   note_title?: string;
+  // Stamped by the note-reminder cron. Optional because rows read before
+  // schema-item-notes.sql has been applied lack the column entirely.
+  note_reminder_sent_at?: string | null;
   created_at: string;
   content?: Content;
+}
+
+/**
+ * A review of the item itself, written after the fact — distinct from
+ * PlanItem.notes, which is a planning note on one scheduled occurrence.
+ * Many per item: the value is in comparing across repeat visits.
+ */
+export interface ItemNote {
+  id: string;
+  content_id: string;
+  user_id: string;
+  body: string;
+  rating?: number | null;
+  plan_item_id?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+/** A note joined to the occasion it came from, when it was tied to one. */
+export interface ItemNoteWithOccasion extends ItemNote {
+  occasion?: {
+    id: string;
+    planned_date: string;
+    note_title?: string | null;
+  } | null;
 }
 
 export interface WeeklyPlanWithItems extends WeeklyPlan {

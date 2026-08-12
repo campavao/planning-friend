@@ -48,6 +48,7 @@ npm install
    - `supabase/schema-gifts.sql` - Gift planner tables
    - `supabase/schema-tags.sql` - Tags system
    - `supabase/schema-v2.sql` - Travel, drinks, settings, sharing
+   - `supabase/schema-item-notes.sql` - Item notes and post-event reminders
 3. Copy your project URL and keys from Settings > API
 
 ### 3. Set Up Twilio
@@ -96,6 +97,10 @@ RAPIDAPI_KEY=your_rapidapi_key
 
 # App URL
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Vercel Cron (note reminders). The cron endpoint refuses every request when
+# this is unset, so the reminder job is inert until it is configured.
+CRON_SECRET=a_long_random_string
 ```
 
 ### 7. Run Locally
