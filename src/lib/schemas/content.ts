@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ContentCategory } from "@/lib/db/types";
+import { readPlants } from "@/lib/plants";
 
 /**
  * The writable surface of PATCH /api/content/[id].
@@ -59,6 +60,10 @@ export const DRINK_TYPES = [
   "other",
 ] as const;
 export const DRINK_DIFFICULTIES = ["easy", "medium", "hard"] as const;
+/** Recipe effort shares DRINK_DIFFICULTIES' values on purpose — one scale for
+ *  anything you cook or mix, rather than two that gradually diverge. */
+export const RECIPE_EFFORTS = DRINK_DIFFICULTIES;
+export const SPICE_LEVELS = ["none", "mild", "medium", "hot"] as const;
 
 const MAX_TITLE_LENGTH = 300;
 const MAX_TEXT_LENGTH = 500;
@@ -171,13 +176,44 @@ const lines = z
 
 const stamp = z.string().max(64).optional();
 
+/** One plant a recipe contributes. `source` is the identity the weekly union
+ *  dedupes on; `name` is display only. An entry missing either the source or a
+ *  known category is dropped rather than rejected — the same forgiveness the
+ *  ingredient list gets, for the same reason. */
+const MAX_PLANTS = 60;
+const plants = z
+  .array(z.unknown())
+  .max(MAX_PLANTS, `Keep it to ${MAX_PLANTS} plants or fewer`)
+  .transform((entries) => readPlants(entries))
+  .optional();
+
+const MAX_SECTIONS = 20;
+const sections = z
+  .array(
+    z.object({
+      label: z.string().trim().max(MAX_TEXT_LENGTH),
+      value: z.string().trim().max(MAX_DESCRIPTION_LENGTH),
+    }),
+    { invalid_type_error: "Expected a list of sections" }
+  )
+  .max(MAX_SECTIONS, `Keep it to ${MAX_SECTIONS} sections or fewer`)
+  // A section with neither a label nor a value is what the editor looks like
+  // one keystroke after "Add section" — drop it rather than 400.
+  .transform((values) => values.filter((s) => s.label || s.value))
+  .optional();
+
 const mealDataSchema = z
   .object({
     ingredients: lines,
     recipe: lines,
+    equipment: lines,
     prep_time: text,
     cook_time: text,
     servings: text,
+    effort: clearable(z.enum(RECIPE_EFFORTS)),
+    spice: clearable(z.enum(SPICE_LEVELS)),
+    plants,
+    sections,
     [MANUAL_EDIT_STAMP_KEY]: stamp,
   })
   .passthrough();
@@ -186,10 +222,12 @@ const drinkDataSchema = z
   .object({
     ingredients: lines,
     recipe: lines,
+    equipment: lines,
     type: clearable(z.enum(DRINK_TYPES)),
     prep_time: text,
     description,
     difficulty: clearable(z.enum(DRINK_DIFFICULTIES)),
+    sections,
     [MANUAL_EDIT_STAMP_KEY]: stamp,
   })
   .passthrough();
@@ -206,6 +244,8 @@ const eventDataSchema = z
     website: link,
     reservation_link: link,
     image_url: link,
+    seats: text,
+    sections,
     [MANUAL_EDIT_STAMP_KEY]: stamp,
   })
   .passthrough();
@@ -220,6 +260,7 @@ const dateIdeaDataSchema = z
     menu_link: link,
     reservation_link: link,
     image_url: link,
+    sections,
     [MANUAL_EDIT_STAMP_KEY]: stamp,
   })
   .passthrough();
@@ -231,6 +272,7 @@ const giftIdeaDataSchema = z
     purchase_link: link,
     amazon_link: link,
     description,
+    sections,
     [MANUAL_EDIT_STAMP_KEY]: stamp,
   })
   .passthrough();
@@ -246,6 +288,7 @@ const travelDataSchema = z
     destination_city: text,
     destination_country: text,
     image_url: link,
+    sections,
     [MANUAL_EDIT_STAMP_KEY]: stamp,
   })
   .passthrough();
@@ -253,6 +296,7 @@ const travelDataSchema = z
 const otherDataSchema = z
   .object({
     description,
+    sections,
     [MANUAL_EDIT_STAMP_KEY]: stamp,
   })
   .passthrough();

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { ImageIcon, X } from "lucide-react";
 import Image from "next/image";
-import type { PointerEvent as ReactPointerEvent } from "react";
+import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import {
   useCallback,
   useEffect,
@@ -33,20 +33,34 @@ interface SourcePhotoDialogProps {
   itemTitle: string;
 }
 
-export function SourcePhotoDialog({
+/**
+ * The viewer itself, driven by its caller.
+ *
+ * Split out from the button below so the redesigned item view can open the same
+ * pinch-zoom viewer by tapping the thumbnail — the trigger changed, the viewer
+ * did not, and reimplementing the gesture handling for a second entry point
+ * would have been the wrong kind of duplication.
+ */
+export function PhotoViewerDialog({
+  open,
+  onOpenChange,
   imageUrl,
   itemTitle,
-}: SourcePhotoDialogProps) {
-  const [open, setOpen] = useState(false);
-
+  title = "Original photo",
+  trigger,
+}: SourcePhotoDialogProps & {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title?: string;
+  /** The element that opens the viewer. Passed through DialogTrigger rather
+   *  than wired up by the caller so Radix knows where to put focus back on
+   *  close — without it, dismissing the viewer drops focus onto the body and
+   *  a keyboard user loses their place on the page. */
+  trigger?: ReactNode;
+}) {
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="h-auto px-6 py-3">
-          <ImageIcon className="w-4 h-4" />
-          View original photo
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       {/* Most of DialogContent's card styling is overridden here: this one is a
           full-bleed viewer, not a panel floating in the middle of the page. */}
       <DialogContent
@@ -54,11 +68,11 @@ export function SourcePhotoDialog({
         showCloseButton={false}
         className="block top-0 left-0 translate-x-0 translate-y-0 w-screen h-[100dvh] max-w-none sm:max-w-none max-h-none gap-0 rounded-none p-0 shadow-none overflow-y-hidden bg-black/95"
       >
-        <DialogTitle className="sr-only">Original photo</DialogTitle>
+        <DialogTitle className="sr-only">{title}</DialogTitle>
         <PhotoViewport
           imageUrl={imageUrl}
           itemTitle={itemTitle}
-          onDismiss={() => setOpen(false)}
+          onDismiss={() => onOpenChange(false)}
         />
         <DialogClose className="absolute top-4 right-4 z-10 rounded-full bg-black/40 p-2 text-white/90 transition-colors hover:bg-black/60 outline-none focus-visible:ring-2 focus-visible:ring-white">
           <X className="w-5 h-5" />
@@ -66,6 +80,28 @@ export function SourcePhotoDialog({
         </DialogClose>
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function SourcePhotoDialog({
+  imageUrl,
+  itemTitle,
+}: SourcePhotoDialogProps) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <PhotoViewerDialog
+      open={open}
+      onOpenChange={setOpen}
+      imageUrl={imageUrl}
+      itemTitle={itemTitle}
+      trigger={
+        <Button className="h-auto px-6 py-3">
+          <ImageIcon className="w-4 h-4" />
+          View original photo
+        </Button>
+      }
+    />
   );
 }
 

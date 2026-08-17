@@ -1,3 +1,7 @@
+import type { Plant } from "@/lib/plants";
+
+export type { Plant };
+
 export type ContentCategory =
   | "meal"
   | "event"
@@ -26,12 +30,37 @@ export interface Friend {
   updated_at?: string;
 }
 
+/** Effort to cook. Deliberately the same three values as DrinkData.difficulty
+ *  so a recipe and a cocktail are measured on one scale rather than two that
+ *  drift apart. */
+export type RecipeEffort = "easy" | "medium" | "hard";
+
+export type SpiceLevel = "none" | "mild" | "medium" | "hot";
+
 export interface MealData {
   recipe?: string[];
   ingredients?: string[];
   prep_time?: string;
   cook_time?: string;
   servings?: string;
+  effort?: RecipeEffort;
+  spice?: SpiceLevel;
+  /** Appliances, bowls and utensils — checkable while cooking. */
+  equipment?: string[];
+  /** Distinct plants this recipe contributes, keyed by source organism.
+   *  See src/lib/plants.ts for why this is a list and not a count. */
+  plants?: Plant[];
+  /** Owner-defined extra rows. */
+  sections?: CustomSection[];
+}
+
+/**
+ * A row the owner added themselves, for the things no extraction will ever
+ * guess. Free-form on purpose: a label and a value is enough structure.
+ */
+export interface CustomSection {
+  label: string;
+  value: string;
 }
 
 export interface EventData {
@@ -45,6 +74,10 @@ export interface EventData {
   website?: string;
   reservation_link?: string;
   image_url?: string;
+  /** Ticketed events nearly always carry one, so it is a real field rather
+   *  than something the owner has to add as a custom section. */
+  seats?: string;
+  sections?: CustomSection[];
 }
 
 export interface DateIdeaData {
@@ -56,6 +89,7 @@ export interface DateIdeaData {
   menu_link?: string;
   reservation_link?: string;
   image_url?: string;
+  sections?: CustomSection[];
 }
 
 export interface GiftIdeaData {
@@ -64,6 +98,7 @@ export interface GiftIdeaData {
   purchase_link?: string;
   amazon_link?: string;
   description?: string;
+  sections?: CustomSection[];
 }
 
 export interface TravelData {
@@ -76,6 +111,7 @@ export interface TravelData {
   destination_city?: string;
   destination_country?: string;
   image_url?: string;
+  sections?: CustomSection[];
 }
 
 export interface DrinkData {
@@ -91,7 +127,9 @@ export interface DrinkData {
     | "other";
   prep_time?: string;
   description?: string;
-  difficulty?: "easy" | "medium" | "hard";
+  difficulty?: RecipeEffort;
+  equipment?: string[];
+  sections?: CustomSection[];
 }
 
 export interface UserSettings {
