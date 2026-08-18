@@ -40,11 +40,11 @@ import {
   CalendarPlus,
   Car,
   Check,
-  ChevronRight,
   Clock,
   ExternalLink,
   Gift,
   HelpCircle,
+  Info,
   Loader2,
   MapPin,
   Maximize2,
@@ -58,6 +58,7 @@ import {
   Share2,
   ShoppingCart,
   Star,
+  Tag,
   Ticket,
   Trash2,
   Utensils,
@@ -600,14 +601,18 @@ export default function ContentDetailPage() {
                 trigger={
                   <button
                     type="button"
-                    className="relative shrink-0 w-[104px] h-[130px] rounded-2xl overflow-hidden border border-[var(--border)] bg-[var(--muted)] shadow-[var(--shadow-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+                    // Square, and no taller than the title block beside it.
+                    // A portrait thumbnail left a visible well of dead space
+                    // once tags came off the page and the text column got
+                    // short.
+                    className="relative shrink-0 w-[92px] h-[92px] rounded-2xl overflow-hidden border border-[var(--border)] bg-[var(--muted)] shadow-[var(--shadow-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
                     aria-label="View full size"
                   >
                     <Image
                       src={content.thumbnail_url}
                       alt={content.title}
                       fill
-                      sizes="104px"
+                      sizes="92px"
                       className="object-cover"
                     />
                     <span className="absolute right-1.5 bottom-1.5 w-[22px] h-[22px] rounded-lg bg-black/55 backdrop-blur-[2px] flex items-center justify-center">
@@ -1027,8 +1032,10 @@ function EventContent({
         </ItemRow>
       )}
 
+      {/* Info, not Ticket — the seats row above already owns that icon, and
+          two identical icons in one list read as one repeated fact. */}
       {(data.requires_reservation || data.requires_ticket) && (
-        <ItemRow icon={Ticket} iconClassName="text-muted-foreground">
+        <ItemRow icon={Info} iconClassName="text-muted-foreground">
           <span className="flex flex-wrap gap-2">
             {data.requires_reservation && (
               <Badge variant="outline">Reservation required</Badge>
@@ -1068,8 +1075,10 @@ function DateIdeaContent({
         </ItemRow>
       )}
 
+      {/* Tag, not Star — a star means "favourited" everywhere else in the app,
+          and this row is just the type and price. */}
       {(data.type || data.price_range) && (
-        <ItemRow icon={Star} iconClassName="text-[var(--date)]">
+        <ItemRow icon={Tag} iconClassName="text-[var(--date)]">
           <span className="flex flex-wrap gap-2">
             {data.type && (
               <Badge variant="date" className="capitalize">
@@ -1218,7 +1227,7 @@ function TravelContent({
       )}
 
       {(data.type || data.price_range) && (
-        <ItemRow icon={ChevronRight} iconClassName="text-muted-foreground">
+        <ItemRow icon={Tag} iconClassName="text-muted-foreground">
           <span className="flex flex-wrap gap-2">
             {data.type && (
               <Badge variant="travel" className="capitalize">
