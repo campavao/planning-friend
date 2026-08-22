@@ -33,6 +33,11 @@
  *                      candidate query cannot see them.
  *   --user <uuid>      Only touch one owner's rows.
  *   --category <name>  Only touch one category (meal or drink).
+ *   --source <kind>    "photo" for items saved from an image, "link" for
+ *                      everything else. Photo-sourced items have no copy of
+ *                      their content anywhere but the stored image, so it is
+ *                      worth running them deliberately rather than having them
+ *                      turn up interleaved.
  *   --limit <n>        Stop after n items.
  *   --delay <ms>       Wait between items (default 4000). The pipeline calls
  *                      Gemini and a scraper; this keeps the run polite.
@@ -72,6 +77,7 @@ const all = args.includes("--all");
 const limit = Number(getArg("--limit", "0")) || 0;
 const onlyUser = getArg("--user", "") || "";
 const onlyCategory = getArg("--category", "") || "";
+const onlySource = getArg("--source", "") || "";
 const explicitIds = (getArg("--id", "") || "")
   .split(",")
   .map((v) => v.trim())
@@ -143,10 +149,15 @@ async function main() {
       : !Array.isArray(data.equipment) || data.equipment.length === 0;
       });
 
+  const isPhoto = (row) => (row.tiktok_url ?? "").startsWith("mms://");
+  const sourceFiltered = onlySource
+    ? candidates.filter((r) => (onlySource === "photo" ? isPhoto(r) : !isPhoto(r)))
+    : candidates;
+
   const isEdited = (row) =>
     typeof (row.data ?? {}).manually_edited_at === "string";
   const edited = candidates.filter(isEdited);
-  const targets = (skipEdited ? candidates.filter((r) => !isEdited(r)) : candidates)
+  const targets = (skipEdited ? sourceFiltered.filter((r) => !isEdited(r)) : sourceFiltered)
     .slice(0, limit || undefined);
 
   // Phone numbers live on the users table and the session needs one.
@@ -170,6 +181,10 @@ async function main() {
   console.log(`Mode               : ${apply ? "APPLY" : "dry run"}`);
   if (onlyUser) console.log(`Scoped to user     : ${onlyUser}`);
   if (onlyCategory) console.log(`Scoped to category : ${onlyCategory}`);
+  if (onlySource)
+    console.log(
+      `Scoped to source   : ${onlySource} (${sourceFiltered.length} of ${candidates.length})`
+    );
   console.log("");
 
   if (edited.length > 0 && !skipEdited) {
