@@ -6,12 +6,14 @@ import { processMmsImage } from "@/lib/image-processing";
 import { notifyContentReady } from "@/lib/push-notifications";
 import {
   addTagsToContent,
+  getContentById,
   createServerClient,
   deleteContent,
   getOrCreateTags,
   saveContent,
   updateContent,
 } from "@/lib/supabase";
+import { shouldPreserveExisting } from "./preserve";
 import type { ProcessResult } from "./types";
 
 const THUMBNAILS_BUCKET = "thumbnails";
@@ -162,6 +164,17 @@ async function applyAnalysisResult(
   }
 
   const item = analysisResult.items[0];
+  const existing = await getContentById(contentId);
+  if (shouldPreserveExisting(existing, item)) {
+    // The re-analysis came back empty. Keep what is already saved and just
+    // clear the "processing" flag the reprocess route set on the way in.
+    console.warn(
+      `Preserving existing content ${contentId}: re-analysis returned "${item.title}"`
+    );
+    await updateContent(contentId, { status: "completed" });
+    return { success: true, content: existing! };
+  }
+
   const updatedContent = await updateContent(contentId, {
     category: item.category,
     title: item.title,

@@ -28,23 +28,34 @@ export async function downloadTwilioImage(
 ): Promise<{ buffer: Buffer; mimeType: string } | null> {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const isTwilio = /(^|.)api.twilio.com$/i.test(
+    (() => {
+      try {
+        return new URL(mediaUrl).hostname;
+      } catch {
+        return "";
+      }
+    })()
+  );
 
-  if (!accountSid || !authToken) {
+  if (isTwilio && (!accountSid || !authToken)) {
     console.error("Missing Twilio credentials for MMS download");
     return null;
   }
 
   try {
-    // Twilio MMS URLs require Basic Auth
-    const authHeader = Buffer.from(`${accountSid}:${authToken}`).toString(
-      "base64"
-    );
+    // Only Twilio's media URLs want Basic Auth. Re-processing a saved item
+    // hands us our own Storage URL instead, which rejects a stray
+    // Authorization header.
+    const headers: Record<string, string> = {};
+    if (isTwilio) {
+      const authHeader = Buffer.from(`${accountSid}:${authToken}`).toString(
+        "base64"
+      );
+      headers.Authorization = `Basic ${authHeader}`;
+    }
 
-    const response = await fetch(mediaUrl, {
-      headers: {
-        Authorization: `Basic ${authHeader}`,
-      },
-    });
+    const response = await fetch(mediaUrl, { headers });
 
     if (!response.ok) {
       console.error(`Failed to download Twilio MMS: ${response.status}`);

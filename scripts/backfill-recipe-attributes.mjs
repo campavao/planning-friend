@@ -27,6 +27,10 @@
  *   --skip-edited      Leave hand-edited items alone.
  *   --all              Re-process every meal/drink, not just the ones still
  *                      missing the new fields (the default).
+ *   --id <uuid,...>    Re-process exactly these rows, whatever their category
+ *                      or current state. For repairing items a previous run
+ *                      damaged — they are no longer meal/drink, so the normal
+ *                      candidate query cannot see them.
  *   --limit <n>        Stop after n items.
  *   --delay <ms>       Wait between items (default 4000). The pipeline calls
  *                      Gemini and a scraper; this keeps the run polite.
@@ -64,6 +68,10 @@ const apply = args.includes("--apply");
 const skipEdited = args.includes("--skip-edited");
 const all = args.includes("--all");
 const limit = Number(getArg("--limit", "0")) || 0;
+const explicitIds = (getArg("--id", "") || "")
+  .split(",")
+  .map((v) => v.trim())
+  .filter(Boolean);
 const delayMs = Number(getArg("--delay", "4000"));
 
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
@@ -99,18 +107,23 @@ function mintSession(userId, phoneNumber) {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function main() {
-  const { data: rows, error } = await supabase
+  const query = supabase
     .from("content")
-    .select("id, user_id, title, category, data, status, tiktok_url")
-    .in("category", ["meal", "drink"])
-    .eq("status", "completed")
-    .order("created_at", { ascending: true });
+    .select("id, user_id, title, category, data, status, tiktok_url");
+  const { data: rows, error } = explicitIds.length
+    ? await query.in("id", explicitIds)
+    : await query
+        .in("category", ["meal", "drink"])
+        .eq("status", "completed")
+        .order("created_at", { ascending: true });
   if (error) {
     console.error("Failed to read content:", error.message);
     process.exit(1);
   }
 
-  const candidates = rows.filter((row) => {
+  const candidates = explicitIds.length
+    ? rows
+    : rows.filter((row) => {
     // Nothing to re-derive from if the source is gone.
     if (!row.tiktok_url) return false;
     if (all) return true;
@@ -119,7 +132,7 @@ async function main() {
     return row.category === "meal"
       ? !Array.isArray(data.plants) || data.plants.length === 0
       : !Array.isArray(data.equipment) || data.equipment.length === 0;
-  });
+      });
 
   const isEdited = (row) =>
     typeof (row.data ?? {}).manually_edited_at === "string";
@@ -136,7 +149,9 @@ async function main() {
   const phoneById = new Map((users ?? []).map((u) => [u.id, u.phone_number]));
 
   console.log(`Recipes found      : ${rows.length}`);
-  console.log(`Missing attributes : ${candidates.length}`);
+  console.log(
+    `${all || explicitIds.length ? "Candidates         " : "Missing attributes "}: ${candidates.length}`
+  );
   console.log(
     `Hand-edited        : ${edited.length}${
       skipEdited ? " (skipping)" : " (WILL BE OVERWRITTEN)"

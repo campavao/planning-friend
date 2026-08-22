@@ -49,6 +49,19 @@ export async function POST(
       );
     }
 
+    // Items saved from a photo carry an "mms://" pseudo-URL that was never
+    // fetchable — the real image lives in our Storage bucket. Handing that
+    // string to the scraper is a guaranteed failure, so re-derive from the
+    // stored image instead. Checked before the status flips to "processing"
+    // so a bail-out cannot strand the row.
+    const isStoredImage = content.tiktok_url.startsWith("mms://");
+    if (isStoredImage && !content.thumbnail_url) {
+      return NextResponse.json(
+        { error: "Cannot reprocess: the original image is no longer available" },
+        { status: 422 }
+      );
+    }
+
     // Allow reprocessing of completed content
     // if (content.status === "completed") {
     //   return NextResponse.json(
@@ -59,7 +72,9 @@ export async function POST(
 
     await updateContent(id, { status: "processing" });
 
-    const platform = detectPlatform(content.tiktok_url);
+    const platform = isStoredImage
+      ? "image"
+      : detectPlatform(content.tiktok_url);
     const baseUrl = getBaseUrl(request);
     const processUrl = `${baseUrl}/api/process`;
 
@@ -81,6 +96,14 @@ export async function POST(
             phoneNumber: session.phoneNumber,
             retry: true,
             silent: true,
+            ...(isStoredImage
+              ? {
+                  mmsMedia: {
+                    urls: [content.thumbnail_url as string],
+                    types: ["image/jpeg"],
+                  },
+                }
+              : {}),
           }),
         });
 
