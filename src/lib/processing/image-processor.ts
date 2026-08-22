@@ -21,7 +21,8 @@ export async function processImageContent(
   userId: string,
   mmsMedia: { urls: string[]; types: string[] } | undefined,
   messageText: string | undefined,
-  placeholderUrl: string
+  placeholderUrl: string,
+  options?: { silent?: boolean }
 ): Promise<ProcessResult> {
   if (!mmsMedia || mmsMedia.urls.length === 0) {
     await updateContent(contentId, {
@@ -99,7 +100,8 @@ export async function processImageContent(
     contentId,
     userId,
     placeholderUrl,
-    persistentThumbnailUrl
+    persistentThumbnailUrl,
+    options
   );
 }
 
@@ -108,7 +110,8 @@ async function applyAnalysisResult(
   contentId: string,
   userId: string,
   socialUrl: string,
-  persistentThumbnailUrl: string | undefined
+  persistentThumbnailUrl: string | undefined,
+  options?: { silent?: boolean }
 ): Promise<ProcessResult> {
   if (!analysisResult.items || analysisResult.items.length === 0) {
     await updateContent(contentId, {
@@ -148,7 +151,9 @@ async function applyAnalysisResult(
           createdContents.length > 1
             ? `${first.title} (+${createdContents.length - 1} more)`
             : first.title;
-        await notifyContentReady(userId, first.id, title, first.category);
+        if (!options?.silent) {
+          await notifyContentReady(userId, first.id, title, first.category);
+        }
       } catch {
         // ignore
       }
@@ -172,15 +177,17 @@ async function applyAnalysisResult(
       // ignore
     }
   }
-  try {
-    await notifyContentReady(
-      userId,
-      updatedContent.id,
-      item.title,
-      item.category
-    );
-  } catch {
-    // ignore
+  if (!options?.silent) {
+    try {
+      await notifyContentReady(
+        userId,
+        updatedContent.id,
+        item.title,
+        item.category
+      );
+    } catch {
+      // ignore
+    }
   }
   return { success: true, content: updatedContent };
 }

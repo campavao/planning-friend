@@ -23,6 +23,9 @@ node scripts/backfill-recipe-attributes.mjs --url https://your-app.example.com -
 Re-processing is asynchronous, so re-run without `--apply` a few minutes later
 to see what is still missing.
 
+Re-processing does not send a "Content Saved!" push — the reprocess route asks
+the pipeline for silence, so a bulk run does not notify the owner once per item.
+
 # scripts/regression.mjs
 
 An end-to-end API regression check for the auth and authorization behaviour. It

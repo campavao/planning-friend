@@ -66,7 +66,8 @@ describe("processContent", () => {
       "user-1",
       { urls: ["https://example.com/img.jpg"], types: ["image/jpeg"] },
       "Check this out",
-      "https://example.com/image.jpg"
+      "https://example.com/image.jpg",
+      { silent: undefined }
     );
     expect(processSocialContent).not.toHaveBeenCalled();
   });
@@ -85,7 +86,8 @@ describe("processContent", () => {
       "user-1",
       "https://www.tiktok.com/@user/video/123",
       "tiktok",
-      undefined
+      undefined,
+      { silent: undefined }
     );
     expect(processImageContent).not.toHaveBeenCalled();
   });
@@ -104,7 +106,8 @@ describe("processContent", () => {
       "user-1",
       "https://www.instagram.com/reel/abc/",
       "instagram",
-      undefined
+      undefined,
+      { silent: undefined }
     );
   });
 
@@ -122,7 +125,8 @@ describe("processContent", () => {
       "user-1",
       "https://allrecipes.com/recipe/123",
       "website",
-      undefined
+      undefined,
+      { silent: undefined }
     );
   });
 
@@ -139,7 +143,8 @@ describe("processContent", () => {
       "user-1",
       "https://example.com/video",
       "tiktok",
-      undefined
+      undefined,
+      { silent: undefined }
     );
   });
 
@@ -156,7 +161,8 @@ describe("processContent", () => {
       "user-1",
       "https://www.tiktok.com/@user/video/456",
       "tiktok",
-      undefined
+      undefined,
+      { silent: undefined }
     );
   });
 
@@ -180,7 +186,62 @@ describe("processContent", () => {
       "user-1",
       "https://www.tiktok.com/@user/video/123",
       "tiktok",
-      mmsMedia
+      mmsMedia,
+      { silent: undefined }
+    );
+  });
+});
+
+// ============================================
+// processContent - silent flag
+// ============================================
+describe("processContent silent flag", () => {
+  const base = {
+    contentId: "content-1",
+    socialUrl: "https://example.com/v",
+    userId: "user-1",
+    phoneNumber: "+12125551234",
+  };
+
+  it("passes silent through to the social processor", async () => {
+    await processContent({ ...base, silent: true });
+    expect(processSocialContent).toHaveBeenCalledWith(
+      "content-1",
+      "user-1",
+      "https://example.com/v",
+      "tiktok",
+      undefined,
+      { silent: true }
+    );
+  });
+
+  it("passes silent through to the image processor", async () => {
+    await processContent({
+      ...base,
+      platform: "image",
+      mmsMedia: { urls: ["https://example.com/i.jpg"], types: ["image/jpeg"] },
+      silent: true,
+    });
+    expect(processImageContent).toHaveBeenCalledWith(
+      "content-1",
+      "user-1",
+      { urls: ["https://example.com/i.jpg"], types: ["image/jpeg"] },
+      undefined,
+      "https://example.com/v",
+      { silent: true }
+    );
+  });
+
+  it("leaves silent undefined for a normal save, so it still notifies", async () => {
+    // A brand new item from a share must keep its "Content Saved!" push.
+    await processContent(base);
+    expect(processSocialContent).toHaveBeenCalledWith(
+      "content-1",
+      "user-1",
+      "https://example.com/v",
+      "tiktok",
+      undefined,
+      { silent: undefined }
     );
   });
 });

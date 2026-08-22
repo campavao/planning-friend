@@ -80,6 +80,7 @@ export async function POST(
             userId: session.userId,
             phoneNumber: session.phoneNumber,
             retry: true,
+            silent: true,
           }),
         });
 

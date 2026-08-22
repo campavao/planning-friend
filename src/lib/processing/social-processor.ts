@@ -29,7 +29,8 @@ export async function processSocialContent(
   userId: string,
   socialUrl: string,
   platform: SocialPlatform,
-  mmsMedia?: { urls: string[]; types: string[] }
+  mmsMedia?: { urls: string[]; types: string[] },
+  options?: { silent?: boolean }
 ): Promise<ProcessResult> {
   const platformName = getPlatformDisplayName(platform);
 
@@ -155,7 +156,8 @@ export async function processSocialContent(
     userId,
     socialUrl,
     persistentThumbnailUrl,
-    videoInfo.thumbnailUrl
+    videoInfo.thumbnailUrl,
+    options
   );
 }
 
@@ -165,7 +167,8 @@ async function applySocialAnalysisResult(
   userId: string,
   socialUrl: string,
   persistentThumbnailUrl: string | undefined,
-  originalThumbnailUrl?: string
+  originalThumbnailUrl?: string,
+  options?: { silent?: boolean }
 ): Promise<ProcessResult> {
   if (analysisResult.isMultiItem && analysisResult.items.length > 1) {
     await deleteContent(contentId, userId);
@@ -213,7 +216,9 @@ async function applySocialAnalysisResult(
           createdContents.length > 1
             ? `${first.title} (+${createdContents.length - 1} more)`
             : first.title;
-        await notifyContentReady(userId, first.id, title, first.category);
+        if (!options?.silent) {
+          await notifyContentReady(userId, first.id, title, first.category);
+        }
       } catch {
         // ignore
       }
@@ -249,15 +254,17 @@ async function applySocialAnalysisResult(
       // ignore
     }
   }
-  try {
-    await notifyContentReady(
-      userId,
-      updatedContent.id,
-      item.title,
-      item.category
-    );
-  } catch {
-    // ignore
+  if (!options?.silent) {
+    try {
+      await notifyContentReady(
+        userId,
+        updatedContent.id,
+        item.title,
+        item.category
+      );
+    } catch {
+      // ignore
+    }
   }
   return { success: true, content: updatedContent };
 }
