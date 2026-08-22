@@ -18,7 +18,8 @@ export async function processContent(input: ProcessInput): Promise<ProcessResult
       userId,
       input.mmsMedia,
       input.messageText,
-      socialUrl
+      socialUrl,
+      { silent: input.silent }
     );
   }
 
@@ -27,6 +28,7 @@ export async function processContent(input: ProcessInput): Promise<ProcessResult
     userId,
     socialUrl,
     platform as "tiktok" | "instagram" | "website",
-    input.mmsMedia
+    input.mmsMedia,
+    { silent: input.silent }
   );
 }

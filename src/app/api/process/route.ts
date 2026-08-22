@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
       platform: body.platform,
       messageText: body.messageText,
       mmsMedia: body.mmsMedia,
+      silent: body.silent === true,
     });
 
     if ("error" in result) {
