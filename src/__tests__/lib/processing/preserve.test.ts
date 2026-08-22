@@ -205,3 +205,45 @@ describe("substance, not category", () => {
     ).toBe(false);
   });
 });
+
+describe("timings and ratings are not substance", () => {
+  it("flags empty arrays dressed up with a prep time and difficulty", () => {
+    // The actual second attempt at the Gin Sour. Every content array empty,
+    // but prep_time and difficulty populated — a guess needing no source.
+    expect(
+      isLowValueResult({
+        category: "drink",
+        title: "Gin Sour Cocktail",
+        data: {
+          type: "cocktail",
+          description: "A classic sour.",
+          prep_time: "5 minutes",
+          difficulty: "easy",
+          ingredients: [],
+          recipe: [],
+          equipment: [],
+        },
+      })
+    ).toBe(true);
+  });
+
+  it("counts one real ingredient as substance", () => {
+    expect(
+      isLowValueResult({
+        category: "drink",
+        title: "Gin Sour Cocktail",
+        data: { prep_time: "5 minutes", ingredients: ["2 oz gin"] },
+      })
+    ).toBe(false);
+  });
+
+  it("counts a location as substance for a non-recipe item", () => {
+    expect(
+      isLowValueResult({
+        category: "date_idea",
+        title: "Rooftop bar",
+        data: { description: "Nice views", location: "123 Example St" },
+      })
+    ).toBe(false);
+  });
+});

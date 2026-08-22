@@ -45,12 +45,28 @@ export interface AnalysedItem {
  * carrying a description and nothing else.
  */
 /**
- * Fields that say nothing about whether the item was actually read. A drink
- * that comes back as `{type: "cocktail", description: "A recipe for a classic
- * Gin Sour, typically found on liquor.com"}` has both of these and no recipe —
- * the model inferred it from the URL rather than reading the page.
+ * Fields a model can fill in convincingly without having read anything.
+ *
+ * A drink that comes back as `{type: "cocktail", description: "A recipe for a
+ * classic Gin Sour, typically found on liquor.com"}` has both of the first two
+ * and no recipe — inferred from the URL. A retry of that same item then
+ * returned empty ingredient, recipe and equipment arrays alongside a populated
+ * prep_time and difficulty, which is how the timings and ratings ended up here
+ * too: guessing "5 minutes, easy" for a cocktail needs no source at all.
+ *
+ * What is left — ingredients, steps, equipment, location, sections — cannot be
+ * produced without actually reading the source.
  */
-const TRIVIAL_KEYS = new Set(["description", "type"]);
+const TRIVIAL_KEYS = new Set([
+  "description",
+  "type",
+  "prep_time",
+  "cook_time",
+  "servings",
+  "difficulty",
+  "effort",
+  "spice",
+]);
 
 /** How many fields the result carries that represent real extracted content. */
 function substanceOf(data: unknown): number {
