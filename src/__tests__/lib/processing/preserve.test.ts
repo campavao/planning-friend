@@ -86,9 +86,13 @@ describe("hasSalvageableContent", () => {
     ).toBe(false);
   });
 
-  it("does not protect a row still processing or failed", () => {
-    expect(hasSalvageableContent({ ...savedRecipe, status: "processing" })).toBe(false);
-    expect(hasSalvageableContent({ ...savedRecipe, status: "failed" })).toBe(false);
+  it("protects a row regardless of status, because content is the point", () => {
+    // This assertion used to demand the opposite, which is what made the guard
+    // inert: reprocess flips the row to "processing" before the pipeline runs,
+    // so requiring "completed" meant the guard never fired for the one job it
+    // existed to do.
+    expect(hasSalvageableContent({ ...savedRecipe, status: "processing" })).toBe(true);
+    expect(hasSalvageableContent({ ...savedRecipe, status: "failed" })).toBe(true);
   });
 
   it("does not protect a row that does not exist", () => {
@@ -244,6 +248,40 @@ describe("timings and ratings are not substance", () => {
         title: "Rooftop bar",
         data: { description: "Nice views", location: "123 Example St" },
       })
+    ).toBe(false);
+  });
+});
+
+describe("the guard fires during an actual reprocess", () => {
+  // The reprocess route sets status to "processing" before dispatching, so the
+  // row a processor reads back is NEVER "completed". Requiring that status
+  // made the guard inert for its entire reason to exist.
+  const midReprocess = {
+    status: "processing",
+    category: "meal",
+    title: "Crispy Skin Chicken Thighs with Pan Sauce",
+    data: { ingredients: ["4 chicken thighs"], recipe: ["Sear skin-side down"] },
+  } as unknown as Pick<Content, "status" | "category" | "title" | "data">;
+
+  it("protects a row that reprocess has already flipped to processing", () => {
+    expect(hasSalvageableContent(midReprocess)).toBe(true);
+    expect(
+      shouldPreserveExisting(midReprocess, {
+        category: "meal",
+        title: "Restaurant-worthy chicken at home",
+        data: { description: "A chicken dish." },
+      })
+    ).toBe(true);
+  });
+
+  it("does not protect a row mid first ingest, which has no content yet", () => {
+    expect(
+      hasSalvageableContent({
+        status: "processing",
+        category: "other",
+        title: "Processing...",
+        data: {},
+      } as unknown as Pick<Content, "status" | "category" | "title" | "data">)
     ).toBe(false);
   });
 });
