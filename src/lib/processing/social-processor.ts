@@ -7,6 +7,7 @@ import {
 } from "@/lib/gemini";
 import {
   addTagsToContent,
+  getContentById,
   deleteContent,
   getOrCreateTags,
   saveContent,
@@ -20,6 +21,7 @@ import {
   type SocialPlatform,
 } from "@/lib/social-media";
 import { notifyContentReady } from "@/lib/push-notifications";
+import { shouldPreserveExisting } from "./preserve";
 import type { ProcessResult } from "./types";
 
 const MAX_VIDEO_SIZE_BYTES = 50 * 1024 * 1024;
@@ -237,6 +239,17 @@ async function applySocialAnalysisResult(
   if (dataImageUrl && !persistentThumbnailUrl) {
     const uploaded = await uploadThumbnailFromUrl(dataImageUrl, contentId);
     thumbnailToUse = uploaded || dataImageUrl;
+  }
+
+  const existing = await getContentById(contentId);
+  if (shouldPreserveExisting(existing, item)) {
+    // The re-analysis came back empty. Keep what is already saved and just
+    // clear the "processing" flag the reprocess route set on the way in.
+    console.warn(
+      `Preserving existing content ${contentId}: re-analysis returned "${item.title}"`
+    );
+    await updateContent(contentId, { status: "completed" });
+    return { success: true, content: existing! };
   }
 
   const updatedContent = await updateContent(contentId, {

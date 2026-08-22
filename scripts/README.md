@@ -6,6 +6,11 @@ re-runs each item through the normal extraction pipeline via the app's own
 reprocess endpoint rather than patching rows, because the fields are derived
 from the original source.
 
+Items saved from a photo have an `mms://` source that was never fetchable;
+the reprocess route re-derives those from the original image in the
+`thumbnails` bucket instead. A failed re-analysis can no longer overwrite a
+saved item — see `src/lib/processing/preserve.ts`.
+
 **Re-processing replaces `data` wholesale**, so hand-edited ingredients and
 steps on a re-processed item are lost. The script counts those items and prints
 them before it starts; `--skip-edited` leaves them alone entirely.
