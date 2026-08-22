@@ -98,9 +98,11 @@ Rules, in order of importance:
    salt and water.
 6. Do NOT include EXTRACTS pressed, refined or brewed out of a plant, even
    though they are named after one. Cooking oils (olive, sesame, sunflower,
-   canola), vinegars, refined sugar and syrups all carry a plant's name without
-   carrying the plant. Sesame seeds count; sesame oil does not. Olives count;
-   olive oil does not. Grapes count; wine vinegar does not.
+   canola), vinegars, refined sugar, syrups, and anything fermented or
+   distilled into alcohol (wine, champagne, beer, cider, spirits) all carry a
+   plant's name without carrying the plant. Sesame seeds count; sesame oil does
+   not. Olives count; olive oil does not. Grapes count; champagne and wine
+   vinegar do not.
 7. Varieties of the same plant share a source. Red onion and yellow onion are
    both source "onion".
 

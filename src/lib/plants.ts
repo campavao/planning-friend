@@ -98,6 +98,56 @@ function isPlantCategory(value: unknown): value is PlantCategory {
  * written by older extractions and by hand, and one bad entry must not take the
  * whole item's score with it.
  */
+/**
+ * Sources that only ever arrive as a seasoning.
+ *
+ * The extraction prompt is told to exclude herbs and spices, and does not
+ * reliably obey — a first backfill batch produced "Taco Seasoning" scoring five
+ * plants off cumin, paprika and capsicum. A denylist here is deterministic, and
+ * because readPlants runs on read as well as write it also cleans up rows that
+ * were extracted before this existed, with no re-processing.
+ *
+ * Only unambiguous entries belong here. Anything eaten by the handful rather
+ * than the teaspoon (pepper the vegetable, not peppercorn the spice) is a plant
+ * food and must stay countable.
+ */
+const SEASONING_SOURCES = new Set([
+  // leafy herbs
+  "basil", "oregano", "thyme", "rosemary", "sage", "parsley", "cilantro",
+  "coriander", "dill", "mint", "tarragon", "chive", "bay", "bay leaf",
+  "marjoram", "lemongrass",
+  // dried spices
+  "cumin", "cinnamon", "nutmeg", "clove", "cardamom", "turmeric", "paprika",
+  "cayenne", "peppercorn", "black pepper", "white pepper", "mustard",
+  "mustard seed", "vanilla", "saffron", "star anise", "anise", "allspice",
+  "fenugreek", "juniper", "sumac", "ginger", "galangal", "horseradish",
+  "wasabi", "chili", "chilli", "chile", "chili pepper", "chilli pepper",
+]);
+
+/**
+ * Words that mean the ingredient is an extract of a plant rather than the
+ * plant itself. Matched against what the recipe called it, because the source
+ * alone cannot separate champagne from grapes — both resolve to "grape".
+ *
+ * Compared word-by-word, not as substrings. Substring matching looked
+ * reasonable and was actively dangerous here: "gin" is inside "ginger",
+ * "ale" is inside "kale", "rum" is inside "drumstick".
+ */
+const EXTRACT_WORDS = new Set([
+  "oil", "vinegar", "syrup", "extract", "powder", "seasoning",
+  "wine", "champagne", "prosecco", "sake", "beer", "ale", "cider",
+  "bourbon", "whiskey", "whisky", "rum", "vodka", "gin", "tequila",
+  "liqueur", "amaretto", "brandy", "vermouth", "sherry", "port",
+]);
+
+/** True when an entry is a seasoning or an extract rather than a plant food. */
+export function isSeasoningOrExtract(source: string, name?: string): boolean {
+  if (SEASONING_SOURCES.has(source.trim().toLowerCase())) return true;
+
+  const words = (name ?? "").toLowerCase().split(/[^a-z]+/).filter(Boolean);
+  return words.some((w) => EXTRACT_WORDS.has(w));
+}
+
 export function readPlants(value: unknown): Plant[] {
   if (!Array.isArray(value)) return [];
 
@@ -111,6 +161,7 @@ export function readPlants(value: unknown): Plant[] {
     if (!isPlantCategory(record.category)) continue;
 
     const name = typeof record.name === "string" ? record.name.trim() : "";
+    if (isSeasoningOrExtract(source, name)) continue;
     out.push({
       source,
       category: record.category,

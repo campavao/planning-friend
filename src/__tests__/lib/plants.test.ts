@@ -224,3 +224,58 @@ describe("PLANT_CATEGORIES", () => {
     ]);
   });
 });
+
+describe("seasoning and extract exclusion", () => {
+  it("drops herbs and spices by source", () => {
+    const kept = readPlants([
+      { source: "garlic", category: "vegetable" },
+      { source: "basil", category: "vegetable" },
+      { source: "cumin", category: "seed" },
+      { source: "paprika", category: "vegetable" },
+      { source: "ginger", category: "vegetable" },
+    ]);
+    expect(kept.map((p) => p.source)).toEqual(["garlic"]);
+  });
+
+  it("drops an extract by the name the recipe used", () => {
+    // Source alone cannot tell champagne from grapes — both are "grape".
+    const kept = readPlants([
+      { source: "grape", name: "Champagne", category: "fruit" },
+      { source: "grape", name: "grapes", category: "fruit" },
+    ]);
+    expect(kept).toHaveLength(1);
+    expect(kept[0].name).toBe("grapes");
+  });
+
+  it("keeps plants whose names merely CONTAIN a denied word", () => {
+    // The reason this matches words, not substrings: "gin" is inside "ginger",
+    // "ale" is inside "kale", "rum" is inside "drumstick".
+    const kept = readPlants([
+      { source: "kale", name: "curly kale", category: "vegetable" },
+      { source: "capsicum", name: "bell pepper", category: "vegetable" },
+      { source: "potato", name: "drumstick potatoes", category: "vegetable" },
+    ]);
+    expect(kept).toHaveLength(3);
+  });
+
+  it("drops the powdered form but keeps the fresh one", () => {
+    // A recipe using both should still count onion once, via the fresh entry.
+    const kept = readPlants([
+      { source: "onion", name: "onion powder", category: "vegetable" },
+      { source: "onion", name: "red onion", category: "vegetable" },
+    ]);
+    expect(kept).toHaveLength(1);
+    expect(kept[0].name).toBe("red onion");
+  });
+
+  it("leaves a jar of seasoning scoring nothing", () => {
+    const kept = readPlants([
+      { source: "cumin", category: "seed" },
+      { source: "paprika", category: "vegetable" },
+      { source: "capsicum", name: "chili powder", category: "vegetable" },
+      { source: "onion", name: "onion powder", category: "vegetable" },
+      { source: "garlic", name: "garlic powder", category: "vegetable" },
+    ]);
+    expect(kept).toEqual([]);
+  });
+});
