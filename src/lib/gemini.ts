@@ -95,8 +95,13 @@ Rules, in order of importance:
    flakes and similar seasonings are excluded entirely, and there is no
    category for them.
 5. Do NOT include anything that is not a plant: meat, fish, eggs, dairy, honey,
-   salt, water, and plain oils that no longer identify a whole food.
-6. Varieties of the same plant share a source. Red onion and yellow onion are
+   salt and water.
+6. Do NOT include EXTRACTS pressed, refined or brewed out of a plant, even
+   though they are named after one. Cooking oils (olive, sesame, sunflower,
+   canola), vinegars, refined sugar and syrups all carry a plant's name without
+   carrying the plant. Sesame seeds count; sesame oil does not. Olives count;
+   olive oil does not. Grapes count; wine vinegar does not.
+7. Varieties of the same plant share a source. Red onion and yellow onion are
    both source "onion".
 
 Example — for a slow cooker honey garlic chicken noodle recipe using soy sauce,
@@ -105,11 +110,11 @@ brown sugar, garlic, scallions, sesame oil, chicken thighs and egg noodles:
   {"source": "soybean", "name": "soy sauce", "category": "legume"},
   {"source": "wheat", "name": "egg noodles", "category": "whole_grain"},
   {"source": "garlic", "category": "vegetable"},
-  {"source": "scallion", "category": "vegetable"},
-  {"source": "sesame", "name": "sesame oil", "category": "seed"}
+  {"source": "scallion", "category": "vegetable"}
 ]
-(Chicken is not a plant. Brown sugar no longer identifies a whole food. The
-wheat in the soy sauce is the same wheat as the noodles, so it appears once.)
+(Chicken is not a plant. Brown sugar and sesame oil are extracts, not whole
+foods — toasted sesame SEEDS would have counted. The wheat in the soy sauce is
+the same wheat as the noodles, so it appears once.)
 
 For **event**:
 - title: Name of the event
