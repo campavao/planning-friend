@@ -31,6 +31,8 @@
  *                      or current state. For repairing items a previous run
  *                      damaged — they are no longer meal/drink, so the normal
  *                      candidate query cannot see them.
+ *   --user <uuid>      Only touch one owner's rows.
+ *   --category <name>  Only touch one category (meal or drink).
  *   --limit <n>        Stop after n items.
  *   --delay <ms>       Wait between items (default 4000). The pipeline calls
  *                      Gemini and a scraper; this keeps the run polite.
@@ -68,6 +70,8 @@ const apply = args.includes("--apply");
 const skipEdited = args.includes("--skip-edited");
 const all = args.includes("--all");
 const limit = Number(getArg("--limit", "0")) || 0;
+const onlyUser = getArg("--user", "") || "";
+const onlyCategory = getArg("--category", "") || "";
 const explicitIds = (getArg("--id", "") || "")
   .split(",")
   .map((v) => v.trim())
@@ -110,12 +114,17 @@ async function main() {
   const query = supabase
     .from("content")
     .select("id, user_id, title, category, data, status, tiktok_url");
-  const { data: rows, error } = explicitIds.length
-    ? await query.in("id", explicitIds)
-    : await query
-        .in("category", ["meal", "drink"])
-        .eq("status", "completed")
-        .order("created_at", { ascending: true });
+  let scoped = query;
+  if (!explicitIds.length) {
+    scoped = scoped
+      .in("category", onlyCategory ? [onlyCategory] : ["meal", "drink"])
+      .eq("status", "completed");
+    if (onlyUser) scoped = scoped.eq("user_id", onlyUser);
+    scoped = scoped.order("created_at", { ascending: true });
+  } else {
+    scoped = scoped.in("id", explicitIds);
+  }
+  const { data: rows, error } = await scoped;
   if (error) {
     console.error("Failed to read content:", error.message);
     process.exit(1);
@@ -130,7 +139,7 @@ async function main() {
     // Meals need plants; drinks only gained equipment.
     const data = row.data ?? {};
     return row.category === "meal"
-      ? !Array.isArray(data.plants) || data.plants.length === 0
+      ? typeof data.effort !== "string"
       : !Array.isArray(data.equipment) || data.equipment.length === 0;
       });
 
@@ -159,6 +168,8 @@ async function main() {
   );
   console.log(`Will re-process    : ${targets.length}`);
   console.log(`Mode               : ${apply ? "APPLY" : "dry run"}`);
+  if (onlyUser) console.log(`Scoped to user     : ${onlyUser}`);
+  if (onlyCategory) console.log(`Scoped to category : ${onlyCategory}`);
   console.log("");
 
   if (edited.length > 0 && !skipEdited) {
