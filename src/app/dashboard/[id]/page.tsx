@@ -1,11 +1,15 @@
 "use client";
 
-import { FavoriteButton } from "@/components/favorite-button";
-import { TagPills } from "@/components/tag-pills";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  ActionDrawer,
+  DrawerItem,
+  DrawerLink,
+  DrawerSeparator,
+} from "@/components/ui/action-drawer";
 import {
   Select,
   SelectContent,
@@ -13,15 +17,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useContentById, useTags } from "@/hooks/useContent";
-import {
-  DEFAULT_TAGS,
-  NOTE_COMPOSER_PARAM,
-  NOTE_COMPOSER_VALUE,
-} from "@/lib/constants";
+import { useContentById } from "@/hooks/useContent";
+import { NOTE_COMPOSER_PARAM, NOTE_COMPOSER_VALUE } from "@/lib/constants";
 import { isFavorite, saveFavorite } from "@/lib/favorites";
+import { getGoogleMapsUrl, getUberUrl } from "@/lib/map-links";
+import { readPlants } from "@/lib/plants";
 import type {
   ContentCategory,
+  CustomSection,
   DateIdeaData,
   DrinkData,
   EventData,
@@ -34,32 +37,48 @@ import {
   ArrowLeft,
   BookmarkPlus,
   Calendar,
+  CalendarPlus,
+  Car,
+  Check,
   Clock,
   ExternalLink,
   Gift,
+  HelpCircle,
+  Info,
   Loader2,
   MapPin,
+  Maximize2,
+  MoreVertical,
+  Navigation,
+  NotebookPen,
   Pencil,
   Plane,
+  Plus,
   RefreshCw,
   Share2,
   ShoppingCart,
+  Star,
+  Tag,
+  Ticket,
   Trash2,
+  Utensils,
   XCircle,
-  Check,
 } from "lucide-react";
 import Image from "next/image";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "../useSession";
 import { categoryUI } from "@/lib/categories";
 import { isImageSourcedItem } from "@/lib/content-source";
 import { RecipeSteps } from "./components/RecipeSteps";
-import { LocationCard } from "./components/LocationCard";
-import { SourcePhotoDialog } from "./components/SourcePhotoDialog";
+import { PhotoViewerDialog } from "./components/SourcePhotoDialog";
 import { ItemNotes } from "./components/ItemNotes";
 import { ContentDataEditor } from "./components/ContentDataEditor";
-
+import { ItemProse, ItemRow, ItemRows } from "./components/ItemRow";
+import { AttributeChips } from "./components/AttributeChips";
+import { PlantDrawer } from "./components/PlantDrawer";
+import { SectionEditorDrawer } from "./components/SectionEditorDrawer";
+import { toPlannerDateParams } from "@/lib/event-date";
 
 // Get appropriate link text for the source URL
 function getSourceLinkText(url: string): string {
@@ -81,6 +100,18 @@ function getSourceLinkText(url: string): string {
   }
 }
 
+/** Which drawer is open. One at a time, by construction — two stacked sheets on
+ *  a phone is a trap you can't back out of. */
+type OpenDrawer =
+  | { kind: "none" }
+  | { kind: "overflow" }
+  | { kind: "location"; value: string }
+  | { kind: "when" }
+  | { kind: "eating" }
+  | { kind: "notes" }
+  | { kind: "plants" }
+  | { kind: "section"; index: number | null };
+
 export default function ContentDetailPage() {
   // Content detail is publicly viewable (shareable by link); editing and
   // copying still require a signed-in user.
@@ -94,13 +125,10 @@ export default function ContentDetailPage() {
 
   const {
     content,
-    tags,
     ownerName,
     isLoading: contentLoading,
     mutate: mutateContent,
   } = useContentById(id);
-
-  const { tags: allTags, mutate: mutateTags } = useTags({ enabled: !!user });
 
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
@@ -117,9 +145,13 @@ export default function ContentDetailPage() {
   const [linkCopied, setLinkCopied] = useState(false);
   const [copying, setCopying] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
+  const [drawer, setDrawer] = useState<OpenDrawer>({ kind: "none" });
+  const [photoOpen, setPhotoOpen] = useState(false);
 
   const isEditable = !!user && content?.user_id === user.id;
   const loading = sessionLoading || (contentLoading && !content);
+
+  const closeDrawer = useCallback(() => setDrawer({ kind: "none" }), []);
 
   // The note reminder deep-links here with the composer already open, so the
   // push can be acted on in one tap.
@@ -193,50 +225,6 @@ export default function ContentDetailPage() {
     }
   };
 
-  const handleAddTag = async (name: string) => {
-    try {
-      const res = await fetch("/api/tags", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, contentId: id }),
-      });
-      if (res.ok) {
-        mutateContent();
-        mutateTags();
-      }
-    } catch (error) {
-      console.error("Failed to add tag:", error);
-    }
-  };
-
-  const handleAddExistingTag = async (tagId: string) => {
-    try {
-      const res = await fetch("/api/tags", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tagId, contentId: id }),
-      });
-      if (res.ok) {
-        mutateContent();
-      }
-    } catch (error) {
-      console.error("Failed to add tag:", error);
-    }
-  };
-
-  const handleRemoveTag = async (tagId: string) => {
-    try {
-      const res = await fetch(`/api/tags?tagId=${tagId}&contentId=${id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        mutateContent();
-      }
-    } catch (error) {
-      console.error("Failed to remove tag:", error);
-    }
-  };
-
   useEffect(() => {
     if (content?.status !== "processing") return;
 
@@ -246,6 +234,24 @@ export default function ContentDetailPage() {
 
     return () => clearInterval(interval);
   }, [content?.status, mutateContent]);
+
+  /** Persist a `data` patch straight away, outside edit mode. Custom sections
+   *  are edited in place rather than through the form, so they need this. */
+  const patchData = useCallback(
+    async (patch: Record<string, unknown>) => {
+      const res = await fetch(`/api/content/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: patch }),
+      });
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        throw new Error(payload?.error || "Failed to save");
+      }
+      mutateContent();
+    },
+    [id, mutateContent]
+  );
 
   const handleSave = async () => {
     setSaving(true);
@@ -279,9 +285,7 @@ export default function ContentDetailPage() {
       setEditing(false);
     } catch (error) {
       console.error("Failed to save:", error);
-      setSaveError(
-        error instanceof Error ? error.message : "Failed to save"
-      );
+      setSaveError(error instanceof Error ? error.message : "Failed to save");
     } finally {
       setSaving(false);
     }
@@ -318,7 +322,10 @@ export default function ContentDetailPage() {
     // on the tap rather than after the round trip.
     mutateContent(
       (current) =>
-        current && { ...current, content: { ...current.content, is_favorite: next } },
+        current && {
+          ...current,
+          content: { ...current.content, is_favorite: next },
+        },
       { revalidate: false }
     );
 
@@ -361,6 +368,26 @@ export default function ContentDetailPage() {
     }
   };
 
+  const data = (content?.data ?? {}) as Record<string, unknown>;
+  const sections = useMemo(
+    () => (Array.isArray(data.sections) ? (data.sections as CustomSection[]) : []),
+    [data.sections]
+  );
+
+  const saveSection = async (next: CustomSection, index: number | null) => {
+    const updated = [...sections];
+    if (index === null) updated.push(next);
+    else updated[index] = next;
+    await patchData({ sections: updated });
+  };
+
+  const removeSection = async (index: number) => {
+    const updated = sections.filter((_, i) => i !== index);
+    // An empty array still clears the list: applyContentDataPatch writes it as
+    // an empty array rather than removing the key, which reads the same.
+    await patchData({ sections: updated });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -384,72 +411,56 @@ export default function ContentDetailPage() {
 
   const config = categoryUI(content.category);
   const Icon = config.icon;
+  const starred = isFavorite(content);
 
-  // A texted-in photo has no page to visit, so its source opens in place. The
-  // upload can fail, in which case thumbnail_url is empty and there is nothing
-  // to offer.
+  // A texted-in photo has no page to visit, so there is no "open the source"
+  // link for it — the thumbnail is the source.
   const isImageSourced = isImageSourcedItem(content.tiktok_url);
-  const sourcePhotoUrl = isImageSourced ? content.thumbnail_url : undefined;
+
+  const eventData = content.data as EventData;
+  const mealData = content.data as MealData;
+  const plants = readPlants(mealData.plants);
+
+  const locationValue =
+    drawer.kind === "location" ? drawer.value : undefined;
 
   return (
     <main className="min-h-screen pb-28 md:pb-8 bg-background">
-      {/* Header */}
+      {/* Header — one overflow menu, not five buttons. Star stays outside it
+          because starring is a single tap you do often. */}
       <div className="bg-[var(--card)] border-b border-[var(--border)] sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-4xl mx-auto px-3 py-2 flex items-center justify-between">
           <Button variant="ghost" onClick={handleBack}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <ArrowLeft className="w-4 h-4 mr-1.5" />
             Back
           </Button>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-1">
+            {content.status === "completed" && isEditable && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleToggleFavorite}
+                aria-pressed={starred}
+                title={starred ? "Starred" : "Star"}
+              >
+                <Star
+                  className={
+                    starred
+                      ? "w-[19px] h-[19px] fill-[var(--accent)] text-[var(--accent)]"
+                      : "w-[19px] h-[19px]"
+                  }
+                />
+              </Button>
+            )}
             {content.status === "completed" && (
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={handleShare}
-                title="Share"
+                onClick={() => setDrawer({ kind: "overflow" })}
+                title="More"
               >
-                {linkCopied ? (
-                  <Check className="w-4 h-4 text-green-600" />
-                ) : (
-                  <Share2 className="w-4 h-4" />
-                )}
+                <MoreVertical className="w-5 h-5" />
               </Button>
-            )}
-            {content.status === "completed" && isEditable && (
-              <>
-                <FavoriteButton
-                  isFavorite={isFavorite(content)}
-                  onToggle={handleToggleFavorite}
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleRetryProcessing}
-                  disabled={retrying}
-                >
-                  <RefreshCw
-                    className={`w-4 h-4 ${retrying ? "animate-spin" : ""}`}
-                  />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => (editing ? handleCancelEdit() : setEditing(true))}
-                  aria-pressed={editing}
-                  title={editing ? "Stop editing" : "Edit"}
-                >
-                  <Pencil className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="text-destructive hover:bg-red-50"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </>
             )}
           </div>
         </div>
@@ -487,10 +498,7 @@ export default function ContentDetailPage() {
               Couldn&apos;t process this link
             </p>
             <div className="flex gap-2 justify-center">
-              <Button
-                onClick={handleRetryProcessing}
-                disabled={retrying}
-              >
+              <Button onClick={handleRetryProcessing} disabled={retrying}>
                 {retrying ? "..." : "Retry"}
               </Button>
               <Button
@@ -520,17 +528,12 @@ export default function ContentDetailPage() {
                 </p>
               </div>
               {user ? (
-                <Button
-                  onClick={handleCopyToCollection}
-                  disabled={copying}
-                >
+                <Button onClick={handleCopyToCollection} disabled={copying}>
                   <BookmarkPlus className="w-4 h-4 mr-2" />
                   {copying ? "Saving..." : "Save to my collection"}
                 </Button>
               ) : (
-                <Button onClick={() => router.push("/")}>
-                  Sign In
-                </Button>
+                <Button onClick={() => router.push("/")}>Sign In</Button>
               )}
             </div>
             {copyError && (
@@ -539,85 +542,104 @@ export default function ContentDetailPage() {
           </Card>
         )}
 
-        {/* Main Content Card */}
         <Card className="overflow-hidden animate-slide-up">
-          {content.thumbnail_url && (
-            <div className="relative h-56 md:h-80">
-              <Image
-                src={content.thumbnail_url}
-                alt={content.title}
-                fill
-                className="object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+          {/* Hero — title block left, thumbnail right. The image used to be a
+              320px banner above the fold; demoting it puts the facts first,
+              which is what people open a saved item for. Tags are deliberately
+              not shown: they still exist on the item, but the structured rows
+              below are what this view is now organised around. */}
+          <div className="flex gap-3.5 px-4 pt-4 pb-3 items-start">
+            <div className="flex-1 min-w-0">
+              {editing ? (
+                // Changing the category leaves `data` alone — see the reasoning
+                // in PATCH /api/content/[id]. The fields below simply swap to
+                // the new shape, and anything the new shape doesn't show is
+                // still there if the category is switched back.
+                <Select value={editCategory} onValueChange={setEditCategory}>
+                  <SelectTrigger className="text-sm font-semibold cursor-pointer">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="meal">Recipe</SelectItem>
+                    <SelectItem value="drink">Drink</SelectItem>
+                    <SelectItem value="event">Event</SelectItem>
+                    <SelectItem value="date_idea">Date</SelectItem>
+                    <SelectItem value="gift_idea">Gift</SelectItem>
+                    <SelectItem value="travel">Travel</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Badge variant={config.badge}>
+                  <Icon className="w-3.5 h-3.5" />
+                  {config.label}
+                </Badge>
+              )}
+
+              {editing ? (
+                <Input
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="text-xl font-semibold mt-2"
+                  placeholder="Title"
+                  aria-label="Title"
+                />
+              ) : (
+                <h1 className="heading-2 mt-2">{content.title}</h1>
+              )}
             </div>
+
+            {/* The thumbnail is the trigger, so Radix returns focus here when
+                the viewer closes. */}
+            {content.thumbnail_url && !editing && (
+              <PhotoViewerDialog
+                open={photoOpen}
+                onOpenChange={setPhotoOpen}
+                imageUrl={content.thumbnail_url}
+                itemTitle={content.title}
+                title={content.title}
+                trigger={
+                  <button
+                    type="button"
+                    // Square, and no taller than the title block beside it.
+                    // A portrait thumbnail left a visible well of dead space
+                    // once tags came off the page and the text column got
+                    // short.
+                    className="relative shrink-0 w-[92px] h-[92px] rounded-2xl overflow-hidden border border-[var(--border)] bg-[var(--muted)] shadow-[var(--shadow-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+                    aria-label="View full size"
+                  >
+                    <Image
+                      src={content.thumbnail_url}
+                      alt={content.title}
+                      fill
+                      sizes="92px"
+                      className="object-cover"
+                    />
+                    <span className="absolute right-1.5 bottom-1.5 w-[22px] h-[22px] rounded-lg bg-black/55 backdrop-blur-[2px] flex items-center justify-center">
+                      <Maximize2 className="w-3 h-3 text-white" />
+                    </span>
+                  </button>
+                }
+              />
+            )}
+          </div>
+
+          {/* Recipe attributes sit directly under the title — they are the
+              at-a-glance answer to "should I cook this tonight". */}
+          {!editing && content.category === "meal" && (
+            <AttributeChips
+              data={mealData}
+              onShowPlants={
+                plants.length > 0
+                  ? () => setDrawer({ kind: "plants" })
+                  : undefined
+              }
+            />
           )}
 
-          {/* Category Badge */}
-          <div className="px-6 pt-6">
+          <div className="px-2 pb-6">
             {editing ? (
-              // Changing the category leaves `data` alone — see the reasoning in
-              // PATCH /api/content/[id]. The fields below simply swap to the new
-              // shape, and anything the new shape doesn't show is still there if
-              // the category is switched back.
-              <Select value={editCategory} onValueChange={setEditCategory}>
-                <SelectTrigger className="text-sm font-semibold cursor-pointer">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="meal">Recipe</SelectItem>
-                  <SelectItem value="drink">Drink</SelectItem>
-                  <SelectItem value="event">Event</SelectItem>
-                  <SelectItem value="date_idea">Date</SelectItem>
-                  <SelectItem value="gift_idea">Gift</SelectItem>
-                  <SelectItem value="travel">Travel</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            ) : (
-              <Badge variant={config.badge}>
-                <Icon className="w-3.5 h-3.5" />
-                {config.label}
-              </Badge>
-            )}
-          </div>
-
-          <div className="px-6 pt-4 pb-2">
-            {editing ? (
-              <Input
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                className="text-xl font-semibold"
-                placeholder="Title"
-                aria-label="Title"
-              />
-            ) : (
-              <h1 className="heading-2">{content.title}</h1>
-            )}
-
-            {/* Tags */}
-            {isEditable && (
-              <div className="mt-4">
-                <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-                  Tags
-                </p>
-                <TagPills
-                  tags={tags}
-                  editable={true}
-                  allTags={allTags}
-                  suggestions={DEFAULT_TAGS}
-                  onAdd={handleAddTag}
-                  onRemove={handleRemoveTag}
-                  onAddExisting={handleAddExistingTag}
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="px-6 pb-6 space-y-6">
-            {/* Category-specific content — the same fields, read-only or not */}
-            {editing ? (
-              <>
+              <div className="px-2 space-y-6">
                 <ContentDataEditor
                   category={editCategory as ContentCategory}
                   data={editData}
@@ -642,17 +664,24 @@ export default function ContentDetailPage() {
                     Cancel
                   </Button>
                 </div>
-              </>
+              </div>
             ) : (
               <>
                 {content.category === "meal" && (
-                  <MealContent data={content.data as MealData} />
+                  <MealContent data={mealData} />
                 )}
                 {content.category === "event" && (
-                  <EventContent data={content.data as EventData} title={content.title} />
+                  <EventContent
+                    data={eventData}
+                    onOpen={setDrawer}
+                    canPlan={isEditable}
+                  />
                 )}
                 {content.category === "date_idea" && (
-                  <DateIdeaContent data={content.data as DateIdeaData} title={content.title} />
+                  <DateIdeaContent
+                    data={content.data as DateIdeaData}
+                    onOpen={setDrawer}
+                  />
                 )}
                 {content.category === "gift_idea" && (
                   <GiftIdeaContent data={content.data as GiftIdeaData} />
@@ -661,313 +690,573 @@ export default function ContentDetailPage() {
                   <DrinkContent data={content.data as DrinkData} />
                 )}
                 {content.category === "travel" && (
-                  <TravelContent data={content.data as TravelData} title={content.title} />
+                  <TravelContent
+                    data={content.data as TravelData}
+                    onOpen={setDrawer}
+                  />
                 )}
                 {content.category === "other" && (
                   <OtherContent data={content.data as { description?: string }} />
                 )}
+
+                {/* Owner-defined rows, rendered exactly like the extracted
+                    ones so nothing feels bolted on. */}
+                {sections.length > 0 && (
+                  <ItemRows>
+                    {sections.map((section, index) => (
+                      <ItemRow
+                        key={`${section.label}-${index}`}
+                        icon={Ticket}
+                        iconClassName="text-[var(--date)]"
+                        label={section.label}
+                        onClick={
+                          isEditable
+                            ? () => setDrawer({ kind: "section", index })
+                            : undefined
+                        }
+                      >
+                        {section.value}
+                      </ItemRow>
+                    ))}
+                  </ItemRows>
+                )}
+
+                {isEditable && content.status === "completed" && (
+                  <button
+                    type="button"
+                    onClick={() => setDrawer({ kind: "section", index: null })}
+                    className="mt-2 mb-4 mx-2 flex items-center gap-2 px-3 py-2.5 w-[calc(100%-1rem)] rounded-2xl border border-dashed border-[var(--border-strong)] text-[13.5px] font-semibold text-muted-foreground transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)] hover:bg-[var(--card)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add section
+                  </button>
+                )}
+
+                {/* A texted-in photo has no page to visit — its source is the
+                    thumbnail above, which already expands to the full image,
+                    so there is no second button for it here. */}
+                {!isImageSourced && (
+                  <div className="px-2 pt-4 mt-2 border-t border-[var(--border)]">
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="w-full h-auto py-3"
+                    >
+                      <a
+                        href={content.tiktok_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {getSourceLinkText(content.tiktok_url)}
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    </Button>
+                  </div>
+                )}
+
+                {/* Notes — the owner's record of how it actually went. Private,
+                    so a shared link never shows them. */}
+                {isEditable && content.status === "completed" && (
+                  <div className="px-2">
+                    <ItemNotes
+                      contentId={content.id}
+                      autoOpenComposer={openNoteComposer}
+                    />
+                  </div>
+                )}
+
+                <p className="text-xs text-muted-foreground px-2 pt-5">
+                  Saved {new Date(content.created_at).toLocaleDateString()}
+                </p>
               </>
             )}
-
-            {/* Source */}
-            {sourcePhotoUrl && (
-              <div className="pt-6 border-t border-[var(--border)]">
-                <SourcePhotoDialog
-                  imageUrl={sourcePhotoUrl}
-                  itemTitle={content.title}
-                />
-              </div>
-            )}
-
-            {!isImageSourced && (
-              <div className="pt-6 border-t border-[var(--border)]">
-                <Button asChild className="h-auto px-6 py-3">
-                  <a
-                    href={content.tiktok_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {getSourceLinkText(content.tiktok_url)}
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
-                </Button>
-              </div>
-            )}
-
-            {/* Notes — the owner's record of how it actually went. Private,
-                so a shared link never shows them. */}
-            {isEditable && content.status === "completed" && (
-              <ItemNotes
-                contentId={content.id}
-                autoOpenComposer={openNoteComposer}
-              />
-            )}
-
-            {/* Metadata */}
-            <p className="text-sm text-muted-foreground">
-              Saved {new Date(content.created_at).toLocaleDateString()}
-            </p>
           </div>
         </Card>
       </div>
+
+      {/* ---- drawers ---- */}
+
+      <ActionDrawer
+        open={drawer.kind === "overflow"}
+        onOpenChange={closeDrawer}
+        title={content.title}
+      >
+        <DrawerItem icon={linkCopied ? Check : Share2} onClick={handleShare}>
+          {linkCopied ? "Link copied" : "Share"}
+        </DrawerItem>
+        {isEditable && (
+          <>
+            <DrawerItem
+              icon={Star}
+              onClick={handleToggleFavorite}
+              hint={starred ? "Starred" : undefined}
+            >
+              {starred ? "Remove star" : "Star"}
+            </DrawerItem>
+            <DrawerItem
+              icon={RefreshCw}
+              disabled={retrying}
+              onClick={() => {
+                closeDrawer();
+                handleRetryProcessing();
+              }}
+            >
+              Regenerate
+            </DrawerItem>
+            <DrawerItem
+              icon={Pencil}
+              onClick={() => {
+                closeDrawer();
+                setEditing(true);
+              }}
+            >
+              Edit
+            </DrawerItem>
+            <DrawerSeparator />
+            <DrawerItem
+              icon={Trash2}
+              destructive
+              disabled={deleting}
+              onClick={() => {
+                closeDrawer();
+                handleDelete();
+              }}
+            >
+              Delete
+            </DrawerItem>
+          </>
+        )}
+      </ActionDrawer>
+
+      <ActionDrawer
+        open={drawer.kind === "location"}
+        onOpenChange={closeDrawer}
+        title={locationValue ?? "Location"}
+      >
+        {locationValue && (
+          <>
+            <DrawerLink
+              icon={Navigation}
+              href={getGoogleMapsUrl(locationValue)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open in Google Maps
+            </DrawerLink>
+            <DrawerLink
+              icon={Car}
+              href={getUberUrl(locationValue, content.title)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Ride with Uber
+            </DrawerLink>
+          </>
+        )}
+      </ActionDrawer>
+
+      <ActionDrawer
+        open={drawer.kind === "when"}
+        onOpenChange={closeDrawer}
+        title={[eventData.date, eventData.time].filter(Boolean).join(" · ")}
+      >
+        <DrawerItem
+          icon={Calendar}
+          onClick={() => {
+            closeDrawer();
+            const query = toPlannerDateParams(eventData.date);
+            router.push(
+              query ? `/dashboard/planner?${query}` : "/dashboard/planner"
+            );
+          }}
+        >
+          Go to this day in the planner
+        </DrawerItem>
+        <DrawerItem
+          icon={CalendarPlus}
+          onClick={() => {
+            closeDrawer();
+            router.push("/dashboard/planner");
+          }}
+        >
+          Add to a different day
+        </DrawerItem>
+      </ActionDrawer>
+
+      <ActionDrawer
+        open={drawer.kind === "eating"}
+        onOpenChange={closeDrawer}
+        title="Eating here"
+      >
+        <DrawerItem
+          icon={Utensils}
+          hint="from collection"
+          onClick={() => {
+            closeDrawer();
+            router.push("/dashboard/planner");
+          }}
+        >
+          Add a meal item
+        </DrawerItem>
+        <DrawerItem
+          icon={NotebookPen}
+          onClick={() => {
+            closeDrawer();
+            router.push("/dashboard/planner");
+          }}
+        >
+          Add a quick note
+        </DrawerItem>
+      </ActionDrawer>
+
+      <PlantDrawer
+        open={drawer.kind === "plants"}
+        onOpenChange={closeDrawer}
+        plants={plants}
+      />
+
+      <SectionEditorDrawer
+        open={drawer.kind === "section"}
+        onOpenChange={closeDrawer}
+        section={
+          drawer.kind === "section" && drawer.index !== null
+            ? sections[drawer.index]
+            : undefined
+        }
+        onSave={(next) =>
+          saveSection(next, drawer.kind === "section" ? drawer.index : null)
+        }
+        onRemove={
+          drawer.kind === "section" && drawer.index !== null
+            ? () => removeSection(drawer.index as number)
+            : undefined
+        }
+      />
+
     </main>
+  );
+}
+
+/** Prep/cook/servings, demoted to one quiet line. They were three cards at the
+ *  top; they are useful to know and not useful enough to lead with. */
+function RecipeFacts({
+  prep,
+  cook,
+  servings,
+}: {
+  prep?: string;
+  cook?: string;
+  servings?: string;
+}) {
+  const parts = [
+    prep && `${prep} prep`,
+    cook && `${cook} cook`,
+    servings && `Serves ${servings}`,
+  ].filter(Boolean) as string[];
+
+  if (parts.length === 0) return null;
+
+  return (
+    <p className="flex items-center gap-1.5 px-2 pt-3 text-[12.5px] font-medium text-muted-foreground">
+      <Clock className="w-3.5 h-3.5" />
+      {parts.join(" · ")}
+    </p>
   );
 }
 
 function MealContent({ data }: { data: MealData }) {
   return (
-    <div className="space-y-6">
+    <div className="px-2">
       <RecipeSteps
         ingredients={data.ingredients}
         recipe={data.recipe}
+        equipment={data.equipment}
         variant="meal"
       />
-
-      {(data.prep_time || data.cook_time || data.servings) && (
-        <div className="flex flex-wrap gap-3 pt-4">
-          {data.prep_time && (
-            <Card className="border border-[var(--border)] shadow-none px-4 py-3 rounded-xl">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                Prep
-              </p>
-              <p className="font-semibold flex items-center gap-1.5 mt-1">
-                <Clock className="w-4 h-4 text-[var(--primary)]" />
-                {data.prep_time}
-              </p>
-            </Card>
-          )}
-          {data.cook_time && (
-            <Card className="border border-[var(--border)] shadow-none px-4 py-3 rounded-xl">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                Cook
-              </p>
-              <p className="font-semibold flex items-center gap-1.5 mt-1">
-                <Clock className="w-4 h-4 text-[var(--primary)]" />
-                {data.cook_time}
-              </p>
-            </Card>
-          )}
-          {data.servings && (
-            <Card className="border border-[var(--border)] shadow-none px-4 py-3 rounded-xl">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                Servings
-              </p>
-              <p className="font-semibold mt-1">{data.servings}</p>
-            </Card>
-          )}
-        </div>
-      )}
+      <RecipeFacts
+        prep={data.prep_time}
+        cook={data.cook_time}
+        servings={data.servings}
+      />
     </div>
   );
 }
 
-function EventContent({ data, title }: { data: EventData; title: string }) {
+function EventContent({
+  data,
+  onOpen,
+  canPlan,
+}: {
+  data: EventData;
+  onOpen: (drawer: OpenDrawer) => void;
+  canPlan: boolean;
+}) {
+  const when = [data.date, data.time].filter(Boolean).join(" · ");
+
   return (
-    <div className="space-y-4">
+    <ItemRows>
       {data.location && (
-        <LocationCard location={data.location} label="Location" nickname={title} />
+        <ItemRow
+          icon={MapPin}
+          iconClassName="text-[var(--primary)]"
+          onClick={() => onOpen({ kind: "location", value: data.location! })}
+        >
+          {data.location}
+        </ItemRow>
       )}
 
-      {(data.date || data.time) && (
-        <Card className="flex items-start gap-4 p-4 border border-[var(--border)] shadow-none rounded-xl">
-          <div className="w-12 h-12 rounded-xl bg-[var(--event-bg)] flex items-center justify-center">
-            <Calendar className="w-6 h-6 text-[var(--event)]" />
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">
-              When
-            </p>
-            <p className="font-semibold">
-              {data.date}
-              {data.date && data.time && " • "}
-              {data.time}
-            </p>
-          </div>
-        </Card>
+      {when && (
+        <ItemRow
+          icon={Clock}
+          iconClassName="text-[var(--event)]"
+          onClick={canPlan ? () => onOpen({ kind: "when" }) : undefined}
+        >
+          {when}
+        </ItemRow>
+      )}
+
+      {canPlan && (
+        <ItemRow
+          icon={Utensils}
+          iconClassName="text-[var(--meal)]"
+          meta="Add a meal or a note for this outing"
+          onClick={() => onOpen({ kind: "eating" })}
+        >
+          Eating here
+        </ItemRow>
+      )}
+
+      {data.seats && (
+        <ItemRow icon={Ticket} iconClassName="text-[var(--date)]" label="Seats">
+          {data.seats}
+        </ItemRow>
+      )}
+
+      {/* Info, not Ticket — the seats row above already owns that icon, and
+          two identical icons in one list read as one repeated fact. */}
+      {(data.requires_reservation || data.requires_ticket) && (
+        <ItemRow icon={Info} iconClassName="text-muted-foreground">
+          <span className="flex flex-wrap gap-2">
+            {data.requires_reservation && (
+              <Badge variant="outline">Reservation required</Badge>
+            )}
+            {data.requires_ticket && (
+              <Badge variant="outline">Ticket required</Badge>
+            )}
+          </span>
+        </ItemRow>
       )}
 
       {data.description && (
-        <div>
-          <h3 className="heading-3 mb-2">About</h3>
-          <p className="text-muted-foreground">{data.description}</p>
-        </div>
+        <ItemProse icon={HelpCircle} label="About">
+          {data.description}
+        </ItemProse>
       )}
-
-      <div className="flex flex-wrap gap-2">
-        {data.requires_reservation && (
-          <Badge variant="outline">Reservation Required</Badge>
-        )}
-        {data.requires_ticket && (
-          <Badge variant="outline">Ticket Required</Badge>
-        )}
-      </div>
-    </div>
+    </ItemRows>
   );
 }
 
-function DateIdeaContent({ data, title }: { data: DateIdeaData; title: string }) {
+function DateIdeaContent({
+  data,
+  onOpen,
+}: {
+  data: DateIdeaData;
+  onOpen: (drawer: OpenDrawer) => void;
+}) {
   return (
-    <div className="space-y-4">
+    <ItemRows>
       {data.location && (
-        <LocationCard location={data.location} label="Location" nickname={title} />
+        <ItemRow
+          icon={MapPin}
+          iconClassName="text-[var(--primary)]"
+          onClick={() => onOpen({ kind: "location", value: data.location! })}
+        >
+          {data.location}
+        </ItemRow>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        {data.type && (
-          <Badge variant="date" className="capitalize">{data.type}</Badge>
-        )}
-        {data.price_range && (
-          <Badge variant="outline">{data.price_range}</Badge>
-        )}
-      </div>
+      {/* Tag, not Star — a star means "favourited" everywhere else in the app,
+          and this row is just the type and price. */}
+      {(data.type || data.price_range) && (
+        <ItemRow icon={Tag} iconClassName="text-[var(--date)]">
+          <span className="flex flex-wrap gap-2">
+            {data.type && (
+              <Badge variant="date" className="capitalize">
+                {data.type}
+              </Badge>
+            )}
+            {data.price_range && (
+              <Badge variant="outline">{data.price_range}</Badge>
+            )}
+          </span>
+        </ItemRow>
+      )}
 
       {data.description && (
-        <div>
-          <h3 className="heading-3 mb-2">Why it&apos;s great</h3>
-          <p className="text-muted-foreground">{data.description}</p>
-        </div>
+        <ItemProse icon={HelpCircle} label="Why it&apos;s great">
+          {data.description}
+        </ItemProse>
       )}
-    </div>
+    </ItemRows>
   );
 }
 
 function GiftIdeaContent({ data }: { data: GiftIdeaData }) {
   return (
-    <div className="space-y-4">
-      {data.cost && (
-        <Card className="flex items-start gap-4 p-4 border border-[var(--border)] shadow-none rounded-xl bg-[var(--gift-bg)]">
-          <div className="w-12 h-12 rounded-xl bg-[var(--gift)] flex items-center justify-center">
-            <Gift className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">
-              Price
-            </p>
-            <p className="text-2xl font-bold text-[var(--gift)]">
-              {data.cost}
-            </p>
-          </div>
-        </Card>
-      )}
+    <>
+      <ItemRows>
+        {data.cost && (
+          <ItemRow icon={Gift} iconClassName="text-[var(--gift)]" label="Price">
+            {data.cost}
+          </ItemRow>
+        )}
+        {data.description && (
+          <ItemProse icon={HelpCircle} label="About this gift">
+            {data.description}
+          </ItemProse>
+        )}
+      </ItemRows>
 
-      {data.description && (
-        <div>
-          <h3 className="heading-3 mb-2">About this gift</h3>
-          <p className="text-muted-foreground">{data.description}</p>
+      {(data.amazon_link || data.purchase_link) && (
+        <div className="flex flex-wrap gap-2 px-2 pt-3">
+          {data.amazon_link && (
+            <Button
+              asChild
+              variant="secondary"
+              className="h-auto px-5 py-2.5 bg-orange-500 text-white hover:bg-orange-600"
+            >
+              <a
+                href={data.amazon_link}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ShoppingCart className="w-4 h-4" />
+                Amazon
+              </a>
+            </Button>
+          )}
+          {data.purchase_link && (
+            <Button asChild className="h-auto px-5 py-2.5">
+              <a
+                href={data.purchase_link}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Buy now
+              </a>
+            </Button>
+          )}
         </div>
       )}
-
-      <div className="flex flex-wrap gap-3 pt-4">
-        {data.amazon_link && (
-          <Button
-            asChild
-            variant="secondary"
-            className="h-auto px-5 py-2.5 bg-orange-500 text-white hover:bg-orange-600"
-          >
-            <a
-              href={data.amazon_link}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <ShoppingCart className="w-4 h-4" />
-              Amazon
-            </a>
-          </Button>
-        )}
-        {data.purchase_link && (
-          <Button asChild className="h-auto px-5 py-2.5">
-            <a
-              href={data.purchase_link}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <ExternalLink className="w-4 h-4" />
-              Buy Now
-            </a>
-          </Button>
-        )}
-      </div>
-    </div>
+    </>
   );
 }
 
 function DrinkContent({ data }: { data: DrinkData }) {
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap gap-2">
-        {data.type && (
-          <Badge variant="drink" className="capitalize">{data.type}</Badge>
-        )}
-        {data.difficulty && (
-          <Badge variant="outline" className="capitalize">{data.difficulty}</Badge>
-        )}
-        {data.prep_time && (
-          <Badge variant="outline" className="flex items-center gap-1">
-            <Clock className="w-3 h-3" />
-            {data.prep_time}
-          </Badge>
-        )}
-      </div>
+    <div className="px-2">
+      {(data.type || data.difficulty || data.prep_time) && (
+        <div className="flex flex-wrap gap-2 pb-3">
+          {data.type && (
+            <Badge variant="drink" className="capitalize">
+              {data.type}
+            </Badge>
+          )}
+          {data.difficulty && (
+            <Badge variant="outline" className="capitalize">
+              {data.difficulty}
+            </Badge>
+          )}
+          {data.prep_time && (
+            <Badge variant="outline" className="flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              {data.prep_time}
+            </Badge>
+          )}
+        </div>
+      )}
 
       <RecipeSteps
         ingredients={data.ingredients}
         recipe={data.recipe}
+        equipment={data.equipment}
         variant="drink"
       />
+
+      {data.description && (
+        <p className="text-[13.5px] leading-relaxed text-muted-foreground pt-3">
+          {data.description}
+        </p>
+      )}
     </div>
   );
 }
 
-function TravelContent({ data, title }: { data: TravelData; title: string }) {
+function TravelContent({
+  data,
+  onOpen,
+}: {
+  data: TravelData;
+  onOpen: (drawer: OpenDrawer) => void;
+}) {
+  const destination = [data.destination_city, data.destination_country]
+    .filter(Boolean)
+    .join(", ");
+
   return (
-    <div className="space-y-4">
+    <ItemRows>
       {data.location && (
-        <LocationCard location={data.location} label="Location" nickname={title} />
+        <ItemRow
+          icon={MapPin}
+          iconClassName="text-[var(--primary)]"
+          onClick={() => onOpen({ kind: "location", value: data.location! })}
+        >
+          {data.location}
+        </ItemRow>
       )}
 
-      {(data.destination_city || data.destination_country) && (
-        <Card className="flex items-start gap-4 p-4 border border-[var(--border)] shadow-none rounded-xl">
-          <div className="w-12 h-12 rounded-xl bg-[var(--travel-bg)] flex items-center justify-center">
-            <Plane className="w-6 h-6 text-[var(--travel)]" />
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">
-              Destination
-            </p>
-            <p className="font-semibold">
-              {data.destination_city}
-              {data.destination_city && data.destination_country && ", "}
-              {data.destination_country}
-            </p>
-          </div>
-        </Card>
+      {destination && (
+        <ItemRow
+          icon={Plane}
+          iconClassName="text-[var(--travel)]"
+          label="Destination"
+        >
+          {destination}
+        </ItemRow>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        {data.type && (
-          <Badge variant="travel" className="capitalize">{data.type}</Badge>
-        )}
-        {data.price_range && (
-          <Badge variant="outline">{data.price_range}</Badge>
-        )}
-      </div>
+      {(data.type || data.price_range) && (
+        <ItemRow icon={Tag} iconClassName="text-muted-foreground">
+          <span className="flex flex-wrap gap-2">
+            {data.type && (
+              <Badge variant="travel" className="capitalize">
+                {data.type}
+              </Badge>
+            )}
+            {data.price_range && (
+              <Badge variant="outline">{data.price_range}</Badge>
+            )}
+          </span>
+        </ItemRow>
+      )}
 
       {data.description && (
-        <div>
-          <h3 className="heading-3 mb-2">About</h3>
-          <p className="text-muted-foreground">{data.description}</p>
-        </div>
+        <ItemProse icon={HelpCircle} label="About">
+          {data.description}
+        </ItemProse>
       )}
-    </div>
+    </ItemRows>
   );
 }
 
 function OtherContent({ data }: { data: { description?: string } }) {
+  if (!data.description) return null;
   return (
-    <div>
-      {data.description && (
-        <p className="text-muted-foreground">{data.description}</p>
-      )}
-    </div>
+    <ItemRows>
+      <ItemProse icon={HelpCircle} label="About">
+        {data.description}
+      </ItemProse>
+    </ItemRows>
   );
 }

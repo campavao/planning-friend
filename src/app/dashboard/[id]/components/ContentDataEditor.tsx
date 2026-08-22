@@ -17,6 +17,8 @@ import {
   DRINK_DIFFICULTIES,
   DRINK_TYPES,
   PRICE_RANGES,
+  RECIPE_EFFORTS,
+  SPICE_LEVELS,
   TRAVEL_TYPES,
 } from "@/lib/schemas/content";
 import { EditableLines } from "./EditableLines";
@@ -45,6 +47,8 @@ type FieldSpec =
 // can fill for a category, in the order it reads on the page.
 const CATEGORY_FIELDS: Record<ContentCategory, FieldSpec[]> = {
   meal: [
+    { key: "effort", label: "Effort", kind: "select", options: RECIPE_EFFORTS },
+    { key: "spice", label: "Spice level", kind: "select", options: SPICE_LEVELS },
     { key: "prep_time", label: "Prep time", kind: "text", placeholder: "15 min" },
     { key: "cook_time", label: "Cook time", kind: "text", placeholder: "40 min" },
     { key: "servings", label: "Servings", kind: "text", placeholder: "4" },
@@ -64,6 +68,7 @@ const CATEGORY_FIELDS: Record<ContentCategory, FieldSpec[]> = {
     { key: "location", label: "Location", kind: "text" },
     { key: "date", label: "Date", kind: "text", placeholder: "June 14" },
     { key: "time", label: "Time", kind: "text", placeholder: "7:00 PM" },
+    { key: "seats", label: "Seats", kind: "text", placeholder: "310, 312" },
     { key: "description", label: "Description", kind: "textarea" },
     { key: "website", label: "Website", kind: "link" },
     { key: "ticket_link", label: "Ticket link", kind: "link" },
@@ -150,6 +155,14 @@ export function ContentDataEditor({
     <div className="space-y-6">
       {recipeVariant && (
         <>
+          <EditableLines
+            label="Equipment"
+            itemLabel="item"
+            values={toLines(data.equipment)}
+            onChange={(next) => setField("equipment", next)}
+            variant={recipeVariant}
+            placeholder="Slow cooker"
+          />
           <EditableLines
             label="Ingredients"
             itemLabel="ingredient"

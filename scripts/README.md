@@ -1,3 +1,28 @@
+# scripts/backfill-recipe-attributes.mjs
+
+Backfills the recipe attributes added by PLA-55/57 — effort, spice level,
+equipment and the plant list — onto items saved before those fields existed. It
+re-runs each item through the normal extraction pipeline via the app's own
+reprocess endpoint rather than patching rows, because the fields are derived
+from the original source.
+
+**Re-processing replaces `data` wholesale**, so hand-edited ingredients and
+steps on a re-processed item are lost. The script counts those items and prints
+them before it starts; `--skip-edited` leaves them alone entirely.
+
+```bash
+# see what would happen (default)
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... SESSION_SECRET=... \
+node scripts/backfill-recipe-attributes.mjs --url https://your-app.example.com
+
+# actually run it
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... SESSION_SECRET=... \
+node scripts/backfill-recipe-attributes.mjs --url https://your-app.example.com --apply
+```
+
+Re-processing is asynchronous, so re-run without `--apply` a few minutes later
+to see what is still missing.
+
 # scripts/regression.mjs
 
 An end-to-end API regression check for the auth and authorization behaviour. It

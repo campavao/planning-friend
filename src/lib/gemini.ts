@@ -8,6 +8,8 @@ import type {
   MealData,
   TravelData,
 } from "./supabase";
+import { readPlants } from "./plants";
+import { RECIPE_EFFORTS, SPICE_LEVELS } from "./schemas/content";
 
 export interface AnalysisResult {
   category: ContentCategory;
@@ -60,9 +62,54 @@ For **meal**:
 - title: Name of the dish/recipe
 - recipe: Step-by-step cooking instructions (array of strings)
 - ingredients: List of ingredients with quantities if mentioned (array of strings)
+- equipment: Appliances, pots, bowls and utensils needed (array of strings, e.g. ["Slow cooker", "Spatula", "Small bowl"]). Only what the cook must have on hand — do not list the ingredients again.
 - prep_time: Preparation time if mentioned
 - cook_time: Cooking time if mentioned
 - servings: Number of servings if mentioned
+- effort: One of "easy", "medium", "hard" — how demanding the recipe is to make
+- spice: One of "none", "mild", "medium", "hot" — how spicy the finished dish is
+- plants: See the PLANTS section below
+
+For **drink**, also extract:
+- equipment: Glassware, shakers and tools needed (array of strings)
+
+**PLANTS (meal only):**
+List the distinct plants the recipe contains. This feeds a dietary-diversity
+score, so the rules are about botanical identity, not about how the ingredient
+is written on the label.
+
+Each entry is an object:
+- source: the plant the ingredient comes from, lowercase and singular (e.g. "wheat", "soybean", "garlic")
+- name: what the recipe actually calls it, if different from the source (e.g. "egg noodles")
+- category: exactly one of "vegetable", "fruit", "whole_grain", "legume", "nut", "seed"
+
+Rules, in order of importance:
+1. Resolve every ingredient to its SOURCE PLANT. Egg noodles, bread, pasta and
+   plain flour are all source "wheat". Tofu and edamame are both "soybean".
+2. One ingredient can yield MORE THAN ONE plant. Soy sauce is made from
+   soybeans and wheat, so it produces two entries: source "soybean" and source
+   "wheat".
+3. Two ingredients can collapse to ONE plant. A recipe with both soy sauce and
+   egg noodles lists wheat only once — do not repeat a source.
+4. Do NOT include herbs or spices. Basil, oregano, cinnamon, pepper, chilli
+   flakes and similar seasonings are excluded entirely, and there is no
+   category for them.
+5. Do NOT include anything that is not a plant: meat, fish, eggs, dairy, honey,
+   salt, water, and plain oils that no longer identify a whole food.
+6. Varieties of the same plant share a source. Red onion and yellow onion are
+   both source "onion".
+
+Example — for a slow cooker honey garlic chicken noodle recipe using soy sauce,
+brown sugar, garlic, scallions, sesame oil, chicken thighs and egg noodles:
+[
+  {"source": "soybean", "name": "soy sauce", "category": "legume"},
+  {"source": "wheat", "name": "egg noodles", "category": "whole_grain"},
+  {"source": "garlic", "category": "vegetable"},
+  {"source": "scallion", "category": "vegetable"},
+  {"source": "sesame", "name": "sesame oil", "category": "seed"}
+]
+(Chicken is not a plant. Brown sugar no longer identifies a whole food. The
+wheat in the soy sauce is the same wheat as the noodles, so it appears once.)
 
 For **event**:
 - title: Name of the event
@@ -166,6 +213,45 @@ function getGeminiClient() {
   return new GoogleGenAI({ apiKey });
 }
 
+/**
+ * Clean the model's `data` blob before it is stored.
+ *
+ * Nothing downstream re-validates an extraction — PATCH validates edits, but a
+ * fresh extraction is written straight to the column. So the enums and the
+ * plant list are checked here, at the boundary, rather than trusting that the
+ * prompt was obeyed. A field the model got wrong is dropped, not corrected:
+ * a missing spice level renders as nothing, while an invented one would render
+ * as a confident lie.
+ */
+export function normalizeExtractedData(
+  category: ContentCategory,
+  data: unknown
+): Record<string, unknown> {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return {};
+
+  const next = { ...(data as Record<string, unknown>) };
+
+  if (category === "meal") {
+    if (!(RECIPE_EFFORTS as readonly unknown[]).includes(next.effort)) {
+      delete next.effort;
+    }
+    if (!(SPICE_LEVELS as readonly unknown[]).includes(next.spice)) {
+      delete next.spice;
+    }
+
+    // readPlants drops anything malformed and dedupes on source, so a model
+    // that emitted "herb_spice", a bare string, or wheat twice still leaves a
+    // correct list behind.
+    if ("plants" in next) {
+      const plants = readPlants(next.plants);
+      if (plants.length > 0) next.plants = plants;
+      else delete next.plants;
+    }
+  }
+
+  return next;
+}
+
 export function parseAnalysisResponse(text: string): MultiItemAnalysisResult {
   // Try to extract JSON from the response
   const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -191,6 +277,7 @@ export function parseAnalysisResponse(text: string): MultiItemAnalysisResult {
       if (!validCategories.includes(item.category)) {
         item.category = "other";
       }
+      item.data = normalizeExtractedData(item.category, item.data);
       return item;
     });
 
@@ -215,6 +302,8 @@ export function parseAnalysisResponse(text: string): MultiItemAnalysisResult {
     if (!validCategories.includes(parsed.category)) {
       parsed.category = "other";
     }
+
+    parsed.data = normalizeExtractedData(parsed.category, parsed.data);
 
     return {
       isMultiItem: false,
