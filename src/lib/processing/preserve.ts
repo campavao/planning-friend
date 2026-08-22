@@ -44,6 +44,26 @@ export interface AnalysedItem {
  * returns when it parses the source but finds nothing in it — category "other"
  * carrying a description and nothing else.
  */
+/**
+ * Fields that say nothing about whether the item was actually read. A drink
+ * that comes back as `{type: "cocktail", description: "A recipe for a classic
+ * Gin Sour, typically found on liquor.com"}` has both of these and no recipe —
+ * the model inferred it from the URL rather than reading the page.
+ */
+const TRIVIAL_KEYS = new Set(["description", "type"]);
+
+/** How many fields the result carries that represent real extracted content. */
+function substanceOf(data: unknown): number {
+  return Object.entries((data ?? {}) as Record<string, unknown>).filter(
+    ([k, v]) =>
+      !TRIVIAL_KEYS.has(k) &&
+      v !== null &&
+      v !== undefined &&
+      v !== "" &&
+      !(Array.isArray(v) && v.length === 0)
+  ).length;
+}
+
 export function isLowValueResult(item: AnalysedItem | null | undefined): boolean {
   if (!item) return true;
 
@@ -51,14 +71,11 @@ export function isLowValueResult(item: AnalysedItem | null | undefined): boolean
   if (!title) return true;
   if (PLACEHOLDER_TITLES.some((p) => title.includes(p))) return true;
 
-  const keys = Object.entries((item.data ?? {}) as Record<string, unknown>)
-    .filter(([, v]) => v !== null && v !== undefined && v !== "")
-    .map(([k]) => k);
-  if (item.category === "other" && keys.every((k) => k === "description")) {
-    return true;
-  }
-
-  return false;
+  // Substance, not category. The first version of this checked for category
+  // "other" carrying only a description, which missed the commoner failure:
+  // a scrape fails, and the model returns a confident, correctly-categorised,
+  // completely empty result. That overwrote a real cocktail recipe.
+  return substanceOf(item.data) === 0;
 }
 
 /** True when a row holds something a user would be upset to lose. */
