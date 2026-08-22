@@ -140,3 +140,68 @@ describe("shouldPreserveExisting", () => {
     ).toBe(false);
   });
 });
+
+describe("substance, not category", () => {
+  const savedCocktail = {
+    status: "completed",
+    category: "drink",
+    title: "Gin Sour Cocktail",
+    data: {
+      ingredients: ["2 oz gin", "1 oz lemon juice"],
+      recipe: ["Shake with ice", "Strain"],
+    },
+  } as unknown as Pick<Content, "status" | "category" | "title" | "data">;
+
+  it("flags a correctly-categorised result that carries no content", () => {
+    // The real one: liquor.com failed to scrape, and the model returned a
+    // confident drink with the right title, a type, and a description it
+    // inferred from the URL. Category-based checks sail straight past this.
+    expect(
+      isLowValueResult({
+        category: "drink",
+        title: "Gin Sour Cocktail",
+        data: {
+          type: "cocktail",
+          description:
+            "A recipe for a classic Gin Sour cocktail, typically found on liquor.com.",
+        },
+      })
+    ).toBe(true);
+  });
+
+  it("preserves the saved cocktail against that empty result", () => {
+    expect(
+      shouldPreserveExisting(savedCocktail, {
+        category: "drink",
+        title: "Gin Sour Cocktail",
+        data: { type: "cocktail", description: "A recipe for a classic Gin Sour." },
+      })
+    ).toBe(true);
+  });
+
+  it("treats an empty array as no content", () => {
+    expect(
+      isLowValueResult({
+        category: "meal",
+        title: "Something",
+        data: { ingredients: [], recipe: [], description: "words" },
+      })
+    ).toBe(true);
+  });
+
+  it("lets a result with one real field through", () => {
+    expect(
+      isLowValueResult({
+        category: "drink",
+        title: "Gin Sour Cocktail",
+        data: { type: "cocktail", ingredients: ["2 oz gin"] },
+      })
+    ).toBe(false);
+  });
+
+  it("still lets a first save record its own emptiness", () => {
+    expect(
+      shouldPreserveExisting(null, { category: "drink", title: "X", data: {} })
+    ).toBe(false);
+  });
+});
