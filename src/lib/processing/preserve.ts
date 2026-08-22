@@ -94,12 +94,22 @@ export function isLowValueResult(item: AnalysedItem | null | undefined): boolean
   return substanceOf(item.data) === 0;
 }
 
-/** True when a row holds something a user would be upset to lose. */
+/**
+ * True when a row holds something a user would be upset to lose.
+ *
+ * Deliberately does NOT look at status. The first version required
+ * "completed", which made the whole guard inert: the reprocess route flips the
+ * row to "processing" before dispatching, so by the time a processor reads it
+ * back the status is never "completed" and this always returned false. The
+ * guard silently protected nothing through five batches.
+ *
+ * Content is the only thing worth testing. A row mid-first-ingest has none, so
+ * it needs no status check to stay unprotected.
+ */
 export function hasSalvageableContent(
   existing: Pick<Content, "status" | "category" | "title" | "data"> | null | undefined
 ): boolean {
   if (!existing) return false;
-  if (existing.status !== "completed") return false;
   return !isLowValueResult({
     category: existing.category,
     title: existing.title,
