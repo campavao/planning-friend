@@ -279,3 +279,33 @@ describe("seasoning and extract exclusion", () => {
     expect(kept).toEqual([]);
   });
 });
+
+describe("denylist plural handling", () => {
+  it("catches plural seasonings", () => {
+    // "chives" survived a real batch against a list containing "chive".
+    const kept = readPlants([
+      { source: "chives", category: "vegetable" },
+      { source: "cloves", category: "seed" },
+      { source: "peppercorns", category: "seed" },
+      { source: "celery", category: "vegetable" },
+    ]);
+    expect(kept.map((p) => p.source)).toEqual(["celery"]);
+  });
+
+  it("catches plural extract words in a name", () => {
+    const kept = readPlants([
+      { source: "grape", name: "assorted wines", category: "fruit" },
+      { source: "olive", name: "olive oils", category: "fruit" },
+    ]);
+    expect(kept).toEqual([]);
+  });
+
+  it("still keeps plants whose plural merely resembles a denied word", () => {
+    const kept = readPlants([
+      { source: "kale", name: "curly kales", category: "vegetable" },
+      { source: "grape", name: "grapes", category: "fruit" },
+      { source: "olive", name: "olives", category: "fruit" },
+    ]);
+    expect(kept).toHaveLength(3);
+  });
+});

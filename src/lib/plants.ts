@@ -140,12 +140,27 @@ const EXTRACT_WORDS = new Set([
   "liqueur", "amaretto", "brandy", "vermouth", "sherry", "port",
 ]);
 
+/**
+ * Singular and plural forms of a word, so a denylist written in the singular
+ * still catches what extraction actually emits. "chives" slipped past a list
+ * containing "chive" in a real batch; plantKey is no help here because its
+ * "-es" rule turns "chives" into "chiv".
+ */
+function forms(word: string): string[] {
+  const w = word.trim().toLowerCase();
+  const out = [w];
+  if (w.endsWith("es")) out.push(w.slice(0, -2), w.slice(0, -1));
+  else if (w.endsWith("s")) out.push(w.slice(0, -1));
+  else out.push(w + "s", w + "es");
+  return out;
+}
+
 /** True when an entry is a seasoning or an extract rather than a plant food. */
 export function isSeasoningOrExtract(source: string, name?: string): boolean {
-  if (SEASONING_SOURCES.has(source.trim().toLowerCase())) return true;
+  if (forms(source).some((f) => SEASONING_SOURCES.has(f))) return true;
 
   const words = (name ?? "").toLowerCase().split(/[^a-z]+/).filter(Boolean);
-  return words.some((w) => EXTRACT_WORDS.has(w));
+  return words.some((w) => forms(w).some((f) => EXTRACT_WORDS.has(f)));
 }
 
 export function readPlants(value: unknown): Plant[] {
