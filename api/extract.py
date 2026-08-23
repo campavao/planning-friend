@@ -146,6 +146,10 @@ BROWSER_UA = (
 # fetchable by anyone who sends a referer, so the caller downloads them itself.
 IMAGE_HEADERS = {"User-Agent": BROWSER_UA, "Referer": "https://www.tiktok.com/"}
 
+# Instagram's image CDN wants nothing but a user-agent — measured, a slide
+# fetched outside any browser session returns 200 and a JPEG.
+PLAIN_IMAGE_HEADERS = {"User-Agent": BROWSER_UA}
+
 # Enough to read a recipe off a carousel without sending Gemini forty photos.
 MAX_IMAGES = 12
 
@@ -232,6 +236,40 @@ def tiktok_slideshow(url: str) -> dict | None:
     }
 
 
+def best_thumbnail(entry: dict) -> str | None:
+    """The largest image yt-dlp knows about for one slide."""
+    thumbs = entry.get("thumbnails") or []
+    sized = [t for t in thumbs if t.get("width") and t.get("url")]
+    if sized:
+        return max(sized, key=lambda t: t["width"])["url"]
+    # Widths are frequently absent. yt-dlp orders thumbnails worst-to-best, so
+    # the last one is the right guess when there is nothing to sort on.
+    for thumb in reversed(thumbs):
+        if thumb.get("url"):
+            return thumb["url"]
+    return None
+
+
+def playlist_images(info: dict) -> list[str]:
+    """
+    The slides of a carousel.
+
+    An Instagram carousel comes back as a playlist whose entries are the slides.
+    Entries carrying no video formats have no `url` to download, but they do
+    carry thumbnails, and the largest thumbnail *is* the slide — which is why
+    this works without a browser. That was not obvious: yt-dlp raises "No video
+    formats found" on these posts and returns nothing at all unless
+    ignore_no_formats_error is set, so the images look absent when they are
+    merely behind an exception.
+    """
+    urls = []
+    for entry in info.get("entries") or []:
+        url = best_thumbnail(entry)
+        if url:
+            urls.append(url)
+    return urls
+
+
 def extract_metadata(url: str) -> dict:
     started = time.time()
     opts = {
@@ -240,6 +278,10 @@ def extract_metadata(url: str) -> dict:
         "skip_download": True,
         "noprogress": True,
         "socket_timeout": 30,
+        # A carousel of photos has no video formats anywhere in it, which yt-dlp
+        # treats as an error and refuses to return the info dict for. The post
+        # is fine; it just has no video. Without this the slides are unreachable.
+        "ignore_no_formats_error": True,
     }
 
     try:
@@ -268,6 +310,33 @@ def extract_metadata(url: str) -> dict:
             }
 
         return failure(exc, started)
+
+    if info is None:
+        return {
+            "ok": False,
+            "outcome": "error",
+            "error": "extractor returned nothing",
+            "ms": round((time.time() - started) * 1000),
+        }
+
+    # A carousel is a playlist of slides. Treated as a slideshow even when some
+    # slides are videos: the images carry the content, and analysing five
+    # pictures in order beats downloading whichever slide happened to move.
+    if info.get("_type") == "playlist":
+        images = playlist_images(info)
+        if images:
+            return {
+                "ok": True,
+                "hasVideo": False,
+                "thumbnailUrl": images[0],
+                "images": images[:MAX_IMAGES],
+                "imageHeaders": PLAIN_IMAGE_HEADERS,
+                "description": info.get("description") or info.get("title") or "",
+                "author": info.get("uploader") or info.get("uploader_id"),
+                "duration": None,
+                "originalUrl": info.get("webpage_url") or url,
+                "ms": round((time.time() - started) * 1000),
+            }
 
     return {
         "ok": True,
