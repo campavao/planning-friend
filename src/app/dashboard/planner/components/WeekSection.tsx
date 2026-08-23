@@ -23,7 +23,11 @@ import { useMemo, useState } from "react";
 import { categoryUI } from "@/lib/categories";
 import { SuggestionStrip } from "./SuggestionStrip";
 import { WeekPlantScore } from "./WeekPlantScore";
-import { formatItemTime, getItemDateKey } from "@/lib/plan-dates";
+import {
+  formatItemTime,
+  getItemDateKey,
+  shouldShowSuggestions,
+} from "@/lib/plan-dates";
 import { summarizeWeekPlants } from "@/lib/week-plants";
 import { travelDestination } from "@/lib/attributes";
 import { Plane } from "lucide-react";
@@ -265,13 +269,11 @@ export function WeekSection({
           const dayPicks = filterPicksForDay(dayIndex);
           // The engine owns the "is this day full?" rule — a day holding one
           // item still gets picks. The client just shows what it was sent.
-          // A completely empty day always keeps the strip so it can explain
-          // itself rather than rendering blank.
-          // The toggle wins outright: a day with nothing on it still shows
-          // no strip, because "off" has to mean off rather than mostly off.
-          const showSuggestions =
-            !suggestionsHidden &&
-            itemsByDay[dayIndex].length === 0 || dayPicks.length > 0;
+          const showSuggestions = shouldShowSuggestions(
+            suggestionsHidden,
+            itemsByDay[dayIndex].length,
+            dayPicks.length,
+          );
 
           return (
             <Card
