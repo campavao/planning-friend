@@ -564,7 +564,7 @@ export default function ContentDetailPage() {
                     <SelectItem value="meal">Recipe</SelectItem>
                     <SelectItem value="drink">Drink</SelectItem>
                     <SelectItem value="event">Event</SelectItem>
-                    <SelectItem value="date_idea">Date</SelectItem>
+                    <SelectItem value="date_idea">Restaurant</SelectItem>
                     <SelectItem value="gift_idea">Gift</SelectItem>
                     <SelectItem value="travel">Travel</SelectItem>
                     <SelectItem value="other">Other</SelectItem>

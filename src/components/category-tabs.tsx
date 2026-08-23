@@ -42,7 +42,7 @@ export const TABS = [
   { id: "meals", label: "Meals", icon: Utensils, category: "meal" },
   { id: "drinks", label: "Drinks", icon: Coffee, category: "drink" },
   { id: "events", label: "Events", icon: Calendar, category: "event" },
-  { id: "dates", label: "Dates", icon: Heart, category: "date_idea" },
+  { id: "dates", label: "Restaurants", icon: Heart, category: "date_idea" },
   { id: "gifts", label: "Gifts", icon: Gift, category: "gift_idea" },
   { id: "travel", label: "Travel", icon: Plane, category: "travel" },
   { id: "other", label: "Other", icon: Pin, category: "other" },

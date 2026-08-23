@@ -63,7 +63,7 @@ describe("category labels", () => {
 
   it("has human-friendly labels", () => {
     expect(CATEGORY_UI.meal.label).toBe("Recipe");
-    expect(CATEGORY_UI.date_idea.label).toBe("Date");
+    expect(CATEGORY_UI.date_idea.label).toBe("Restaurant");
     expect(CATEGORY_UI.gift_idea.label).toBe("Gift");
     expect(CATEGORY_UI.other.label).toBe("Saved");
   });

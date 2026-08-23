@@ -117,7 +117,7 @@ describe("CATEGORY_CONFIG", () => {
     expect(CATEGORY_CONFIG.meal.label).toBe("Recipe");
     expect(CATEGORY_CONFIG.drink.label).toBe("Drink");
     expect(CATEGORY_CONFIG.event.label).toBe("Event");
-    expect(CATEGORY_CONFIG.date_idea.label).toBe("Date");
+    expect(CATEGORY_CONFIG.date_idea.label).toBe("Restaurant");
     expect(CATEGORY_CONFIG.gift_idea.label).toBe("Gift");
     expect(CATEGORY_CONFIG.travel.label).toBe("Travel");
     expect(CATEGORY_CONFIG.other.label).toBe("Saved");
