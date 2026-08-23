@@ -6,6 +6,7 @@ import {
   isInstagramUrl,
 } from "./instagram";
 import { getTikTokVideoAsBase64, getTikTokVideoInfo } from "./tiktok";
+import { downloadExtractedVideo, tryExtractor } from "./extractor";
 import { getWebsiteInfo, isGenericWebsiteUrl } from "./website";
 
 export type SocialPlatform = "tiktok" | "instagram" | "website" | "unknown";
@@ -61,6 +62,30 @@ export async function getSocialMediaInfo(
 
   switch (platform) {
     case "instagram": {
+      // yt-dlp handles live reels directly, so try our own extractor before
+      // paying Apify for the same thing. Reels were the case Apify was really
+      // being bought for; carousels still fall through to it, because those
+      // render client-side and need a browser the extractor does not have.
+      //
+      // The earlier belief that Instagram required an authenticated session
+      // came from a probe sample that had been deleted — there is no login
+      // wall on a live post.
+      const extracted = await tryExtractor(url);
+      if (extracted) {
+        console.log("Self-hosted extractor handled Instagram");
+        return {
+          platform: "instagram",
+          videoUrl: extracted.videoUrl,
+          videoHeaders: extracted.videoHeaders,
+          imageUrls: extracted.imageUrls,
+          imageHeaders: extracted.imageHeaders,
+          thumbnailUrl: extracted.thumbnailUrl,
+          description: extracted.description,
+          author: extracted.author,
+          originalUrl: extracted.originalUrl,
+        };
+      }
+
       const info = await getInstagramMediaInfo(url);
       return {
         platform: "instagram",
@@ -123,6 +148,27 @@ export async function getSocialMediaVideoAsBase64(
   thumbnailUrl?: string;
   description: string;
 } | null> {
+  // Anything our own extractor resolved downloads the same way whatever
+  // platform it came from — the URL points at our endpoint and carries its
+  // auth in videoHeaders. Checking this before the platform switch is what
+  // lets an Instagram reel use the extractor instead of falling to Apify.
+  if (prefetched?.videoUrl && prefetched.videoHeaders) {
+    try {
+      const buffer = await downloadExtractedVideo(
+        prefetched.videoUrl,
+        prefetched.videoHeaders
+      );
+      return {
+        base64: buffer.toString("base64"),
+        thumbnailUrl: prefetched.thumbnailUrl,
+        description: prefetched.description,
+      };
+    } catch (error) {
+      console.log("Extractor video download failed:", error);
+      return null;
+    }
+  }
+
   const platform = detectPlatform(url);
 
   switch (platform) {
