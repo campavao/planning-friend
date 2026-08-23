@@ -119,6 +119,8 @@ export interface PlanWeekArgs {
   dismissedByDay: Record<number, string[]>;
   weekStart: string;
   now: Date;
+  /** Average rating per content id, where one has been written (PLA-9). */
+  ratings?: Map<string, number>;
   /** Defaults to the whole week; a single-day refresh passes just that day. */
   targetDays?: number[];
   topN?: number;
@@ -147,6 +149,7 @@ export function planWeekCoverage(args: PlanWeekArgs): WeekCoverage {
     dismissedByDay,
     weekStart,
     now,
+    ratings,
     targetDays = WEEK_DAY_INDEXES,
     topN = 8,
   } = args;
@@ -197,6 +200,7 @@ export function planWeekCoverage(args: PlanWeekArgs): WeekCoverage {
       excludedContentIds: summary.thisWeekContentIds,
       dismissedIds,
       weekPlantKeys,
+      ratings,
       dayIndex: day,
       weekStart,
       now,
@@ -219,6 +223,7 @@ export function planWeekCoverage(args: PlanWeekArgs): WeekCoverage {
         excludedContentIds: sameDayIds,
         dismissedIds,
         weekPlantKeys,
+        ratings,
         dayIndex: day,
         weekStart,
         now,

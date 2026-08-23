@@ -1,5 +1,6 @@
 import {
   getDecayedHistory,
+  getContentRatings,
   getEligibleContentPool,
   type DecayedHistory,
 } from "@/lib/db/planner";
@@ -198,6 +199,10 @@ export async function getOrComputeSuggestions(
   );
   const dismissalMap: DismissalMap = cachedRow?.dismissed ?? {};
 
+  // A missing rating map degrades ranking rather than failing the week, which
+  // is why this is not folded into the Promise.all above.
+  const ratings = await getContentRatings(args.userId).catch(() => new Map());
+
   const { candidatesByDay, diagnostics } = planWeekCoverage({
     pool,
     history,
@@ -205,6 +210,7 @@ export async function getOrComputeSuggestions(
     dismissedByDay: dismissalMap,
     weekStart: args.weekStart,
     now,
+    ratings,
     targetDays,
     topN: 8,
   });

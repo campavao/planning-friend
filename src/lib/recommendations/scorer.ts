@@ -13,10 +13,35 @@ import {
 
 const W_CAT = 0.40;
 const W_TAG = 0.25;
+const W_RATING = 0.24;
 const W_COOLDOWN = 0.20;
+const W_STAR = 0.18;
 const W_PLANT = 0.15;
 const W_RECENT = 0.10;
 const W_TIEBREAK = 0.05;
+
+/**
+ * Rating outweighs star deliberately.
+ *
+ * A star is a prior — "this looks worth cooking" — recorded before the fact. A
+ * rating is a posterior: the cook made it and said how it went. When the two
+ * disagree, the later and more specific judgement has to win, or a dish starred
+ * on the strength of its thumbnail and then rated 1 keeps being suggested
+ * forever. The first version of this had the weights the other way round and
+ * did exactly that.
+ */
+
+/**
+ * The midpoint of the 1-5 rating scale (schema-item-notes.sql).
+ *
+ * A rating is normalised against this, so 5 contributes +1, 1 contributes -1
+ * and 3 contributes nothing. It is the only signal in the engine that can go
+ * negative on its own: everything else infers preference from behaviour, where
+ * a rating is the cook saying outright that the thing was not good. Suppressing
+ * a 2 well past the ordinary cooldown is the point.
+ */
+const RATING_MIDPOINT = 3;
+const RATING_RANGE = 2;
 
 /**
  * New plants at which the diversity bonus saturates.
@@ -59,6 +84,14 @@ export interface RankInput {
    * context rank exactly as they did before.
    */
   weekPlantKeys?: Set<string>;
+  /**
+   * Average rating per content id, where the cook has written one.
+   *
+   * Absent means "no opinion recorded", which is deliberately different from a
+   * middling 3: an unrated item is not being judged, it simply has no verdict,
+   * and must not be nudged either way.
+   */
+  ratings?: Map<string, number>;
   dayIndex: number;
   weekStart: string;
   now?: Date;
@@ -193,6 +226,7 @@ export function rankForDay(input: RankInput): RankResult {
     excludedContentIds,
     dismissedIds,
     weekPlantKeys,
+    ratings,
     dayIndex,
     weekStart,
     now = new Date(),
@@ -262,6 +296,22 @@ export function rankForDay(input: RankInput): RankResult {
       }
     }
 
+    // Starring is the cheapest explicit preference in the app and needs no
+    // sparsity threshold the way tags do — one star is already a statement.
+    const starScore = content.is_favorite ? 1 : 0;
+
+    // Unrated items score exactly zero: no opinion is not the same as a
+    // middling opinion, and inferring one would punish everything never
+    // reviewed.
+    const rating = ratings?.get(content.id);
+    const ratingScore =
+      rating === undefined
+        ? 0
+        : Math.max(
+            -1,
+            Math.min(1, (rating - RATING_MIDPOINT) / RATING_RANGE)
+          );
+
     const days = lastPlannedDays(history.items, content.id, now);
     const cooldown = cooldownPenalty(days);
     const recent = recentlySavedBoost(content.created_at, now);
@@ -269,7 +319,9 @@ export function rankForDay(input: RankInput): RankResult {
 
     const score =
       W_CAT * catScore +
-      W_TAG * tagScore -
+      W_TAG * tagScore +
+      W_STAR * starScore +
+      W_RATING * ratingScore -
       W_COOLDOWN * cooldown +
       W_PLANT * plantScore +
       W_RECENT * recent +

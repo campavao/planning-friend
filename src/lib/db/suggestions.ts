@@ -22,7 +22,9 @@ export type DismissalMap = Record<number, string[]>;
  * v1 = the original, unstamped payload (`{ "0": [...] }` at the top level).
  * v2 = every day in the week present, empty days included.
  */
-export const SUGGESTION_CACHE_VERSION = 2;
+// 3: stars and ratings entered the ranking (PLA-9), so v2 entries would keep
+// serving pre-preference orderings until they expired on their own.
+export const SUGGESTION_CACHE_VERSION = 3;
 
 /**
  * What actually lives in the `payload` JSONB column. The extra fields ride
