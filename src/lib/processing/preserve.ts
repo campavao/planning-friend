@@ -177,6 +177,82 @@ export function losesLocation(
   return contentWeight(incoming?.data) <= contentWeight(existingData);
 }
 
+/** Nothing worth keeping: the key may as well not be there. */
+function isEmptyValue(value: unknown): boolean {
+  if (value === null || value === undefined) return true;
+  if (typeof value === "string") return value.trim() === "";
+  if (Array.isArray(value)) return value.length === 0;
+  return false;
+}
+
+/** Owner-typed sections come first and win on label, because a person put them
+ *  there deliberately and an extraction only ever guessed. */
+function mergeSections(existing: unknown, incoming: unknown): unknown {
+  const kept = Array.isArray(existing) ? existing : [];
+  const found = Array.isArray(incoming) ? incoming : [];
+  if (kept.length === 0) return found.length > 0 ? found : undefined;
+
+  const labels = new Set(
+    kept.map((s) =>
+      String((s as { label?: unknown })?.label ?? "").trim().toLowerCase()
+    )
+  );
+  const additions = found.filter((s) => {
+    const label = String((s as { label?: unknown })?.label ?? "")
+      .trim()
+      .toLowerCase();
+    return label && !labels.has(label);
+  });
+  return [...kept, ...additions].slice(0, MAX_MERGED_SECTIONS);
+}
+
+/** Matches the cap the PATCH schema enforces, so a merge can never build a
+ *  blob the editor would then refuse to save. */
+const MAX_MERGED_SECTIONS = 20;
+
+/**
+ * Fold a re-analysis into what the row already holds.
+ *
+ * A re-extraction is supposed to improve an item, and it usually does — but it
+ * is a fresh read of the source, not a diff, so a field it happens not to find
+ * this time comes back absent. Writing that over the row turns "I did not see a
+ * price" into "there is no price". A saved TikTok find lost its cost exactly
+ * that way: everything else re-read fine, so no guard fired, and the number
+ * simply stopped existing.
+ *
+ * So: the new result wins wherever it says something, and the old value fills
+ * the gaps where it does not. That also rescues two things nothing else was
+ * protecting — the sections the owner typed themselves, and the
+ * `manually_edited_at` stamp, both of which a regenerate used to erase.
+ *
+ * Skipped entirely when the category changed. The old fields describe a
+ * different kind of thing at that point, and an event's `date` has no business
+ * surviving onto a meal.
+ */
+export function mergeOntoExisting(
+  existing: Pick<Content, "category" | "data"> | null | undefined,
+  incoming: AnalysedItem
+): Record<string, unknown> {
+  const incomingData = (incoming.data ?? {}) as Record<string, unknown>;
+  if (!existing?.data || typeof existing.data !== "object") return incomingData;
+  if (existing.category !== incoming.category) return incomingData;
+
+  const existingData = existing.data as Record<string, unknown>;
+  const merged: Record<string, unknown> = { ...incomingData };
+
+  for (const [key, value] of Object.entries(existingData)) {
+    if (isEmptyValue(value)) continue;
+    if (key === "sections") continue;
+    if (isEmptyValue(merged[key])) merged[key] = value;
+  }
+
+  const sections = mergeSections(existingData.sections, incomingData.sections);
+  if (sections === undefined) delete merged.sections;
+  else merged.sections = sections;
+
+  return merged;
+}
+
 /**
  * The decision itself: keep what is already there when the incoming result is
  * empty, when it is a collapsed fraction of what the row already holds, or when

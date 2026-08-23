@@ -13,7 +13,7 @@ import {
   updateContent,
 } from "@/lib/supabase";
 import { dropDeadLinks } from "@/lib/link-check";
-import { shouldPreserveExisting } from "./preserve";
+import { mergeOntoExisting, shouldPreserveExisting } from "./preserve";
 import type { ProcessResult } from "./types";
 
 const THUMBNAILS_BUCKET = "thumbnails";
@@ -170,7 +170,7 @@ async function applyAnalysisResult(
         await updateContent(contentId, {
           category: first.category,
           title: first.title,
-          data: first.data,
+          data: mergeOntoExisting(existing, first),
           thumbnail_url: persistentThumbnailUrl,
           status: "completed",
         })
@@ -222,7 +222,9 @@ async function applyAnalysisResult(
   const updatedContent = await updateContent(contentId, {
     category: item.category,
     title: item.title,
-    data: item.data,
+    // Fills the gaps from what the row already held, so a field this read
+    // happened to miss is not the same as the field being gone.
+    data: mergeOntoExisting(existing, item),
     thumbnail_url: persistentThumbnailUrl,
     status: "completed",
   });

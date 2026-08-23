@@ -4,6 +4,7 @@ import {
   hasSalvageableContent,
   isLowValueResult,
   losesLocation,
+  mergeOntoExisting,
   shouldPreserveExisting,
 } from "@/lib/processing/preserve";
 import type { Content } from "@/lib/db/types";
@@ -454,5 +455,173 @@ describe("shouldPreserveExisting — bookings", () => {
         },
       })
     ).toBe(false);
+  });
+});
+
+/**
+ * A re-extraction is a fresh read, not a diff. A field it happens not to find
+ * comes back absent, and writing that over the row turns "I did not see a
+ * price" into "there is no price".
+ */
+const savedFind = {
+  category: "gift_idea",
+  data: {
+    name: "Stanley Quencher H2.0",
+    cost: "$45.00",
+    description: "The tumbler everyone has.",
+    purchase_link: "https://stanley1913.com/products/quencher",
+    amazon_link: "https://www.amazon.com/s?k=Stanley+Quencher",
+    manually_edited_at: "2026-08-01T12:00:00.000Z",
+  },
+} as unknown as Pick<Content, "category" | "data">;
+
+describe("mergeOntoExisting", () => {
+  it("keeps a price the new read did not find", () => {
+    const merged = mergeOntoExisting(savedFind, {
+      category: "gift_idea",
+      title: "Stanley Quencher H2.0",
+      data: {
+        name: "Stanley Quencher H2.0 FlowState Tumbler",
+        description: "40oz insulated tumbler with a handle.",
+      },
+    });
+
+    expect(merged.cost).toBe("$45.00");
+    expect(merged.amazon_link).toBe(
+      "https://www.amazon.com/s?k=Stanley+Quencher"
+    );
+    // The fresh read still wins wherever it actually said something.
+    expect(merged.name).toBe("Stanley Quencher H2.0 FlowState Tumbler");
+    expect(merged.description).toBe("40oz insulated tumbler with a handle.");
+  });
+
+  it("keeps the manual-edit stamp a regenerate used to erase", () => {
+    const merged = mergeOntoExisting(savedFind, {
+      category: "gift_idea",
+      title: "Stanley Quencher",
+      data: { name: "Stanley Quencher" },
+    });
+    expect(merged.manually_edited_at).toBe("2026-08-01T12:00:00.000Z");
+  });
+
+  it("treats empty string, null and empty array as not-found", () => {
+    const merged = mergeOntoExisting(savedFind, {
+      category: "gift_idea",
+      title: "Stanley Quencher",
+      data: { cost: "", purchase_link: null, name: "   " },
+    });
+    expect(merged.cost).toBe("$45.00");
+    expect(merged.purchase_link).toBe(
+      "https://stanley1913.com/products/quencher"
+    );
+    expect(merged.name).toBe("Stanley Quencher H2.0");
+  });
+
+  it("does not carry fields across a change of category", () => {
+    const merged = mergeOntoExisting(savedFind, {
+      category: "meal",
+      title: "Iced Coffee",
+      data: { ingredients: ["coffee", "ice"] },
+    });
+    expect(merged).toEqual({ ingredients: ["coffee", "ice"] });
+    expect(merged).not.toHaveProperty("cost");
+  });
+
+  it("returns the new result untouched when there is nothing to merge with", () => {
+    const data = { cost: "$12" };
+    expect(mergeOntoExisting(null, { category: "gift_idea", data })).toEqual(
+      data
+    );
+    expect(
+      mergeOntoExisting(
+        { category: "gift_idea", data: undefined } as unknown as Pick<
+          Content,
+          "category" | "data"
+        >,
+        { category: "gift_idea", data }
+      )
+    ).toEqual(data);
+  });
+});
+
+describe("mergeOntoExisting — sections", () => {
+  const withSections = {
+    category: "event",
+    data: {
+      location: "Navy Pier, Chicago",
+      sections: [
+        { label: "Parking", value: "Lot B, $18" },
+        { label: "Seats", value: "Row F" },
+      ],
+    },
+  } as unknown as Pick<Content, "category" | "data">;
+
+  it("keeps the rows the owner typed", () => {
+    const merged = mergeOntoExisting(withSections, {
+      category: "event",
+      title: "Lobster Fest",
+      data: { location: "Navy Pier, Chicago" },
+    });
+    expect(merged.sections).toEqual(withSections.data.sections);
+  });
+
+  it("appends what the extraction found without duplicating a label", () => {
+    const merged = mergeOntoExisting(withSections, {
+      category: "event",
+      title: "Lobster Fest",
+      data: {
+        sections: [
+          { label: "seats", value: "Row A" },
+          { label: "Doors", value: "6:00 PM" },
+        ],
+      },
+    });
+    expect(merged.sections).toEqual([
+      { label: "Parking", value: "Lot B, $18" },
+      { label: "Seats", value: "Row F" },
+      { label: "Doors", value: "6:00 PM" },
+    ]);
+  });
+
+  it("takes the extraction's sections when the row had none", () => {
+    const merged = mergeOntoExisting(
+      { category: "event", data: { location: "x" } } as unknown as Pick<
+        Content,
+        "category" | "data"
+      >,
+      {
+        category: "event",
+        title: "Lobster Fest",
+        data: { sections: [{ label: "Doors", value: "6:00 PM" }] },
+      }
+    );
+    expect(merged.sections).toEqual([{ label: "Doors", value: "6:00 PM" }]);
+  });
+
+  it("leaves no sections key when neither side has any", () => {
+    const merged = mergeOntoExisting(
+      { category: "event", data: { location: "x" } } as unknown as Pick<
+        Content,
+        "category" | "data"
+      >,
+      { category: "event", title: "Lobster Fest", data: { location: "y" } }
+    );
+    expect(merged).not.toHaveProperty("sections");
+  });
+
+  it("caps a merged list at what the editor will accept", () => {
+    const many = (n: number, prefix: string) =>
+      Array.from({ length: n }, (_, i) => ({
+        label: `${prefix}${i}`,
+        value: "v",
+      }));
+    const merged = mergeOntoExisting(
+      { category: "event", data: { sections: many(18, "own") } } as unknown as Pick<
+        Content,
+        "category" | "data"
+      >,
+      { category: "event", title: "x", data: { sections: many(6, "new") } }
+    );
+    expect(merged.sections).toHaveLength(20);
   });
 });

@@ -22,7 +22,7 @@ import {
 } from "@/lib/social-media";
 import { notifyContentReady } from "@/lib/push-notifications";
 import { dropDeadLinks } from "@/lib/link-check";
-import { shouldPreserveExisting } from "./preserve";
+import { mergeOntoExisting, shouldPreserveExisting } from "./preserve";
 import type { ProcessResult } from "./types";
 
 const MAX_VIDEO_SIZE_BYTES = 50 * 1024 * 1024;
@@ -279,7 +279,7 @@ async function applySocialAnalysisResult(
         await updateContent(contentId, {
           category: first.category,
           title: first.title,
-          data: first.data,
+          data: mergeOntoExisting(existing, first),
           thumbnail_url: await thumbnailFor(
             first,
             contentId,
@@ -353,7 +353,9 @@ async function applySocialAnalysisResult(
   const updatedContent = await updateContent(contentId, {
     category: item.category,
     title: item.title,
-    data: item.data,
+    // Fills the gaps from what the row already held, so a field this read
+    // happened to miss is not the same as the field being gone.
+    data: mergeOntoExisting(existing, item),
     thumbnail_url: thumbnailToUse,
     status: "completed",
   });
