@@ -461,11 +461,28 @@ export async function analyzeWithImages(
   const prompt = `${ANALYSIS_PROMPT}
 
 The ${images.length} images are the slides of a single post, in order.
-Read any text visible in them — on these posts the ingredients and steps are
-usually written on the images rather than in the caption.
 Caption/description: "${description}"
 
-Treat the slides as one piece of content, not as ${images.length} separate items.`;
+Treat the slides as one piece of content, not as ${images.length} separate items.
+
+**Read the text in the images.** On these posts almost everything is written on
+the slides rather than in the caption — the caption is often only hashtags, or
+empty. Transcribe what you see and use it to fill the fields, in slide order:
+ingredients on one card and steps on the next belong to the same recipe.
+
+**The last slide is usually the call to action.** Check every slide, and the
+last one especially, for:
+- a website or URL, including bare ones written without https://
+- an @handle, or a "link in bio"
+- a venue or business name, and a street address
+
+Put a URL in the matching link field (ticket_link, menu_link, reservation_link,
+purchase_link, booking_link) so it renders as a link rather than being buried in
+the description. Normalise a bare domain to a full https:// URL.
+
+For location, prefer the specific venue written on the slides — "Mixed Mediums,
+Chicago" — over the city alone. A bare city name is the least useful answer and
+should only be used when nothing more specific appears anywhere.`;
 
   try {
     const response = await ai.models.generateContent({
