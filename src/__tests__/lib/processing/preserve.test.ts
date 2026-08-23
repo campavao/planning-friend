@@ -1,4 +1,6 @@
 import {
+  contentWeight,
+  isCollapse,
   hasSalvageableContent,
   isLowValueResult,
   shouldPreserveExisting,
@@ -282,6 +284,75 @@ describe("the guard fires during an actual reprocess", () => {
         title: "Processing...",
         data: {},
       } as unknown as Pick<Content, "status" | "category" | "title" | "data">)
+    ).toBe(false);
+  });
+});
+
+describe("collapse into a title echo", () => {
+  // The real one: 21 ingredients and 26 steps replaced by three "ingredients"
+  // that were the words of the recipe's own title.
+  const teriyaki = {
+    status: "completed",
+    category: "meal",
+    title: "Teriyaki Chicken with Pineapple and Muenster Cheese & Macaroni Salad",
+    data: {
+      ingredients: Array.from({ length: 21 }, (_, i) => `ingredient ${i}`),
+      recipe: Array.from({ length: 26 }, (_, i) => `step ${i}`),
+    },
+  } as unknown as Pick<Content, "status" | "category" | "title" | "data">;
+
+  const titleEcho = {
+    category: "meal",
+    title: "Teriyaki Chicken with Pineapple and Muenster Cheese",
+    data: { ingredients: ["Teriyaki Chicken", "Pineapple", "Muenster Cheese"], recipe: [] },
+  };
+
+  it("weighs arrays by length, not presence", () => {
+    expect(contentWeight(teriyaki.data)).toBe(47);
+    expect(contentWeight(titleEcho.data)).toBe(3);
+  });
+
+  it("catches the collapse that isLowValueResult misses", () => {
+    expect(isLowValueResult(titleEcho)).toBe(false); // three is more than none
+    expect(isCollapse(teriyaki.data, titleEcho)).toBe(true);
+    expect(shouldPreserveExisting(teriyaki, titleEcho)).toBe(true);
+  });
+
+  it("allows ordinary re-extraction variance on a small recipe", () => {
+    // 7 items -> 4 is below the floor: normal, and must not be blocked.
+    const small = {
+      status: "completed", category: "meal", title: "Caesar Crunchwraps",
+      data: { ingredients: ["a", "b", "c", "d"], recipe: ["1", "2", "3"] },
+    } as unknown as Pick<Content, "status" | "category" | "title" | "data">;
+    expect(
+      shouldPreserveExisting(small, {
+        category: "meal", title: "Caesar Crunchwrap",
+        data: { ingredients: ["a", "b"], recipe: ["1", "2"] },
+      })
+    ).toBe(false);
+  });
+
+  it("allows a large recipe to shrink moderately", () => {
+    expect(
+      shouldPreserveExisting(teriyaki, {
+        category: "meal", title: "Teriyaki Chicken",
+        data: {
+          ingredients: Array.from({ length: 14 }, (_, i) => `i${i}`),
+          recipe: Array.from({ length: 16 }, (_, i) => `s${i}`),
+        },
+      })
+    ).toBe(false);
+  });
+
+  it("allows a re-extraction that grows", () => {
+    expect(
+      shouldPreserveExisting(teriyaki, {
+        category: "meal", title: "Teriyaki Chicken",
+        data: {
+          ingredients: Array.from({ length: 25 }, (_, i) => `i${i}`),
+          recipe: Array.from({ length: 30 }, (_, i) => `s${i}`),
+        },
+      })
     ).toBe(false);
   });
 });
