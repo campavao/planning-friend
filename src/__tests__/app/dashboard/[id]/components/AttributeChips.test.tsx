@@ -17,7 +17,7 @@ const PLANTS: MealData["plants"] = [
 describe("AttributeChips", () => {
   it("renders effort, spice and plant count", () => {
     render(
-      <AttributeChips data={{ effort: "easy", spice: "mild", plants: PLANTS }} />
+      <AttributeChips category="meal" data={{ effort: "easy", spice: "mild", plants: PLANTS }} />
     );
     expect(screen.getByText("Easy")).toBeInTheDocument();
     expect(screen.getByText("Mild")).toBeInTheDocument();
@@ -28,13 +28,13 @@ describe("AttributeChips", () => {
     // The whole point: an un-backfilled recipe shows no chips rather than
     // three chips saying "Unknown".
     const { container } = render(
-      <AttributeChips data={{ ingredients: ["1 cup rice"] }} />
+      <AttributeChips category="meal" data={{ ingredients: ["1 cup rice"] }} />
     );
     expect(container).toBeEmptyDOMElement();
   });
 
   it("renders only the attributes that are present", () => {
-    render(<AttributeChips data={{ spice: "hot" }} />);
+    render(<AttributeChips category="meal" data={{ spice: "hot" }} />);
     expect(screen.getByText("Hot")).toBeInTheDocument();
     expect(screen.queryByText(/plant/)).not.toBeInTheDocument();
   });
@@ -43,6 +43,7 @@ describe("AttributeChips", () => {
     // Two ingredients, one shared source — one plant.
     render(
       <AttributeChips
+        category="meal"
         data={{
           plants: [
             { source: "wheat", name: "egg noodles", category: "whole_grain" },
@@ -57,6 +58,7 @@ describe("AttributeChips", () => {
   it("singularises a single plant", () => {
     render(
       <AttributeChips
+        category="meal"
         data={{ plants: [{ source: "garlic", category: "vegetable" }] }}
       />
     );
@@ -66,12 +68,12 @@ describe("AttributeChips", () => {
   it("makes the plant chip tappable only when given a handler", () => {
     const onShowPlants = jest.fn();
     const { rerender } = render(
-      <AttributeChips data={{ plants: PLANTS }} onShowPlants={onShowPlants} />
+      <AttributeChips category="meal" data={{ plants: PLANTS }} onShowPlants={onShowPlants} />
     );
     fireEvent.click(screen.getByText("5 plants"));
     expect(onShowPlants).toHaveBeenCalledTimes(1);
 
-    rerender(<AttributeChips data={{ plants: PLANTS }} />);
+    rerender(<AttributeChips category="meal" data={{ plants: PLANTS }} />);
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
@@ -79,6 +81,7 @@ describe("AttributeChips", () => {
     // An extraction that emitted bare strings must not produce a count.
     const { container } = render(
       <AttributeChips
+        category="meal"
         data={{ plants: ["garlic", "onion"] as unknown as MealData["plants"] }}
       />
     );
@@ -88,6 +91,7 @@ describe("AttributeChips", () => {
   it("does not count herb_spice entries", () => {
     render(
       <AttributeChips
+        category="meal"
         data={{
           plants: [
             { source: "garlic", category: "vegetable" },

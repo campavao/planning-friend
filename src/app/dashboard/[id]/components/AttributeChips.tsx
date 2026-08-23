@@ -1,34 +1,53 @@
 "use client";
 
-import { ChefHat, Flame, Leaf } from "lucide-react";
+import {
+  ChefHat,
+  Clock,
+  DollarSign,
+  Flame,
+  Leaf,
+  MapPin,
+  Shapes,
+  Ticket,
+  CalendarCheck,
+} from "lucide-react";
 import type { ElementType } from "react";
-import type { MealData, RecipeEffort, SpiceLevel } from "@/lib/supabase";
-import { countPlants, readPlants } from "@/lib/plants";
+import { describeAttributes, type AttributeKey } from "@/lib/attributes";
+import type { ContentCategory } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 /**
- * The at-a-glance attributes of a recipe.
+ * The at-a-glance attributes of a saved item.
  *
  * Chips rather than rows: three full-width rows for three one-word values ate a
  * third of a phone screen, and chips are cheap enough that a fourth or fifth
- * attribute costs almost nothing — which is what makes the pattern worth
- * carrying to other item types later (PLA-59).
+ * attribute costs almost nothing — which is exactly the property that made them
+ * worth extending past recipes (PLA-59).
+ *
+ * What each category shows lives in `@/lib/attributes`, not here, because the
+ * `key` on each attribute is the filter dimension that will replace tags. This
+ * file only decides which icon goes with which key.
  *
  * Every chip is optional. An item extracted before these fields existed renders
  * nothing here rather than a row of "Unknown", which would be three lies.
  */
 
-const EFFORT_LABELS: Record<RecipeEffort, string> = {
-  easy: "Easy",
-  medium: "Some effort",
-  hard: "Involved",
+const ICONS: Record<AttributeKey, ElementType> = {
+  effort: ChefHat,
+  spice: Flame,
+  plants: Leaf,
+  type: Shapes,
+  price: DollarSign,
+  prep: Clock,
+  ticket: Ticket,
+  reservation: CalendarCheck,
+  destination: MapPin,
 };
 
-const SPICE_LABELS: Record<SpiceLevel, string> = {
-  none: "Not spicy",
-  mild: "Mild",
-  medium: "Medium",
-  hot: "Hot",
+const ICON_TONES: Partial<Record<AttributeKey, string>> = {
+  effort: "text-[var(--primary)]",
+  spice: "text-[#D9534F]",
+  plants: "text-[var(--secondary-dark)]",
 };
 
 function Chip({
@@ -74,39 +93,33 @@ function Chip({
 }
 
 interface AttributeChipsProps {
-  data: MealData;
+  category: ContentCategory | string;
+  data: Record<string, unknown> | null | undefined;
   /** Opens the plant breakdown. Without it the plant chip is not tappable. */
   onShowPlants?: () => void;
 }
 
-export function AttributeChips({ data, onShowPlants }: AttributeChipsProps) {
-  const effort = data.effort ? EFFORT_LABELS[data.effort] : null;
-  const spice = data.spice ? SPICE_LABELS[data.spice] : null;
-  const plantCount = countPlants(readPlants(data.plants));
+export function AttributeChips({
+  category,
+  data,
+  onShowPlants,
+}: AttributeChipsProps) {
+  const attributes = describeAttributes(category, data);
 
-  if (!effort && !spice && plantCount === 0) return null;
+  if (attributes.length === 0) return null;
 
   return (
     <div className="flex flex-wrap items-center gap-1.5 px-4 pb-3.5 pt-1.5">
-      {effort && (
-        <Chip icon={ChefHat} iconClassName="text-[var(--primary)]">
-          {effort}
-        </Chip>
-      )}
-      {spice && (
-        <Chip icon={Flame} iconClassName="text-[#D9534F]">
-          {spice}
-        </Chip>
-      )}
-      {plantCount > 0 && (
+      {attributes.map((attribute) => (
         <Chip
-          icon={Leaf}
-          iconClassName="text-[var(--secondary-dark)]"
-          onClick={onShowPlants}
+          key={attribute.key}
+          icon={ICONS[attribute.key]}
+          iconClassName={ICON_TONES[attribute.key] ?? "text-muted-foreground"}
+          onClick={attribute.key === "plants" ? onShowPlants : undefined}
         >
-          {plantCount} {plantCount === 1 ? "plant" : "plants"}
+          {attribute.label}
         </Chip>
-      )}
+      ))}
     </div>
   );
 }

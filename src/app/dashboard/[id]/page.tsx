@@ -745,11 +745,14 @@ export default function ContentDetailPage() {
             )}
           </div>
 
-          {/* Recipe attributes sit directly under the title — they are the
-              at-a-glance answer to "should I cook this tonight". */}
-          {!editing && content.category === "meal" && (
+          {/* Attributes sit directly under the title — they are the
+              at-a-glance answer to "is this the one for tonight". Every
+              category now gets them; the component renders nothing for an item
+              whose fields are all absent. */}
+          {!editing && (
             <AttributeChips
-              data={mealData}
+              category={content.category}
+              data={content.data as Record<string, unknown>}
               onShowPlants={
                 plants.length > 0
                   ? () => setDrawer({ kind: "plants" })
