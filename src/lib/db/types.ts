@@ -148,6 +148,9 @@ export interface UserSettings {
   // resolveNoteReminderSettings() supplies the defaults.
   note_reminders_enabled?: boolean;
   note_reminder_delay_minutes?: number;
+  /** IANA name, reported by the browser. Absent until it has been, in which
+   *  case everything that needs a real moment falls back to UTC. */
+  timezone?: string;
   created_at: string;
   updated_at?: string;
 }

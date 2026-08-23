@@ -3,6 +3,7 @@ import {
   MAX_NOTE_REMINDER_DELAY_MINUTES,
   MIN_NOTE_REMINDER_DELAY_MINUTES,
 } from "@/lib/note-reminders";
+import { isValidTimeZone } from "@/lib/timezone";
 
 /**
  * The whole writable settings surface, in one place. POST /api/settings parses
@@ -27,6 +28,18 @@ export const updateUserSettingsBodySchema = z.object({
       MAX_NOTE_REMINDER_DELAY_MINUTES,
       `Delay must be at most ${MAX_NOTE_REMINDER_DELAY_MINUTES} minutes`
     )
+    .optional(),
+  /**
+   * An IANA zone name, reported by the browser rather than chosen by hand.
+   * Checked against the runtime's own zone data: this ends up in
+   * Intl.DateTimeFormat, which throws on a name it does not know, and a throw
+   * inside the reminder cron would take out everyone's reminders, not just the
+   * one bad row.
+   */
+  timezone: z
+    .string()
+    .max(100)
+    .refine(isValidTimeZone, "Not a recognised time zone")
     .optional(),
 });
 

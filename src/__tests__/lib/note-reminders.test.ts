@@ -19,6 +19,7 @@ import {
   type NoteReminderCandidate,
   type NoteReminderSettings,
 } from "@/lib/note-reminders";
+import { MAX_UTC_OFFSET_MINUTES } from "@/lib/timezone";
 
 const MINUTE = 60 * 1000;
 
@@ -26,7 +27,11 @@ const MINUTE = 60 * 1000;
 const PLANNED = "2026-03-10T19:00:00.000Z";
 const DUE_MS = Date.parse("2026-03-10T21:00:00.000Z");
 
-const ON: NoteReminderSettings = { enabled: true, delayMinutes: 120 };
+const ON: NoteReminderSettings = {
+  enabled: true,
+  delayMinutes: 120,
+  timeZone: "UTC",
+};
 
 function candidate(
   overrides: Partial<NoteReminderCandidate> = {}
@@ -101,7 +106,11 @@ describe("shouldSendNoteReminder — the time boundary", () => {
 
 describe("shouldSendNoteReminder — the delay is the user's", () => {
   it("does not fire two hours in when the user asked for the next day", () => {
-    const nextDay: NoteReminderSettings = { enabled: true, delayMinutes: 1440 };
+    const nextDay: NoteReminderSettings = {
+      enabled: true,
+      delayMinutes: 1440,
+      timeZone: "UTC",
+    };
     const decision = shouldSendNoteReminder(
       candidate(),
       nextDay,
@@ -111,7 +120,11 @@ describe("shouldSendNoteReminder — the delay is the user's", () => {
   });
 
   it("fires once the longer delay has passed", () => {
-    const nextDay: NoteReminderSettings = { enabled: true, delayMinutes: 1440 };
+    const nextDay: NoteReminderSettings = {
+      enabled: true,
+      delayMinutes: 1440,
+      timeZone: "UTC",
+    };
     const dayAfterPlanned = Date.parse(PLANNED) + 1440 * MINUTE;
     expect(
       shouldSendNoteReminder(candidate(), nextDay, new Date(dayAfterPlanned))
@@ -170,7 +183,7 @@ describe("shouldSendNoteReminder — never sends at all", () => {
   it("respects the off switch", () => {
     const decision = shouldSendNoteReminder(
       candidate(),
-      { enabled: false, delayMinutes: 120 },
+      { enabled: false, delayMinutes: 120, timeZone: "UTC" },
       new Date(DUE_MS + MINUTE)
     );
     expect(decision).toMatchObject({
@@ -185,7 +198,7 @@ describe("shouldSendNoteReminder — never sends at all", () => {
         noteReminderSentAt: "2026-03-10T21:00:00.000Z",
         hasNoteSincePlanned: true,
       }),
-      { enabled: false, delayMinutes: 120 },
+      { enabled: false, delayMinutes: 120, timeZone: "UTC" },
       new Date(DUE_MS + MINUTE)
     );
     expect(decision).toMatchObject({
@@ -233,6 +246,7 @@ describe("resolveNoteReminderSettings", () => {
     expect(resolveNoteReminderSettings(null)).toEqual({
       enabled: true,
       delayMinutes: DEFAULT_NOTE_REMINDER_DELAY_MINUTES,
+      timeZone: "UTC",
     });
   });
 
@@ -241,6 +255,7 @@ describe("resolveNoteReminderSettings", () => {
     expect(resolveNoteReminderSettings({})).toEqual({
       enabled: true,
       delayMinutes: DEFAULT_NOTE_REMINDER_DELAY_MINUTES,
+      timeZone: "UTC",
     });
   });
 
@@ -266,6 +281,7 @@ describe("resolveNoteReminderSettings", () => {
     ).toEqual({
       enabled: true,
       delayMinutes: DEFAULT_NOTE_REMINDER_DELAY_MINUTES,
+      timeZone: "UTC",
     });
   });
 });
@@ -294,8 +310,14 @@ describe("clampDelayMinutes", () => {
 describe("noteReminderQueryWindow", () => {
   const now = new Date("2026-03-11T09:00:00.000Z");
 
-  it("never looks at anything scheduled in the future", () => {
-    expect(noteReminderQueryWindow(now).toIso).toBe(now.toISOString());
+  it("reaches past now by the widest offset there is", () => {
+    // The stored value is a wall clock, not an instant: a 7pm dinner in
+    // Auckland reads as a time still in the future from UTC's point of view
+    // hours after it has finished.
+    const { toIso } = noteReminderQueryWindow(now);
+    expect((Date.parse(toIso) - now.getTime()) / MINUTE).toBe(
+      MAX_UTC_OFFSET_MINUTES
+    );
   });
 
   it("reaches back far enough for the longest delay a user can pick", () => {
@@ -304,7 +326,9 @@ describe("noteReminderQueryWindow", () => {
     const { fromIso } = noteReminderQueryWindow(now);
     const spanMinutes = (now.getTime() - Date.parse(fromIso)) / MINUTE;
     expect(spanMinutes).toBe(
-      NOTE_REMINDER_WINDOW_MINUTES + MAX_NOTE_REMINDER_DELAY_MINUTES
+      NOTE_REMINDER_WINDOW_MINUTES +
+        MAX_NOTE_REMINDER_DELAY_MINUTES +
+        MAX_UTC_OFFSET_MINUTES
     );
   });
 
@@ -312,11 +336,98 @@ describe("noteReminderQueryWindow", () => {
     const maxSettings: NoteReminderSettings = {
       enabled: true,
       delayMinutes: MAX_NOTE_REMINDER_DELAY_MINUTES,
+      timeZone: "UTC",
     };
     const { fromIso, toIso } = noteReminderQueryWindow(now);
     const edge = candidate({ plannedDate: fromIso });
 
     expect(fromIso <= edge.plannedDate && edge.plannedDate <= toIso).toBe(true);
-    expect(shouldSendNoteReminder(edge, maxSettings, now).send).toBe(true);
+    // Still inside the 24h grace once the max delay has elapsed.
+    const justInside = candidate({
+      plannedDate: new Date(
+        now.getTime() -
+          (NOTE_REMINDER_WINDOW_MINUTES + MAX_NOTE_REMINDER_DELAY_MINUTES) *
+            MINUTE
+      ).toISOString(),
+    });
+    expect(shouldSendNoteReminder(justInside, maxSettings, now).send).toBe(true);
+  });
+});
+
+/**
+ * The bug this fixes, stated as a test: reminders for a Chicago dinner arrived
+ * before the meal, earlier by exactly the diner's offset from UTC.
+ */
+describe("reminders land after the meal, not before it", () => {
+  // A 7pm dinner on a Tuesday in August, stored the way the planner stores it.
+  const DINNER = "2026-08-25T19:00:00.000Z";
+  const CHICAGO = "America/Chicago";
+  // 7pm Chicago in August (CDT, UTC-5) is midnight UTC the next day.
+  const DINNER_REALLY_AT = Date.parse("2026-08-26T00:00:00.000Z");
+
+  const chicago: NoteReminderSettings = {
+    enabled: true,
+    delayMinutes: 60,
+    timeZone: CHICAGO,
+  };
+
+  it("is not due while the diner is still eating", () => {
+    // 7:30pm Chicago — half an hour into dinner. The old code had this one
+    // already sent, two and a half hours earlier.
+    const during = new Date(DINNER_REALLY_AT + 30 * MINUTE);
+    const decision = shouldSendNoteReminder(
+      candidate({ plannedDate: DINNER }),
+      chicago,
+      during
+    );
+    expect(decision.send).toBe(false);
+    expect(decision.send === false && decision.reason).toBe("not_due_yet");
+  });
+
+  it("comes due exactly one hour after the meal", () => {
+    const decision = shouldSendNoteReminder(
+      candidate({ plannedDate: DINNER }),
+      chicago,
+      new Date(DINNER_REALLY_AT + 60 * MINUTE)
+    );
+    expect(decision.send).toBe(true);
+    expect(decision.dueAt?.getTime()).toBe(DINNER_REALLY_AT + 60 * MINUTE);
+  });
+
+  it("would have fired three hours early on the old reading", () => {
+    // The regression guard: treating the stored string as an instant puts the
+    // due time five hours before where it belongs.
+    const asIfUtc = noteReminderDueAt(DINNER, 60, "UTC")!;
+    const correct = noteReminderDueAt(DINNER, 60, CHICAGO)!;
+    expect((correct.getTime() - asIfUtc.getTime()) / MINUTE).toBe(5 * 60);
+    // And the wrong one lands before the meal had even started.
+    expect(asIfUtc.getTime()).toBeLessThan(DINNER_REALLY_AT);
+  });
+
+  it("works east of UTC too, where the error ran the other way", () => {
+    const auckland: NoteReminderSettings = {
+      enabled: true,
+      delayMinutes: 60,
+      timeZone: "Pacific/Auckland",
+    };
+    // 7pm Auckland in August (NZST, UTC+12) is 07:00Z.
+    const realDinner = Date.parse("2026-08-25T07:00:00.000Z");
+    expect(
+      shouldSendNoteReminder(
+        candidate({ plannedDate: DINNER }),
+        auckland,
+        new Date(realDinner + 60 * MINUTE)
+      ).send
+    ).toBe(true);
+  });
+
+  it("falls back to the old behaviour when the zone is unknown", () => {
+    const noZone = resolveNoteReminderSettings({
+      note_reminder_delay_minutes: 60,
+    });
+    expect(noZone.timeZone).toBe("UTC");
+    expect(noteReminderDueAt(DINNER, 60, noZone.timeZone)?.toISOString()).toBe(
+      "2026-08-25T20:00:00.000Z"
+    );
   });
 });

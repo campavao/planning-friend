@@ -3,6 +3,9 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import useSWR from "swr";
 
+/** What we last told the server, so a page load is not a write. */
+const TIME_ZONE_SENT_KEY = "settings_timezone_reported";
+
 export interface SessionUser {
   id: string;
   phoneNumber: string;
@@ -83,6 +86,40 @@ export function useSession({
     onSuccess,
     allowUnauthenticated,
   ]);
+
+  /**
+   * Report which zone this browser is in, once per session.
+   *
+   * The planner stores a dinner as a wall clock, not an instant, so anything
+   * that needs a real moment — the note-reminder cron — has to be told which
+   * zone that clock belongs to. Nobody would ever go and set this by hand, and
+   * the browser already knows, so it is reported rather than asked for.
+   *
+   * Fire-and-forget on purpose: a failed write means reminders keep using the
+   * UTC fallback they used before this existed, which is worth nothing to
+   * interrupt anyone over.
+   */
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (!timezone) return;
+    // Once per browser per zone: re-sending it on every mount would be a write
+    // per page load for a value that changes when someone gets on a plane.
+    if (window.localStorage.getItem(TIME_ZONE_SENT_KEY) === timezone) return;
+
+    fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ timezone }),
+    })
+      .then((res) => {
+        if (res.ok) window.localStorage.setItem(TIME_ZONE_SENT_KEY, timezone);
+      })
+      .catch(() => {
+        // See above.
+      });
+  }, [isAuthenticated]);
 
   // Call onFinishLoading when initial load completes
   useEffect(() => {

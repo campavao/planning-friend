@@ -1,3 +1,10 @@
+import {
+  FALLBACK_TIME_ZONE,
+  MAX_UTC_OFFSET_MINUTES,
+  resolveTimeZone,
+  wallClockToInstant,
+} from "@/lib/timezone";
+
 /**
  * The "how was it?" reminder decision, kept free of Supabase and web-push so
  * the rule itself can be exercised directly. The cron route
@@ -27,6 +34,10 @@ const MS_PER_MINUTE = 60 * 1000;
 export interface NoteReminderSettings {
   enabled: boolean;
   delayMinutes: number;
+  /** The zone the occasion's wall-clock time belongs to. See timezone.ts —
+   *  without it a 7pm dinner is read as 7pm UTC and the reminder arrives
+   *  before the meal. */
+  timeZone: string;
 }
 
 /**
@@ -37,6 +48,7 @@ export interface NoteReminderSettings {
 export interface NoteReminderSettingsRow {
   note_reminders_enabled?: boolean | null;
   note_reminder_delay_minutes?: number | null;
+  timezone?: string | null;
 }
 
 export function resolveNoteReminderSettings(
@@ -47,7 +59,14 @@ export function resolveNoteReminderSettings(
       ? row.note_reminders_enabled
       : DEFAULT_NOTE_REMINDERS_ENABLED;
 
-  return { enabled, delayMinutes: clampDelayMinutes(row?.note_reminder_delay_minutes) };
+  return {
+    enabled,
+    delayMinutes: clampDelayMinutes(row?.note_reminder_delay_minutes),
+    // Unknown falls back to UTC, which is exactly what this did before it knew
+    // about zones at all — so a user whose browser has not reported one yet is
+    // no worse off than yesterday.
+    timeZone: resolveTimeZone(row?.timezone),
+  };
 }
 
 /**
@@ -100,13 +119,19 @@ export type NoteReminderDecision =
   | { send: true; dueAt: Date }
   | { send: false; reason: NoteReminderSkipReason; dueAt: Date | null };
 
-/** When the occasion becomes eligible. Null for an unparseable date. */
+/**
+ * When the occasion becomes eligible. Null for an unparseable date.
+ *
+ * `plannedDate` is a wall clock, not an instant, so it has to be resolved
+ * against the user's zone before any arithmetic — see timezone.ts.
+ */
 export function noteReminderDueAt(
   plannedDate: string,
-  delayMinutes: number
+  delayMinutes: number,
+  timeZone: string = FALLBACK_TIME_ZONE
 ): Date | null {
-  const planned = new Date(plannedDate);
-  if (Number.isNaN(planned.getTime())) return null;
+  const planned = wallClockToInstant(plannedDate, timeZone);
+  if (!planned) return null;
   return new Date(planned.getTime() + delayMinutes * MS_PER_MINUTE);
 }
 
@@ -126,7 +151,11 @@ export function shouldSendNoteReminder(
     return { send: false, reason: "no_content", dueAt: null };
   }
 
-  const dueAt = noteReminderDueAt(candidate.plannedDate, settings.delayMinutes);
+  const dueAt = noteReminderDueAt(
+    candidate.plannedDate,
+    settings.delayMinutes,
+    settings.timeZone
+  );
   if (!dueAt) {
     return { send: false, reason: "invalid_planned_date", dueAt: null };
   }
@@ -159,11 +188,18 @@ export function noteReminderQueryWindow(now: Date = new Date()): {
   toIso: string;
 } {
   const lookbackMs =
-    (NOTE_REMINDER_WINDOW_MINUTES + MAX_NOTE_REMINDER_DELAY_MINUTES) *
+    (NOTE_REMINDER_WINDOW_MINUTES +
+      MAX_NOTE_REMINDER_DELAY_MINUTES +
+      MAX_UTC_OFFSET_MINUTES) *
     MS_PER_MINUTE;
   return {
     fromIso: new Date(now.getTime() - lookbackMs).toISOString(),
-    // Nothing scheduled in the future can be due, whatever the delay.
-    toIso: now.toISOString(),
+    // The stored value is a wall clock, so one that reads later than now can
+    // still already have happened — for anyone east of UTC. The window has to
+    // reach past now by the widest offset there is, and let
+    // shouldSendNoteReminder judge each row properly.
+    toIso: new Date(
+      now.getTime() + MAX_UTC_OFFSET_MINUTES * MS_PER_MINUTE
+    ).toISOString(),
   };
 }
