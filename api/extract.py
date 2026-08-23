@@ -42,15 +42,29 @@ from http.server import BaseHTTPRequestHandler
 import hmac
 import json
 import os
+import re
 import shutil
 import tempfile
 import time
+import urllib.request
 from urllib.parse import parse_qs, urlparse
 
 try:
     from yt_dlp import YoutubeDL
 except ImportError:  # pragma: no cover - surfaces as a 500 with a clear cause
     YoutubeDL = None
+
+# The only hosts yt-dlp is ever pointed at. Without an allowlist this endpoint
+# would fetch arbitrary URLs on request, which is an SSRF primitive wearing an
+# extractor's clothes.
+#
+# Instagram is here because yt-dlp handles live reels directly: measured at 12
+# formats including progressive mp4, downloaded through this same code path
+# unchanged. The earlier belief that Instagram needed an authenticated session
+# came from a probe sample that had been deleted — there is no login wall on a
+# live post. Instagram *carousels* are still unsupported here, because those
+# render client-side and need a browser.
+ALLOWED_HOSTS = ("tiktok.com", "instagram.com")
 
 # Mirrors MAX_VIDEO_SIZE_BYTES in src/lib/processing/social-processor.ts, which
 # falls back to thumbnail analysis above this. Enforced here too so an oversized
@@ -122,6 +136,102 @@ def has_muxed_format(info: dict) -> bool:
     return False
 
 
+BROWSER_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+)
+
+# Headers a TikTok photo CDN URL needs. Unlike the video CDN — whose URLs are
+# bound to the session that negotiated them and 403 everyone else — these are
+# fetchable by anyone who sends a referer, so the caller downloads them itself.
+IMAGE_HEADERS = {"User-Agent": BROWSER_UA, "Referer": "https://www.tiktok.com/"}
+
+# Enough to read a recipe off a carousel without sending Gemini forty photos.
+MAX_IMAGES = 12
+
+TIKTOK_PHOTO_RE = re.compile(r"/photo/(\d+)")
+
+
+def tiktok_slideshow(url: str) -> dict | None:
+    """
+    The images of a TikTok photo post, via the embed endpoint.
+
+    yt-dlp has no extractor for `/photo/` and the post page returns a
+    bot-detected shell with no media payload — measured, along with oEmbed
+    (HTTP 400) and `/api/item/detail/` (200 with an empty body). The **embed**
+    endpoint is the exception, because it exists to be rendered inside other
+    people's iframes, so TikTok has a reason to keep it servable. It carries
+    the whole slideshow in a `__FRONTITY_CONNECT_STATE__` JSON blob.
+
+    Returns None when this is not a photo post or the shape has changed, and
+    the caller falls back exactly as before.
+    """
+    match = TIKTOK_PHOTO_RE.search(url)
+    if not match:
+        return None
+
+    embed = f"https://www.tiktok.com/embed/v2/{match.group(1)}"
+    request = urllib.request.Request(embed, headers={"User-Agent": BROWSER_UA})
+    with urllib.request.urlopen(request, timeout=30) as response:
+        html = response.read().decode("utf-8", "ignore")
+
+    blob = re.search(
+        r'<script id="__FRONTITY_CONNECT_STATE__"[^>]*>(.*?)</script>', html, re.S
+    )
+    if not blob:
+        return None
+
+    state = json.loads(blob.group(1))
+
+    # The payload is keyed by request path and has changed shape before, so
+    # walk for the field rather than hard-coding a route through it.
+    found: list[dict] = []
+
+    def walk(node: object) -> None:
+        if isinstance(node, dict):
+            if "imagePostInfo" in node:
+                found.append(node)
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(state)
+    if not found:
+        return None
+
+    post = found[0]
+    images = (post.get("imagePostInfo") or {}).get("displayImages") or []
+    urls = [
+        image["urlList"][0]
+        for image in images
+        if isinstance(image.get("urlList"), list) and image["urlList"]
+    ]
+    if not urls:
+        return None
+
+    author = None
+    for node in found:
+        infos = node.get("authorInfos") or {}
+        author = infos.get("uniqueId") or infos.get("nickname")
+        if author:
+            break
+
+    # The caption lives at itemInfos.text on the embed payload, not at `desc`
+    # like the video extractor uses. It is frequently nothing but hashtags,
+    # which is fine — on a slideshow the words are inside the images, and
+    # reading them is the analysis step's job.
+    caption = (post.get("itemInfos") or {}).get("text") or post.get("desc") or ""
+
+    return {
+        "images": urls[:MAX_IMAGES],
+        "imageHeaders": IMAGE_HEADERS,
+        "description": caption,
+        "author": author,
+    }
+
+
 def extract_metadata(url: str) -> dict:
     started = time.time()
     opts = {
@@ -136,6 +246,27 @@ def extract_metadata(url: str) -> dict:
         with YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=False)
     except Exception as exc:  # noqa: BLE001 — every failure is a documented outcome
+        # A TikTok slideshow lands here as `unsupported`. It is not a failure,
+        # just a post with no video in it, so try the images before giving up.
+        try:
+            slideshow = tiktok_slideshow(url)
+        except Exception:  # noqa: BLE001 — a broken embed is not worse than none
+            slideshow = None
+
+        if slideshow:
+            return {
+                "ok": True,
+                "hasVideo": False,
+                "thumbnailUrl": slideshow["images"][0],
+                "images": slideshow["images"],
+                "imageHeaders": slideshow["imageHeaders"],
+                "description": slideshow["description"],
+                "author": slideshow["author"],
+                "duration": None,
+                "originalUrl": url,
+                "ms": round((time.time() - started) * 1000),
+            }
+
         return failure(exc, started)
 
     return {
@@ -255,7 +386,9 @@ class handler(BaseHTTPRequestHandler):
             self._send_json(400, {"ok": False, "error": "unsupported scheme"})
             return
         host = (parsed.hostname or "").lower()
-        if host != "tiktok.com" and not host.endswith(".tiktok.com"):
+        if not any(
+            host == domain or host.endswith("." + domain) for domain in ALLOWED_HOSTS
+        ):
             self._send_json(400, {"ok": False, "error": "unsupported host"})
             return
 

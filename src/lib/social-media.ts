@@ -15,6 +15,10 @@ export interface SocialMediaInfo {
   videoUrl?: string;
   /** Headers required to fetch `videoUrl`. See TikTokVideoInfo.videoHeaders. */
   videoHeaders?: Record<string, string>;
+  /** Slides of a photo post, in order. Set instead of videoUrl. */
+  imageUrls?: string[];
+  /** Headers required to fetch `imageUrls`. */
+  imageHeaders?: Record<string, string>;
   thumbnailUrl?: string;
   description: string;
   author?: string;
@@ -74,6 +78,8 @@ export async function getSocialMediaInfo(
         platform: "tiktok",
         videoUrl: info.videoUrl,
         videoHeaders: info.videoHeaders,
+        imageUrls: info.imageUrls,
+        imageHeaders: info.imageHeaders,
         thumbnailUrl: info.thumbnailUrl,
         description: info.description,
         author: info.author,

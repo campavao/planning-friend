@@ -2,6 +2,7 @@ import {
   analyzeVideoWithGemini,
   analyzeWebpage,
   analyzeWithDescription,
+  analyzeWithImages,
   analyzeWithThumbnail,
   type MultiItemAnalysisResult,
 } from "@/lib/gemini";
@@ -122,6 +123,22 @@ export async function processSocialContent(
           );
         }
       }
+    } catch {
+      // fall through
+    }
+  }
+
+  // A slideshow has no video, and its cover alone is close to useless: on
+  // these posts the ingredients and steps are written across the slides, so
+  // reading one of them is reading a fraction of the recipe. Sits above the
+  // thumbnail path so the whole set is used when we have it.
+  if (!analysisResult && videoInfo.imageUrls?.length) {
+    try {
+      analysisResult = await analyzeWithImages(
+        videoInfo.imageUrls,
+        videoInfo.description,
+        videoInfo.imageHeaders
+      );
     } catch {
       // fall through
     }

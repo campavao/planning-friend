@@ -19,6 +19,13 @@ export interface TikTokVideoInfo {
    */
   videoHeaders?: Record<string, string>;
   thumbnailUrl?: string;
+  /**
+   * The slides of a photo post, in order. Present instead of `videoUrl` — a
+   * post is one or the other — and the signal that slideshow analysis applies.
+   */
+  imageUrls?: string[];
+  /** Headers required to fetch `imageUrls`. */
+  imageHeaders?: Record<string, string>;
   description: string;
   author?: string;
   originalUrl: string;
@@ -384,6 +391,8 @@ function tryExtractSigiState(
 interface ExtractorResponse {
   ok: boolean;
   hasVideo?: boolean;
+  images?: string[];
+  imageHeaders?: Record<string, string>;
   thumbnailUrl?: string | null;
   description?: string;
   author?: string | null;
@@ -463,7 +472,8 @@ async function tryYtDlp(
 
     // ok:true with nothing usable is worse than letting oEmbed try, since
     // oEmbed at least returns an official title.
-    if (!data.hasVideo && !data.description) return null;
+    const images = data.images ?? [];
+    if (!data.hasVideo && images.length === 0 && !data.description) return null;
 
     return {
       // Points back at our own extractor rather than at TikTok's CDN. The CDN
@@ -476,6 +486,8 @@ async function tryYtDlp(
         ? `${endpoint}?url=${encodeURIComponent(resolvedUrl)}&mode=video`
         : undefined,
       videoHeaders: data.hasVideo ? extractorHeaders(secret) : undefined,
+      imageUrls: images.length > 0 ? images : undefined,
+      imageHeaders: images.length > 0 ? data.imageHeaders : undefined,
       thumbnailUrl: data.thumbnailUrl || undefined,
       description: data.description || "",
       author: data.author || undefined,
