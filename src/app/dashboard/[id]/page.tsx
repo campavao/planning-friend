@@ -1,5 +1,6 @@
 "use client";
 
+import type { ElementType } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -982,6 +983,44 @@ function MealContent({ data }: { data: MealData }) {
   );
 }
 
+/**
+ * The links an item carries, as buttons.
+ *
+ * These fields were being extracted, validated, stored and shown in the editor,
+ * and then never rendered on the item itself — only the two gift links were.
+ * So a saved event with a ticket link, or a restaurant with a menu, looked as
+ * though the extraction had found nothing.
+ *
+ * `website` is first because it is the catch-all: a post that just puts its
+ * domain on the last slide has no more specific field to land in.
+ */
+function LinkButtons({
+  links,
+}: {
+  links: { href?: string; label: string; icon: ElementType }[];
+}) {
+  const present = links.filter((link) => link.href);
+  if (present.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap gap-2 px-2 pt-3">
+      {present.map(({ href, label, icon: Icon }) => (
+        <Button
+          key={label}
+          asChild
+          variant="secondary"
+          className="h-auto px-5 py-2.5"
+        >
+          <a href={href} target="_blank" rel="noopener noreferrer">
+            <Icon className="w-4 h-4" />
+            {label}
+          </a>
+        </Button>
+      ))}
+    </div>
+  );
+}
+
 function EventContent({
   data,
   onOpen,
@@ -994,7 +1033,8 @@ function EventContent({
   const when = [data.date, data.time].filter(Boolean).join(" · ");
 
   return (
-    <ItemRows>
+    <>
+      <ItemRows>
       {data.location && (
         <ItemRow
           icon={MapPin}
@@ -1052,7 +1092,15 @@ function EventContent({
           {data.description}
         </ItemProse>
       )}
-    </ItemRows>
+      </ItemRows>
+      <LinkButtons
+        links={[
+          { href: data.website, label: "Website", icon: ExternalLink },
+          { href: data.ticket_link, label: "Tickets", icon: Ticket },
+          { href: data.reservation_link, label: "Reserve", icon: Calendar },
+        ]}
+      />
+    </>
   );
 }
 
@@ -1064,7 +1112,8 @@ function DateIdeaContent({
   onOpen: (drawer: OpenDrawer) => void;
 }) {
   return (
-    <ItemRows>
+    <>
+      <ItemRows>
       {data.location && (
         <ItemRow
           icon={MapPin}
@@ -1097,7 +1146,15 @@ function DateIdeaContent({
           {data.description}
         </ItemProse>
       )}
-    </ItemRows>
+      </ItemRows>
+      <LinkButtons
+        links={[
+          { href: data.website, label: "Website", icon: ExternalLink },
+          { href: data.menu_link, label: "Menu", icon: Utensils },
+          { href: data.reservation_link, label: "Reserve", icon: Calendar },
+        ]}
+      />
+    </>
   );
 }
 
@@ -1205,7 +1262,8 @@ function TravelContent({
     .join(", ");
 
   return (
-    <ItemRows>
+    <>
+      <ItemRows>
       {data.location && (
         <ItemRow
           icon={MapPin}
@@ -1246,7 +1304,14 @@ function TravelContent({
           {data.description}
         </ItemProse>
       )}
-    </ItemRows>
+      </ItemRows>
+      <LinkButtons
+        links={[
+          { href: data.website, label: "Website", icon: ExternalLink },
+          { href: data.booking_link, label: "Book", icon: Calendar },
+        ]}
+      />
+    </>
   );
 }
 
