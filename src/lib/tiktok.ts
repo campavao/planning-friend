@@ -9,6 +9,15 @@ export { decodeHTMLEntities };
 
 export interface TikTokVideoInfo {
   videoUrl?: string;
+  /**
+   * Headers required to fetch `videoUrl`.
+   *
+   * TikTok's CDN rejects a bare GET for a video URL — it wants the referer and
+   * user-agent that were used to negotiate the format. yt-dlp knows what it
+   * sent, so the headers travel back with the URL rather than being guessed at
+   * download time. Absent for the methods whose URLs need no such handshake.
+   */
+  videoHeaders?: Record<string, string>;
   thumbnailUrl?: string;
   description: string;
   author?: string;
@@ -372,8 +381,115 @@ function tryExtractSigiState(
   }
 }
 
+interface ExtractorResponse {
+  ok: boolean;
+  hasVideo?: boolean;
+  thumbnailUrl?: string | null;
+  description?: string;
+  author?: string | null;
+  originalUrl?: string;
+  outcome?: string;
+  error?: string;
+}
+
+/** Auth for our own extractor. Both headers are required in production. */
+function extractorHeaders(secret: string): Record<string, string> {
+  return {
+    "x-extractor-secret": secret,
+    // The deployment URL is behind Vercel Authentication on every domain but
+    // the custom one. Without the bypass this call answers itself with an SSO
+    // redirect page instead of an extraction.
+    ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET
+      ? {
+          "x-vercel-protection-bypass":
+            process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
+        }
+      : {}),
+  };
+}
+
+/**
+ * Where the self-hosted extractor lives.
+ *
+ * Defaults to this same deployment — `api/extract.py` ships in this repo — so a
+ * preview calls its own extractor rather than production's, and the two can
+ * never skew. `EXTRACTOR_URL` overrides it if the extractor is ever split into
+ * its own project. Returns null off-Vercel, which is what makes `next dev`
+ * degrade to the free methods instead of erroring on a URL it cannot build.
+ */
+function extractorEndpoint(): string | null {
+  const explicit = process.env.EXTRACTOR_URL;
+  if (explicit) return `${explicit.replace(/\/+$/, "")}/api/extract`;
+
+  const host = process.env.VERCEL_URL;
+  return host ? `https://${host}/api/extract` : null;
+}
+
+// Method 0: self-hosted yt-dlp on our own Vercel egress (PLA-15).
+// Free, and returns more formats than the RapidAPI endpoint ever exposed.
+async function tryYtDlp(
+  resolvedUrl: string
+): Promise<TikTokVideoInfo | null> {
+  const secret = process.env.EXTRACTOR_SECRET;
+  const endpoint = extractorEndpoint();
+
+  if (!secret || !endpoint) {
+    console.log("Self-hosted extractor not configured, skipping");
+    return null;
+  }
+
+  try {
+    const response = await fetch(
+      `${endpoint}?url=${encodeURIComponent(resolvedUrl)}`,
+      {
+        headers: extractorHeaders(secret),
+        signal: AbortSignal.timeout(30_000),
+      }
+    );
+
+    if (!response.ok) {
+      console.log(`Extractor returned HTTP ${response.status}`);
+      return null;
+    }
+
+    const data = (await response.json()) as ExtractorResponse;
+    if (!data.ok) {
+      // `outcome` is the probe's vocabulary. "blocked" appearing here is the
+      // signal that the PLA-15 hosting decision needs revisiting; everything
+      // else is an ordinary gap we already degrade around.
+      console.log(`Extractor could not extract: ${data.outcome} ${data.error}`);
+      return null;
+    }
+
+    // ok:true with nothing usable is worse than letting oEmbed try, since
+    // oEmbed at least returns an official title.
+    if (!data.hasVideo && !data.description) return null;
+
+    return {
+      // Points back at our own extractor rather than at TikTok's CDN. The CDN
+      // URL is bound to the session that negotiated it and answers 403 to
+      // everyone else — measured, including with yt-dlp's own headers replayed
+      // — so the bytes have to come back through the extractor. Downstream
+      // this behaves like any other video URL: truthy means "video available",
+      // and downloadTikTokVideo fetches it with the headers below.
+      videoUrl: data.hasVideo
+        ? `${endpoint}?url=${encodeURIComponent(resolvedUrl)}&mode=video`
+        : undefined,
+      videoHeaders: data.hasVideo ? extractorHeaders(secret) : undefined,
+      thumbnailUrl: data.thumbnailUrl || undefined,
+      description: data.description || "",
+      author: data.author || undefined,
+      originalUrl: data.originalUrl || resolvedUrl,
+    };
+  } catch (error) {
+    console.log("Self-hosted extractor failed:", error);
+    return null;
+  }
+}
+
 // Main function with fallbacks
-// Priority: RapidAPI (paid, best quality) -> oEmbed (free) -> Page scrape (free) -> URL-only
+// Priority: yt-dlp (self-hosted, free) -> RapidAPI (paid) -> oEmbed (free)
+// -> Page scrape (free) -> URL-only
 export async function getTikTokVideoInfo(
   tiktokUrl: string
 ): Promise<TikTokVideoInfo> {
@@ -381,7 +497,17 @@ export async function getTikTokVideoInfo(
   const resolvedUrl = await resolveShortUrl(tiktokUrl);
   console.log(`Resolved URL: ${resolvedUrl}`);
 
-  // Try RapidAPI first (best quality, provides video download URL)
+  // Try the self-hosted extractor first. It is free and returns 9-13 formats
+  // per video, which is strictly more than RapidAPI exposed — RapidAPI is now
+  // only a fallback, and is expected to be removed once this has run a while.
+  console.log("Trying self-hosted yt-dlp method...");
+  const ytDlpResult = await tryYtDlp(resolvedUrl);
+  if (ytDlpResult) {
+    console.log("Self-hosted yt-dlp method succeeded");
+    return ytDlpResult;
+  }
+
+  // Fall back to RapidAPI (paid, provides video download URL)
   const rapidApiKey = process.env.RAPIDAPI_KEY;
   if (rapidApiKey) {
     console.log("Trying RapidAPI method...");
@@ -417,11 +543,17 @@ export async function getTikTokVideoInfo(
   };
 }
 
-export async function downloadTikTokVideo(videoUrl: string): Promise<Buffer> {
+export async function downloadTikTokVideo(
+  videoUrl: string,
+  videoHeaders?: Record<string, string>
+): Promise<Buffer> {
   const response = await fetch(videoUrl, {
     headers: {
       "User-Agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      // Whatever the extractor negotiated wins over the generic default —
+      // a yt-dlp URL fetched without its referer comes back 403.
+      ...videoHeaders,
     },
   });
 
@@ -429,13 +561,23 @@ export async function downloadTikTokVideo(videoUrl: string): Promise<Buffer> {
     throw new Error(`Failed to download video: ${response.status}`);
   }
 
+  // The self-hosted extractor answers 200 with a JSON body when it could not
+  // produce a video (unsupported post, login wall, over the size cap). Without
+  // this check that JSON would be handed to Gemini as if it were an mp4.
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    const detail = (await response.json()) as { outcome?: string };
+    throw new Error(`Extractor returned no video: ${detail.outcome}`);
+  }
+
   const arrayBuffer = await response.arrayBuffer();
   return Buffer.from(arrayBuffer);
 }
 
 // Get video as base64 for AI processing
-// Note: Video download only works with RapidAPI (paid). Free methods (oEmbed, page scrape)
-// return thumbnail + description which is sufficient for Gemini analysis.
+// Note: a video URL comes from yt-dlp (self-hosted) or RapidAPI (paid). The
+// remaining free methods (oEmbed, page scrape) return thumbnail + description
+// only, which Gemini can still analyse — just less well.
 export async function getTikTokVideoAsBase64(tiktokUrl: string): Promise<{
   base64: string;
   thumbnailUrl?: string;
@@ -444,12 +586,15 @@ export async function getTikTokVideoAsBase64(tiktokUrl: string): Promise<{
   const videoInfo = await getTikTokVideoInfo(tiktokUrl);
 
   if (!videoInfo.videoUrl) {
-    console.log("No video URL available (requires RapidAPI), cannot download video");
+    console.log("No video URL available, cannot download video");
     return null;
   }
 
   try {
-    const videoBuffer = await downloadTikTokVideo(videoInfo.videoUrl);
+    const videoBuffer = await downloadTikTokVideo(
+      videoInfo.videoUrl,
+      videoInfo.videoHeaders
+    );
     return {
       base64: videoBuffer.toString("base64"),
       thumbnailUrl: videoInfo.thumbnailUrl,
