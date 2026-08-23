@@ -105,7 +105,9 @@ export async function processSocialContent(
 
   if (!analysisResult && videoInfo.videoUrl && platform !== "website") {
     try {
-      const videoData = await getSocialMediaVideoAsBase64(socialUrl);
+      // videoInfo is already resolved above; handing it over stops the
+      // platform lookup running a second time for the same item.
+      const videoData = await getSocialMediaVideoAsBase64(socialUrl, videoInfo);
       if (videoData) {
         const sizeBytes = (videoData.base64.length * 3) / 4;
         if (sizeBytes > MAX_VIDEO_SIZE_BYTES && videoInfo.thumbnailUrl) {

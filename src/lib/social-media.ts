@@ -13,6 +13,8 @@ export type SocialPlatform = "tiktok" | "instagram" | "website" | "unknown";
 export interface SocialMediaInfo {
   platform: SocialPlatform;
   videoUrl?: string;
+  /** Headers required to fetch `videoUrl`. See TikTokVideoInfo.videoHeaders. */
+  videoHeaders?: Record<string, string>;
   thumbnailUrl?: string;
   description: string;
   author?: string;
@@ -71,6 +73,7 @@ export async function getSocialMediaInfo(
       return {
         platform: "tiktok",
         videoUrl: info.videoUrl,
+        videoHeaders: info.videoHeaders,
         thumbnailUrl: info.thumbnailUrl,
         description: info.description,
         author: info.author,
@@ -102,7 +105,14 @@ export async function getSocialMediaInfo(
 }
 
 // Get video as base64 for AI processing
-export async function getSocialMediaVideoAsBase64(url: string): Promise<{
+// `prefetched` is the SocialMediaInfo the caller already resolved. Passing it
+// avoids running the whole platform lookup a second time just to reach the
+// video URL it already contains — a duplicate yt-dlp run on TikTok, and a
+// duplicate billed Apify run on Instagram.
+export async function getSocialMediaVideoAsBase64(
+  url: string,
+  prefetched?: SocialMediaInfo
+): Promise<{
   base64: string;
   thumbnailUrl?: string;
   description: string;
@@ -111,11 +121,10 @@ export async function getSocialMediaVideoAsBase64(url: string): Promise<{
 
   switch (platform) {
     case "tiktok":
-      return getTikTokVideoAsBase64(url);
+      return getTikTokVideoAsBase64(url, prefetched);
 
     case "instagram":
-      // Instagram video download requires RapidAPI
-      return getInstagramVideoAsBase64(url);
+      return getInstagramVideoAsBase64(url, prefetched);
 
     default:
       return null;
