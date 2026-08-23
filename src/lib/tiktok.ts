@@ -2,6 +2,7 @@
 // Priority: RapidAPI (paid, best quality) -> oEmbed API (free) -> Page scrape (free)
 
 import { decodeHTMLEntities, followRedirect } from "./scrape";
+import { tryExtractor } from "./extractor";
 
 // Re-exported so existing imports (and tests) that pull decodeHTMLEntities
 // from this module keep working.
@@ -388,117 +389,6 @@ function tryExtractSigiState(
   }
 }
 
-interface ExtractorResponse {
-  ok: boolean;
-  hasVideo?: boolean;
-  images?: string[];
-  imageHeaders?: Record<string, string>;
-  thumbnailUrl?: string | null;
-  description?: string;
-  author?: string | null;
-  originalUrl?: string;
-  outcome?: string;
-  error?: string;
-}
-
-/** Auth for our own extractor. Both headers are required in production. */
-function extractorHeaders(secret: string): Record<string, string> {
-  return {
-    "x-extractor-secret": secret,
-    // The deployment URL is behind Vercel Authentication on every domain but
-    // the custom one. Without the bypass this call answers itself with an SSO
-    // redirect page instead of an extraction.
-    ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET
-      ? {
-          "x-vercel-protection-bypass":
-            process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
-        }
-      : {}),
-  };
-}
-
-/**
- * Where the self-hosted extractor lives.
- *
- * Defaults to this same deployment — `api/extract.py` ships in this repo — so a
- * preview calls its own extractor rather than production's, and the two can
- * never skew. `EXTRACTOR_URL` overrides it if the extractor is ever split into
- * its own project. Returns null off-Vercel, which is what makes `next dev`
- * degrade to the free methods instead of erroring on a URL it cannot build.
- */
-function extractorEndpoint(): string | null {
-  const explicit = process.env.EXTRACTOR_URL;
-  if (explicit) return `${explicit.replace(/\/+$/, "")}/api/extract`;
-
-  const host = process.env.VERCEL_URL;
-  return host ? `https://${host}/api/extract` : null;
-}
-
-// Method 0: self-hosted yt-dlp on our own Vercel egress (PLA-15).
-// Free, and returns more formats than the RapidAPI endpoint ever exposed.
-async function tryYtDlp(
-  resolvedUrl: string
-): Promise<TikTokVideoInfo | null> {
-  const secret = process.env.EXTRACTOR_SECRET;
-  const endpoint = extractorEndpoint();
-
-  if (!secret || !endpoint) {
-    console.log("Self-hosted extractor not configured, skipping");
-    return null;
-  }
-
-  try {
-    const response = await fetch(
-      `${endpoint}?url=${encodeURIComponent(resolvedUrl)}`,
-      {
-        headers: extractorHeaders(secret),
-        signal: AbortSignal.timeout(30_000),
-      }
-    );
-
-    if (!response.ok) {
-      console.log(`Extractor returned HTTP ${response.status}`);
-      return null;
-    }
-
-    const data = (await response.json()) as ExtractorResponse;
-    if (!data.ok) {
-      // `outcome` is the probe's vocabulary. "blocked" appearing here is the
-      // signal that the PLA-15 hosting decision needs revisiting; everything
-      // else is an ordinary gap we already degrade around.
-      console.log(`Extractor could not extract: ${data.outcome} ${data.error}`);
-      return null;
-    }
-
-    // ok:true with nothing usable is worse than letting oEmbed try, since
-    // oEmbed at least returns an official title.
-    const images = data.images ?? [];
-    if (!data.hasVideo && images.length === 0 && !data.description) return null;
-
-    return {
-      // Points back at our own extractor rather than at TikTok's CDN. The CDN
-      // URL is bound to the session that negotiated it and answers 403 to
-      // everyone else — measured, including with yt-dlp's own headers replayed
-      // — so the bytes have to come back through the extractor. Downstream
-      // this behaves like any other video URL: truthy means "video available",
-      // and downloadTikTokVideo fetches it with the headers below.
-      videoUrl: data.hasVideo
-        ? `${endpoint}?url=${encodeURIComponent(resolvedUrl)}&mode=video`
-        : undefined,
-      videoHeaders: data.hasVideo ? extractorHeaders(secret) : undefined,
-      imageUrls: images.length > 0 ? images : undefined,
-      imageHeaders: images.length > 0 ? data.imageHeaders : undefined,
-      thumbnailUrl: data.thumbnailUrl || undefined,
-      description: data.description || "",
-      author: data.author || undefined,
-      originalUrl: data.originalUrl || resolvedUrl,
-    };
-  } catch (error) {
-    console.log("Self-hosted extractor failed:", error);
-    return null;
-  }
-}
-
 // Main function with fallbacks
 // Priority: yt-dlp (self-hosted, free) -> RapidAPI (paid) -> oEmbed (free)
 // -> Page scrape (free) -> URL-only
@@ -513,7 +403,7 @@ export async function getTikTokVideoInfo(
   // per video, which is strictly more than RapidAPI exposed — RapidAPI is now
   // only a fallback, and is expected to be removed once this has run a while.
   console.log("Trying self-hosted yt-dlp method...");
-  const ytDlpResult = await tryYtDlp(resolvedUrl);
+  const ytDlpResult = await tryExtractor(resolvedUrl);
   if (ytDlpResult) {
     console.log("Self-hosted yt-dlp method succeeded");
     return ytDlpResult;
