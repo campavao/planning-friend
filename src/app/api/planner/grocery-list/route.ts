@@ -4,6 +4,7 @@ import {
   type CachedGroceryItem,
 } from "@/lib/supabase";
 import { GoogleGenAI } from "@google/genai";
+import { GEMINI_MODEL } from "@/lib/gemini-model";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth";
 
@@ -177,7 +178,7 @@ ${recipe.ingredients.map((ing) => `- ${ing}`).join("\n")}
     const prompt = GROCERY_LIST_PROMPT + recipesText;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: GEMINI_MODEL,
       contents: prompt,
     });
     const text = response.text!;

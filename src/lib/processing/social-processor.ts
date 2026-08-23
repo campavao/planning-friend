@@ -22,6 +22,7 @@ import {
   type SocialPlatform,
 } from "@/lib/social-media";
 import { notifyContentReady } from "@/lib/push-notifications";
+import { dropDeadLinks } from "@/lib/link-check";
 import { shouldPreserveExisting } from "./preserve";
 import type { ProcessResult } from "./types";
 
@@ -84,6 +85,14 @@ export async function processSocialContent(
     persistentThumbnailUrl = uploaded || videoInfo.thumbnailUrl;
   }
 
+  // Who posted it, for the research step in the prompt: the caption rarely
+  // carries the official link, and the profile behind the handle usually does.
+  const source = {
+    sourceUrl: socialUrl,
+    author: videoInfo.author,
+    platform: platformName,
+  };
+
   let analysisResult: MultiItemAnalysisResult | undefined;
 
   if (platform === "website" && videoInfo.pageContent) {
@@ -114,12 +123,14 @@ export async function processSocialContent(
         if (sizeBytes > MAX_VIDEO_SIZE_BYTES && videoInfo.thumbnailUrl) {
           analysisResult = await analyzeWithThumbnail(
             videoInfo.thumbnailUrl,
-            videoInfo.description
+            videoInfo.description,
+            source
           );
         } else {
           analysisResult = await analyzeVideoWithGemini(
             videoData.base64,
-            videoInfo.description
+            videoInfo.description,
+            source
           );
         }
       }
@@ -137,7 +148,8 @@ export async function processSocialContent(
       analysisResult = await analyzeWithImages(
         videoInfo.imageUrls,
         videoInfo.description,
-        videoInfo.imageHeaders
+        videoInfo.imageHeaders,
+        source
       );
     } catch {
       // fall through
@@ -148,7 +160,8 @@ export async function processSocialContent(
     try {
       analysisResult = await analyzeWithThumbnail(
         videoInfo.thumbnailUrl,
-        videoInfo.description
+        videoInfo.description,
+        source
       );
     } catch {
       // fall through
@@ -158,7 +171,8 @@ export async function processSocialContent(
   if (!analysisResult) {
     analysisResult = await analyzeWithDescription(
       videoInfo.description || `${platformName} content`,
-      socialUrl
+      socialUrl,
+      source
     );
   }
 
@@ -171,6 +185,8 @@ export async function processSocialContent(
     return { error: "Analysis returned no results" };
   }
 
+  await verifyLinks(analysisResult, contentId);
+
   return await applySocialAnalysisResult(
     analysisResult,
     contentId,
@@ -179,6 +195,27 @@ export async function processSocialContent(
     persistentThumbnailUrl,
     videoInfo.thumbnailUrl,
     options
+  );
+}
+
+/**
+ * Check every link the model produced before any of it is written down.
+ *
+ * Mutates in place because the items are about to be saved either way and each
+ * one is checked independently — a dead ticket link on item three is no reason
+ * to lose the other two.
+ */
+async function verifyLinks(
+  result: MultiItemAnalysisResult,
+  contentId: string
+): Promise<void> {
+  await Promise.all(
+    result.items.map(async (item) => {
+      item.data = await dropDeadLinks(
+        item.data as Record<string, unknown>,
+        `${contentId} (${item.title})`
+      );
+    })
   );
 }
 

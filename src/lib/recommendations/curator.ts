@@ -1,8 +1,9 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { GEMINI_MODEL } from "@/lib/gemini-model";
 import type { ScoredCandidate } from "./scorer";
 
 const CURATOR_TIMEOUT_MS = 6000;
-const CURATOR_MODEL = "gemini-2.5-flash";
+const CURATOR_MODEL = GEMINI_MODEL;
 
 export interface CuratorPick {
   contentId: string;
@@ -149,6 +150,10 @@ export async function curate(ctx: CuratorContext): Promise<CuratorResult> {
       config: {
         systemInstruction,
         responseMimeType: "application/json",
+        // 3.x thinks at `medium` unless told otherwise, and this call is
+        // racing a 6s timeout — a slower answer is not a better one here, it
+        // is the deterministic fallback.
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
       },
     });
     return response.text ?? "";

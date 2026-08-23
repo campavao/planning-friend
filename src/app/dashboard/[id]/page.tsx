@@ -48,7 +48,6 @@ import {
   Gift,
   Globe,
   HelpCircle,
-  Info,
   Loader2,
   MapPin,
   Maximize2,
@@ -1344,21 +1343,6 @@ function EventContent({
       {data.seats && (
         <ItemRow icon={Ticket} iconClassName="text-[var(--date)]" label="Seats">
           {data.seats}
-        </ItemRow>
-      )}
-
-      {/* Info, not Ticket — the seats row above already owns that icon, and
-          two identical icons in one list read as one repeated fact. */}
-      {(data.requires_reservation || data.requires_ticket) && (
-        <ItemRow icon={Info} iconClassName="text-muted-foreground">
-          <span className="flex flex-wrap gap-2">
-            {data.requires_reservation && (
-              <Badge variant="outline">Reservation required</Badge>
-            )}
-            {data.requires_ticket && (
-              <Badge variant="outline">Ticket required</Badge>
-            )}
-          </span>
         </ItemRow>
       )}
 

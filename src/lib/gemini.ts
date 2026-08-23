@@ -8,6 +8,7 @@ import type {
   MealData,
   TravelData,
 } from "./supabase";
+import { GEMINI_MODEL } from "./gemini-model";
 import { readPlants } from "./plants";
 import { RECIPE_EFFORTS, SPICE_LEVELS } from "./schemas/content";
 
@@ -127,7 +128,7 @@ For **event**:
 - requires_ticket: true/false
 - ticket_link: URL to buy tickets if mentioned
 - description: Brief description of the event
-- website: Official website URL (use your knowledge or Google Search to find the actual URL)
+- website: Official website URL. Find it, do not guess it — see LINKS below.
 - reservation_link: URL to make reservations (OpenTable, Resy, etc.) if applicable
 - image_url: A photo URL of the venue/event (use Google Search to find one if not available in the page content)
 
@@ -137,7 +138,7 @@ For **date_idea**:
 - type: One of "dinner", "activity", "entertainment", "outdoors", "other"
 - price_range: One of "$", "$$", "$$$", "$$$$" if you can estimate
 - description: Brief description of why it's a good date idea
-- website: Official website URL (use Google Search to find the actual URL for the business)
+- website: Official website URL. Find it, do not guess it — see LINKS below.
 - menu_link: Link to the menu if it's a restaurant (use Google Search to find it - often /menu on the restaurant's website, or on services like Yelp)
 - reservation_link: URL to make reservations if applicable (search for the business on OpenTable, Resy, etc.)
 - image_url: A photo URL of the place (use Google Search to find one if not available in the page content)
@@ -164,7 +165,7 @@ For **travel**:
 - location: Where it is located (city, country)
 - type: One of "restaurant", "attraction", "hotel", "activity", "other"
 - description: Brief description of why it's worth visiting
-- website: Official website URL (use Google Search to find the actual URL)
+- website: Official website URL. Find it, do not guess it — see LINKS below.
 - booking_link: Link to book/reserve if applicable
 - price_range: One of "$", "$$", "$$$", "$$$$" if you can estimate
 - destination_city: The city name
@@ -174,6 +175,22 @@ For **travel**:
 For **other**:
 - title: Brief description of the content
 - description: Summary of what the content is about
+
+**LINKS — where a URL is allowed to come from:**
+
+Write a URL into website, ticket_link, menu_link, reservation_link,
+booking_link or purchase_link only if you have actually seen it. "Seen it"
+means one of:
+- it is written in the caption, on a slide, or in the page content
+- it is the link in the creator's profile/bio
+- it appeared in a Google Search result you ran
+
+**Never build a URL out of the name.** A festival called "The Great American
+Lobster Fest" is not evidence that lobsterfest.com exists — that guess reads as
+a real answer and lands the reader on a dead domain, which is worse than the
+field being empty. If you cannot find the link, leave the field out entirely.
+
+amazon_link is the one exception: it is a search URL, built on purpose.
 
 **Tags (for ALL categories):**
 Also suggest 2-5 relevant tags for each item. Choose from these common tags or suggest similar ones:
@@ -208,7 +225,63 @@ For MULTIPLE items (lists, top 5s, etc.), respond with:
 
 Respond ONLY with valid JSON. If you cannot determine the content, use category "other".`;
 
-const MODEL = "gemini-2.5-flash";
+const MODEL = GEMINI_MODEL;
+
+/** Google Search grounding. Without it, every "look it up" in the prompt above
+ *  is an instruction the model cannot follow, so it answers from memory
+ *  instead — which is how a festival acquired a website that does not
+ *  resolve. */
+const GROUNDED = { tools: [{ googleSearch: {} }] };
+
+/** What we know about where a post came from, past its own caption. */
+export interface SourceContext {
+  /** The post's own URL. */
+  sourceUrl?: string;
+  /** The creator, as the platform reported them — a handle or a display name. */
+  author?: string;
+  /** How to name the platform in the prompt: "TikTok", "Instagram". */
+  platform?: string;
+}
+
+/**
+ * Tell the model to go and read the account behind the post.
+ *
+ * A reel's caption is a sentence and some hashtags. The details that make the
+ * item useful — the official site, the run of dates, the address — live on the
+ * profile that posted it, usually as the single link in its bio. Nothing was
+ * ever asking for them: the media paths had no search tool at all, so the model
+ * filled `website` from its own priors and invented domains.
+ *
+ * Returns "" when we know nothing about the source, so the prompt does not grow
+ * a section listing what it does not have.
+ */
+function sourceResearchBlock(source?: SourceContext): string {
+  const known = [
+    source?.platform && `Platform: ${source.platform}`,
+    source?.author && `Posted by: ${source.author}`,
+    source?.sourceUrl && `Post URL: ${source.sourceUrl}`,
+  ].filter(Boolean);
+
+  if (known.length === 0) return "";
+
+  return `
+
+**RESEARCH THE ACCOUNT BEHIND THIS POST.**
+${known.join("\n")}
+
+Before you fill in any link or detail, use Google Search to find the profile
+that posted this and read what it says about itself. The bio, and the one link
+in it, are where a creator or a venue puts the thing this post is advertising —
+it is nearly always more accurate than the caption, and it is the difference
+between the real site and a plausible-looking guess.
+
+Search for the handle, and for the event or business name alongside it. Use what
+you find for: the official website, dates, the venue and its address, ticket and
+reservation links.
+
+If searching turns up nothing, leave the field out. An absent website is a
+smaller problem than a wrong one.`;
+}
 
 function getGeminiClient() {
   const apiKey = process.env.GOOGLE_AI_API_KEY;
@@ -323,7 +396,8 @@ export function parseAnalysisResponse(text: string): MultiItemAnalysisResult {
 
 export async function analyzeVideoWithGemini(
   videoBase64: string,
-  videoDescription?: string
+  videoDescription?: string,
+  source?: SourceContext
 ): Promise<MultiItemAnalysisResult> {
   const ai = getGeminiClient();
 
@@ -332,6 +406,7 @@ export async function analyzeVideoWithGemini(
   if (videoDescription) {
     prompt += `\n\nVideo caption/description: "${videoDescription}"`;
   }
+  prompt += sourceResearchBlock(source);
 
   try {
     const response = await ai.models.generateContent({
@@ -345,6 +420,7 @@ export async function analyzeVideoWithGemini(
         },
         { text: prompt },
       ],
+      config: GROUNDED,
     });
 
     return parseAnalysisResponse(response.text!);
@@ -370,7 +446,8 @@ export async function analyzeVideoWithGemini(
 // Analyze with just the thumbnail and description (faster, cheaper)
 export async function analyzeWithThumbnail(
   thumbnailUrl: string,
-  description: string
+  description: string,
+  source?: SourceContext
 ): Promise<MultiItemAnalysisResult> {
   const ai = getGeminiClient();
 
@@ -387,7 +464,9 @@ export async function analyzeWithThumbnail(
 The image is a thumbnail from the source video or post.
 Caption/description: "${description}"
 
-Based on the thumbnail and description, analyze what this content is about.`;
+Based on the thumbnail and description, analyze what this content is about.${sourceResearchBlock(
+    source
+  )}`;
 
   try {
     const response = await ai.models.generateContent({
@@ -401,6 +480,7 @@ Based on the thumbnail and description, analyze what this content is about.`;
         },
         { text: prompt },
       ],
+      config: GROUNDED,
     });
 
     return parseAnalysisResponse(response.text!);
@@ -438,7 +518,8 @@ Based on the thumbnail and description, analyze what this content is about.`;
 export async function analyzeWithImages(
   imageUrls: string[],
   description: string,
-  imageHeaders?: Record<string, string>
+  imageHeaders?: Record<string, string>,
+  source?: SourceContext
 ): Promise<MultiItemAnalysisResult> {
   const ai = getGeminiClient();
 
@@ -488,12 +569,15 @@ a slide becomes "https://mixedchicago.com".
 
 For location, prefer the specific venue written on the slides — "Mixed Mediums,
 Chicago" — over the city alone. A bare city name is the least useful answer and
-should only be used when nothing more specific appears anywhere.`;
+should only be used when nothing more specific appears anywhere.${sourceResearchBlock(
+    source
+  )}`;
 
   try {
     const response = await ai.models.generateContent({
       model: MODEL,
       contents: [...images, { text: prompt }],
+      config: GROUNDED,
     });
 
     return parseAnalysisResponse(response.text!);
@@ -518,7 +602,8 @@ should only be used when nothing more specific appears anywhere.`;
 // Analyze with just description (last resort when no image/video available)
 export async function analyzeWithDescription(
   description: string,
-  sourceUrl: string
+  sourceUrl: string,
+  source?: SourceContext
 ): Promise<MultiItemAnalysisResult> {
   const ai = getGeminiClient();
 
@@ -529,12 +614,15 @@ I only have the description/caption from a saved video or post. Please analyze i
 Source URL: ${sourceUrl}
 Caption/description: "${description}"
 
-Based on this information, determine what category this content belongs to and extract any relevant details you can infer.`;
+Based on this information, determine what category this content belongs to and extract any relevant details you can infer.${sourceResearchBlock(
+    { sourceUrl, ...source }
+  )}`;
 
   try {
     const response = await ai.models.generateContent({
       model: MODEL,
       contents: prompt,
+      config: GROUNDED,
     });
 
     return parseAnalysisResponse(response.text!);

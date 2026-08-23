@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import type { ContentCategory } from "@/lib/db/types";
+import { GEMINI_MODEL } from "@/lib/gemini-model";
 import { PLANT_RULES } from "@/lib/gemini";
 import { readPlants } from "@/lib/plants";
 import { RECIPE_EFFORTS, SPICE_LEVELS } from "@/lib/schemas/content";
@@ -21,7 +22,7 @@ import { RECIPE_EFFORTS, SPICE_LEVELS } from "@/lib/schemas/content";
  * leaves the fields unset — exactly where they started.
  */
 
-const MODEL = "gemini-2.5-flash";
+const MODEL = GEMINI_MODEL;
 
 export interface DerivedAttributes {
   plants?: ReturnType<typeof readPlants>;

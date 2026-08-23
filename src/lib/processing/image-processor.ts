@@ -13,6 +13,7 @@ import {
   saveContent,
   updateContent,
 } from "@/lib/supabase";
+import { dropDeadLinks } from "@/lib/link-check";
 import { shouldPreserveExisting } from "./preserve";
 import type { ProcessResult } from "./types";
 
@@ -95,6 +96,17 @@ export async function processImageContent(
       dateTaken: imageInfo.exif.dateTaken,
       messageText,
     }
+  );
+
+  // Same check the social path runs: a link that goes nowhere is worse than
+  // no link, and a photo of a menu board invites exactly that kind of guess.
+  await Promise.all(
+    (analysisResult.items ?? []).map(async (item) => {
+      item.data = await dropDeadLinks(
+        item.data as Record<string, unknown>,
+        `${contentId} (${item.title})`
+      );
+    })
   );
 
   return await applyAnalysisResult(
