@@ -585,6 +585,7 @@ export default function ContentDetailPage() {
     !!content.thumbnail_url && isVideoSourceUrl(content.tiktok_url);
 
   const eventData = content.data as EventData;
+  const plannerQuery = toPlannerDateParams(eventData.date);
   const mealData = content.data as MealData;
   const plants = readPlants(mealData.plants);
 
@@ -1053,18 +1054,21 @@ export default function ContentDetailPage() {
         onOpenChange={closeDrawer}
         title={[eventData.date, eventData.time].filter(Boolean).join(" · ")}
       >
-        <DrawerItem
-          icon={Calendar}
-          onClick={() => {
-            closeDrawer();
-            const query = toPlannerDateParams(eventData.date);
-            router.push(
-              query ? `/dashboard/planner?${query}` : "/dashboard/planner"
-            );
-          }}
-        >
-          Go to this day in the planner
-        </DrawerItem>
+        {/* Offered only when we actually know which day that is. It used to be
+            offered always and fall back to the plain planner, so an event
+            whose date we could not read answered "go to this day" by landing
+            on today — which reads as the button being broken. */}
+        {plannerQuery && (
+          <DrawerItem
+            icon={Calendar}
+            onClick={() => {
+              closeDrawer();
+              router.push(`/dashboard/planner?${plannerQuery}`);
+            }}
+          >
+            Go to this day in the planner
+          </DrawerItem>
+        )}
         <DrawerItem
           icon={CalendarPlus}
           onClick={() => {
