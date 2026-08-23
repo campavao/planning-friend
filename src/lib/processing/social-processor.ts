@@ -9,7 +9,6 @@ import {
 import {
   addTagsToContent,
   getContentById,
-  deleteContent,
   getOrCreateTags,
   saveContent,
   updateContent,
@@ -219,6 +218,37 @@ async function verifyLinks(
   );
 }
 
+/** Best-effort: a tag that will not save is not worth failing an ingest over. */
+async function attachTags(
+  userId: string,
+  contentId: string,
+  suggested: string[] | undefined
+): Promise<void> {
+  if (!suggested?.length) return;
+  try {
+    const tags = await getOrCreateTags(userId, suggested);
+    await addTagsToContent(contentId, tags.map((t) => t.id));
+  } catch {
+    // ignore tag errors
+  }
+}
+
+/** The post's own thumbnail, or the picture the analysis found — the latter is
+ *  what carries a Google Maps link, whose og:image is usually broken. */
+async function thumbnailFor(
+  item: { data: unknown },
+  contentId: string,
+  persistentThumbnailUrl: string | undefined
+): Promise<string | undefined> {
+  if (persistentThumbnailUrl) return persistentThumbnailUrl;
+  const dataImageUrl = (item.data as Record<string, unknown>)?.image_url as
+    | string
+    | undefined;
+  if (!dataImageUrl) return undefined;
+  const uploaded = await uploadThumbnailFromUrl(dataImageUrl, contentId);
+  return uploaded || dataImageUrl;
+}
+
 async function applySocialAnalysisResult(
   analysisResult: MultiItemAnalysisResult,
   contentId: string,
@@ -229,25 +259,50 @@ async function applySocialAnalysisResult(
   options?: { silent?: boolean }
 ): Promise<ProcessResult> {
   if (analysisResult.isMultiItem && analysisResult.items.length > 1) {
-    await deleteContent(contentId, userId);
+    // The row being processed becomes the first item instead of being deleted
+    // and recreated. Deleting it takes everything keyed on content_id with it —
+    // notes, planner entries, gift links and tags all cascade — and the
+    // permalink the owner is sitting on starts answering 404. A re-process that
+    // splits one saved item into several used to do exactly that.
+    const [first, ...rest] = analysisResult.items;
+    const existing = await getContentById(contentId);
     const createdContents = [];
-    for (const item of analysisResult.items) {
-      // Use image_url from analysis as thumbnail fallback
-      let itemThumbnail = persistentThumbnailUrl;
-      const dataImageUrl = (item.data as Record<string, unknown>)
-        ?.image_url as string | undefined;
-      if (dataImageUrl && !persistentThumbnailUrl) {
-        const uploaded = await uploadThumbnailFromUrl(dataImageUrl, contentId);
-        itemThumbnail = uploaded || dataImageUrl;
-      }
 
+    if (shouldPreserveExisting(existing, first)) {
+      console.warn(
+        `Preserving existing content ${contentId}: re-analysis returned "${first.title}"`
+      );
+      await updateContent(contentId, { status: "completed" });
+      createdContents.push(existing!);
+    } else {
+      createdContents.push(
+        await updateContent(contentId, {
+          category: first.category,
+          title: first.title,
+          data: first.data,
+          thumbnail_url: await thumbnailFor(
+            first,
+            contentId,
+            persistentThumbnailUrl
+          ),
+          status: "completed",
+        })
+      );
+      await attachTags(userId, contentId, first.suggested_tags);
+    }
+
+    for (const item of rest) {
       const content = await saveContent({
         user_id: userId,
         tiktok_url: socialUrl,
         category: item.category,
         title: item.title,
         data: item.data,
-        thumbnail_url: itemThumbnail,
+        thumbnail_url: await thumbnailFor(
+          item,
+          contentId,
+          persistentThumbnailUrl
+        ),
       });
       if (originalThumbnailUrl && persistentThumbnailUrl) {
         const itemUrl = await uploadThumbnailFromUrl(
@@ -258,14 +313,7 @@ async function applySocialAnalysisResult(
           await updateContent(content.id, { thumbnail_url: itemUrl });
       }
       createdContents.push(content);
-      if (item.suggested_tags?.length) {
-        try {
-          const tags = await getOrCreateTags(userId, item.suggested_tags);
-          await addTagsToContent(content.id, tags.map((t) => t.id));
-        } catch {
-          // ignore
-        }
-      }
+      await attachTags(userId, content.id, item.suggested_tags);
     }
     if (createdContents.length > 0) {
       try {
@@ -285,17 +333,11 @@ async function applySocialAnalysisResult(
   }
 
   const item = analysisResult.items[0];
-
-  // If Gemini found an image_url via Google Search and we don't have a good thumbnail,
-  // use it as the thumbnail (common for Google Maps links where og:image is broken)
-  let thumbnailToUse = persistentThumbnailUrl;
-  const dataImageUrl = (item.data as Record<string, unknown>)?.image_url as
-    | string
-    | undefined;
-  if (dataImageUrl && !persistentThumbnailUrl) {
-    const uploaded = await uploadThumbnailFromUrl(dataImageUrl, contentId);
-    thumbnailToUse = uploaded || dataImageUrl;
-  }
+  const thumbnailToUse = await thumbnailFor(
+    item,
+    contentId,
+    persistentThumbnailUrl
+  );
 
   const existing = await getContentById(contentId);
   if (shouldPreserveExisting(existing, item)) {
@@ -315,14 +357,7 @@ async function applySocialAnalysisResult(
     thumbnail_url: thumbnailToUse,
     status: "completed",
   });
-  if (item.suggested_tags?.length) {
-    try {
-      const tags = await getOrCreateTags(userId, item.suggested_tags);
-      await addTagsToContent(updatedContent.id, tags.map((t) => t.id));
-    } catch {
-      // ignore
-    }
-  }
+  await attachTags(userId, updatedContent.id, item.suggested_tags);
   if (!options?.silent) {
     try {
       await notifyContentReady(

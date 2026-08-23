@@ -8,7 +8,6 @@ import {
   addTagsToContent,
   getContentById,
   createServerClient,
-  deleteContent,
   getOrCreateTags,
   saveContent,
   updateContent,
@@ -119,6 +118,21 @@ export async function processImageContent(
   );
 }
 
+/** Best-effort: a tag that will not save is not worth failing an ingest over. */
+async function attachTags(
+  userId: string,
+  contentId: string,
+  suggested: string[] | undefined
+): Promise<void> {
+  if (!suggested?.length) return;
+  try {
+    const tags = await getOrCreateTags(userId, suggested);
+    await addTagsToContent(contentId, tags.map((t) => t.id));
+  } catch {
+    // ignore tag errors
+  }
+}
+
 async function applyAnalysisResult(
   analysisResult: MultiItemAnalysisResult,
   contentId: string,
@@ -137,9 +151,34 @@ async function applyAnalysisResult(
   }
 
   if (analysisResult.isMultiItem && analysisResult.items.length > 1) {
-    await deleteContent(contentId, userId);
+    // The row being processed becomes the first item instead of being deleted
+    // and recreated. Deleting it takes everything keyed on content_id with it —
+    // notes, planner entries, gift links and tags all cascade — and the
+    // permalink the owner is sitting on starts answering 404.
+    const [first, ...rest] = analysisResult.items;
+    const existing = await getContentById(contentId);
     const createdContents = [];
-    for (const item of analysisResult.items) {
+
+    if (shouldPreserveExisting(existing, first)) {
+      console.warn(
+        `Preserving existing content ${contentId}: re-analysis returned "${first.title}"`
+      );
+      await updateContent(contentId, { status: "completed" });
+      createdContents.push(existing!);
+    } else {
+      createdContents.push(
+        await updateContent(contentId, {
+          category: first.category,
+          title: first.title,
+          data: first.data,
+          thumbnail_url: persistentThumbnailUrl,
+          status: "completed",
+        })
+      );
+      await attachTags(userId, contentId, first.suggested_tags);
+    }
+
+    for (const item of rest) {
       const content = await saveContent({
         user_id: userId,
         tiktok_url: socialUrl,
@@ -149,14 +188,7 @@ async function applyAnalysisResult(
         thumbnail_url: persistentThumbnailUrl,
       });
       createdContents.push(content);
-      if (item.suggested_tags?.length) {
-        try {
-          const tags = await getOrCreateTags(userId, item.suggested_tags);
-          await addTagsToContent(content.id, tags.map((t) => t.id));
-        } catch {
-          // ignore tag errors
-        }
-      }
+      await attachTags(userId, content.id, item.suggested_tags);
     }
     if (createdContents.length > 0) {
       try {

@@ -97,3 +97,69 @@ describe("normalizeExtractedData", () => {
     expect(data.effort).toBe("bogus");
   });
 });
+
+/**
+ * Sections used to be typed by the owner and validated only on PATCH. The
+ * extraction fills them now — a booking's confirmation number has no field of
+ * its own — so they are checked at this boundary too.
+ */
+describe("normalizeExtractedData — sections", () => {
+  it("keeps the details read off a booking", () => {
+    const data = {
+      location: "1157 Chapel St, New Haven, CT",
+      sections: [
+        { label: "Confirmation", value: "8842-1173" },
+        { label: "Check-in", value: "Sept 5, 4:00 PM" },
+      ],
+    };
+    expect(normalizeExtractedData("travel", data)).toEqual(data);
+  });
+
+  it("trims, and drops an entry missing either half", () => {
+    const out = normalizeExtractedData("travel", {
+      sections: [
+        { label: "  Room  ", value: "  King, 2 nights  " },
+        { label: "Gate", value: "   " },
+        { label: "", value: "orphaned" },
+      ],
+    });
+    expect(out.sections).toEqual([{ label: "Room", value: "King, 2 nights" }]);
+  });
+
+  it("drops entries that are not label/value pairs at all", () => {
+    const out = normalizeExtractedData("event", {
+      sections: [
+        "Confirmation: 8842",
+        { label: "Door", value: 7 },
+        ["Seat", "12A"],
+        null,
+        { label: "Seat", value: "12A" },
+      ],
+    });
+    expect(out.sections).toEqual([{ label: "Seat", value: "12A" }]);
+  });
+
+  it("caps how many the model can add", () => {
+    const out = normalizeExtractedData("travel", {
+      sections: Array.from({ length: 9 }, (_, i) => ({
+        label: `L${i}`,
+        value: `V${i}`,
+      })),
+    });
+    expect(out.sections).toHaveLength(4);
+  });
+
+  it("removes the key entirely when nothing survives", () => {
+    for (const sections of [[], "Confirmation: 8842", [{ label: "x" }]]) {
+      expect(normalizeExtractedData("travel", { sections })).not.toHaveProperty(
+        "sections"
+      );
+    }
+  });
+
+  it("does not mutate the input", () => {
+    const data = { sections: [{ label: "  Room  ", value: "King" }] };
+    normalizeExtractedData("travel", data);
+    expect(data.sections[0].label).toBe("  Room  ");
+  });
+});

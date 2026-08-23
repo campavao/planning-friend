@@ -150,9 +150,37 @@ export function isCollapse(existingData: unknown, incoming: AnalysedItem | null 
   return contentWeight(incoming?.data) * 2 < before;
 }
 
+/** The place an item is, if it has one. */
+function locationOf(data: unknown): string {
+  const value = (data as Record<string, unknown> | null | undefined)?.location;
+  return typeof value === "string" ? value.trim() : "";
+}
+
+/**
+ * True when the re-analysis has lost the location the row already had.
+ *
+ * `isCollapse` cannot see this one: it does nothing below a weight of eight,
+ * and a saved booking — a place, a couple of dates, a link — sits well under
+ * that. So a photo of a hotel receipt that re-read as a bare description passed
+ * every check and overwrote the address.
+ *
+ * Not a blanket "never lose a field". The incoming result has to be no richer
+ * overall, so a re-extraction that genuinely found more still lands, and only a
+ * strictly poorer one is turned away.
+ */
+export function losesLocation(
+  existingData: unknown,
+  incoming: AnalysedItem | null | undefined
+): boolean {
+  if (!locationOf(existingData)) return false;
+  if (locationOf(incoming?.data)) return false;
+  return contentWeight(incoming?.data) <= contentWeight(existingData);
+}
+
 /**
  * The decision itself: keep what is already there when the incoming result is
- * empty, or when it is a collapsed fraction of what the row already holds.
+ * empty, when it is a collapsed fraction of what the row already holds, or when
+ * it has dropped the row's location without making up for it elsewhere.
  *
  * Deliberately NOT covered: a re-analysis that succeeds but classifies the item
  * differently. That is a genuine extraction, not a failure, and blocking it
@@ -163,5 +191,9 @@ export function shouldPreserveExisting(
   incoming: AnalysedItem | null | undefined
 ): boolean {
   if (!hasSalvageableContent(existing)) return false;
-  return isLowValueResult(incoming) || isCollapse(existing?.data, incoming);
+  return (
+    isLowValueResult(incoming) ||
+    isCollapse(existing?.data, incoming) ||
+    losesLocation(existing?.data, incoming)
+  );
 }

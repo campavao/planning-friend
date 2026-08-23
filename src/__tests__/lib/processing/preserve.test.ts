@@ -3,6 +3,7 @@ import {
   isCollapse,
   hasSalvageableContent,
   isLowValueResult,
+  losesLocation,
   shouldPreserveExisting,
 } from "@/lib/processing/preserve";
 import type { Content } from "@/lib/db/types";
@@ -351,6 +352,105 @@ describe("collapse into a title echo", () => {
         data: {
           ingredients: Array.from({ length: 25 }, (_, i) => `i${i}`),
           recipe: Array.from({ length: 30 }, (_, i) => `s${i}`),
+        },
+      })
+    ).toBe(false);
+  });
+});
+
+// A photo of a hotel receipt: a place, two dates, a reference. Everything that
+// matters is small in number, which is why the collapse floor never saw it.
+const savedBooking = {
+  status: "completed",
+  category: "travel",
+  title: "The Study at Yale",
+  data: {
+    location: "1157 Chapel St, New Haven, CT",
+    type: "hotel",
+    description: "Two nights, king room.",
+    website: "https://thestudyatyale.com",
+    sections: [
+      { label: "Confirmation", value: "8842-1173" },
+      { label: "Check-in", value: "Sept 5, 4:00 PM" },
+    ],
+  },
+} as unknown as Pick<Content, "status" | "category" | "title" | "data">;
+
+describe("losesLocation", () => {
+  it("catches a booking re-read as a bare description", () => {
+    expect(
+      losesLocation(savedBooking.data, {
+        category: "other",
+        title: "Hotel receipt",
+        data: { description: "A receipt for a hotel stay." },
+      })
+    ).toBe(true);
+  });
+
+  it("passes a re-extraction that still knows where the place is", () => {
+    expect(
+      losesLocation(savedBooking.data, {
+        category: "travel",
+        title: "The Study at Yale",
+        data: { location: "New Haven, CT" },
+      })
+    ).toBe(false);
+  });
+
+  it("ignores a row that never had a location", () => {
+    expect(
+      losesLocation(
+        { ingredients: ["a", "b"], recipe: ["1"] },
+        { category: "meal", title: "Soup", data: { recipe: ["1"] } }
+      )
+    ).toBe(false);
+  });
+
+  it("lets a genuinely richer result through even without a location", () => {
+    expect(
+      losesLocation(savedBooking.data, {
+        category: "meal",
+        title: "Lobster Roll",
+        data: {
+          ingredients: ["lobster", "brioche", "butter", "chives"],
+          recipe: ["Warm the butter", "Toss the lobster", "Fill the roll"],
+        },
+      })
+    ).toBe(false);
+  });
+
+  it("treats a blank location as no location", () => {
+    expect(
+      losesLocation(savedBooking.data, {
+        category: "travel",
+        title: "The Study at Yale",
+        data: { location: "   " },
+      })
+    ).toBe(true);
+  });
+});
+
+describe("shouldPreserveExisting — bookings", () => {
+  it("keeps the receipt when the re-analysis drops everything printed on it", () => {
+    expect(
+      shouldPreserveExisting(savedBooking, {
+        category: "other",
+        title: "Hotel receipt",
+        data: { description: "A receipt for a hotel stay." },
+      })
+    ).toBe(true);
+  });
+
+  it("still allows a better read of the same receipt", () => {
+    expect(
+      shouldPreserveExisting(savedBooking, {
+        category: "travel",
+        title: "The Study at Yale",
+        data: {
+          location: "1157 Chapel St, New Haven, CT 06511",
+          website: "https://thestudyatyale.com",
+          destination_city: "New Haven",
+          sections: [{ label: "Confirmation", value: "8842-1173" }],
         },
       })
     ).toBe(false);

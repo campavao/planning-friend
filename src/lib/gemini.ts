@@ -192,6 +192,18 @@ field being empty. If you cannot find the link, leave the field out entirely.
 
 amazon_link is the one exception: it is a search URL, built on purpose.
 
+**EXTRA DETAILS (sections) — for ALL categories:**
+
+A ticket or a booking prints things none of the fields above hold: a
+confirmation number, a check-in time, a room or fare type, a gate, a door time.
+Put each of those in "sections", an array of {"label": "...", "value": "..."}.
+Each one renders as its own row, so the label should be short — "Confirmation",
+"Check-in", "Room" — and the value should be what the document actually says.
+
+Only facts you read off the source, at most 4, and never one that already has a
+field of its own above. If nothing qualifies, leave "sections" out. Never put a
+description or a summary in a section.
+
 **Tags (for ALL categories):**
 Also suggest 2-5 relevant tags for each item. Choose from these common tags or suggest similar ones:
 - Meal tags: quick, slow-cooker, breakfast, lunch, dinner, appetizer, dessert, snack, healthy, comfort-food, vegetarian, vegan, gluten-free, meal-prep, one-pot, grilling, baking, no-cook
@@ -303,6 +315,31 @@ function getGeminiClient() {
  * a missing spice level renders as nothing, while an invented one would render
  * as a confident lie.
  */
+/** Extraction-side mirror of the `sections` rule in schemas/content.ts: a
+ *  label and a value, both strings, both trimmed, and nothing empty. Anything
+ *  malformed is dropped rather than repaired — a row is only worth showing if
+ *  it says something. */
+const MAX_EXTRACTED_SECTIONS = 4;
+const MAX_SECTION_LABEL = 200;
+const MAX_SECTION_VALUE = 5000;
+
+function readSections(value: unknown): { label: string; value: string }[] {
+  if (!Array.isArray(value)) return [];
+
+  const out: { label: string; value: string }[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const { label, value: text } = entry as Record<string, unknown>;
+    if (typeof label !== "string" || typeof text !== "string") continue;
+    const trimmedLabel = label.trim().slice(0, MAX_SECTION_LABEL);
+    const trimmedValue = text.trim().slice(0, MAX_SECTION_VALUE);
+    if (!trimmedLabel || !trimmedValue) continue;
+    out.push({ label: trimmedLabel, value: trimmedValue });
+    if (out.length === MAX_EXTRACTED_SECTIONS) break;
+  }
+  return out;
+}
+
 export function normalizeExtractedData(
   category: ContentCategory,
   data: unknown
@@ -310,6 +347,16 @@ export function normalizeExtractedData(
   if (!data || typeof data !== "object" || Array.isArray(data)) return {};
 
   const next = { ...(data as Record<string, unknown>) };
+
+  // Sections used to be owner-typed only, so nothing checked them. The
+  // extraction can fill them now — a booking's confirmation number has no
+  // field of its own — and an unchecked array from a model is what renders as
+  // a row labelled "undefined".
+  if ("sections" in next) {
+    const sections = readSections(next.sections);
+    if (sections.length > 0) next.sections = sections;
+    else delete next.sections;
+  }
 
   if (category === "meal") {
     if (!(RECIPE_EFFORTS as readonly unknown[]).includes(next.effort)) {
@@ -776,13 +823,38 @@ You have access to Google Search to look up additional details about what you se
 
 Analyze this image and determine what it contains:
 
-1. **Recipe Screenshot** - A photo or screenshot of a recipe (from a website, book, or handwritten)
-2. **Restaurant Photo** - A photo taken at or of a restaurant, cafe, bar, or food establishment
-3. **Product Photo** - A photo of a product or item that could be purchased
-4. **Food Photo** - A photo of a dish/meal (not a recipe, just the food itself)
-5. **Other** - Something else
+1. **Ticket, Receipt or Booking** - A ticket, an order or reservation confirmation, a hotel or flight receipt, a boarding pass, or an itinerary
+2. **Event Flyer or Listing** - A poster, flyer, or screenshot advertising something happening on a date
+3. **Recipe Screenshot** - A photo or screenshot of a recipe (from a website, book, or handwritten)
+4. **Restaurant Photo** - A photo taken at or of a restaurant, cafe, bar, or food establishment
+5. **Product Photo** - A photo of a product or item that could be purchased
+6. **Food Photo** - A photo of a dish/meal (not a recipe, just the food itself)
+7. **Other** - Something else
 
 Based on what you identify:
+
+**For Tickets, Receipts and Bookings:**
+This is a document, and everything that matters is printed on it. Read it and
+write down what it says — a booking summarised into a sentence has thrown away
+the only reason it was saved.
+- The property, venue, airline or business name, and its full address
+- Every date and time on it: check-in and check-out, the date of the event, the
+  departure
+- The confirmation, reference or order number
+- The room, fare, seat or ticket type, and what was paid, if shown
+Then use Google Search on the name to fill in the website and anything the
+document does not say.
+Category:
+- "travel" for a hotel, flight, rental or trip booking (type: "hotel" for a stay)
+- "event" for a ticket to something happening on a date — a show, a game, a festival
+- "date_idea" for a restaurant reservation
+The name of the place goes in \`location\` — a booking with no location is the
+one failure that makes the whole item useless.
+
+**For Event Flyers and Listings:**
+- Read the event name, the venue, the date and the time off the image
+- Use Google Search for the official page, ticket link, and anything missing
+- Category: "event"
 
 **For Recipe Screenshots:**
 - Identify the dish name
@@ -854,6 +926,8 @@ Analyze this image and use Google Search to find relevant details. Return your a
 
 If it's a restaurant, identify it and search for its details.
 If it's a product, identify it and search for where to buy it.
+If it's a ticket, receipt or booking, read the place, the dates and the
+reference number off it and search for the venue's details.
 
 IMPORTANT: Use your own words to describe everything. Do not reproduce any text verbatim.
 ${contextInfo ? `\n**Context:**${contextInfo}` : ""}
@@ -862,8 +936,8 @@ Return as JSON with this format:
 {
   "isMultiItem": false,
   "items": [{
-    "category": "meal" | "drink" | "date_idea" | "gift_idea" | "other",
-    "title": "Name of dish/restaurant/product",
+    "category": "meal" | "drink" | "event" | "date_idea" | "gift_idea" | "travel" | "other",
+    "title": "Name of dish/restaurant/product/booking",
     "data": { ... relevant fields ... },
     "suggested_tags": ["tag1", "tag2"]
   }]
