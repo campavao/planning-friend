@@ -842,3 +842,52 @@ export async function getRecentQuickNotes(
 
   return out;
 }
+
+/**
+ * Average rating per content item, from the notes the owner wrote after the
+ * fact (PLA-9).
+ *
+ * This is the only signal in the engine that is an actual verdict. Everything
+ * else infers preference from behaviour — what got planned, what got saved
+ * recently — where a rating is the user saying outright whether the thing was
+ * any good. An item rated 2 should stop being suggested long past the ordinary
+ * cooldown, and one rated 5 should come back.
+ *
+ * Averaged rather than last-wins: repeat visits are exactly where ratings come
+ * from, and a single bad night should not erase four good ones.
+ */
+export async function getContentRatings(
+  userId: string
+): Promise<Map<string, number>> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("item_notes")
+    .select("content_id, rating")
+    .eq("user_id", userId)
+    .not("rating", "is", null);
+
+  if (error) {
+    // A missing rating signal degrades ranking; it must not fail the week.
+    console.error("Failed to get content ratings:", error);
+    return new Map();
+  }
+
+  const totals = new Map<string, { sum: number; count: number }>();
+  for (const row of (data ?? []) as {
+    content_id: string | null;
+    rating: number | null;
+  }[]) {
+    if (!row.content_id || typeof row.rating !== "number") continue;
+    const entry = totals.get(row.content_id) ?? { sum: 0, count: 0 };
+    entry.sum += row.rating;
+    entry.count += 1;
+    totals.set(row.content_id, entry);
+  }
+
+  const averages = new Map<string, number>();
+  for (const [contentId, { sum, count }] of totals) {
+    averages.set(contentId, sum / count);
+  }
+  return averages;
+}
