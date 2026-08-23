@@ -38,6 +38,14 @@
  *                      their content anywhere but the stored image, so it is
  *                      worth running them deliberately rather than having them
  *                      turn up interleaved.
+ *   --skip-updated-since <iso>
+ *                      Skip rows already updated at or after this timestamp.
+ *                      Extraction does not always set every field, so keying
+ *                      "already done" off a field means the stragglers get
+ *                      re-processed on every run — each pass another chance to
+ *                      lose whatever they still hold. When the row was written
+ *                      is the one signal that does not depend on the thing
+ *                      being unreliable.
  *   --limit <n>        Stop after n items.
  *   --delay <ms>       Wait between items (default 4000). The pipeline calls
  *                      Gemini and a scraper; this keeps the run polite.
@@ -78,6 +86,7 @@ const limit = Number(getArg("--limit", "0")) || 0;
 const onlyUser = getArg("--user", "") || "";
 const onlyCategory = getArg("--category", "") || "";
 const onlySource = getArg("--source", "") || "";
+const skipUpdatedSince = getArg("--skip-updated-since", "") || "";
 const explicitIds = (getArg("--id", "") || "")
   .split(",")
   .map((v) => v.trim())
@@ -119,7 +128,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function main() {
   const query = supabase
     .from("content")
-    .select("id, user_id, title, category, data, status, tiktok_url");
+    .select("id, user_id, title, category, data, status, tiktok_url, updated_at");
   let scoped = query;
   if (!explicitIds.length) {
     scoped = scoped
@@ -136,7 +145,7 @@ async function main() {
     process.exit(1);
   }
 
-  const candidates = explicitIds.length
+  let candidates = explicitIds.length
     ? rows
     : rows.filter((row) => {
     // Nothing to re-derive from if the source is gone.
@@ -148,6 +157,14 @@ async function main() {
       ? typeof data.effort !== "string"
       : !Array.isArray(data.equipment) || data.equipment.length === 0;
       });
+
+  const alreadyRun = skipUpdatedSince
+    ? candidates.filter((r) => r.updated_at && r.updated_at >= skipUpdatedSince)
+    : [];
+  if (alreadyRun.length) {
+    const set = new Set(alreadyRun.map((r) => r.id));
+    candidates = candidates.filter((r) => !set.has(r.id));
+  }
 
   const isPhoto = (row) => (row.tiktok_url ?? "").startsWith("mms://");
   const sourceFiltered = onlySource
@@ -181,6 +198,10 @@ async function main() {
   console.log(`Mode               : ${apply ? "APPLY" : "dry run"}`);
   if (onlyUser) console.log(`Scoped to user     : ${onlyUser}`);
   if (onlyCategory) console.log(`Scoped to category : ${onlyCategory}`);
+  if (skipUpdatedSince)
+    console.log(
+      `Skipped as already run: ${alreadyRun.length} (updated since ${skipUpdatedSince})`
+    );
   if (onlySource)
     console.log(
       `Scoped to source   : ${onlySource} (${sourceFiltered.length} of ${candidates.length})`
