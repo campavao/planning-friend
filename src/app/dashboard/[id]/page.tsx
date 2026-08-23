@@ -46,6 +46,7 @@ import {
   Clock,
   ExternalLink,
   Gift,
+  Globe,
   HelpCircle,
   Info,
   Loader2,
@@ -56,6 +57,7 @@ import {
   NotebookPen,
   Pencil,
   Plane,
+  Play,
   Plus,
   RefreshCw,
   Share2,
@@ -72,7 +74,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "../useSession";
 import { categoryUI } from "@/lib/categories";
-import { isImageSourcedItem } from "@/lib/content-source";
+import { isImageSourcedItem, isVideoSourceUrl } from "@/lib/content-source";
 import { RecipeSteps } from "./components/RecipeSteps";
 import { PhotoViewerDialog } from "./components/SourcePhotoDialog";
 import { ItemNotes } from "./components/ItemNotes";
@@ -100,6 +102,44 @@ function getSourceLinkText(url: string): string {
     return `Visit ${hostname}`;
   } catch {
     return "Visit Website";
+  }
+}
+
+/** Square, and no taller than the title block beside it. A portrait thumbnail
+ *  left a visible well of dead space once tags came off the page and the text
+ *  column got short. */
+const THUMBNAIL_CLASS =
+  "relative shrink-0 block w-[92px] h-[92px] rounded-2xl overflow-hidden border border-[var(--border)] bg-[var(--muted)] shadow-[var(--shadow-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]";
+
+/** What sits inside the thumbnail. Shared by the two things it can be — a
+ *  button that expands the image, or a link that opens the video — so only the
+ *  corner badge says which. */
+function ThumbnailBody({
+  src,
+  alt,
+  icon: Icon,
+}: {
+  src: string;
+  alt: string;
+  icon: ElementType;
+}) {
+  return (
+    <>
+      <Image src={src} alt={alt} fill sizes="92px" className="object-cover" />
+      <span className="absolute right-1.5 bottom-1.5 w-[22px] h-[22px] rounded-lg bg-black/55 backdrop-blur-[2px] flex items-center justify-center">
+        <Icon className="w-3 h-3 text-white" />
+      </span>
+    </>
+  );
+}
+
+/** The bare domain, for a row that shows the link rather than describing it.
+ *  "www." is noise nobody reads. */
+function getDomainLabel(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
   }
 }
 
@@ -538,6 +578,13 @@ export default function ContentDetailPage() {
   // link for it — the thumbnail is the source.
   const isImageSourced = isImageSourcedItem(content.tiktok_url);
 
+  // A video's thumbnail is a still pulled out of the post, so expanding it
+  // full-screen gives you a frame of the thing you actually wanted to watch.
+  // Tapping it plays the post instead, which also means the row of buttons at
+  // the foot of the page has nothing left to offer.
+  const thumbnailPlaysSource =
+    !!content.thumbnail_url && isVideoSourceUrl(content.tiktok_url);
+
   const eventData = content.data as EventData;
   const mealData = content.data as MealData;
   const plants = readPlants(mealData.plants);
@@ -710,39 +757,46 @@ export default function ContentDetailPage() {
               )}
             </div>
 
-            {/* The thumbnail is the trigger, so Radix returns focus here when
-                the viewer closes. */}
-            {content.thumbnail_url && !editing && (
-              <PhotoViewerDialog
-                open={photoOpen}
-                onOpenChange={setPhotoOpen}
-                imageUrl={content.thumbnail_url}
-                itemTitle={content.title}
-                title={content.title}
-                trigger={
-                  <button
-                    type="button"
-                    // Square, and no taller than the title block beside it.
-                    // A portrait thumbnail left a visible well of dead space
-                    // once tags came off the page and the text column got
-                    // short.
-                    className="relative shrink-0 w-[92px] h-[92px] rounded-2xl overflow-hidden border border-[var(--border)] bg-[var(--muted)] shadow-[var(--shadow-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-                    aria-label="View full size"
-                  >
-                    <Image
-                      src={content.thumbnail_url}
-                      alt={content.title}
-                      fill
-                      sizes="92px"
-                      className="object-cover"
-                    />
-                    <span className="absolute right-1.5 bottom-1.5 w-[22px] h-[22px] rounded-lg bg-black/55 backdrop-blur-[2px] flex items-center justify-center">
-                      <Maximize2 className="w-3 h-3 text-white" />
-                    </span>
-                  </button>
-                }
-              />
-            )}
+            {content.thumbnail_url &&
+              !editing &&
+              (thumbnailPlaysSource ? (
+                <a
+                  href={content.tiktok_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={THUMBNAIL_CLASS}
+                  aria-label={getSourceLinkText(content.tiktok_url)}
+                >
+                  <ThumbnailBody
+                    src={content.thumbnail_url}
+                    alt={content.title}
+                    icon={Play}
+                  />
+                </a>
+              ) : (
+                /* The thumbnail is the trigger, so Radix returns focus here
+                   when the viewer closes. */
+                <PhotoViewerDialog
+                  open={photoOpen}
+                  onOpenChange={setPhotoOpen}
+                  imageUrl={content.thumbnail_url}
+                  itemTitle={content.title}
+                  title={content.title}
+                  trigger={
+                    <button
+                      type="button"
+                      className={THUMBNAIL_CLASS}
+                      aria-label="View full size"
+                    >
+                      <ThumbnailBody
+                        src={content.thumbnail_url}
+                        alt={content.title}
+                        icon={Maximize2}
+                      />
+                    </button>
+                  }
+                />
+              ))}
           </div>
 
           {/* Attributes sit directly under the title — they are the
@@ -862,10 +916,10 @@ export default function ContentDetailPage() {
                   </button>
                 )}
 
-                {/* A texted-in photo has no page to visit — its source is the
-                    thumbnail above, which already expands to the full image,
-                    so there is no second button for it here. */}
-                {!isImageSourced && (
+                {/* Only for sources the thumbnail doesn't already open: a
+                    texted-in photo has no page to visit, and a video post is
+                    reached by tapping its still. */}
+                {!isImageSourced && !thumbnailPlaysSource && (
                   <div className="px-2 pt-4 mt-2 border-t border-[var(--border)]">
                     <Button
                       asChild
@@ -1199,8 +1253,8 @@ function MealContent({ data }: { data: MealData }) {
  * So a saved event with a ticket link, or a restaurant with a menu, looked as
  * though the extraction had found nothing.
  *
- * `website` is first because it is the catch-all: a post that just puts its
- * domain on the last slide has no more specific field to land in.
+ * `website` is not among them — it now rides in a row of its own next to the
+ * address, which is where a reader looks for it.
  */
 function LinkButtons({
   links,
@@ -1250,6 +1304,19 @@ function EventContent({
           onClick={() => onOpen({ kind: "location", value: data.location! })}
         >
           {data.location}
+        </ItemRow>
+      )}
+
+      {/* The site is a fact about the place, not an afterthought — it used to
+          be a lone button below the description, far from the address it
+          belongs with. */}
+      {data.website && (
+        <ItemRow
+          icon={Globe}
+          iconClassName="text-muted-foreground"
+          href={data.website}
+        >
+          {getDomainLabel(data.website)}
         </ItemRow>
       )}
 
@@ -1303,7 +1370,6 @@ function EventContent({
       </ItemRows>
       <LinkButtons
         links={[
-          { href: data.website, label: "Website", icon: ExternalLink },
           { href: data.ticket_link, label: "Tickets", icon: Ticket },
           { href: data.reservation_link, label: "Reserve", icon: Calendar },
         ]}
@@ -1332,6 +1398,19 @@ function DateIdeaContent({
         </ItemRow>
       )}
 
+      {/* The site is a fact about the place, not an afterthought — it used to
+          be a lone button below the description, far from the address it
+          belongs with. */}
+      {data.website && (
+        <ItemRow
+          icon={Globe}
+          iconClassName="text-muted-foreground"
+          href={data.website}
+        >
+          {getDomainLabel(data.website)}
+        </ItemRow>
+      )}
+
       {/* Tag, not Star — a star means "favourited" everywhere else in the app,
           and this row is just the type and price. */}
       {(data.type || data.price_range) && (
@@ -1357,7 +1436,6 @@ function DateIdeaContent({
       </ItemRows>
       <LinkButtons
         links={[
-          { href: data.website, label: "Website", icon: ExternalLink },
           { href: data.menu_link, label: "Menu", icon: Utensils },
           { href: data.reservation_link, label: "Reserve", icon: Calendar },
         ]}
@@ -1482,6 +1560,19 @@ function TravelContent({
         </ItemRow>
       )}
 
+      {/* The site is a fact about the place, not an afterthought — it used to
+          be a lone button below the description, far from the address it
+          belongs with. */}
+      {data.website && (
+        <ItemRow
+          icon={Globe}
+          iconClassName="text-muted-foreground"
+          href={data.website}
+        >
+          {getDomainLabel(data.website)}
+        </ItemRow>
+      )}
+
       {destination && (
         <ItemRow
           icon={Plane}
@@ -1515,7 +1606,6 @@ function TravelContent({
       </ItemRows>
       <LinkButtons
         links={[
-          { href: data.website, label: "Website", icon: ExternalLink },
           { href: data.booking_link, label: "Book", icon: Calendar },
         ]}
       />
