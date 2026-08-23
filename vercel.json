@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/*.py": {
+      "excludeFiles": "{node_modules/**,.next/**,src/**,public/**,supabase/**,scripts/**,alexa-skill/**,.git/**,**/*.ts,**/*.tsx,**/*.map}"
+    }
+  }
+}
