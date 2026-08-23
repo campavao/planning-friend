@@ -22,7 +22,9 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { categoryUI } from "@/lib/categories";
 import { SuggestionStrip } from "./SuggestionStrip";
+import { WeekPlantScore } from "./WeekPlantScore";
 import { formatItemTime, getItemDateKey } from "@/lib/plan-dates";
+import { summarizeWeekPlants } from "@/lib/week-plants";
 
 type ContentWithTags = Content & { tags?: Tag[] };
 
@@ -178,10 +180,25 @@ export function WeekSection({
   const sharedCount = data?.sharedItems?.length ?? 0;
   const loading = !data;
 
+  // Day order matters: summarizeWeekPlants credits each plant to the first
+  // meal that brought it, so it has to see the week the way the calendar
+  // reads it rather than the order the two queries happened to return.
+  const plantSummary = useMemo(
+    () =>
+      summarizeWeekPlants(
+        dayInfos.flatMap(({ dayIndex }) => itemsByDay[dayIndex] ?? []),
+      ),
+    [dayInfos, itemsByDay],
+  );
+  // A week with no meals in it has nothing to score, and a zero would read as
+  // a bad week rather than an empty one.
+  const showPlantScore =
+    !loading && (plantSummary.count > 0 || plantSummary.unscoredMeals > 0);
+
   return (
     <section className="mb-8 md:mb-3" data-week={weekStart}>
       {/* Week label (mobile only — desktop reads as a continuous calendar) */}
-      <div className="mb-2 px-1 flex md:hidden items-center justify-center gap-2">
+      <div className="mb-2 px-1 flex md:hidden items-center justify-center gap-2 flex-wrap">
         <h2 className="text-base font-semibold text-muted-foreground">
           {weekRangeLabel}
         </h2>
@@ -196,7 +213,25 @@ export function WeekSection({
             {sharedCount} shared
           </Badge>
         )}
+        {showPlantScore && (
+          <WeekPlantScore
+            summary={plantSummary}
+            weekRangeLabel={weekRangeLabel}
+          />
+        )}
       </div>
+
+      {/* Desktop has no week header — the calendar is meant to read as one
+          continuous run of days — so the score sits flush right above its own
+          row, where it labels the week without interrupting it. */}
+      {showPlantScore && (
+        <div className="hidden md:flex justify-end px-1 mb-1">
+          <WeekPlantScore
+            summary={plantSummary}
+            weekRangeLabel={weekRangeLabel}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
         {dayInfos.map(({ dayIndex, dateKey, dayOfMonth, monthShort }) => {

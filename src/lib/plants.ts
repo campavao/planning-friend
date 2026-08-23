@@ -262,3 +262,20 @@ export function plantsByCategory(
 export function plantLabel(plant: Plant): string {
   return plant.name || plant.source;
 }
+
+/**
+ * Where a week's count falls against the 20–30 range.
+ *
+ * A band rather than a percentage because the source is a range, not a target
+ * with a pass mark: "between 20 and 30 is considered good" does not divide into
+ * a score out of 30, and rendering 18/30 as "60%" would invent a precision the
+ * underlying claim never had. Three states are all the UI needs — building,
+ * good, and past the top of the range.
+ */
+export type PlantScoreBand = "building" | "good" | "target";
+
+export function plantScoreBand(count: number): PlantScoreBand {
+  if (count >= WEEKLY_PLANT_TARGET) return "target";
+  if (count >= WEEKLY_PLANT_GOOD_MIN) return "good";
+  return "building";
+}
