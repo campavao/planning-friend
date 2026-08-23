@@ -8,7 +8,11 @@
  * would silently turn one filter into two.
  */
 
-import { describeAttributes, type AttributeKey } from "@/lib/attributes";
+import {
+  describeAttributes,
+  travelDestination,
+  type AttributeKey,
+} from "@/lib/attributes";
 
 function keys(attrs: { key: AttributeKey }[]): AttributeKey[] {
   return attrs.map((a) => a.key);
@@ -130,5 +134,31 @@ describe("describeAttributes", () => {
   it("survives null data and unknown categories", () => {
     expect(describeAttributes("meal", null)).toEqual([]);
     expect(describeAttributes("other", { anything: true })).toEqual([]);
+  });
+});
+
+describe("travelDestination", () => {
+  it("prefers the city, and keeps the country alongside it", () => {
+    expect(
+      travelDestination({
+        destination_city: "Minneapolis",
+        destination_country: "USA",
+        location: "Paisley Park",
+      }),
+    ).toBe("Minneapolis, USA");
+  });
+
+  it("falls back to location only when there is no destination", () => {
+    // `location` on a travel item is frequently a venue rather than a place,
+    // and a venue in a planner day header answers a question nobody asked —
+    // so it is the last resort, not the first choice.
+    expect(travelDestination({ location: "Paisley Park" })).toBe(
+      "Paisley Park",
+    );
+  });
+
+  it("is null when the item says nothing about where it is", () => {
+    expect(travelDestination({})).toBeNull();
+    expect(travelDestination(null)).toBeNull();
   });
 });

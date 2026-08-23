@@ -25,6 +25,8 @@ import { SuggestionStrip } from "./SuggestionStrip";
 import { WeekPlantScore } from "./WeekPlantScore";
 import { formatItemTime, getItemDateKey } from "@/lib/plan-dates";
 import { summarizeWeekPlants } from "@/lib/week-plants";
+import { travelDestination } from "@/lib/attributes";
+import { Plane } from "lucide-react";
 
 type ContentWithTags = Content & { tags?: Tag[] };
 
@@ -41,6 +43,8 @@ export interface WeekSectionProps {
   highlightDate: string | null;
   /** Dismissed suggestion keys, `${weekStart}:${dayIndex}:${contentId}` */
   dismissedSuggestions: Set<string>;
+  /** User turned suggestions off for the whole planner (PLA-42). */
+  suggestionsHidden?: boolean;
   /** `${weekStart}:${dayIndex}` of the day whose suggestions are refreshing */
   refreshingKey: string | null;
   registerDayElement: (dateKey: string, el: HTMLElement | null) => void;
@@ -79,6 +83,7 @@ export function WeekSection({
   contentById,
   highlightDate,
   dismissedSuggestions,
+  suggestionsHidden = false,
   refreshingKey,
   registerDayElement,
   onOpenAdd,
@@ -177,6 +182,25 @@ export function WeekSection({
     return byDay;
   }, [data?.plan?.items, data?.sharedItems, hiddenAutoEvents, dayInfos]);
 
+  // Where each day is, when a travel item says so. First one wins: two trips
+  // on one day is a connection, and naming the origin would be wrong.
+  const destinationByDay = useMemo(() => {
+    const out: Record<number, string> = {};
+    for (const { dayIndex } of dayInfos) {
+      for (const item of itemsByDay[dayIndex] ?? []) {
+        if (item.content?.category !== "travel") continue;
+        const place = travelDestination(
+          item.content.data as Record<string, unknown>,
+        );
+        if (place) {
+          out[dayIndex] = place;
+          break;
+        }
+      }
+    }
+    return out;
+  }, [dayInfos, itemsByDay]);
+
   const sharedCount = data?.sharedItems?.length ?? 0;
   const loading = !data;
 
@@ -243,7 +267,10 @@ export function WeekSection({
           // item still gets picks. The client just shows what it was sent.
           // A completely empty day always keeps the strip so it can explain
           // itself rather than rendering blank.
+          // The toggle wins outright: a day with nothing on it still shows
+          // no strip, because "off" has to mean off rather than mostly off.
           const showSuggestions =
+            !suggestionsHidden &&
             itemsByDay[dayIndex].length === 0 || dayPicks.length > 0;
 
           return (
@@ -271,6 +298,17 @@ export function WeekSection({
                       {isToday && (
                         <Badge className="bg-[var(--primary)] text-white text-[10px]">
                           Today
+                        </Badge>
+                      )}
+                      {destinationByDay[dayIndex] && (
+                        <Badge
+                          variant="travel"
+                          className="text-[10px] px-1.5 py-0.5 max-w-[9rem]"
+                        >
+                          <Plane className="w-2.5 h-2.5 shrink-0" />
+                          <span className="truncate">
+                            {destinationByDay[dayIndex]}
+                          </span>
                         </Badge>
                       )}
                     </div>
@@ -543,11 +581,25 @@ export function WeekSection({
                         </span>
                       )}
                     </div>
-                    {isToday && (
-                      <Badge className="bg-[var(--primary)] text-white text-[10px]">
-                        Today
-                      </Badge>
-                    )}
+                    <div className="flex items-center gap-1 min-w-0">
+                      {destinationByDay[dayIndex] && (
+                        <Badge
+                          variant="travel"
+                          className="text-[10px] px-1.5 py-0.5 min-w-0"
+                          title={destinationByDay[dayIndex]}
+                        >
+                          <Plane className="w-2.5 h-2.5 shrink-0" />
+                          <span className="truncate">
+                            {destinationByDay[dayIndex]}
+                          </span>
+                        </Badge>
+                      )}
+                      {isToday && (
+                        <Badge className="bg-[var(--primary)] text-white text-[10px]">
+                          Today
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
 
