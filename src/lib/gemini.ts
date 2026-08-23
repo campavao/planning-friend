@@ -752,3 +752,24 @@ Return as JSON with this format:
     };
   }
 }
+
+/**
+ * The plant-extraction rules, sliced out of the analysis prompt rather than
+ * copied, so the derive-only path in derive-attributes.ts shares exactly one
+ * definition. These rules have already been wrong twice — herbs and spices
+ * leaking in, then alcohol — and two drifting copies would be worse than one
+ * imperfect one.
+ *
+ * Throws at module load if the markers move, which is a build-time failure
+ * rather than a silently empty prompt section.
+ */
+export const PLANT_RULES = (() => {
+  const start = ANALYSIS_PROMPT.indexOf("**PLANTS (meal only):**");
+  const end = ANALYSIS_PROMPT.indexOf("For **event**:");
+  if (start === -1 || end === -1 || end < start) {
+    throw new Error(
+      "PLANT_RULES: markers not found in ANALYSIS_PROMPT — the prompt was restructured"
+    );
+  }
+  return ANALYSIS_PROMPT.slice(start, end).trimEnd();
+})();

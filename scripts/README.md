@@ -6,6 +6,21 @@ re-runs each item through the normal extraction pipeline via the app's own
 reprocess endpoint rather than patching rows, because the fields are derived
 from the original source.
 
+## Use `--derive`
+
+`--derive` fills the new fields in from the recipe text already stored on the
+row. It never fetches the source and never writes title, category, ingredients
+or steps — only the missing attributes. A failure leaves the row untouched.
+
+Without it the script re-runs the whole extraction pipeline and writes `data`
+back wholesale, which is how a backfill for four new fields destroyed three
+recipes, re-titled and re-categorised others, and collapsed one 47-line recipe
+into three lines echoing its own title. The plants come from the ingredient
+list, and the ingredient list is already in the database.
+
+Re-processing is still the only option for a row that holds no recipe text at
+all — and such a row has nothing left to lose.
+
 Items saved from a photo have an `mms://` source that was never fetchable;
 the reprocess route re-derives those from the original image in the
 `thumbnails` bucket instead. A failed re-analysis can no longer overwrite a

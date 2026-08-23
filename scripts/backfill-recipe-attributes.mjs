@@ -23,7 +23,11 @@
  *
  * Options:
  *   --url <base url>   App to drive (default http://localhost:3000)
- *   --apply            Actually re-process. Without it, this is a dry run.
+ *   --derive           SAFE MODE. Derive the new fields from the recipe text
+ *                      already stored on the row, and add only the fields that
+ *                      are missing. Never re-fetches the source, never touches
+ *                      title, category, ingredients or steps. Prefer this.
+ *   --apply            Actually run. Without it, this is a dry run.
  *   --skip-edited      Leave hand-edited items alone.
  *   --all              Re-process every meal/drink, not just the ones still
  *                      missing the new fields (the default).
@@ -87,6 +91,7 @@ const onlyUser = getArg("--user", "") || "";
 const onlyCategory = getArg("--category", "") || "";
 const onlySource = getArg("--source", "") || "";
 const skipUpdatedSince = getArg("--skip-updated-since", "") || "";
+const derive = args.includes("--derive");
 const explicitIds = (getArg("--id", "") || "")
   .split(",")
   .map((v) => v.trim())
@@ -195,7 +200,13 @@ async function main() {
     }`
   );
   console.log(`Will re-process    : ${targets.length}`);
-  console.log(`Mode               : ${apply ? "APPLY" : "dry run"}`);
+  console.log(
+    `Mode               : ${apply ? "APPLY" : "dry run"} — ${
+      derive
+        ? "DERIVE (adds missing fields only, never rewrites content)"
+        : "REPROCESS (re-fetches source and rewrites data wholesale)"
+    }`
+  );
   if (onlyUser) console.log(`Scoped to user     : ${onlyUser}`);
   if (onlyCategory) console.log(`Scoped to category : ${onlyCategory}`);
   if (skipUpdatedSince)
@@ -236,7 +247,8 @@ async function main() {
 
     const label = `[${index + 1}/${targets.length}] ${row.title}`;
     try {
-      const res = await fetch(`${baseUrl}/api/content/${row.id}/reprocess`, {
+      const endpoint = derive ? "derive-attributes" : "reprocess";
+      const res = await fetch(`${baseUrl}/api/content/${row.id}/${endpoint}`, {
         method: "POST",
         headers: {
           Cookie: `session=${mintSession(row.user_id, phone)}`,
@@ -248,7 +260,18 @@ async function main() {
         console.error(`  ✗ ${label} — ${res.status} ${body.slice(0, 120)}`);
         failed++;
       } else {
-        console.log(`  ✓ ${label}`);
+        let detail = "";
+        if (derive) {
+          try {
+            const body = await res.json();
+            detail = body.unchanged
+              ? " (already had them)"
+              : ` (+${(body.added ?? []).join(", ") || "nothing"})`;
+          } catch {
+            /* keep the tick, lose the detail */
+          }
+        }
+        console.log(`  ✓ ${label}${detail}`);
         ok++;
       }
     } catch (err) {
