@@ -476,9 +476,15 @@ last one especially, for:
 - an @handle, or a "link in bio"
 - a venue or business name, and a street address
 
-Put a URL in the matching link field (ticket_link, menu_link, reservation_link,
-purchase_link, booking_link) so it renders as a link rather than being buried in
-the description. Normalise a bare domain to a full https:// URL.
+Put a URL in a link field rather than in the description, so it renders as a
+link. **A plain business or brand URL goes in \`website\`** — that is the field
+for it, and it is the usual case: a post that simply puts its domain on the
+last slide is not offering tickets or a menu. Use the more specific field only
+when the link really is one: ticket_link, menu_link, reservation_link,
+purchase_link, booking_link.
+
+Normalise a bare domain to a full https:// URL — "MixedChicago.com" written on
+a slide becomes "https://mixedchicago.com".
 
 For location, prefer the specific venue written on the slides — "Mixed Mediums,
 Chicago" — over the city alone. A bare city name is the least useful answer and
