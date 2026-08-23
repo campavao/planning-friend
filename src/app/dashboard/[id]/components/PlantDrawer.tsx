@@ -1,11 +1,11 @@
 "use client";
 
 import { ActionDrawer } from "@/components/ui/action-drawer";
+import { PlantCategoryList } from "@/components/plant-category-list";
 import {
   WEEKLY_PLANT_GOOD_MIN,
   WEEKLY_PLANT_TARGET,
-  plantLabel,
-  plantsByCategory,
+  countPlants,
   type Plant,
 } from "@/lib/plants";
 
@@ -25,8 +25,7 @@ interface PlantDrawerProps {
 }
 
 export function PlantDrawer({ open, onOpenChange, plants }: PlantDrawerProps) {
-  const groups = plantsByCategory(plants);
-  const total = groups.reduce((sum, group) => sum + group.plants.length, 0);
+  const total = countPlants(plants);
 
   return (
     <ActionDrawer
@@ -35,31 +34,7 @@ export function PlantDrawer({ open, onOpenChange, plants }: PlantDrawerProps) {
       title={`${total} distinct ${total === 1 ? "plant" : "plants"}`}
     >
       <div className="pb-2">
-        {groups.map((group) => (
-          <div key={group.category} className="px-3.5 pb-3">
-            <p className="text-[10.5px] font-bold uppercase tracking-[0.07em] text-muted-foreground mb-2">
-              {group.label}
-            </p>
-            <ul className="flex flex-wrap gap-1.5">
-              {group.plants.map((plant) => (
-                <li
-                  key={plant.source}
-                  className="text-[12.5px] font-medium px-2.5 py-1 rounded-full border border-[var(--border)] bg-[var(--background)]"
-                >
-                  {/* The source is the identity; the recipe's own wording is
-                      the useful label, so show both when they differ. */}
-                  <span className="capitalize">{plant.source}</span>
-                  {plant.name && plant.name !== plant.source && (
-                    <span className="text-muted-foreground font-normal">
-                      {" · "}
-                      {plantLabel(plant)}
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+        <PlantCategoryList plants={plants} />
 
         <p className="px-3.5 pt-2 pb-1 text-[11.5px] leading-relaxed text-muted-foreground border-t border-[var(--border)] mt-1">
           Counted by plant, not by ingredient — so noodles and soy sauce share
