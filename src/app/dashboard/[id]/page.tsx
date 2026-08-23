@@ -668,9 +668,12 @@ export default function ContentDetailPage() {
               </div>
             ) : (
               <>
-                {content.category === "meal" && (
-                  <MealContent data={mealData} />
-                )}
+                {content.category === "meal" &&
+                  (hasNoRecipe(mealData) ? (
+                    <NoRecipeNotice sourceUrl={content.tiktok_url} />
+                  ) : (
+                    <MealContent data={mealData} />
+                  ))}
                 {content.category === "event" && (
                   <EventContent
                     data={eventData}
@@ -687,9 +690,12 @@ export default function ContentDetailPage() {
                 {content.category === "gift_idea" && (
                   <GiftIdeaContent data={content.data as GiftIdeaData} />
                 )}
-                {content.category === "drink" && (
-                  <DrinkContent data={content.data as DrinkData} />
-                )}
+                {content.category === "drink" &&
+                  (hasNoRecipe(content.data as DrinkData) ? (
+                    <NoRecipeNotice sourceUrl={content.tiktok_url} />
+                  ) : (
+                    <DrinkContent data={content.data as DrinkData} />
+                  ))}
                 {content.category === "travel" && (
                   <TravelContent
                     data={content.data as TravelData}
@@ -963,6 +969,49 @@ function RecipeFacts({
       {parts.join(" · ")}
     </p>
   );
+}
+
+/**
+ * Shown when a recipe item holds no recipe.
+ *
+ * Some items genuinely arrive empty: a source that blocks us, or an extraction
+ * that came back with nothing. Until now those rendered as a title and blank
+ * space, which reads as the app being broken rather than as the source being
+ * unreadable. Saying so — and pointing at the original, which still works —
+ * turns a bug report into a bookmark.
+ *
+ * Deliberately not an error state. Nothing failed just now, and there is
+ * nothing for the reader to retry.
+ */
+function NoRecipeNotice({ sourceUrl }: { sourceUrl?: string }) {
+  return (
+    <div className="px-2 py-3">
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--muted)] px-4 py-3.5">
+        <p className="text-[13px] font-semibold mb-1">No recipe saved</p>
+        <p className="text-[12.5px] leading-relaxed text-muted-foreground">
+          We couldn&apos;t read the recipe from this post — some sources block
+          us. The original still has it.
+        </p>
+        {sourceUrl && (
+          <Button
+            asChild
+            variant="secondary"
+            className="mt-3 h-auto px-4 py-2 text-[12.5px]"
+          >
+            <a href={sourceUrl} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="w-3.5 h-3.5" />
+              Open the original
+            </a>
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** True when a recipe item carries neither ingredients nor steps. */
+function hasNoRecipe(data: MealData | DrinkData): boolean {
+  return !data.ingredients?.length && !data.recipe?.length;
 }
 
 function MealContent({ data }: { data: MealData }) {
