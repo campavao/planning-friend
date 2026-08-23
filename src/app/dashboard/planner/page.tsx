@@ -129,6 +129,14 @@ interface GroceryListState {
   loading: boolean;
   saving: boolean;
   error: string | null;
+  /**
+   * A failure from the Save button specifically.
+   *
+   * Separate from `error`, which replaces the whole list view — using it here
+   * would delete the list the user is looking at to tell them a screenshot
+   * failed. Save failing must not cost you the thing you were saving.
+   */
+  saveError: string | null;
 }
 
 interface UndoState {
@@ -258,6 +266,7 @@ function PlannerContent() {
     expandedIngredient: null,
     loading: false,
     saving: false,
+    saveError: null,
     error: null,
   });
   const groceryListRef = useRef<HTMLDivElement>(null);
@@ -1212,6 +1221,7 @@ function PlannerContent() {
         expandedIngredient: null,
         loading: false,
         saving: false,
+        saveError: null,
         error: "No recipes with ingredients found for this week.",
       });
       return;
@@ -1224,6 +1234,7 @@ function PlannerContent() {
       expandedIngredient: null,
       loading: true,
       saving: false,
+      saveError: null,
       error: null,
     });
 
@@ -1266,7 +1277,7 @@ function PlannerContent() {
   const saveGroceryScreenshot = async () => {
     if (groceryList.items.length === 0) return;
 
-    setGroceryList((s) => ({ ...s, saving: true }));
+    setGroceryList((s) => ({ ...s, saving: true, saveError: null }));
 
     try {
       const container = document.createElement("div");
@@ -1307,12 +1318,51 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
 
       document.body.removeChild(container);
 
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/png"),
+      );
+      if (!blob) throw new Error("Could not render the list as an image");
+
+      const filename = `grocery-list-${anchorWeek}.png`;
+      const file = new File([blob], filename, { type: "image/png" });
+
+      // The share sheet first, because this app is installed to the home
+      // screen (manifest display: standalone) and iOS gives a standalone PWA
+      // no download UI at all — a programmatic <a download> there resolves
+      // silently and saves nothing, which is exactly what "it flashes and
+      // nothing happens" was. Sharing a File is the supported way out, and it
+      // lands the image in Photos, Files, Messages or anywhere else.
+      if (navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: "Grocery list" });
+          return;
+        } catch (shareError) {
+          // Dismissing the sheet is a choice, not a failure.
+          if ((shareError as Error)?.name === "AbortError") return;
+          // Anything else falls through to the download path below.
+        }
+      }
+
+      // Desktop, and any browser without file sharing. An object URL rather
+      // than a data URL: a several-megabyte data: href is refused outright by
+      // some browsers, and this list can carry one.
+      const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.download = `grocery-list-${anchorWeek}.png`;
-      link.href = canvas.toDataURL("image/png");
+      link.download = filename;
+      link.href = url;
+      // Appended because a detached anchor is a no-op in Firefox.
+      document.body.appendChild(link);
       link.click();
+      link.remove();
+      // Revoked late: revoking in the same tick cancels the download in some
+      // browsers before it has started reading.
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
     } catch (error) {
       console.error("Failed to save screenshot:", error);
+      setGroceryList((s) => ({
+        ...s,
+        saveError: "Couldn't save the list. Try again.",
+      }));
     } finally {
       setGroceryList((s) => ({ ...s, saving: false }));
     }
@@ -1825,6 +1875,17 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                   <Camera className="w-4 h-4 mr-1" />
                   {groceryList.saving ? "..." : "Save"}
                 </Button>
+                {/* A save that fails must say so. Until now the catch only
+                    reached the console, so a silent no-op was indistinguishable
+                    from a save that worked. */}
+                {groceryList.saveError && (
+                  <span
+                    role="status"
+                    className="self-center text-[11px] text-white/90 max-w-[9rem] leading-tight"
+                  >
+                    {groceryList.saveError}
+                  </span>
+                )}
                 <Button
                   variant="ghost"
                   size="sm"
