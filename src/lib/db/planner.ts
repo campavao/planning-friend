@@ -762,3 +762,37 @@ export async function getPastWeeklyPlans(
 
   return data as WeeklyPlan[];
 }
+
+/**
+ * Every date one content item has been planned for, by this user.
+ *
+ * Scoped to the caller's own plans through the weekly_plans join rather than
+ * filtering afterwards: a shared item appears in a friend's week too, and
+ * "you had this 3 times" must mean times *you* had it.
+ *
+ * Returns raw ISO strings and leaves the interpretation to
+ * summarisePlanHistory — past versus future, frequency, weekday pattern — so
+ * the judgement about what is worth claiming stays in one testable place.
+ */
+export async function getPlanHistoryForContent(
+  userId: string,
+  contentId: string
+): Promise<string[]> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("plan_items")
+    .select("planned_date, weekly_plans!inner(user_id)")
+    .eq("weekly_plans.user_id", userId)
+    .eq("content_id", contentId)
+    .not("planned_date", "is", null)
+    .order("planned_date");
+
+  if (error) {
+    throw new Error(`Failed to get plan history: ${error.message}`);
+  }
+
+  return (data ?? [])
+    .map((row) => (row as { planned_date: string | null }).planned_date)
+    .filter((value): value is string => Boolean(value));
+}

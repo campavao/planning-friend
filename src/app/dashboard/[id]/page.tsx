@@ -2,6 +2,7 @@
 
 import type { ElementType } from "react";
 import { upcomingDays } from "@/lib/plan-dates";
+import { describeDaysSince, type PlanHistorySummary } from "@/lib/plan-history";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -19,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useContentById } from "@/hooks/useContent";
+import { useContentById, usePlanHistory } from "@/hooks/useContent";
 import { NOTE_COMPOSER_PARAM, NOTE_COMPOSER_VALUE } from "@/lib/constants";
 import { isFavorite, saveFavorite } from "@/lib/favorites";
 import { getGoogleMapsUrl, getUberUrl } from "@/lib/map-links";
@@ -115,6 +116,74 @@ type OpenDrawer =
   | { kind: "plants" }
   | { kind: "section"; index: number | null };
 
+/**
+ * What the planner knows about this item.
+ *
+ * Sits above the notes, since both answer "have I had this, and how was it".
+ * Renders nothing at all when the item has never been planned — a row reading
+ * "planned 0 times" is worse than silence, because it takes up space to say
+ * the reader already knows.
+ */
+function PlanHistoryRow({ summary }: { summary: PlanHistorySummary }) {
+  const { timesPlanned, daysSince, lastPlanned, nextPlanned, usualDay } =
+    summary;
+
+  if (timesPlanned === 0 && !nextPlanned) return null;
+
+  const lastDate = lastPlanned
+    ? new Date(lastPlanned).toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+      })
+    : null;
+
+  const nextDate = nextPlanned
+    ? new Date(nextPlanned).toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "short",
+        day: "numeric",
+      })
+    : null;
+
+  return (
+    <div className="px-2 pt-4">
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--muted)] px-4 py-3.5">
+        <div className="flex items-center gap-2 mb-1.5">
+          <Calendar className="w-3.5 h-3.5 text-[var(--primary)]" />
+          <p className="text-[10.5px] font-bold uppercase tracking-[0.07em] text-muted-foreground">
+            In your planner
+          </p>
+        </div>
+
+        {daysSince !== null && lastDate && (
+          <p className="text-[13px] font-medium">
+            {describeDaysSince(daysSince)}
+            <span className="text-muted-foreground font-normal">
+              {" · "}
+              {lastDate}
+            </span>
+          </p>
+        )}
+
+        <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
+          {timesPlanned > 0 && (
+            <>
+              Planned {timesPlanned} {timesPlanned === 1 ? "time" : "times"}
+              {usualDay && `, usually on a ${usualDay}`}.
+            </>
+          )}
+          {nextDate && (
+            <>
+              {timesPlanned > 0 ? " " : ""}
+              Coming up {nextDate}.
+            </>
+          )}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function ContentDetailPage() {
   // Content detail is publicly viewable (shareable by link); editing and
   // copying still require a signed-in user.
@@ -154,6 +223,12 @@ export default function ContentDetailPage() {
   const [photoOpen, setPhotoOpen] = useState(false);
 
   const isEditable = !!user && content?.user_id === user.id;
+
+  // Owner-only: the endpoint refuses anyone else, so a shared view never asks.
+  const { history: planHistory, mutate: mutatePlanHistory } = usePlanHistory(
+    id,
+    { enabled: isEditable }
+  );
   const loading = sessionLoading || (contentLoading && !content);
 
   const closeDrawer = useCallback(() => setDrawer({ kind: "none" }), []);
@@ -343,6 +418,8 @@ export default function ContentDetailPage() {
       });
       if (!res.ok) throw new Error(`Failed: ${res.status}`);
       setPlannedLabel(label);
+      // The "coming up" line is now stale by exactly the thing just added.
+      mutatePlanHistory();
       // Left open briefly so the confirmation is actually seen; planning two
       // days in a row is common enough that closing instantly would annoy.
       setTimeout(() => {
@@ -802,6 +879,10 @@ export default function ContentDetailPage() {
                       </a>
                     </Button>
                   </div>
+                )}
+
+                {isEditable && planHistory && (
+                  <PlanHistoryRow summary={planHistory} />
                 )}
 
                 {/* Notes — the owner's record of how it actually went. Private,
