@@ -153,3 +153,26 @@ export function describeAttributes(
 
   return out;
 }
+
+/**
+ * Where a day's plan says you are, if anywhere.
+ *
+ * A travel item on a day is the strongest available signal that the rest of
+ * that day happens somewhere else, which is worth saying in the day header —
+ * "Thursday" reads differently when Thursday is in Minnesota (PLA-48).
+ *
+ * Prefers the destination city over the free-text `location`, which on travel
+ * items is frequently a venue ("Paisley Park") rather than a place, and a venue
+ * in a day header answers a question nobody asked.
+ */
+export function travelDestination(
+  data: AnyData | null | undefined
+): string | null {
+  const d = data ?? {};
+  const city = str(d, "destination_city");
+  const country = str(d, "destination_country");
+
+  if (city) return country ? `${city}, ${country}` : city;
+  if (country) return country;
+  return str(d, "location") ?? null;
+}

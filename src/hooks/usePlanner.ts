@@ -60,6 +60,8 @@ export interface PlannerLibraryData {
   availableContent: ContentWithTags[];
   allTags: Tag[];
   shareableFriends: ShareableFriend[];
+  /** Quick note titles planned before, most recent first (PLA-43). */
+  recentNotes: string[];
 }
 
 export const PLANNER_LIBRARY_KEY = "/api/planner/library";
@@ -122,6 +124,7 @@ export function usePlannerLibrary({ enabled = true }: UsePlannerOptions = {}) {
     availableContent: data?.availableContent ?? [],
     allTags: data?.allTags ?? [],
     shareableFriends: data?.shareableFriends ?? [],
+    recentNotes: data?.recentNotes ?? [],
     isLoading,
     error,
     mutate,

@@ -796,3 +796,49 @@ export async function getPlanHistoryForContent(
     .map((row) => (row as { planned_date: string | null }).planned_date)
     .filter((value): value is string => Boolean(value));
 }
+
+/**
+ * Quick note titles this user has planned before, most recent first.
+ *
+ * "Leftovers", "Dinner at mum's", "Eating out" recur constantly and are retyped
+ * every time, because the add-item search only ever looked at saved content
+ * (PLA-43). Offering them back turns a repeated typing job into a tap.
+ *
+ * Deduplicated case-insensitively, keeping the earliest-seen spelling, so
+ * "leftovers" and "Leftovers" do not both appear — they are the same note as
+ * far as the person typing is concerned.
+ */
+export async function getRecentQuickNotes(
+  userId: string,
+  limit = 40
+): Promise<string[]> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("plan_items")
+    .select("note_title, planned_date, weekly_plans!inner(user_id)")
+    .eq("weekly_plans.user_id", userId)
+    .is("content_id", null)
+    .not("note_title", "is", null)
+    .order("planned_date", { ascending: false })
+    .limit(limit * 4);
+
+  if (error) {
+    console.error("Failed to get recent quick notes:", error);
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const row of (data ?? []) as { note_title: string | null }[]) {
+    const title = row.note_title?.trim();
+    if (!title) continue;
+    const key = title.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(title);
+    if (out.length >= limit) break;
+  }
+
+  return out;
+}

@@ -45,6 +45,8 @@ import {
   PenLine,
   Plus,
   Search,
+  Lightbulb,
+  LightbulbOff,
   ShoppingCart,
   Star,
   User,
@@ -88,6 +90,27 @@ interface ItemShareState {
 }
 
 type ContentWithTags = Content & { tags?: Tag[] };
+
+/**
+ * Whether suggestion strips are shown (PLA-42).
+ *
+ * localStorage rather than a user_settings column: this is a view preference,
+ * the same kind as the week-start day and hidden auto-events which already live
+ * there, and adding a column would mean a migration against a live table for a
+ * boolean that never needs to follow anyone across devices.
+ *
+ * Default on. Someone who has never touched this should still see the feature.
+ */
+const SUGGESTIONS_HIDDEN_KEY = "planner-suggestions-hidden";
+
+function readSuggestionsHidden(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(SUGGESTIONS_HIDDEN_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
 
 // Grocery list types (from Gemini AI)
 interface GroceryItem {
@@ -170,6 +193,23 @@ function PlannerContent() {
   // One field for the whole add-modal: it filters saved items as you type and
   // doubles as the title if you add what you typed as a quick note.
   const [entryQuery, setEntryQuery] = useState("");
+  const [suggestionsHidden, setSuggestionsHidden] = useState(false);
+
+  // Read after mount, never during render: the server has no localStorage, so
+  // seeding state from it directly would hydrate mismatched.
+  useEffect(() => {
+    setSuggestionsHidden(readSuggestionsHidden());
+  }, []);
+
+  const toggleSuggestions = () => {
+    setSuggestionsHidden((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(SUGGESTIONS_HIDDEN_KEY, String(next));
+      } catch {}
+      return next;
+    });
+  };
   const [addingQuickNote, setAddingQuickNote] = useState(false);
   const [plannedTime, setPlannedTime] = useState("19:00");
   const [editingItem, setEditingItem] = useState<PlanItemWithSharing | null>(
@@ -660,8 +700,13 @@ function PlannerContent() {
     setAddingToDate(null);
   };
 
-  const addQuickNote = async (dateKey: string) => {
-    if (!entryQuery.trim()) return;
+  /**
+   * `title` overrides what is in the field, so tapping a past note adds it
+   * directly rather than having to write it back into the input first.
+   */
+  const addQuickNote = async (dateKey: string, title?: string) => {
+    const noteTitle = (title ?? entryQuery).trim();
+    if (!noteTitle) return;
 
     setAddingQuickNote(true);
     try {
@@ -673,7 +718,7 @@ function PlannerContent() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             id: editingItem.id,
-            noteTitle: entryQuery.trim(),
+            noteTitle,
             plannedDate,
           }),
         });
@@ -688,7 +733,7 @@ function PlannerContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          noteTitle: entryQuery.trim(),
+          noteTitle,
           plannedDate,
         }),
       });
@@ -1087,6 +1132,24 @@ function PlannerContent() {
     return filterBySearch(matching, entryQuery);
   };
 
+  /**
+   * Quick notes planned before that match what is being typed (PLA-43).
+   *
+   * "Leftovers" and "Dinner at mum's" recur constantly and were retyped every
+   * time, because this search only ever looked at saved content. Hidden with an
+   * empty query — an unprompted list of every note ever written would bury the
+   * saved items this modal is mostly for.
+   */
+  const getMatchingNotes = (): string[] => {
+    const query = entryQuery.trim().toLowerCase();
+    if (!query) return [];
+    return (library?.recentNotes ?? [])
+      .filter((note) => note.toLowerCase().includes(query))
+      // Exact match is already offered by the "Add ..." button above.
+      .filter((note) => note.toLowerCase() !== query)
+      .slice(0, 5);
+  };
+
   // ============================================
   // Grocery list (for the week currently in focus)
   // ============================================
@@ -1328,6 +1391,25 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
           <PlannerSearch
             onJump={(dateKey) => jumpToDate(dateKey, { highlight: true })}
           />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleSuggestions}
+            className="h-9 shrink-0"
+            aria-pressed={!suggestionsHidden}
+            title={
+              suggestionsHidden ? "Show suggestions" : "Hide suggestions"
+            }
+          >
+            {suggestionsHidden ? (
+              <LightbulbOff className="w-4 h-4" />
+            ) : (
+              <Lightbulb className="w-4 h-4" />
+            )}
+            <span className="hidden sm:inline ml-2">
+              {suggestionsHidden ? "Suggestions off" : "Suggestions on"}
+            </span>
+          </Button>
         </div>
 
         {/* Calendar weekday columns (desktop) */}
@@ -1384,6 +1466,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
               contentById={contentById}
               highlightDate={highlightDate}
               dismissedSuggestions={dismissedSuggestions}
+              suggestionsHidden={suggestionsHidden}
               refreshingKey={refreshingKey}
               registerDayElement={registerDayElement}
               onOpenAdd={openAddModal}
@@ -1473,7 +1556,6 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                       value={entryQuery}
                       onChange={(e) => setEntryQuery(e.target.value)}
                       className="pl-10 pr-10"
-                      autoFocus
                     />
                     {entryQuery && (
                       <Button
@@ -1610,6 +1692,27 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                     </div>
                   </button>
                 )}
+
+                {getMatchingNotes().map((note) => (
+                  <button
+                    key={note}
+                    onClick={() => addQuickNote(addingToDate, note)}
+                    disabled={addingQuickNote}
+                    className="w-full bg-white border border-[var(--border)] rounded-xl p-3 text-left flex items-center gap-3 hover:border-[var(--primary)]/30 hover:shadow-sm transition-all disabled:opacity-60"
+                  >
+                    <div className="w-14 h-14 shrink-0 rounded-lg bg-[var(--muted)] flex items-center justify-center">
+                      <PenLine className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium line-clamp-1">
+                        {note}
+                      </span>
+                      <p className="text-xs text-muted-foreground">
+                        Note you&apos;ve planned before
+                      </p>
+                    </div>
+                  </button>
+                ))}
 
                 {getFilteredContent().map((content: ContentWithTags) => {
                   const Icon = categoryUI(content.category).icon;
