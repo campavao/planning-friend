@@ -100,6 +100,8 @@ const CATEGORY_FIELDS: Record<ContentCategory, FieldSpec[]> = {
   travel: [
     { key: "location", label: "Location", kind: "text" },
     { key: "type", label: "Type", kind: "select", options: TRAVEL_TYPES },
+    { key: "date", label: "Start", kind: "text", placeholder: "September 5" },
+    { key: "end_date", label: "End", kind: "text", placeholder: "September 7" },
     { key: "destination_city", label: "City", kind: "text" },
     { key: "destination_country", label: "Country", kind: "text" },
     {

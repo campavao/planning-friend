@@ -6,6 +6,7 @@ import {
   INTERNAL_TOKEN_HEADER,
   requireSession,
 } from "@/lib/auth";
+import { SOURCE_MESSAGE_KEY } from "@/lib/constants";
 
 function getBaseUrl(request: NextRequest): string {
   if (
@@ -70,6 +71,14 @@ export async function POST(
     //   );
     // }
 
+    const storedMessage = (content.data as Record<string, unknown> | null)?.[
+      SOURCE_MESSAGE_KEY
+    ];
+    const messageText =
+      typeof storedMessage === "string" && storedMessage.trim()
+        ? storedMessage.trim()
+        : null;
+
     await updateContent(id, { status: "processing" });
 
     const platform = isStoredImage
@@ -96,6 +105,10 @@ export async function POST(
             phoneNumber: session.phoneNumber,
             retry: true,
             silent: true,
+            // Whatever was texted in with the photo. Without it a regenerate
+            // reads the image cold, while the first extraction had the sentence
+            // that said what it was for.
+            ...(messageText ? { messageText } : {}),
             ...(isStoredImage
               ? {
                   mmsMedia: {

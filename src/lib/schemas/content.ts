@@ -281,6 +281,8 @@ const travelDataSchema = z
   .object({
     location: text,
     type: clearable(z.enum(TRAVEL_TYPES)),
+    date: text,
+    end_date: text,
     description,
     website: link,
     booking_link: link,

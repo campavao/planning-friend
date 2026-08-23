@@ -22,6 +22,7 @@ import {
 } from "@/lib/social-media";
 import { notifyContentReady } from "@/lib/push-notifications";
 import { dropDeadLinks } from "@/lib/link-check";
+import { failProcessing } from "./fail";
 import { mergeOntoExisting, shouldPreserveExisting } from "./preserve";
 import type { ProcessResult } from "./types";
 
@@ -176,12 +177,11 @@ export async function processSocialContent(
   }
 
   if (!analysisResult.items?.length) {
-    await updateContent(contentId, {
-      status: "failed",
-      title: "Analysis returned no results",
-      data: { error: "Could not extract content from video" },
-    });
-    return { error: "Analysis returned no results" };
+    return failProcessing(
+      contentId,
+      "Analysis returned no results",
+      "Could not extract content from video"
+    );
   }
 
   await verifyLinks(analysisResult, contentId);

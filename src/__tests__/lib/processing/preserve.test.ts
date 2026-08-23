@@ -625,3 +625,33 @@ describe("mergeOntoExisting — sections", () => {
     expect(merged.sections).toHaveLength(20);
   });
 });
+
+describe("the texted-in message is context, not content", () => {
+  it("does not count towards a result having substance", () => {
+    expect(
+      isLowValueResult({
+        category: "other",
+        title: "Photo",
+        data: { source_message: "hotel for the Des Moines trip" },
+      })
+    ).toBe(true);
+  });
+
+  it("survives a regenerate", () => {
+    const merged = mergeOntoExisting(
+      {
+        category: "travel",
+        data: {
+          location: "Des Moines, IA",
+          source_message: "hotel for the Des Moines trip",
+        },
+      } as unknown as Pick<Content, "category" | "data">,
+      {
+        category: "travel",
+        title: "Embassy Suites",
+        data: { location: "101 East Locust Street, Des Moines, IA" },
+      }
+    );
+    expect(merged.source_message).toBe("hotel for the Des Moines trip");
+  });
+});

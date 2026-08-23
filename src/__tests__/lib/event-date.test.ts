@@ -1,4 +1,5 @@
 import {
+  autoPlanDates,
   eventDateToPlannedDate,
   parseEventDate,
   toPlannerDateParams,
@@ -155,5 +156,125 @@ describe("eventDateToPlannedDate", () => {
     expect(eventDateToPlannedDate(new Date(2026, 10, 14, 19, 30))).toBe(
       "2026-11-14T19:30:00.000Z"
     );
+  });
+});
+
+describe("autoPlanDates", () => {
+  // Sun Sep 6 2026 through Sat Sep 12 2026.
+  const weekStart = new Date(2026, 8, 6, 0, 0, 0, 0);
+  const weekEnd = new Date(2026, 8, 12, 23, 59, 59, 999);
+
+  const days = (dates: Date[]) => dates.map((d) => d.getDate());
+
+  it("puts an event on its one day", () => {
+    expect(
+      days(autoPlanDates("event", { date: "September 9, 2026" }, weekStart, weekEnd))
+    ).toEqual([9]);
+  });
+
+  it("keeps an event's time of day", () => {
+    const [only] = autoPlanDates(
+      "event",
+      { date: "September 9, 2026", time: "7:30 PM" },
+      weekStart,
+      weekEnd
+    );
+    expect(only.getHours()).toBe(19);
+    expect(only.getMinutes()).toBe(30);
+  });
+
+  it("leaves out an event in another week", () => {
+    expect(
+      autoPlanDates("event", { date: "October 9, 2026" }, weekStart, weekEnd)
+    ).toEqual([]);
+  });
+
+  it("spreads a stay across every night of it", () => {
+    expect(
+      days(
+        autoPlanDates(
+          "travel",
+          { date: "September 8, 2026", end_date: "September 10, 2026" },
+          weekStart,
+          weekEnd
+        )
+      )
+    ).toEqual([8, 9, 10]);
+  });
+
+  it("clips a stay that starts before the week to the part inside it", () => {
+    expect(
+      days(
+        autoPlanDates(
+          "travel",
+          { date: "September 3, 2026", end_date: "September 8, 2026" },
+          weekStart,
+          weekEnd
+        )
+      )
+    ).toEqual([6, 7, 8]);
+  });
+
+  it("clips a stay that runs past the end of the week", () => {
+    expect(
+      days(
+        autoPlanDates(
+          "travel",
+          { date: "September 11, 2026", end_date: "September 15, 2026" },
+          weekStart,
+          weekEnd
+        )
+      )
+    ).toEqual([11, 12]);
+  });
+
+  it("treats a trip with no end date as a single day", () => {
+    expect(
+      days(autoPlanDates("travel", { date: "September 9, 2026" }, weekStart, weekEnd))
+    ).toEqual([9]);
+  });
+
+  it("treats an end before the start as a single day", () => {
+    expect(
+      days(
+        autoPlanDates(
+          "travel",
+          { date: "September 9, 2026", end_date: "September 2, 2026" },
+          weekStart,
+          weekEnd
+        )
+      )
+    ).toEqual([9]);
+  });
+
+  it("refuses to fill a week from an implausible span", () => {
+    // A mis-read end date should not turn into an endless trip.
+    const result = autoPlanDates(
+      "travel",
+      { date: "September 8, 2026", end_date: "December 25, 2026" },
+      weekStart,
+      weekEnd
+    );
+    expect(result.length).toBeLessThanOrEqual(7);
+  });
+
+  it("gives nothing for an item whose date cannot be read", () => {
+    expect(autoPlanDates("event", { date: "TBD" }, weekStart, weekEnd)).toEqual(
+      []
+    );
+    expect(autoPlanDates("travel", {}, weekStart, weekEnd)).toEqual([]);
+  });
+
+  it("does not spread a non-travel category across an end date", () => {
+    expect(
+      days(
+        autoPlanDates(
+          "event",
+          { date: "September 8, 2026", end_date: "September 10, 2026" },
+          weekStart,
+          weekEnd
+        )
+      )
+    ).toEqual([8]);
   });
 });

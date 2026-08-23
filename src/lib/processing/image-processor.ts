@@ -13,6 +13,8 @@ import {
   updateContent,
 } from "@/lib/supabase";
 import { dropDeadLinks } from "@/lib/link-check";
+import { SOURCE_MESSAGE_KEY } from "@/lib/constants";
+import { failProcessing } from "./fail";
 import { mergeOntoExisting, shouldPreserveExisting } from "./preserve";
 import type { ProcessResult } from "./types";
 
@@ -27,24 +29,22 @@ export async function processImageContent(
   options?: { silent?: boolean }
 ): Promise<ProcessResult> {
   if (!mmsMedia || mmsMedia.urls.length === 0) {
-    await updateContent(contentId, {
-      status: "failed",
-      title: "No image found",
-      data: { error: "No image attachment found in message" },
-    });
-    return { error: "No image attachment found in message" };
+    return failProcessing(
+      contentId,
+      "No image found",
+      "No image attachment found in message"
+    );
   }
 
   const imageIndex = mmsMedia.types.findIndex((type) =>
     type.startsWith("image/")
   );
   if (imageIndex === -1) {
-    await updateContent(contentId, {
-      status: "failed",
-      title: "No image found",
-      data: { error: "No image attachment found in message" },
-    });
-    return { error: "No image attachment found in message" };
+    return failProcessing(
+      contentId,
+      "No image found",
+      "No image attachment found in message"
+    );
   }
 
   const imageUrl = mmsMedia.urls[imageIndex];
@@ -52,12 +52,11 @@ export async function processImageContent(
 
   const imageInfo = await processMmsImage(imageUrl);
   if (!imageInfo) {
-    await updateContent(contentId, {
-      status: "failed",
-      title: "Failed to process image",
-      data: { error: "Could not download or process the image" },
-    });
-    return { error: "Could not download or process the image" };
+    return failProcessing(
+      contentId,
+      "Failed to process image",
+      "Could not download or process the image"
+    );
   }
 
   let persistentThumbnailUrl: string | undefined;
@@ -108,6 +107,18 @@ export async function processImageContent(
     })
   );
 
+  // Kept with the item so a later regenerate reads the photo with the same
+  // context this run had. Stamped here rather than at each write, so both the
+  // single- and multi-item paths get it.
+  if (messageText?.trim()) {
+    for (const item of analysisResult.items ?? []) {
+      item.data = {
+        ...(item.data as Record<string, unknown>),
+        [SOURCE_MESSAGE_KEY]: messageText.trim(),
+      };
+    }
+  }
+
   return await applyAnalysisResult(
     analysisResult,
     contentId,
@@ -142,12 +153,11 @@ async function applyAnalysisResult(
   options?: { silent?: boolean }
 ): Promise<ProcessResult> {
   if (!analysisResult.items || analysisResult.items.length === 0) {
-    await updateContent(contentId, {
-      status: "failed",
-      title: "Analysis returned no results",
-      data: { error: "Could not extract content from image" },
-    });
-    return { error: "Analysis returned no results" };
+    return failProcessing(
+      contentId,
+      "Analysis returned no results",
+      "Could not extract content from image"
+    );
   }
 
   if (analysisResult.isMultiItem && analysisResult.items.length > 1) {

@@ -4,10 +4,13 @@ import {
   searchDatedEventContent,
   searchPlanItems,
   searchSharedPlanItems,
-  type EventData,
   type PlanItemSearchResult,
 } from "@/lib/supabase";
-import { eventDateToPlannedDate, parseEventDate } from "@/lib/event-date";
+import {
+  eventDateToPlannedDate,
+  parseEventDate,
+  type DatedItemData,
+} from "@/lib/event-date";
 
 const RESULT_LIMIT = 20;
 
@@ -47,14 +50,16 @@ export async function GET(request: NextRequest) {
     );
     for (const content of eventContent) {
       if (plannedContentIds.has(content.id)) continue;
-      const eventData = content.data as EventData;
-      const eventDate = parseEventDate(eventData.date, eventData.time);
+      const dated = content.data as DatedItemData;
+      // The first day is the one worth surfacing in a search result: a stay is
+      // one thing you booked, not a row per night.
+      const eventDate = parseEventDate(dated.date, dated.time);
       if (!eventDate) continue;
       results.push({
         id: `auto-event-${content.id}`,
         planned_date: eventDateToPlannedDate(eventDate),
         title: content.title,
-        category: "event",
+        category: content.category,
         thumbnail_url: content.thumbnail_url ?? null,
         is_note: false,
         content_id: content.id,

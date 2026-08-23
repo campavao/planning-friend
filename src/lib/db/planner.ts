@@ -732,7 +732,9 @@ export async function searchDatedEventContent(
     .select("*")
     .eq("user_id", userId)
     .eq("status", "completed")
-    .eq("category", "event")
+    // Trips put themselves on the calendar the same way events do, so search
+    // has to be able to find them there too.
+    .in("category", ["event", "travel"])
     .ilike("title", `%${sanitized}%`)
     .limit(limit);
 

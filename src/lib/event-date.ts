@@ -183,6 +183,61 @@ function applyTime(date: Date, timeStr?: string): void {
   date.setHours(hours, minutes, 0, 0);
 }
 
+/** The shape both auto-injected categories share. */
+export interface DatedItemData {
+  date?: string;
+  time?: string;
+  /** Travel only: the last day of a stay or trip. */
+  end_date?: string;
+}
+
+/**
+ * A trip that runs past a fortnight is almost certainly a mis-read date rather
+ * than a real itinerary, and filling a week with it helps nobody.
+ */
+const MAX_TRIP_DAYS = 14;
+
+/**
+ * The days a saved item should appear on inside one planner week.
+ *
+ * An event is a moment, so it gets the one day. Travel is a span — a two-night
+ * stay is two days you are somewhere else — so it gets every day between
+ * check-in and check-out that falls inside the week being rendered. A trip with
+ * no end date behaves like an event and shows on its first day alone.
+ *
+ * Returns an empty array for anything with no readable date, which is what
+ * keeps an item whose date says "TBD" out of the calendar entirely.
+ */
+export function autoPlanDates(
+  category: string,
+  data: DatedItemData,
+  weekStart: Date,
+  weekEnd: Date,
+): Date[] {
+  const start = parseEventDate(data.date, data.time);
+  if (!start) return [];
+
+  if (category !== "travel") {
+    return start >= weekStart && start <= weekEnd ? [start] : [];
+  }
+
+  // The end date carries no time of its own — a checkout is the day, not the
+  // hour — so it is compared at the end of that day.
+  const end = parseEventDate(data.end_date) ?? start;
+  const last = end < start ? start : end;
+  last.setHours(23, 59, 59, 999);
+
+  const days: Date[] = [];
+  const cursor = new Date(start);
+  for (let i = 0; i <= MAX_TRIP_DAYS && cursor <= last; i++) {
+    if (cursor >= weekStart && cursor <= weekEnd) days.push(new Date(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+    // Only the first day keeps the departure time; the rest are whole days.
+    if (i === 0) cursor.setHours(0, 0, 0, 0);
+  }
+  return days;
+}
+
 /**
  * The planner's `?date=` query string for an event's free-form date, or null
  * when the date can't be parsed.

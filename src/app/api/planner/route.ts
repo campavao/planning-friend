@@ -10,12 +10,15 @@ import {
   getFriends,
   getUserTags,
   type ContentWithTags,
-  type EventData,
   type PlanItem,
   type SharedPlanItem,
 } from "@/lib/supabase";
-import { parseDateString } from "@/lib/utils";
-import { parseEventDate } from "@/lib/event-date";
+import { formatDateString, parseDateString } from "@/lib/utils";
+import {
+  autoPlanDates,
+  eventDateToPlannedDate,
+  type DatedItemData,
+} from "@/lib/event-date";
 import { requireSession } from "@/lib/auth";
 import { addPlanItemBodySchema } from "@/lib/schemas/planner";
 import {
@@ -273,7 +276,16 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Create synthetic plan items for events with dates in the current week
+/**
+ * Categories that place themselves on the calendar.
+ *
+ * Travel joined events here because a booking is the clearest case there is: a
+ * hotel confirmation names the days you will be somewhere, and leaving it off
+ * the week meant the planner disagreed with the item the owner had just saved.
+ */
+const AUTO_PLANNED_CATEGORIES = new Set(["event", "travel"]);
+
+// Create synthetic plan items for events and trips falling in the current week
 function getAutoEventItems(
   availableContent: ContentWithTags[],
   weekStart: string,
@@ -294,33 +306,24 @@ function getAutoEventItems(
   const autoItems: PlanItemWithSharing[] = [];
 
   for (const content of availableContent) {
-    if (content.category !== "event") continue;
+    if (!AUTO_PLANNED_CATEGORIES.has(content.category)) continue;
     if (existingContentIds.has(content.id)) continue;
 
-    const eventData = content.data as EventData;
-    const eventDate = parseEventDate(eventData.date, eventData.time);
-    if (!eventDate) continue;
+    const days = autoPlanDates(
+      content.category,
+      content.data as DatedItemData,
+      weekStartDate,
+      weekEndDate,
+    );
 
-    // Check if event falls within this week
-    if (eventDate >= weekStartDate && eventDate <= weekEndDate) {
-      // Create a synthetic plan item
-      const plannedDate = new Date(
-        Date.UTC(
-          eventDate.getFullYear(),
-          eventDate.getMonth(),
-          eventDate.getDate(),
-          eventDate.getHours(),
-          eventDate.getMinutes(),
-          0,
-          0,
-        ),
-      );
-
+    for (const day of days) {
       autoItems.push({
-        id: `auto-event-${content.id}`,
+        // A stay covers several days, so the id has to name the day as well as
+        // the item — React keys and the dedupe below both rely on it.
+        id: `auto-event-${content.id}-${formatDateString(day)}`,
         plan_id: "",
         content_id: content.id,
-        planned_date: plannedDate.toISOString(),
+        planned_date: eventDateToPlannedDate(day),
         slot_order: 999, // Show after manually added items
         created_at: content.created_at,
         content: content,

@@ -5,6 +5,17 @@ export const SESSION_EXPIRATION_SECONDS = 7 * 24 * 60 * 60;
 // Planner defaults
 export const DEFAULT_PLANNED_TIME = "19:00"; // HH:mm for new plan items
 
+/**
+ * Where the text someone sent alongside a photo is kept.
+ *
+ * Lives inside `data` rather than in a column of its own so it needs no
+ * migration, the same way `manually_edited_at` does. A regenerate re-reads the
+ * stored image with no idea what was said about it — "hotel for the Des Moines
+ * trip" is exactly the context that made the first extraction land — so it is
+ * written once at ingest and handed back on every re-process after that.
+ */
+export const SOURCE_MESSAGE_KEY = "source_message";
+
 // Share invite expiry (7 days)
 export const SHARE_INVITE_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
 

@@ -1,3 +1,4 @@
+import { SOURCE_MESSAGE_KEY } from "@/lib/constants";
 import type { Content } from "@/lib/db/types";
 
 /**
@@ -58,6 +59,9 @@ export interface AnalysedItem {
  * produced without actually reading the source.
  */
 const TRIVIAL_KEYS = new Set([
+  // Not extracted at all — it is the message the owner texted in, kept so a
+  // re-process has the context the first one had.
+  SOURCE_MESSAGE_KEY,
   "description",
   "type",
   "prep_time",

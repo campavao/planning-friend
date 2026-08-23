@@ -163,6 +163,9 @@ For **drink**:
 For **travel**:
 - title: Name of the place/attraction
 - location: Where it is located (city, country)
+- date: When the trip or stay starts — the check-in date, or the departure
+- end_date: When it ends — the check-out date, or the return. Leave out for a
+  place you have merely saved rather than booked.
 - type: One of "restaurant", "attraction", "hotel", "activity", "other"
 - description: Brief description of why it's worth visiting
 - website: Official website URL. Find it, do not guess it — see LINKS below.

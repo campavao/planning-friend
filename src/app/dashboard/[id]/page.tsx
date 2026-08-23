@@ -142,6 +142,13 @@ function getDomainLabel(url: string): string {
   }
 }
 
+/** How the processing poll paces itself: quick at first, because most items
+ *  finish in a few seconds, then slower, then not at all. */
+const POLL_START_MS = 2000;
+const POLL_BACKOFF = 1.5;
+const POLL_MAX_MS = 20000;
+const POLL_GIVE_UP_MS = 5 * 60 * 1000;
+
 /** Which drawer is open. One at a time, by construction — two stacked sheets on
  *  a phone is a trap you can't back out of. */
 type OpenDrawer =
@@ -238,6 +245,7 @@ export default function ContentDetailPage() {
     content,
     ownerName,
     isLoading: contentLoading,
+    error: contentError,
     mutate: mutateContent,
   } = useContentById(id);
 
@@ -344,15 +352,36 @@ export default function ContentDetailPage() {
     }
   };
 
+  /**
+   * Watch an item while it is being processed.
+   *
+   * A fixed 3s interval with no way out logged 129 requests for one item in six
+   * minutes — and kept going after the row had been deleted, because
+   * `keepPreviousData` holds the last good response, so the status never stops
+   * reading "processing" and the loop never notices the 404s.
+   *
+   * So: back off as the wait gets longer, stop once the request starts failing,
+   * and give up entirely after five minutes. Processing that has not finished
+   * by then is not going to, and the page has a Regenerate button for that.
+   */
   useEffect(() => {
     if (content?.status !== "processing") return;
+    if (contentError) return;
 
-    const interval = setInterval(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    let delay = POLL_START_MS;
+    const startedAt = Date.now();
+
+    const tick = () => {
+      if (Date.now() - startedAt > POLL_GIVE_UP_MS) return;
       mutateContent();
-    }, 3000);
+      delay = Math.min(delay * POLL_BACKOFF, POLL_MAX_MS);
+      timer = setTimeout(tick, delay);
+    };
 
-    return () => clearInterval(interval);
-  }, [content?.status, mutateContent]);
+    timer = setTimeout(tick, delay);
+    return () => clearTimeout(timer);
+  }, [content?.status, contentError, mutateContent]);
 
   /** Persist a `data` patch straight away, outside edit mode. Custom sections
    *  are edited in place rather than through the form, so they need this. */
@@ -1535,6 +1564,11 @@ function TravelContent({
     .filter(Boolean)
     .join(", ");
 
+  // A booked stay reads as a span; a place merely saved has one date or none.
+  const when = data.end_date
+    ? `${data.date} – ${data.end_date}`
+    : data.date || "";
+
   return (
     <>
       <ItemRows>
@@ -1568,6 +1602,12 @@ function TravelContent({
           label="Destination"
         >
           {destination}
+        </ItemRow>
+      )}
+
+      {when && (
+        <ItemRow icon={Clock} iconClassName="text-[var(--event)]">
+          {when}
         </ItemRow>
       )}
 

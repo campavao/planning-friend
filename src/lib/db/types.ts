@@ -104,6 +104,12 @@ export interface GiftIdeaData {
 export interface TravelData {
   location?: string;
   type?: "restaurant" | "attraction" | "hotel" | "activity" | "other";
+  /** When the trip or stay starts — check-in, or departure. Free-form, the
+   *  same as an event's, and read by the same parser. */
+  date?: string;
+  /** When it ends — check-out, or the return. A stay shows on every day
+   *  between the two in the planner. */
+  end_date?: string;
   description?: string;
   website?: string;
   booking_link?: string;
