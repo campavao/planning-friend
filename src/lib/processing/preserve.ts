@@ -118,8 +118,41 @@ export function hasSalvageableContent(
 }
 
 /**
+ * How much content a result carries. Arrays count by length, so 21 ingredients
+ * outweigh a single one; trivia is ignored, as everywhere else here.
+ */
+export function contentWeight(data: unknown): number {
+  let weight = 0;
+  for (const [k, v] of Object.entries((data ?? {}) as Record<string, unknown>)) {
+    if (TRIVIAL_KEYS.has(k)) continue;
+    if (Array.isArray(v)) weight += v.length;
+    else if (v !== null && v !== undefined && v !== "") weight += 1;
+  }
+  return weight;
+}
+
+/**
+ * A re-extraction can fail without coming back empty. One real case: a recipe
+ * holding 21 ingredients and 26 steps came back as three "ingredients" that
+ * were the words of its own title, and nothing else. isLowValueResult passes
+ * that happily, because three is more than none.
+ *
+ * Below this many items in the existing row, a shrink is ordinary variance and
+ * gets no special treatment — extractions of a six-line recipe legitimately
+ * differ by a line or two.
+ */
+const COLLAPSE_FLOOR = 8;
+
+/** True when the incoming result is a fraction of what the row already holds. */
+export function isCollapse(existingData: unknown, incoming: AnalysedItem | null | undefined): boolean {
+  const before = contentWeight(existingData);
+  if (before < COLLAPSE_FLOOR) return false;
+  return contentWeight(incoming?.data) * 2 < before;
+}
+
+/**
  * The decision itself: keep what is already there when the incoming result is
- * a placeholder and the existing row is real.
+ * empty, or when it is a collapsed fraction of what the row already holds.
  *
  * Deliberately NOT covered: a re-analysis that succeeds but classifies the item
  * differently. That is a genuine extraction, not a failure, and blocking it
@@ -129,5 +162,6 @@ export function shouldPreserveExisting(
   existing: Pick<Content, "status" | "category" | "title" | "data"> | null | undefined,
   incoming: AnalysedItem | null | undefined
 ): boolean {
-  return hasSalvageableContent(existing) && isLowValueResult(incoming);
+  if (!hasSalvageableContent(existing)) return false;
+  return isLowValueResult(incoming) || isCollapse(existing?.data, incoming);
 }
