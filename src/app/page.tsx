@@ -319,7 +319,7 @@ export default function Home() {
                 <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-[var(--date-bg)] flex items-center justify-center">
                   <Heart className="w-5 h-5 text-[var(--date)]" />
                 </div>
-                <p className="text-xs font-medium">Dates</p>
+                <p className="text-xs font-medium">Restaurants</p>
               </div>
               <div>
                 <div className="w-10 h-10 mx-auto mb-2 rounded-lg bg-[var(--travel-bg)] flex items-center justify-center">

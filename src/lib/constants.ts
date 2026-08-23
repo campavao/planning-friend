@@ -50,7 +50,7 @@ export const CATEGORY_CONFIG: Record<
   meal: { emoji: "🍽️", label: "Recipe" },
   drink: { emoji: "🍹", label: "Drink" },
   event: { emoji: "🎉", label: "Event" },
-  date_idea: { emoji: "💕", label: "Date" },
+  date_idea: { emoji: "🍴", label: "Restaurant" },
   gift_idea: { emoji: "🎁", label: "Gift" },
   travel: { emoji: "✈️", label: "Travel" },
   other: { emoji: "📌", label: "Saved" },

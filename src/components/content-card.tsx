@@ -55,7 +55,9 @@ function LocationLink({ location }: { location: string }) {
       target="_blank"
       rel="noopener noreferrer"
       onClick={(e) => e.stopPropagation()}
-      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[var(--primary)] transition-colors"
+      // relative+z-10 lifts this above the card's stretched link overlay;
+      // without it the overlay swallows the click and Maps never opens.
+      className="relative z-10 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[var(--primary)] transition-colors"
     >
       <MapPin className="w-3 h-3" />
       <span className="line-clamp-1 underline underline-offset-2">
@@ -88,15 +90,39 @@ function resolveHref(content: Content, href?: string | null): string | null {
   return href === undefined ? `/dashboard/${content.id}` : href;
 }
 
+/**
+ * Makes the whole card navigate, without wrapping it in an anchor.
+ *
+ * The card contains its own links — the location opens Google Maps — and an
+ * anchor inside an anchor is invalid HTML, which React reports as a hydration
+ * error and browsers resolve by silently restructuring the DOM. The old
+ * stopPropagation on the inner link stopped the double navigation but could not
+ * make the markup legal.
+ *
+ * A stretched link keeps both as real anchors: middle-click, cmd-click and
+ * "copy link address" all still work on each of them, which a div-with-onClick
+ * would have thrown away.
+ */
 function CardLink({
   href,
+  label,
   children,
 }: {
   href: string | null;
+  label: string;
   children: React.ReactNode;
 }) {
   if (href === null) return <>{children}</>;
-  return <Link href={href}>{children}</Link>;
+  return (
+    <div className="relative h-full">
+      {children}
+      <Link
+        href={href}
+        aria-label={label}
+        className="absolute inset-0 rounded-[inherit] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+      />
+    </div>
+  );
 }
 
 function ProcessingCard({
@@ -250,7 +276,7 @@ function ContentCardInner({
   ) : null;
 
   return (
-    <CardLink href={resolveHref(content, href)}>
+    <CardLink href={resolveHref(content, href)} label={content.title}>
       <Card
         className={`overflow-hidden cursor-pointer h-full hover:-translate-y-1 hover:shadow-[var(--shadow-lg)] ${slide.className}`}
         style={slide.style}

@@ -1512,7 +1512,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                       { id: "meal", label: "Meals", icon: Utensils },
                       { id: "drink", label: "Drinks", icon: Coffee },
                       { id: "event", label: "Events", icon: Calendar },
-                      { id: "date_idea", label: "Dates", icon: Heart },
+                      { id: "date_idea", label: "Restaurants", icon: Heart },
                     ].map((cat) => (
                       <button
                         key={cat.id}
