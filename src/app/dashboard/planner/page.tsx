@@ -1350,13 +1350,35 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
         className="bg-[var(--card)] border-b border-[var(--border)] sticky top-0 z-20"
       >
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link href="/dashboard" className="hidden md:inline-flex">
-            <Button variant="ghost">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
+          {/* Left slot. On mobile this was an empty w-16 spacer holding the
+              title centred against the cart button; the toggle now occupies it
+              rather than sitting on a row of its own below the filters. */}
+          <div className="flex items-center gap-1 w-16 md:w-auto">
+            <Link href="/dashboard" className="hidden md:inline-flex">
+              <Button variant="ghost">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back
+              </Button>
+            </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleSuggestions}
+              aria-pressed={!suggestionsHidden}
+              aria-label={
+                suggestionsHidden ? "Show suggestions" : "Hide suggestions"
+              }
+              title={
+                suggestionsHidden ? "Show suggestions" : "Hide suggestions"
+              }
+            >
+              {suggestionsHidden ? (
+                <LightbulbOff className="w-4 h-4 text-muted-foreground" />
+              ) : (
+                <Lightbulb className="w-4 h-4 text-[var(--primary)]" />
+              )}
             </Button>
-          </Link>
-          <div className="md:hidden w-16" />
+          </div>
           <h1 className="heading-2 text-xl md:text-2xl">Planner</h1>
           <Button
             variant="ghost"
@@ -1391,25 +1413,6 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
           <PlannerSearch
             onJump={(dateKey) => jumpToDate(dateKey, { highlight: true })}
           />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleSuggestions}
-            className="h-9 shrink-0"
-            aria-pressed={!suggestionsHidden}
-            title={
-              suggestionsHidden ? "Show suggestions" : "Hide suggestions"
-            }
-          >
-            {suggestionsHidden ? (
-              <LightbulbOff className="w-4 h-4" />
-            ) : (
-              <Lightbulb className="w-4 h-4" />
-            )}
-            <span className="hidden sm:inline ml-2">
-              {suggestionsHidden ? "Suggestions off" : "Suggestions on"}
-            </span>
-          </Button>
         </div>
 
         {/* Calendar weekday columns (desktop) */}
