@@ -5,12 +5,27 @@ import {
   emptyCategoryDistribution,
   type CategoryDistribution,
 } from "./defaults";
+import {
+  WEEKLY_PLANT_TARGET,
+  newPlantsAgainst,
+  readPlants,
+} from "@/lib/plants";
 
 const W_CAT = 0.40;
 const W_TAG = 0.25;
 const W_COOLDOWN = 0.20;
+const W_PLANT = 0.15;
 const W_RECENT = 0.10;
 const W_TIEBREAK = 0.05;
+
+/**
+ * New plants at which the diversity bonus saturates.
+ *
+ * A recipe carrying six plants the week does not have is already an unusually
+ * good answer; past that the difference between seven and nine is not worth
+ * outranking what the cook actually tends to eat on a Tuesday.
+ */
+const PLANT_SATURATION = 6;
 
 const COOLDOWN_DAYS = 14;
 const RECENTLY_SAVED_DAYS = 21;
@@ -34,6 +49,16 @@ export interface RankInput {
    */
   excludedContentIds: Set<string>;
   dismissedIds: Set<string>;
+  /**
+   * Plant keys already covered by the week's planned meals.
+   *
+   * Ranking on "adds N plants you don't have" rather than on the candidate's
+   * own plant count is the whole point — a recipe with eight plants you already
+   * ate this week adds nothing to the weekly score, which is a set union and
+   * not a sum. Absent means the signal sits out, so callers that have no week
+   * context rank exactly as they did before.
+   */
+  weekPlantKeys?: Set<string>;
   dayIndex: number;
   weekStart: string;
   now?: Date;
@@ -167,11 +192,21 @@ export function rankForDay(input: RankInput): RankResult {
     history,
     excludedContentIds,
     dismissedIds,
+    weekPlantKeys,
     dayIndex,
     weekStart,
     now = new Date(),
     topN = 8,
   } = input;
+
+  // How much the week still needs diversity. At zero plants this is 1; once the
+  // week reaches the target it is 0 and the signal switches itself off, because
+  // pushing a 31st plant at the cost of suggesting something the cook actually
+  // wants is a bad trade. Undefined week context behaves the same as a met
+  // target: no bonus, no penalty.
+  const plantNeed = weekPlantKeys
+    ? Math.max(0, (WEEKLY_PLANT_TARGET - weekPlantKeys.size) / WEEKLY_PLANT_TARGET)
+    : 0;
 
   const dists = buildDistributions(history.items);
   const alpha = Math.min(1, history.weeksOfHistory / ALPHA_FULL_WEEKS);
@@ -213,6 +248,20 @@ export function rankForDay(input: RankInput): RankResult {
       tagScore = sum / content.tags.length;
     }
 
+    // Only meals carry plants, so everything else scores zero here. That is a
+    // bonus never applied rather than a penalty: the category signal, which
+    // outweighs this one, is what decides whether a day wants a meal at all.
+    let plantScore = 0;
+    if (plantNeed > 0 && weekPlantKeys) {
+      const plants = readPlants(
+        (content.data as { plants?: unknown } | null)?.plants
+      );
+      if (plants.length > 0) {
+        const added = newPlantsAgainst(plants, weekPlantKeys).length;
+        plantScore = Math.min(1, added / PLANT_SATURATION) * plantNeed;
+      }
+    }
+
     const days = lastPlannedDays(history.items, content.id, now);
     const cooldown = cooldownPenalty(days);
     const recent = recentlySavedBoost(content.created_at, now);
@@ -222,6 +271,7 @@ export function rankForDay(input: RankInput): RankResult {
       W_CAT * catScore +
       W_TAG * tagScore -
       W_COOLDOWN * cooldown +
+      W_PLANT * plantScore +
       W_RECENT * recent +
       W_TIEBREAK * tiebreak;
 

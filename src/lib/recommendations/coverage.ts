@@ -1,6 +1,7 @@
 import type { DecayedHistory } from "@/lib/db/planner";
 import type { ContentWithTags } from "@/lib/db/types";
 import { rankForDay, type ScoredCandidate } from "./scorer";
+import { plantKeySet, readPlants, unionPlants } from "@/lib/plants";
 
 /** Monday-first, matching `mondayIndexOf` and the planner grid. */
 export const WEEK_DAY_INDEXES = [0, 1, 2, 3, 4, 5, 6];
@@ -153,6 +154,23 @@ export function planWeekCoverage(args: PlanWeekArgs): WeekCoverage {
   const candidatesByDay: Record<number, ScoredCandidate[]> = {};
   const diagnostics: DayDiagnostics[] = [];
 
+  // The plants this week already has, from the library rows behind the planned
+  // items. Computed once from the whole week rather than per pass: the relaxed
+  // retry narrows which items are *excluded*, but the week's diversity is the
+  // same either way, and recomputing it from the narrowed set would tell a day
+  // it needed plants it already had.
+  //
+  // A planned item that is not in the pool — a friend's shared item — is simply
+  // not counted. That understates the week, which biases toward suggesting more
+  // diversity rather than less, and is the safer way to be wrong.
+  const weekPlantKeys = plantKeySet(
+    unionPlants(
+      pool
+        .filter((c) => summary.thisWeekContentIds.has(c.id))
+        .map((c) => readPlants((c.data as { plants?: unknown } | null)?.plants))
+    )
+  );
+
   for (const day of targetDays) {
     const plannedCount = summary.plannedCountByDay[day] ?? 0;
 
@@ -178,6 +196,7 @@ export function planWeekCoverage(args: PlanWeekArgs): WeekCoverage {
       history,
       excludedContentIds: summary.thisWeekContentIds,
       dismissedIds,
+      weekPlantKeys,
       dayIndex: day,
       weekStart,
       now,
@@ -199,6 +218,7 @@ export function planWeekCoverage(args: PlanWeekArgs): WeekCoverage {
         history,
         excludedContentIds: sameDayIds,
         dismissedIds,
+        weekPlantKeys,
         dayIndex: day,
         weekStart,
         now,
