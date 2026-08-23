@@ -40,3 +40,45 @@ export function formatItemTime(item: DatedItem): string | null {
     timeZone: "UTC",
   });
 }
+
+/**
+ * The next fortnight, as options for "add this to a day".
+ *
+ * A list rather than a date picker: adding a saved recipe to the plan is a
+ * next-few-days decision almost every time, and a scrollable list of real days
+ * is one tap where a calendar widget is three. Anything further out is what the
+ * planner itself is for.
+ *
+ * Times are set to 19:00 local, matching the slot the planner's own add flow
+ * defaults to, so an item added from either place lands in the same place.
+ */
+export interface UpcomingDay {
+  date: Date;
+  /** "Today", "Tomorrow", or the weekday name. */
+  label: string;
+  /** "Aug 27" — always shown, because "Tuesday" alone is ambiguous twice over. */
+  sub: string;
+}
+
+export function upcomingDays(count = 14, from: Date = new Date()): UpcomingDay[] {
+  const out: UpcomingDay[] = [];
+  const start = new Date(from);
+  start.setHours(19, 0, 0, 0);
+
+  for (let i = 0; i < count; i++) {
+    const date = new Date(start);
+    date.setDate(date.getDate() + i);
+    const label =
+      i === 0
+        ? "Today"
+        : i === 1
+          ? "Tomorrow"
+          : date.toLocaleDateString("en-US", { weekday: "long" });
+    out.push({
+      date,
+      label,
+      sub: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    });
+  }
+  return out;
+}
