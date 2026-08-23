@@ -422,6 +422,76 @@ Based on the thumbnail and description, analyze what this content is about.`;
   }
 }
 
+/**
+ * Analyze a slideshow — a post whose content is a sequence of images.
+ *
+ * Not the same job as analyzeWithThumbnail, which reads one cover image and
+ * leans on the caption. Here the images *are* the post: a slideshow recipe puts
+ * its ingredients on one card and its steps on the next, so the text has to be
+ * read off the pictures and stitched back into order. Captions on these posts
+ * are frequently nothing but hashtags, so there is often no prose to fall back
+ * on at all.
+ *
+ * Sent in order and numbered, because "add the eggs" means something different
+ * on card two than on card six.
+ */
+export async function analyzeWithImages(
+  imageUrls: string[],
+  description: string,
+  imageHeaders?: Record<string, string>
+): Promise<MultiItemAnalysisResult> {
+  const ai = getGeminiClient();
+
+  const images = await Promise.all(
+    imageUrls.map(async (url) => {
+      const response = await fetch(url, { headers: imageHeaders });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch slideshow image: ${response.status}`);
+      }
+      const buffer = await response.arrayBuffer();
+      return {
+        inlineData: {
+          mimeType: url.includes(".png") ? "image/png" : "image/jpeg",
+          data: Buffer.from(buffer).toString("base64"),
+        },
+      };
+    })
+  );
+
+  const prompt = `${ANALYSIS_PROMPT}
+
+The ${images.length} images are the slides of a single post, in order.
+Read any text visible in them — on these posts the ingredients and steps are
+usually written on the images rather than in the caption.
+Caption/description: "${description}"
+
+Treat the slides as one piece of content, not as ${images.length} separate items.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: [...images, { text: prompt }],
+    });
+
+    return parseAnalysisResponse(response.text!);
+  } catch (error) {
+    console.error("Error analyzing slideshow images:", error);
+
+    return {
+      isMultiItem: false,
+      items: [
+        {
+          category: "other",
+          title: "Unable to analyze content",
+          data: {
+            description: description || "Analysis failed",
+          },
+        },
+      ],
+    };
+  }
+}
+
 // Analyze with just description (last resort when no image/video available)
 export async function analyzeWithDescription(
   description: string,

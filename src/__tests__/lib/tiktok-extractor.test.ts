@@ -289,3 +289,55 @@ describe("getTikTokVideoAsBase64 reuse", () => {
     expect(metadataCalls(fetchMock)).toBe(1);
   });
 });
+
+describe("slideshow posts", () => {
+  const SLIDES = [
+    "https://p16.tiktokcdn.com/a.jpeg",
+    "https://p16.tiktokcdn.com/b.jpeg",
+  ];
+
+  it("returns the slides instead of a video URL", async () => {
+    mockExtractor({
+      ok: true,
+      hasVideo: false,
+      images: SLIDES,
+      imageHeaders: { Referer: "https://www.tiktok.com/" },
+      thumbnailUrl: SLIDES[0],
+      description: "#chicago #crafting",
+      author: "mixedchicago",
+    });
+
+    const info = await getTikTokVideoInfo(VIDEO_URL);
+
+    expect(info.imageUrls).toEqual(SLIDES);
+    expect(info.imageHeaders).toEqual({ Referer: "https://www.tiktok.com/" });
+    // A post is a video or a slideshow, never both.
+    expect(info.videoUrl).toBeUndefined();
+    expect(info.thumbnailUrl).toBe(SLIDES[0]);
+  });
+
+  it("accepts a slideshow whose caption is empty", async () => {
+    // Real slideshows frequently carry only hashtags, or nothing at all. The
+    // words are inside the images, so this must not be treated as unusable.
+    mockExtractor({
+      ok: true,
+      hasVideo: false,
+      images: SLIDES,
+      description: "",
+    });
+
+    const info = await getTikTokVideoInfo(VIDEO_URL);
+
+    expect(info.imageUrls).toEqual(SLIDES);
+  });
+
+  it("carries no image fields for an ordinary video", async () => {
+    mockExtractor({ ok: true, hasVideo: true, description: "x" });
+
+    const info = await getTikTokVideoInfo(VIDEO_URL);
+
+    expect(info.imageUrls).toBeUndefined();
+    expect(info.imageHeaders).toBeUndefined();
+    expect(info.videoUrl).toContain("mode=video");
+  });
+});
