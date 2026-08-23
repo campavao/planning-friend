@@ -574,16 +574,30 @@ export async function downloadTikTokVideo(
   return Buffer.from(arrayBuffer);
 }
 
+/** What a download needs from a lookup that has already happened. */
+export type ResolvedTikTokMedia = Pick<
+  TikTokVideoInfo,
+  "videoUrl" | "videoHeaders" | "thumbnailUrl" | "description"
+>;
+
 // Get video as base64 for AI processing
 // Note: a video URL comes from yt-dlp (self-hosted) or RapidAPI (paid). The
 // remaining free methods (oEmbed, page scrape) return thumbnail + description
 // only, which Gemini can still analyse — just less well.
-export async function getTikTokVideoAsBase64(tiktokUrl: string): Promise<{
+//
+// `prefetched` skips the lookup when the caller already has one. The processing
+// pipeline resolves the item once to decide whether a video exists at all, so
+// without this the extraction ran a second time for every save — cheap against
+// a metadata API, a full second yt-dlp run against our own extractor.
+export async function getTikTokVideoAsBase64(
+  tiktokUrl: string,
+  prefetched?: ResolvedTikTokMedia
+): Promise<{
   base64: string;
   thumbnailUrl?: string;
   description: string;
 } | null> {
-  const videoInfo = await getTikTokVideoInfo(tiktokUrl);
+  const videoInfo = prefetched ?? (await getTikTokVideoInfo(tiktokUrl));
 
   if (!videoInfo.videoUrl) {
     console.log("No video URL available, cannot download video");

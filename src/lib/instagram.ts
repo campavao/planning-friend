@@ -425,12 +425,25 @@ export async function downloadInstagramMedia(mediaUrl: string): Promise<Buffer> 
 }
 
 // Get Instagram video as base64 for AI processing
-export async function getInstagramVideoAsBase64(instagramUrl: string): Promise<{
+/** What a download needs from a lookup that has already happened. */
+export interface ResolvedInstagramMedia {
+  videoUrl?: string;
+  thumbnailUrl?: string;
+  description: string;
+}
+
+// `prefetched` skips the lookup when the caller already has one. This matters
+// more here than on TikTok: getInstagramMediaInfo goes through Apify, so the
+// duplicate lookup was a second billed actor run on every single save.
+export async function getInstagramVideoAsBase64(
+  instagramUrl: string,
+  prefetched?: ResolvedInstagramMedia
+): Promise<{
   base64: string;
   thumbnailUrl?: string;
   description: string;
 } | null> {
-  const mediaInfo = await getInstagramMediaInfo(instagramUrl);
+  const mediaInfo = prefetched ?? (await getInstagramMediaInfo(instagramUrl));
 
   if (!mediaInfo.videoUrl) {
     console.log("No Instagram video URL available, cannot download video");

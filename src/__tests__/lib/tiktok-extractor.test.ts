@@ -8,7 +8,11 @@
  * the extractor is unconfigured, unreachable, or cannot handle the post.
  */
 
-import { downloadTikTokVideo, getTikTokVideoInfo } from "@/lib/tiktok";
+import {
+  downloadTikTokVideo,
+  getTikTokVideoAsBase64,
+  getTikTokVideoInfo,
+} from "@/lib/tiktok";
 
 const VIDEO_URL = "https://www.tiktok.com/@cook/video/7123456789012345678";
 
@@ -230,5 +234,58 @@ describe("downloadTikTokVideo", () => {
     await expect(
       downloadTikTokVideo("https://planning-friend.vercel.app/api/extract"),
     ).rejects.toThrow("login_required");
+  });
+});
+
+describe("getTikTokVideoAsBase64 reuse", () => {
+  /** Counts metadata lookups separately from the byte download. */
+  function mockBoth() {
+    const fetchMock = jest.fn(
+      async (input: RequestInfo | URL, _init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes("mode=video")) {
+          return {
+            ok: true,
+            status: 200,
+            headers: { get: () => "video/mp4" },
+            arrayBuffer: async () => new ArrayBuffer(8),
+          } as unknown as Response;
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ ok: true, hasVideo: true, description: "x" }),
+        } as unknown as Response;
+      },
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+    return fetchMock;
+  }
+
+  const metadataCalls = (m: jest.Mock) =>
+    m.mock.calls.filter(
+      (c) =>
+        String(c[0]).includes("/api/extract") &&
+        !String(c[0]).includes("mode=video"),
+    ).length;
+
+  it("does not look the item up again when handed a resolved one", async () => {
+    const fetchMock = mockBoth();
+    const resolved = await getTikTokVideoInfo(VIDEO_URL);
+    expect(metadataCalls(fetchMock)).toBe(1);
+
+    await getTikTokVideoAsBase64(VIDEO_URL, resolved);
+
+    // Still 1: the download reused the lookup instead of repeating it. This is
+    // the whole point — a second lookup is a second full yt-dlp run.
+    expect(metadataCalls(fetchMock)).toBe(1);
+  });
+
+  it("falls back to looking it up when nothing was handed over", async () => {
+    const fetchMock = mockBoth();
+
+    await getTikTokVideoAsBase64(VIDEO_URL);
+
+    expect(metadataCalls(fetchMock)).toBe(1);
   });
 });
