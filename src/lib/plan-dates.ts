@@ -82,3 +82,27 @@ export function upcomingDays(count = 14, from: Date = new Date()): UpcomingDay[]
   }
   return out;
 }
+
+/**
+ * Whether a day shows its suggestion strip.
+ *
+ * Extracted from WeekSection because inlining it produced a real bug: the
+ * toggle was prefixed onto an existing `empty || hasPicks` expression without
+ * parentheses, and `&&` binds tighter than `||`, so it became
+ * `(!hidden && empty) || hasPicks` — every day with picks ignored the toggle
+ * entirely. A three-argument boolean is worth testing precisely because it is
+ * the kind of thing that looks obviously right while being wrong.
+ *
+ * `hidden` short-circuits everything: off has to mean off, including on an
+ * empty day where the strip would otherwise stay to explain itself.
+ */
+export function shouldShowSuggestions(
+  hidden: boolean,
+  plannedCount: number,
+  pickCount: number
+): boolean {
+  if (hidden) return false;
+  // An empty day keeps the strip even with no picks, so it can say why it is
+  // empty rather than rendering blank.
+  return plannedCount === 0 || pickCount > 0;
+}
