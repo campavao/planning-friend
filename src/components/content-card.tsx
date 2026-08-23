@@ -169,7 +169,12 @@ function ProcessingCard({
   const slide = slideInProps(useSlideIn(SLIDE_IN_GROUP), index);
 
   return (
-    <Link href={`/dashboard/${content.id}`}>
+    // CardLink, not a wrapping <Link>: the Retry button below is interactive
+    // content, and an <a> is not allowed to contain any. The handler's
+    // preventDefault kept the click working, the same way LocationLink's
+    // stopPropagation did, but neither makes the markup legal — and a button
+    // inside a link is genuinely ambiguous to a screen reader.
+    <CardLink href={`/dashboard/${content.id}`} label={content.title}>
       <Card
         className={`overflow-hidden cursor-pointer h-full hover:-translate-y-1 hover:shadow-[var(--shadow-lg)] ${slide.className}`}
         style={slide.style}
@@ -190,7 +195,8 @@ function ProcessingCard({
           <Button
             variant="secondary"
             size="sm"
-            className="w-full mt-3 text-xs"
+            // Above the stretched link, or the overlay swallows the click.
+            className="relative z-10 w-full mt-3 text-xs"
             onClick={handleRetry}
             disabled={isRetrying || retryState === "success"}
           >
@@ -207,7 +213,7 @@ function ProcessingCard({
           )}
         </div>
       </Card>
-    </Link>
+    </CardLink>
   );
 }
 
