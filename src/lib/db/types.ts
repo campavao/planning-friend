@@ -268,10 +268,13 @@ export interface GiftRecipient {
 export interface GiftAssignment {
   id: string;
   recipient_id: string;
-  content_id: string;
+  /** Null when the gift is a quick note rather than a saved item. */
+  content_id: string | null;
+  /** Free-text gift, set instead of content_id (see schema-gift-notes.sql). */
+  note_title?: string | null;
   created_at: string;
   given_at?: string | null;
-  content?: Content;
+  content?: Content | null;
 }
 
 export interface GiftRecipientWithAssignments extends GiftRecipient {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   assignGiftToRecipient,
+  addGiftNote,
   removeGiftAssignment,
   markGiftAsGiven,
   unmarkGiftAsGiven,
@@ -31,31 +32,36 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Assign a gift to a recipient
+// POST - Assign a gift to a recipient: a saved item (contentId) or a quick
+// note (noteTitle)
 export async function POST(request: NextRequest) {
   try {
     const { session, errorResponse } = await requireSession(request);
     if (errorResponse) return errorResponse;
 
-    const { recipientId, contentId } = await request.json();
+    const { recipientId, contentId, noteTitle } = await request.json();
+    const trimmedNote = typeof noteTitle === "string" ? noteTitle.trim() : "";
 
-    if (!recipientId || !contentId) {
+    if (!recipientId || (!contentId && !trimmedNote)) {
       return NextResponse.json(
-        { error: "recipientId and contentId are required" },
+        { error: "recipientId and either contentId or noteTitle are required" },
         { status: 400 }
       );
     }
 
-    // Both the recipient and the gift content must belong to the caller.
+    // The recipient, and the gift content when there is one, must belong to
+    // the caller.
     const [ownsRecipient, ownsContent] = await Promise.all([
       userOwnsGiftRecipient(recipientId, session.userId),
-      userOwnsContent(contentId, session.userId),
+      contentId ? userOwnsContent(contentId, session.userId) : true,
     ]);
     if (!ownsRecipient || !ownsContent) {
       return forbidden();
     }
 
-    const assignment = await assignGiftToRecipient(recipientId, contentId);
+    const assignment = contentId
+      ? await assignGiftToRecipient(recipientId, contentId)
+      : await addGiftNote(recipientId, trimmedNote);
     return NextResponse.json({ assignment });
   } catch (error) {
     console.error("Error assigning gift:", error);

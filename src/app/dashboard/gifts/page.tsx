@@ -24,6 +24,7 @@ import {
   ExternalLink,
   Gift,
   Pencil,
+  PenLine,
   Plus,
   ShoppingCart,
   Trash2,
@@ -36,6 +37,7 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/swr-config";
 import { useSession } from "../useSession";
 import { ListSkeleton } from "@/components/Skeletons";
+import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 
 export default function GiftPlannerPage() {
   const [newRecipientName, setNewRecipientName] = useState("");
@@ -44,6 +46,8 @@ export default function GiftPlannerPage() {
   const [assigningTo, setAssigningTo] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showGiven, setShowGiven] = useState(false);
+  const [addingNote, setAddingNote] = useState(false);
+  const keyboardInset = useKeyboardInset();
 
   // Session handling (redirect to login if unauthenticated) is consistent
   // with the rest of the dashboard.
@@ -129,6 +133,11 @@ export default function GiftPlannerPage() {
     }
   };
 
+  const closeAssignDrawer = () => {
+    setAssigningTo(null);
+    setSearchQuery("");
+  };
+
   const assignGift = async (recipientId: string, contentId: string) => {
     try {
       const res = await fetch("/api/gifts/assignments", {
@@ -138,12 +147,35 @@ export default function GiftPlannerPage() {
       });
 
       if (res.ok) {
-        setAssigningTo(null);
-        setSearchQuery("");
+        closeAssignDrawer();
         refresh();
       }
     } catch (error) {
       console.error("Failed to assign gift:", error);
+    }
+  };
+
+  /** What was typed becomes the gift, no saved item needed. */
+  const addGiftNote = async (recipientId: string) => {
+    const noteTitle = searchQuery.trim();
+    if (!noteTitle) return;
+
+    setAddingNote(true);
+    try {
+      const res = await fetch("/api/gifts/assignments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipientId, noteTitle }),
+      });
+
+      if (res.ok) {
+        closeAssignDrawer();
+        refresh();
+      }
+    } catch (error) {
+      console.error("Failed to add gift note:", error);
+    } finally {
+      setAddingNote(false);
     }
   };
 
@@ -180,7 +212,9 @@ export default function GiftPlannerPage() {
   const getFilteredGifts = (recipientId: string) => {
     const recipient = recipients.find((r) => r.id === recipientId);
     const assignedIds = new Set(
-      recipient?.assignments.map((a) => a.content_id) || []
+      recipient?.assignments.flatMap((a) =>
+        a.content_id ? [a.content_id] : []
+      ) ?? []
     );
 
     return giftIdeas.filter((g) => {
@@ -360,8 +394,9 @@ export default function GiftPlannerPage() {
                         .filter((a: GiftAssignment) => showGiven || !a.given_at)
                         .map((assignment: GiftAssignment) => {
                           const giftData = assignment.content
-                            ?.data as GiftIdeaData;
+                            ?.data as GiftIdeaData | undefined;
                           const isGiven = !!assignment.given_at;
+                          const isNote = !assignment.content;
                           return (
                             <div
                               key={assignment.id}
@@ -371,14 +406,20 @@ export default function GiftPlannerPage() {
                                   : "bg-[var(--muted)]"
                               }`}
                             >
-                              {assignment.content?.thumbnail_url && (
-                                <img
-                                  src={assignment.content.thumbnail_url}
-                                  alt=""
-                                  className={`w-12 h-12 object-cover shrink-0 rounded-lg ${
-                                    isGiven ? "grayscale" : ""
-                                  }`}
-                                />
+                              {isNote ? (
+                                <div className="w-12 h-12 shrink-0 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center">
+                                  <PenLine className="w-5 h-5 text-[var(--accent)]" />
+                                </div>
+                              ) : (
+                                assignment.content?.thumbnail_url && (
+                                  <img
+                                    src={assignment.content.thumbnail_url}
+                                    alt=""
+                                    className={`w-12 h-12 object-cover shrink-0 rounded-lg ${
+                                      isGiven ? "grayscale" : ""
+                                    }`}
+                                  />
+                                )
                               )}
                               <div className="flex-1 min-w-0">
                                 <p
@@ -386,7 +427,8 @@ export default function GiftPlannerPage() {
                                     isGiven ? "line-through text-muted-foreground" : ""
                                   }`}
                                 >
-                                  {assignment.content?.title}
+                                  {assignment.content?.title ??
+                                    assignment.note_title}
                                 </p>
                                 {giftData?.cost && (
                                   <p
@@ -500,15 +542,21 @@ export default function GiftPlannerPage() {
         <Dialog
           open
           onOpenChange={(o) => {
-            if (!o) {
-              setAssigningTo(null);
-              setSearchQuery("");
-            }
+            if (!o) closeAssignDrawer();
           }}
         >
           <DialogContent
             showCloseButton={false}
-            onInteractOutside={(e) => e.preventDefault()}
+            // Rest on top of the keyboard rather than under it, and shrink so
+            // the header (and its close button) stays on screen while typing.
+            style={
+              keyboardInset
+                ? {
+                    bottom: keyboardInset,
+                    maxHeight: `calc(100vh - ${keyboardInset}px - 1rem)`,
+                  }
+                : undefined
+            }
             className="top-auto bottom-0 left-0 translate-x-0 translate-y-0 md:top-[50%] md:bottom-auto md:left-[50%] md:translate-x-[-50%] md:translate-y-[-50%] w-full max-w-full sm:max-w-full md:max-w-lg rounded-t-2xl rounded-b-none md:rounded-b-2xl p-0 gap-0 max-h-[80vh] flex flex-col overflow-hidden"
           >
             <div className="p-4 border-b border-[var(--border)] flex items-center justify-between bg-gradient-to-r from-[var(--accent)] to-[var(--accent-dark)] md:rounded-t-2xl">
@@ -516,23 +564,56 @@ export default function GiftPlannerPage() {
                 Add Gift for{" "}
                 {recipients.find((r) => r.id === assigningTo)?.name}
               </DialogTitle>
-              <DialogClose className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors">
+              <DialogClose
+                aria-label="Close"
+                className="text-white/80 hover:text-white p-2 -m-1 rounded-lg hover:bg-white/10 transition-colors"
+              >
                 <X className="w-5 h-5" />
               </DialogClose>
             </div>
 
-            <div className="p-4 border-b border-[var(--border)] bg-white">
+            {/* One field: filters saved ideas, or becomes a quick note */}
+            <form
+              className="p-4 border-b border-[var(--border)] bg-white"
+              onSubmit={(e) => {
+                e.preventDefault();
+                addGiftNote(assigningTo);
+              }}
+            >
               <Input
                 type="text"
-                placeholder="Search gift ideas..."
+                placeholder="Search saved ideas, or type a gift..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full"
-                autoFocus
+                enterKeyHint="done"
               />
-            </div>
+            </form>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-2">
+              {/* The typed text as a note first, then saved ideas */}
+              {searchQuery.trim() && (
+                <button
+                  onClick={() => addGiftNote(assigningTo)}
+                  disabled={addingNote}
+                  className="w-full bg-white border border-[var(--accent)]/40 rounded-xl p-3 text-left flex items-center gap-3 hover:border-[var(--accent)] hover:shadow-sm transition-all disabled:opacity-60"
+                >
+                  <div className="w-14 h-14 shrink-0 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center">
+                    <PenLine className="w-5 h-5 text-[var(--accent)]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium line-clamp-1">
+                      Add &ldquo;{searchQuery.trim()}&rdquo;
+                    </span>
+                    <p className="text-xs text-muted-foreground">
+                      {addingNote
+                        ? "Saving..."
+                        : "Quick note — no saved item needed"}
+                    </p>
+                  </div>
+                </button>
+              )}
+
               {getFilteredGifts(assigningTo).map((gift) => {
                 const giftData = gift.data as GiftIdeaData;
                 return (
@@ -568,19 +649,21 @@ export default function GiftPlannerPage() {
                 );
               })}
 
-              {getFilteredGifts(assigningTo).length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-[var(--muted)] flex items-center justify-center">
-                    <Gift className="w-6 h-6" />
-                  </div>
-                  <p className="font-medium text-sm">No gift ideas available</p>
-                  {giftIdeas.length === 0 && (
+              {getFilteredGifts(assigningTo).length === 0 &&
+                !searchQuery.trim() && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-[var(--muted)] flex items-center justify-center">
+                      <Gift className="w-6 h-6" />
+                    </div>
+                    <p className="font-medium text-sm">No saved gift ideas</p>
                     <p className="text-xs mt-2">
-                      Text product TikToks or Reels to save gift ideas!
+                      Type a gift above to add it as a note
+                      {giftIdeas.length === 0 &&
+                        ", or text product TikToks or Reels to save ideas"}
+                      .
                     </p>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
             </div>
           </DialogContent>
         </Dialog>

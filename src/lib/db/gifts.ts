@@ -151,6 +151,29 @@ export async function assignGiftToRecipient(
   return data as GiftAssignment;
 }
 
+/**
+ * A gift that is only an idea in words — nothing saved yet. Same shape as a
+ * planner quick note: note_title instead of content_id.
+ */
+export async function addGiftNote(
+  recipientId: string,
+  noteTitle: string
+): Promise<GiftAssignment> {
+  const supabase = createServerClient();
+
+  const { data, error } = await supabase
+    .from("gift_assignments")
+    .insert({ recipient_id: recipientId, note_title: noteTitle })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to add gift note: ${error.message}`);
+  }
+
+  return data as GiftAssignment;
+}
+
 export async function removeGiftAssignment(
   assignmentId: string
 ): Promise<void> {
