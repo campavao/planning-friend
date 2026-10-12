@@ -23,6 +23,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Only send codes to North American numbers. This endpoint is public, and
+    // open international delivery got it hit by SMS-pumping bots sending
+    // codes to premium-rate numbers abroad.
+    if (!normalizedPhone.match(/^\+1\d{10}$/)) {
+      return NextResponse.json(
+        { error: "Only US and Canadian phone numbers are supported" },
+        { status: 400 }
+      );
+    }
+
     if (
       !process.env.NEXT_PUBLIC_SUPABASE_URL ||
       !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
