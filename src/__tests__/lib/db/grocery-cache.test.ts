@@ -14,7 +14,7 @@ jest.mock("@/lib/db/client", () => ({
       const call: Call = { table, op: "", args: [], filters: [] };
       mockCalls.push(call);
       const builder = {
-        select: (...args: unknown[]) => ((call.op ||= "select"), builder),
+        select: () => ((call.op ||= "select"), builder),
         update: (...args: unknown[]) => ((call.op = "update"), (call.args = args), builder),
         delete: (...args: unknown[]) => ((call.op = "delete"), (call.args = args), builder),
         eq: (col: string, val: unknown) => (call.filters.push([col, val]), builder),
