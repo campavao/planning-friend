@@ -1,19 +1,19 @@
+import { normalizeCachedItems, type GroceryItem } from "../grocery-list";
 import { createServerClient } from "./client";
 
-export interface CachedGroceryItem {
-  ingredient: string;
-  quantity?: string;
-  category: string;
-  sources: { id: string; title: string }[];
-  notes?: string;
-}
-
+/**
+ * A row of `grocery_list_cache`: the latest grocery list for one user's week.
+ *
+ * `items` is the final list, check-off state included (see GroceryItem).
+ * `recipe_ids` is the cache key from groceryCacheKey: content ids plus
+ * `note:<title>` entries for quick notes.
+ */
 export interface CachedGroceryList {
   id: string;
   user_id: string;
   week_start: string;
   recipe_ids: string[];
-  items: CachedGroceryItem[];
+  items: GroceryItem[];
   tips: string[];
   created_at: string;
   updated_at: string;
@@ -32,7 +32,8 @@ export async function getGroceryListCache(
     .single();
 
   if (error || !data) return null;
-  return data as CachedGroceryList;
+  // Rows written before the estimated/staple/checked flags existed lack them.
+  return { ...data, items: normalizeCachedItems(data.items) } as CachedGroceryList;
 }
 
 /**
@@ -58,7 +59,7 @@ export async function upsertGroceryListCache(
   userId: string,
   weekStart: string,
   recipeIds: string[],
-  items: CachedGroceryItem[],
+  items: GroceryItem[],
   tips: string[]
 ): Promise<void> {
   const supabase = createServerClient();
@@ -76,5 +77,23 @@ export async function upsertGroceryListCache(
 
   if (error) {
     throw new Error(`Failed to cache grocery list: ${error.message}`);
+  }
+}
+
+/** Replace the items of an existing cached list, leaving its key and tips alone. */
+export async function updateGroceryListItems(
+  userId: string,
+  weekStart: string,
+  items: GroceryItem[]
+): Promise<void> {
+  const supabase = createServerClient();
+  const { error } = await supabase
+    .from("grocery_list_cache")
+    .update({ items, updated_at: new Date().toISOString() })
+    .eq("user_id", userId)
+    .eq("week_start", weekStart);
+
+  if (error) {
+    throw new Error(`Failed to update grocery list: ${error.message}`);
   }
 }

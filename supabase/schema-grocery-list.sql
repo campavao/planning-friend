@@ -5,8 +5,8 @@ CREATE TABLE IF NOT EXISTS grocery_list_cache (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   week_start DATE NOT NULL,
-  recipe_ids TEXT[] NOT NULL, -- Array of content IDs used to generate this list
-  items JSONB NOT NULL, -- The generated grocery items
+  recipe_ids TEXT[] NOT NULL, -- Cache key: content IDs plus note:<title> per quick note
+  items JSONB NOT NULL, -- The final list; shape is GroceryItem[] in src/lib/grocery-list.ts
   tips TEXT[], -- Shopping tips from AI
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
