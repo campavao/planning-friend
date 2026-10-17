@@ -146,6 +146,22 @@ describe("parseGroceryResponse", () => {
     expect(staples.sort()).toEqual(["Olive oil", "Smoked paprika"]);
   });
 
+  it("trusts the model's explicit staple: false over the known list", () => {
+    // Flour bought for a bread recipe must not be hidden from the list and image.
+    const parsed = parseGroceryResponse(
+      reply([
+        { ingredient: "Flour", quantity: "6 cups", category: "Pantry", staple: false, sources: [] },
+        { ingredient: "Salt", category: "Spices & Seasonings", sources: [] },
+      ]),
+      [pasta],
+      [],
+    );
+    expect(parsed!.items.map((i) => [i.ingredient, i.staple])).toEqual([
+      ["Flour", false],
+      ["Salt", true],
+    ]);
+  });
+
   it("sorts by aisle and maps unknown categories to Other", () => {
     const parsed = parseGroceryResponse(
       reply([
@@ -241,6 +257,15 @@ describe("check-offs", () => {
       true,
       false,
     ]);
+  });
+  it("drop a tick when the regenerated item needs a different quantity", () => {
+    // Ticked "1 lb" of beef, then a new recipe raised it to 3 lb: the extra
+    // 2 lb must stay on the list and in the exported image.
+    const previous = [item({ ingredient: "Ground beef", quantity: "1 lb", checked: true })];
+    const next = [item({ ingredient: "Ground beef", quantity: "3 lb" })];
+    expect(carryOverChecked(next, previous)[0].checked).toBe(false);
+    const same = [item({ ingredient: "ground beef", quantity: "1 LB" })];
+    expect(carryOverChecked(same, previous)[0].checked).toBe(true);
   });
 });
 

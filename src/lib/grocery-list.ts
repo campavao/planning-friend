@@ -269,8 +269,14 @@ function normalizeItem(
     estimated: inputs
       ? sources.length > 0 && sources.every((s) => s.kind === "note")
       : raw.estimated === true,
+    // The known list only fills in a missing flag (old cached rows, a reply
+    // that left it out). An explicit `false` means the model saw it was
+    // bought for a dish, e.g. "Flour - 6 cups" for bread, and it must not
+    // vanish from the list and the exported image.
     staple:
-      raw.staple === true || KNOWN_STAPLES.has(groceryItemKey(ingredient)),
+      typeof raw.staple === "boolean"
+        ? raw.staple
+        : KNOWN_STAPLES.has(groceryItemKey(ingredient)),
     // Only a person ticks items off; a model reply always starts unchecked.
     checked: !inputs && raw.checked === true,
   };
@@ -333,15 +339,32 @@ export function applyChecked(
   }));
 }
 
-/** Keep what was already ticked off when a list is regenerated. */
+/**
+ * Keep what was already ticked off when a list is regenerated.
+ *
+ * A tick carries over only when the item still needs the same quantity. If
+ * the new plan needs more (1 lb of beef became 3 lb), the item comes back
+ * unticked so the rest stays on the list and in the exported image.
+ */
 export function carryOverChecked(
   next: GroceryItem[],
   previous: GroceryItem[],
 ): GroceryItem[] {
-  return applyChecked(
-    next,
-    previous.filter((item) => item.checked).map((item) => item.ingredient),
-  );
+  const quantityKey = (item: GroceryItem) =>
+    groceryItemKey(item.quantity ?? "");
+  const ticked = new Map<string, Set<string>>();
+  for (const item of previous) {
+    if (!item.checked) continue;
+    const key = groceryItemKey(item.ingredient);
+    if (!ticked.has(key)) ticked.set(key, new Set());
+    ticked.get(key)!.add(quantityKey(item));
+  }
+  return next.map((item) => ({
+    ...item,
+    checked:
+      ticked.get(groceryItemKey(item.ingredient))?.has(quantityKey(item)) ??
+      false,
+  }));
 }
 
 export interface AisleGroup {
