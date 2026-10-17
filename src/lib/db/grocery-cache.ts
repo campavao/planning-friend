@@ -31,23 +31,34 @@ export async function getGroceryListCache(
     .eq("week_start", weekStart)
     .single();
 
-  if (error || !data) return null;
+  // No row yet is the only "nothing cached". Any other failure throws: a
+  // caller that took it for a miss would regenerate and upsert over the row,
+  // wiping the week's check-offs.
+  if (error) {
+    if (error.code === "PGRST116") return null;
+    throw new Error(`Failed to read grocery list cache: ${error.message}`);
+  }
+  if (!data) return null;
   // Rows written before the estimated/staple/checked flags existed lack them.
   return { ...data, items: normalizeCachedItems(data.items) } as CachedGroceryList;
 }
 
 /**
- * Drop every cached list for a user.
+ * Mark every cached list for a user as stale.
  *
  * The cache hits whenever the week still holds the same *set* of recipes, which
  * says nothing about what is inside them — so editing a recipe's ingredients
  * would otherwise keep serving the pre-edit shopping list indefinitely.
+ *
+ * The rows are kept and only their key is emptied: the items hold the user's
+ * check-offs, and the next generation carries them over from the stale row.
+ * An empty key never matches, because a week with no meals is never cached.
  */
 export async function clearGroceryListCache(userId: string): Promise<void> {
   const supabase = createServerClient();
   const { error } = await supabase
     .from("grocery_list_cache")
-    .delete()
+    .update({ recipe_ids: [] })
     .eq("user_id", userId);
 
   if (error) {

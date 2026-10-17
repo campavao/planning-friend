@@ -236,6 +236,22 @@ describe("PATCH /api/planner/grocery-list", () => {
     expect(body.items[0]).toMatchObject({ ingredient: "Ground beef", checked: true });
   });
 
+  it("keeps check-offs through a content edit, which only empties the cache key", async () => {
+    await call("PATCH", { weekStart: WEEK, checked: ["Ground beef"] });
+    // What clearGroceryListCache does to the row when any content is edited.
+    mockRows.set(`user-1|${WEEK}`, { ...row(), recipe_ids: [] });
+
+    // Ticking mid-shop still saves instead of returning 404.
+    const tick = await call("PATCH", { weekStart: WEEK, checked: ["Ground beef", "Ribeye steak"] });
+    expect(tick.status).toBe(200);
+
+    modelReturns(pastaAndSteakList);
+    const res = await call("POST", { recipes: [pasta], notes: [steak], weekStart: WEEK });
+    const body = await res.json();
+    expect(body.cached).toBe(false);
+    expect(checkedNames()).toEqual(["Ground beef", "Ribeye steak"]);
+  });
+
   it("rejects a malformed body", async () => {
     expect((await call("PATCH", { weekStart: WEEK, checked: "Onions" })).status).toBe(400);
     expect((await call("PATCH", { checked: [] })).status).toBe(400);
