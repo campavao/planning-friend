@@ -1254,6 +1254,10 @@ function PlannerContent() {
     setStandaloneApp(isStandaloneApp());
 
     try {
+      // Let queued check-off saves land first. Otherwise this read can return
+      // the list from before them, and the next tick, which sends the full
+      // checked set, would untick them on the server.
+      await groceryCheckSaves.current;
       const response = await fetch("/api/planner/grocery-list", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1348,7 +1352,10 @@ function PlannerContent() {
           await shareImage(file);
           return;
         } catch (shareError) {
-          // An unexpected share failure still gets the person their image.
+          // A home-screen app on iOS has no download UI, so falling back to
+          // a download there would fail silently. Say it failed instead.
+          if (standaloneApp) throw shareError;
+          // Elsewhere an unexpected share failure still gets the person their image.
           console.error("Share failed, downloading instead:", shareError);
         }
       }
