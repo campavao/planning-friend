@@ -32,21 +32,21 @@ import {
   getWeekStartForDate,
   parseDateString,
 } from "@/lib/date-utils";
-import html2canvas from "html2canvas";
 import {
   ArrowLeft,
   Calendar,
-  Camera,
   Check,
   ChevronDown,
   ChevronRight,
   Coffee,
+  Download,
   Heart,
   PenLine,
   Plus,
   Search,
   Lightbulb,
   LightbulbOff,
+  Share2,
   ShoppingCart,
   Star,
   User,
@@ -72,6 +72,18 @@ import { PlannerSearch } from "./components/PlannerSearch";
 import { SuggestionStrip } from "./components/SuggestionStrip";
 import { WeekSection } from "./components/WeekSection";
 import { getItemDateKey } from "@/lib/plan-dates";
+import {
+  groceryItemKey,
+  groupByAisle,
+  type GroceryItem,
+} from "@/lib/grocery-list";
+import {
+  canShareImageFiles,
+  downloadImage,
+  isStandaloneApp,
+  renderGroceryImage,
+  shareImage,
+} from "./grocery-image";
 import { usePlannerFilters } from "./hooks/usePlannerFilters";
 
 interface ItemShareState {
@@ -112,25 +124,18 @@ function readSuggestionsHidden(): boolean {
   }
 }
 
-// Grocery list types (from Gemini AI)
-interface GroceryItem {
-  ingredient: string;
-  quantity?: string;
-  category: string;
-  sources: { id: string; title: string }[];
-  notes?: string;
-}
-
 interface GroceryListState {
   isOpen: boolean;
   items: GroceryItem[];
   tips: string[];
   expandedIngredient: string | null;
+  /** Pantry staples are hidden until asked for, in the list and the image. */
+  showStaples: boolean;
   loading: boolean;
   saving: boolean;
   error: string | null;
   /**
-   * A failure from the Save button specifically.
+   * A failure from Share, Download or saving a check-off.
    *
    * Separate from `error`, which replaces the whole list view — using it here
    * would delete the list the user is looking at to tell them a screenshot
@@ -264,12 +269,17 @@ function PlannerContent() {
     items: [],
     tips: [],
     expandedIngredient: null,
+    showStaples: false,
     loading: false,
     saving: false,
     saveError: null,
     error: null,
   });
-  const groceryListRef = useRef<HTMLDivElement>(null);
+  // Check-off saves run one after another, so a slow request can never land
+  // after a newer one and undo it.
+  const groceryCheckSaves = useRef<Promise<void>>(Promise.resolve());
+  const [imageShareable, setImageShareable] = useState(false);
+  const [standaloneApp, setStandaloneApp] = useState(false);
 
   // Session management with SWR
   const { user, isLoading: sessionLoading } = useSession();
@@ -1188,10 +1198,17 @@ function PlannerContent() {
       category: string;
       ingredients: string[];
     }[] = [];
+    // Quick notes go to the generator as-is. It guesses ingredients for the
+    // ones that name a meal and skips the rest ("Iowa", "Rosh bday").
+    const notes: { id: string; title: string }[] = [];
 
     for (const item of allItems) {
       const content = item.content;
-      if (!content) continue;
+      if (!content) {
+        const title = item.note_title?.trim();
+        if (title) notes.push({ id: item.id, title });
+        continue;
+      }
 
       let ingredients: string[] = [];
 
@@ -1213,36 +1230,34 @@ function PlannerContent() {
       }
     }
 
-    if (recipes.length === 0) {
-      setGroceryList({
-        isOpen: true,
-        items: [],
-        tips: [],
-        expandedIngredient: null,
-        loading: false,
-        saving: false,
-        saveError: null,
-        error: "No recipes with ingredients found for this week.",
-      });
-      return;
-    }
-
-    setGroceryList({
+    const emptyList = {
       isOpen: true,
       items: [],
       tips: [],
       expandedIngredient: null,
-      loading: true,
+      showStaples: false,
       saving: false,
       saveError: null,
-      error: null,
-    });
+    };
+
+    if (recipes.length === 0 && notes.length === 0) {
+      setGroceryList({
+        ...emptyList,
+        loading: false,
+        error: "No meals found for this week.",
+      });
+      return;
+    }
+
+    setGroceryList({ ...emptyList, loading: true, error: null });
+    setImageShareable(canShareImageFiles());
+    setStandaloneApp(isStandaloneApp());
 
     try {
       const response = await fetch("/api/planner/grocery-list", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipes, weekStart: anchorWeek }),
+        body: JSON.stringify({ recipes, notes, weekStart: anchorWeek }),
       });
 
       const result = await response.json();
@@ -1274,89 +1289,70 @@ function PlannerContent() {
     }
   };
 
-  const saveGroceryScreenshot = async () => {
-    if (groceryList.items.length === 0) return;
+  const toggleGroceryItem = (ingredient: string) => {
+    const key = groceryItemKey(ingredient);
+    const items = groceryList.items.map((item) =>
+      groceryItemKey(item.ingredient) === key
+        ? { ...item, checked: !item.checked }
+        : item,
+    );
+    setGroceryList((s) => ({ ...s, items, saveError: null }));
 
+    const body = JSON.stringify({
+      weekStart: anchorWeek,
+      checked: items.filter((i) => i.checked).map((i) => i.ingredient),
+    });
+    groceryCheckSaves.current = groceryCheckSaves.current
+      .then(async () => {
+        const response = await fetch("/api/planner/grocery-list", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body,
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      })
+      .catch((error) => {
+        console.error("Failed to save grocery check-off:", error);
+        setGroceryList((s) => ({
+          ...s,
+          saveError: "Couldn't save that check-off.",
+        }));
+      });
+  };
+
+  const groceryGroups = groupByAisle(groceryList.items, {
+    showStaples: groceryList.showStaples,
+  });
+  const stapleCount = groceryList.items.filter((i) => i.staple).length;
+  const groceryExportDisabled =
+    groceryList.saving ||
+    groceryList.loading ||
+    groceryGroups.every((g) => g.items.every((i) => i.checked));
+
+  // The image is what's still to buy: the list as shown, minus ticked items.
+  const exportGroceryImage = async (mode: "share" | "download") => {
     setGroceryList((s) => ({ ...s, saving: true, saveError: null }));
 
     try {
-      const container = document.createElement("div");
-      container.style.cssText = `
-        position: fixed;
-        left: -9999px;
-        top: 0;
-        background: white;
-        padding: 32px;
-        font-family: Arial, sans-serif;
-        font-size: 18px;
-        line-height: 1.6;
-        color: black;
-        width: 400px;
-      `;
-
-      const listItems = groceryList.items.map((item) => {
-        const quantity = item.quantity ? ` - ${item.quantity}` : "";
-        return `${item.ingredient}${quantity}`;
-      });
-
-      container.innerHTML = `
-        <div style="margin-bottom: 16px; font-weight: bold; font-size: 20px; border-bottom: 2px solid black; padding-bottom: 8px;">
-          Grocery List
-        </div>
-        <div style="white-space: pre-line;">
-${listItems.map((item) => `• ${item}`).join("\n")}
-        </div>
-      `;
-
-      document.body.appendChild(container);
-
-      const canvas = await html2canvas(container, {
-        backgroundColor: "#ffffff",
-        scale: 2,
-        logging: false,
-      });
-
-      document.body.removeChild(container);
-
-      const blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob(resolve, "image/png"),
+      const groups = groceryGroups
+        .map((g) => ({ ...g, items: g.items.filter((i) => !i.checked) }))
+        .filter((g) => g.items.length > 0);
+      const file = await renderGroceryImage(
+        groups,
+        formatWeekRange(),
+        `grocery-list-${anchorWeek}.png`,
       );
-      if (!blob) throw new Error("Could not render the list as an image");
 
-      const filename = `grocery-list-${anchorWeek}.png`;
-      const file = new File([blob], filename, { type: "image/png" });
-
-      // The share sheet first, because this app is installed to the home
-      // screen (manifest display: standalone) and iOS gives a standalone PWA
-      // no download UI at all — a programmatic <a download> there resolves
-      // silently and saves nothing, which is exactly what "it flashes and
-      // nothing happens" was. Sharing a File is the supported way out, and it
-      // lands the image in Photos, Files, Messages or anywhere else.
-      if (navigator.canShare?.({ files: [file] })) {
+      if (mode === "share") {
         try {
-          await navigator.share({ files: [file], title: "Grocery list" });
+          await shareImage(file);
           return;
         } catch (shareError) {
-          // Dismissing the sheet is a choice, not a failure.
-          if ((shareError as Error)?.name === "AbortError") return;
-          // Anything else falls through to the download path below.
+          // An unexpected share failure still gets the person their image.
+          console.error("Share failed, downloading instead:", shareError);
         }
       }
-
-      // Desktop, and any browser without file sharing. An object URL rather
-      // than a data URL: a several-megabyte data: href is refused outright by
-      // some browsers, and this list can carry one.
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.download = filename;
-      link.href = url;
-      // Appended because a detached anchor is a no-op in Firefox.
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      // Revoked late: revoking in the same tick cancels the download in some
-      // browsers before it has started reading.
-      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      downloadImage(file);
     } catch (error) {
       console.error("Failed to save screenshot:", error);
       setGroceryList((s) => ({
@@ -1368,7 +1364,7 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
     }
   };
 
-  const hasMealOrDrinkItems = useMemo(() => {
+  const hasGroceryMeals = useMemo(() => {
     if (!data?.plan?.items && !data?.sharedItems) return false;
     const allItems: (PlanItemWithSharing | SharedPlanItem)[] = [
       ...(data.plan?.items || []),
@@ -1376,7 +1372,9 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
     ];
     return allItems.some(
       (item: PlanItemWithSharing | SharedPlanItem) =>
-        item.content?.category === "meal" || item.content?.category === "drink",
+        item.content?.category === "meal" ||
+        item.content?.category === "drink" ||
+        (!item.content && !!item.note_title?.trim()),
     );
   }, [data?.plan?.items, data?.sharedItems]);
 
@@ -1433,9 +1431,9 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
           <Button
             variant="ghost"
             onClick={generateGroceryList}
-            disabled={!hasMealOrDrinkItems}
+            disabled={!hasGroceryMeals}
             title={
-              hasMealOrDrinkItems
+              hasGroceryMeals
                 ? "Generate grocery list"
                 : "Add meals to generate grocery list"
             }
@@ -1861,20 +1859,38 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
                 <p className="text-xs text-white/80">{formatWeekRange()}</p>
               </div>
               <div className="flex gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={saveGroceryScreenshot}
-                  disabled={
-                    groceryList.saving ||
-                    groceryList.loading ||
-                    groceryList.items.length === 0
-                  }
-                  className="text-white hover:bg-white/10 rounded-lg"
-                >
-                  <Camera className="w-4 h-4 mr-1" />
-                  {groceryList.saving ? "..." : "Save"}
-                </Button>
+                {imageShareable && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => exportGroceryImage("share")}
+                    disabled={groceryExportDisabled}
+                    className="text-white hover:bg-white/10 rounded-lg"
+                  >
+                    <Share2 className="w-4 h-4 mr-1" />
+                    {groceryList.saving ? "..." : "Share"}
+                  </Button>
+                )}
+                {/* A home-screen app on iOS has no download UI, so a
+                    download button there would do nothing. */}
+                {!(imageShareable && standaloneApp) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => exportGroceryImage("download")}
+                    disabled={groceryExportDisabled}
+                    className="text-white hover:bg-white/10 rounded-lg"
+                    aria-label="Download image"
+                    title="Download image"
+                  >
+                    <Download className="w-4 h-4" />
+                    {!imageShareable && (
+                      <span className="ml-1">
+                        {groceryList.saving ? "..." : "Save"}
+                      </span>
+                    )}
+                  </Button>
+                )}
                 {/* A save that fails must say so. Until now the catch only
                     reached the console, so a silent no-op was indistinguishable
                     from a save that worked. */}
@@ -1931,101 +1947,162 @@ ${listItems.map((item) => `• ${item}`).join("\n")}
               )}
 
               {!groceryList.loading && !groceryList.error && (
-                <div ref={groceryListRef} className="p-4">
+                <div className="p-4">
                   {groceryList.items.length > 0 ? (
                     <>
-                      {(() => {
-                        const categories = [
-                          ...new Set(groceryList.items.map((i) => i.category)),
-                        ];
-                        return categories.map((category) => (
-                          <div key={category} className="mb-5">
-                            <h4 className="font-semibold text-sm text-[var(--primary)] mb-2 pb-1 border-b border-[var(--border)]">
-                              {category}
-                            </h4>
-                            <ul className="space-y-1">
-                              {groceryList.items
-                                .filter((item) => item.category === category)
-                                .map((item, index) => (
-                                  <li key={index}>
-                                    <button
-                                      onClick={() =>
-                                        setGroceryList((s) => ({
-                                          ...s,
-                                          expandedIngredient:
-                                            s.expandedIngredient ===
-                                            item.ingredient
-                                              ? null
-                                              : item.ingredient,
-                                        }))
-                                      }
-                                      className="w-full text-left flex items-start gap-3 hover:bg-[var(--muted)] p-2 rounded-lg -mx-2 transition-colors"
+                      {(stapleCount > 0 ||
+                        groceryList.items.some((i) => i.estimated)) && (
+                        <div className="flex items-center justify-between gap-2 mb-4 text-xs text-muted-foreground">
+                          <span>
+                            {groceryList.items.some((i) => i.estimated) &&
+                              "Est. = guessed from a quick note"}
+                          </span>
+                          {stapleCount > 0 && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              aria-pressed={groceryList.showStaples}
+                              onClick={() =>
+                                setGroceryList((s) => ({
+                                  ...s,
+                                  showStaples: !s.showStaples,
+                                }))
+                              }
+                            >
+                              {groceryList.showStaples
+                                ? "Hide pantry staples"
+                                : `Show pantry staples (${stapleCount})`}
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                      {groceryGroups.map(({ aisle, items }) => (
+                        <div key={aisle} className="mb-5">
+                          <h4 className="font-semibold text-sm text-[var(--primary)] mb-2 pb-1 border-b border-[var(--border)]">
+                            {aisle}
+                          </h4>
+                          <ul className="space-y-1">
+                            {items.map((item) => (
+                              <li key={item.ingredient}>
+                                <div className="flex items-start gap-1 -mx-2">
+                                  <button
+                                    role="checkbox"
+                                    aria-checked={item.checked}
+                                    aria-label={`Got ${item.ingredient}`}
+                                    onClick={() =>
+                                      toggleGroceryItem(item.ingredient)
+                                    }
+                                    className="p-2 shrink-0"
+                                  >
+                                    <span
+                                      className={`w-5 h-5 rounded-full border flex items-center justify-center ${
+                                        item.checked
+                                          ? "bg-[var(--primary)] border-[var(--primary)] text-white"
+                                          : "border-[var(--border)]"
+                                      }`}
                                     >
-                                      <div className="w-5 h-5 rounded-full bg-[var(--primary)]/10 flex items-center justify-center shrink-0 mt-0.5">
-                                        <span className="text-[var(--primary)] text-xs">
-                                          •
-                                        </span>
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <div className="flex items-baseline gap-2 flex-wrap">
-                                          <span className="font-medium text-sm">
-                                            {item.ingredient}
-                                          </span>
-                                          {item.quantity && (
-                                            <span className="text-xs text-muted-foreground">
-                                              ({item.quantity})
-                                            </span>
-                                          )}
-                                        </div>
-                                        {item.notes && (
-                                          <p className="text-xs text-muted-foreground italic mt-0.5">
-                                            {item.notes}
-                                          </p>
-                                        )}
-                                        <p className="text-xs text-muted-foreground mt-0.5">
-                                          For:{" "}
-                                          {item.sources
-                                            .map((s) => s.title)
-                                            .join(", ")}
-                                        </p>
-                                      </div>
-                                      {groceryList.expandedIngredient ===
-                                      item.ingredient ? (
-                                        <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
-                                      ) : (
-                                        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                                      {item.checked && (
+                                        <Check className="w-3 h-3" />
                                       )}
-                                    </button>
-
-                                    {groceryList.expandedIngredient ===
-                                      item.ingredient && (
-                                      <div className="ml-8 mt-1 mb-2 p-3 bg-[var(--muted)] rounded-lg">
-                                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                                          Used in:
-                                        </p>
-                                        {item.sources.map((source, sIndex) => (
-                                          <Link
-                                            key={sIndex}
-                                            href={`/dashboard/${source.id}?from=planner&week=${anchorWeek}`}
-                                            className="block text-sm text-[var(--primary)] hover:underline py-0.5"
-                                            onClick={() =>
-                                              setGroceryList((s) => ({
-                                                ...s,
-                                                isOpen: false,
-                                              }))
-                                            }
+                                    </span>
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      setGroceryList((s) => ({
+                                        ...s,
+                                        expandedIngredient:
+                                          s.expandedIngredient ===
+                                          item.ingredient
+                                            ? null
+                                            : item.ingredient,
+                                      }))
+                                    }
+                                    className={`flex-1 min-w-0 text-left flex items-start gap-3 hover:bg-[var(--muted)] p-2 rounded-lg transition-colors ${
+                                      item.checked ? "opacity-50" : ""
+                                    }`}
+                                  >
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-baseline gap-2 flex-wrap">
+                                        <span
+                                          className={`font-medium text-sm ${
+                                            item.checked ? "line-through" : ""
+                                          }`}
+                                        >
+                                          {item.ingredient}
+                                        </span>
+                                        {item.quantity && (
+                                          <span className="text-xs text-muted-foreground">
+                                            ({item.quantity})
+                                          </span>
+                                        )}
+                                        {item.estimated && (
+                                          <Badge
+                                            variant="outline"
+                                            className="text-[10px] px-1.5 py-0"
+                                            title="Guessed from a quick note"
                                           >
-                                            → {source.title}
-                                          </Link>
-                                        ))}
+                                            Est.
+                                          </Badge>
+                                        )}
                                       </div>
+                                      {item.notes && (
+                                        <p className="text-xs text-muted-foreground italic mt-0.5">
+                                          {item.notes}
+                                        </p>
+                                      )}
+                                      <p className="text-xs text-muted-foreground mt-0.5">
+                                        For:{" "}
+                                        {item.sources
+                                          .map((s) => s.title)
+                                          .join(", ")}
+                                      </p>
+                                    </div>
+                                    {groceryList.expandedIngredient ===
+                                    item.ingredient ? (
+                                      <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+                                    ) : (
+                                      <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
                                     )}
-                                  </li>
-                                ))}
-                            </ul>
-                          </div>
-                        ));
-                      })()}
+                                  </button>
+                                </div>
+
+                                {groceryList.expandedIngredient ===
+                                  item.ingredient && (
+                                  <div className="ml-8 mt-1 mb-2 p-3 bg-[var(--muted)] rounded-lg">
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                                      Used in:
+                                    </p>
+                                    {item.sources.map((source, sIndex) =>
+                                      source.kind === "note" ? (
+                                        <p
+                                          key={sIndex}
+                                          className="text-sm text-muted-foreground py-0.5"
+                                        >
+                                          → {source.title} (quick note)
+                                        </p>
+                                      ) : (
+                                        <Link
+                                          key={sIndex}
+                                          href={`/dashboard/${source.id}?from=planner&week=${anchorWeek}`}
+                                          className="block text-sm text-[var(--primary)] hover:underline py-0.5"
+                                          onClick={() =>
+                                            setGroceryList((s) => ({
+                                              ...s,
+                                              isOpen: false,
+                                            }))
+                                          }
+                                        >
+                                          → {source.title}
+                                        </Link>
+                                      ),
+                                    )}
+                                  </div>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
 
                       {groceryList.tips.length > 0 && (
                         <div className="mt-4 pt-4 border-t border-[var(--border)]">
