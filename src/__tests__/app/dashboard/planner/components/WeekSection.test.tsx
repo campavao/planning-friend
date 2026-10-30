@@ -17,6 +17,7 @@ const items: PlanItemWithSharing[] = [
   {
     id: "meal-1",
     plan_id: "plan",
+    is_owner: true,
     content_id: "c-meal",
     planned_date: "2026-08-17T00:00:00Z",
     slot_order: 0,
@@ -36,6 +37,7 @@ const items: PlanItemWithSharing[] = [
   {
     id: "note-1",
     plan_id: "plan",
+    is_owner: true,
     planned_date: "2026-08-17T00:00:00Z",
     slot_order: 1,
     created_at: "2026-08-01T00:00:00Z",
@@ -45,6 +47,7 @@ const items: PlanItemWithSharing[] = [
   {
     id: "note-2",
     plan_id: "plan",
+    is_owner: true,
     planned_date: "2026-08-17T00:00:00Z",
     slot_order: 2,
     created_at: "2026-08-01T00:00:00Z",

@@ -14,7 +14,7 @@ import type { PlanItem } from "@/lib/supabase";
  */
 export interface PlanItemDetails {
   attributes: ItemAttribute[];
-  /** "Sat, Aug 23 • 7pm" for events; "Aug 23 → Aug 27" for a stay. */
+  /** "Sat, Aug 23 · 7pm" for events; "Aug 23 → Aug 27" for a stay. */
   when?: string;
   location?: string;
   /** "Prep 10 min", "Cook 20 min", "Serves 4". */
@@ -58,7 +58,7 @@ export function planItemDetails(item: PlanItem): PlanItemDetails {
 
   let when: string | undefined;
   if (category === "event") {
-    when = [str(data, "date"), str(data, "time")].filter(Boolean).join(" • ");
+    when = [str(data, "date"), str(data, "time")].filter(Boolean).join(" · ");
   } else if (category === "travel") {
     const start = str(data, "date");
     const end = str(data, "end_date");

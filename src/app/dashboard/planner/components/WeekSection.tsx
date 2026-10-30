@@ -11,7 +11,9 @@ import {
 import type { Content, SharedPlanItem, Tag } from "@/lib/supabase";
 import { formatDateString, parseDateString } from "@/lib/date-utils";
 import {
+  ArrowRight,
   ChevronDown,
+  ChevronUp,
   FileText,
   Hand,
   Pencil,
@@ -19,6 +21,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { categoryUI } from "@/lib/categories";
 import { PlanItemDetails } from "./PlanItemDetails";
@@ -495,9 +498,162 @@ export function WeekSection({
                           );
                         }
 
-                        const Icon = categoryUI(
+                        const ui = categoryUI(
                           item.content?.category || "other",
-                        ).icon;
+                        );
+                        const Icon = ui.icon;
+                        const title = item.content?.title ?? "item";
+
+                        const timeAndSharedBadges = (
+                          <>
+                            {plannedTimeLabel && (
+                              <Badge
+                                variant="accent"
+                                className="px-2 py-0.5 text-[10px] font-semibold"
+                              >
+                                {plannedTimeLabel}
+                              </Badge>
+                            )}
+                            {isShared && (
+                              <Badge
+                                variant="muted"
+                                className="px-1.5 py-0.5 text-[10px] font-medium"
+                              >
+                                from {sharedItem?.owner_name}
+                              </Badge>
+                            )}
+                          </>
+                        );
+
+                        const actions =
+                          isAutoEvent ? (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  onShareAutoEvent(ownItem!, weekStart)
+                                }
+                                className="h-7 gap-1 rounded-lg bg-white px-2 text-[10px] font-semibold shadow-sm"
+                                title="Share"
+                              >
+                                <Users className="size-3" />
+                                Share
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() =>
+                                  hideAutoEvent(item.content_id!)
+                                }
+                                className="size-7 rounded-lg bg-white text-xs shadow-sm"
+                                title="Hide from plan"
+                              >
+                                <X className="size-3" />
+                              </Button>
+                            </>
+                          ) : isShared ? (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() =>
+                                onLeaveShared(item.id, weekStart)
+                              }
+                              className="size-7 rounded-lg bg-white text-xs shadow-sm"
+                              title="Leave"
+                            >
+                              <Hand className="size-3" />
+                            </Button>
+                          ) : (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onOpenShare(ownItem!)}
+                                className="h-7 gap-1 rounded-lg bg-white px-2 text-[10px] font-semibold shadow-sm"
+                                title="Share"
+                              >
+                                <Users className="size-3" />
+                                {ownItem?.shared_with?.length
+                                  ? ownItem.shared_with.length
+                                  : "Share"}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() =>
+                                  onOpenEdit(ownItem!, dateKey)
+                                }
+                                className="size-7 rounded-lg bg-white text-xs shadow-sm"
+                                title="Edit"
+                              >
+                                <Pencil className="size-3" />
+                              </Button>
+                            </>
+                          );
+
+                        // Content item display (mobile), expanded: laid out
+                        // like the top of the item page — category pill and
+                        // title beside a square thumbnail, then the same chips
+                        // and rows — so opening a card previews the page it
+                        // links to rather than inventing a third look.
+                        if (isExpanded) {
+                          return (
+                            <div
+                              key={item.id}
+                              className="group bg-white rounded-xl overflow-hidden border border-[var(--border)]"
+                            >
+                              <div className="relative flex gap-3.5 px-4 pt-4 pb-3 items-start">
+                                <ExpandToggle
+                                  expanded
+                                  label={title}
+                                  onToggle={() => toggleExpanded(item.id)}
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <Badge variant={ui.badge}>
+                                      <Icon className="w-3.5 h-3.5" />
+                                      {ui.label}
+                                    </Badge>
+                                    {timeAndSharedBadges}
+                                  </div>
+                                  <h3 className="heading-2 mt-2">{title}</h3>
+                                </div>
+                                {item.content?.thumbnail_url && (
+                                  <img
+                                    src={item.content.thumbnail_url}
+                                    alt=""
+                                    className="w-[92px] h-[92px] shrink-0 rounded-2xl object-cover border border-[var(--border)] shadow-[var(--shadow-sm)]"
+                                  />
+                                )}
+                              </div>
+                              <PlanItemDetails item={item} weekStart={weekStart} />
+                              <div className="flex items-center justify-between gap-2 px-4 pb-3 pt-1">
+                                <Button asChild variant="outline" size="sm">
+                                  <Link
+                                    href={`/dashboard/${item.content_id}?from=planner&week=${weekStart}`}
+                                  >
+                                    Open
+                                    <ArrowRight className="size-3.5" />
+                                  </Link>
+                                </Button>
+                                <div className="flex items-center gap-1">
+                                  {actions}
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    onClick={() => toggleExpanded(item.id)}
+                                    className="size-7 rounded-lg text-muted-foreground"
+                                    title="Collapse"
+                                    aria-label="Collapse"
+                                  >
+                                    <ChevronUp className="size-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
 
                         // Content item display (mobile)
                         return (
@@ -507,8 +663,8 @@ export function WeekSection({
                           >
                             <div className="relative flex items-stretch min-h-20">
                               <ExpandToggle
-                                expanded={isExpanded}
-                                label={item.content?.title ?? "item"}
+                                expanded={false}
+                                label={title}
                                 onToggle={() => toggleExpanded(item.id)}
                               />
                               {item.content?.thumbnail_url && (
@@ -527,109 +683,18 @@ export function WeekSection({
                                     <span className="text-xs text-muted-foreground capitalize">
                                       {item.content?.category?.replace("_", " ")}
                                     </span>
-                                    {plannedTimeLabel && (
-                                      <Badge
-                                        variant="accent"
-                                        className="px-2 py-0.5 text-[10px] font-semibold"
-                                      >
-                                        {plannedTimeLabel}
-                                      </Badge>
-                                    )}
-                                    {isShared && (
-                                      <Badge
-                                        variant="muted"
-                                        className="px-1.5 py-0.5 text-[10px] font-medium"
-                                      >
-                                        from {sharedItem?.owner_name}
-                                      </Badge>
-                                    )}
+                                    {timeAndSharedBadges}
                                   </div>
                                   <div className="relative z-10 flex gap-1 shrink-0">
-                                    {isAutoEvent ? (
-                                      <>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() =>
-                                            onShareAutoEvent(ownItem!, weekStart)
-                                          }
-                                          className="h-7 gap-1 rounded-lg bg-white px-2 text-[10px] font-semibold shadow-sm"
-                                          title="Share"
-                                        >
-                                          <Users className="size-3" />
-                                          Share
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon-sm"
-                                          onClick={() =>
-                                            hideAutoEvent(item.content_id!)
-                                          }
-                                          className="size-7 rounded-lg bg-white text-xs shadow-sm"
-                                          title="Hide from plan"
-                                        >
-                                          <X className="size-3" />
-                                        </Button>
-                                      </>
-                                    ) : isShared ? (
-                                      <Button
-                                        variant="ghost"
-                                        size="icon-sm"
-                                        onClick={() =>
-                                          onLeaveShared(item.id, weekStart)
-                                        }
-                                        className="size-7 rounded-lg bg-white text-xs shadow-sm"
-                                        title="Leave"
-                                      >
-                                        <Hand className="size-3" />
-                                      </Button>
-                                    ) : (
-                                      <>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => onOpenShare(ownItem!)}
-                                          className="h-7 gap-1 rounded-lg bg-white px-2 text-[10px] font-semibold shadow-sm"
-                                          title="Share"
-                                        >
-                                          <Users className="size-3" />
-                                          {ownItem?.shared_with?.length
-                                            ? ownItem.shared_with.length
-                                            : "Share"}
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon-sm"
-                                          onClick={() =>
-                                            onOpenEdit(ownItem!, dateKey)
-                                          }
-                                          className="size-7 rounded-lg bg-white text-xs shadow-sm"
-                                          title="Edit"
-                                        >
-                                          <Pencil className="size-3" />
-                                        </Button>
-                                      </>
-                                    )}
+                                    {actions}
                                   </div>
                                 </div>
                                 <p className="flex items-start justify-between gap-1 font-medium text-sm">
-                                  <span
-                                    className={isExpanded ? "" : "line-clamp-2"}
-                                  >
-                                    {item.content?.title}
-                                  </span>
-                                  <ExpandChevron expanded={isExpanded} />
+                                  <span className="line-clamp-2">{title}</span>
+                                  <ExpandChevron expanded={false} />
                                 </p>
                               </div>
                             </div>
-                            {isExpanded && (
-                              <div className="border-t border-[var(--border)] p-3">
-                                <PlanItemDetails
-                                  item={item}
-                                  weekStart={weekStart}
-                                />
-                              </div>
-                            )}
                           </div>
                         );
                       })}

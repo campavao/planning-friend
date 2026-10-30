@@ -59,7 +59,7 @@ describe("planItemDetails", () => {
       }),
     );
 
-    expect(details.when).toBe("Sat, Aug 23 • 7pm");
+    expect(details.when).toBe("Sat, Aug 23 · 7pm");
     expect(details.location).toBe("The Fillmore");
     expect(details.description).toBe("Live set");
   });
