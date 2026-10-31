@@ -183,7 +183,7 @@ function CompactDetails({
           {details.attributes.map((attribute) => (
             <span
               key={attribute.key}
-              className="rounded-full border border-[var(--border)] bg-[var(--card)] px-1.5 py-0.5 text-[10px] font-semibold shadow-[var(--shadow-sm)]"
+              className="surface-inset rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
             >
               {attribute.label}
             </span>

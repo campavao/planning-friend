@@ -131,8 +131,10 @@ interface CardAction {
 }
 
 /**
- * The planned time and the card's buttons as one white pill, split by
- * hairlines — they're all "about this occurrence", so they read as a unit.
+ * The planned time and the card's buttons as one unit — they're all "about
+ * this occurrence". The group is an inset tray, the time pressed into it as
+ * information, and the buttons stand up out of it: the surface rule that runs
+ * through the cards (see .surface-inset in globals.css).
  *
  * The time is text, not a button: the group ignores pointer events so a tap on
  * it falls through to the card's toggle, and only the buttons opt back in.
@@ -147,9 +149,9 @@ function TimeActionGroup({
   actions: CardAction[];
 }) {
   return (
-    <div className="relative z-10 pointer-events-none inline-flex h-8 items-stretch overflow-hidden rounded-full bg-white text-[11px] font-semibold text-[var(--foreground)] shadow-[var(--shadow-sm)] divide-x divide-[var(--border)]">
+    <div className="surface-inset relative z-10 pointer-events-none inline-flex h-9 items-center gap-1 rounded-full p-1 text-[11px] font-semibold text-[var(--foreground)]">
       {time && (
-        <span className="flex items-center gap-1 pl-3 pr-2.5">
+        <span className="flex items-center gap-1 pl-2 pr-1">
           <Clock className="size-3 text-muted-foreground" />
           {time}
         </span>
@@ -161,7 +163,9 @@ function TimeActionGroup({
           onClick={action.onClick}
           title={action.title}
           aria-label={action.label ? undefined : action.title}
-          className="pointer-events-auto flex items-center gap-1 px-2.5 first:pl-3 last:pr-3 transition-colors hover:bg-[var(--muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--ring)]"
+          className={`surface-raised pointer-events-auto flex h-7 items-center gap-1 rounded-full transition-transform active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] ${
+            action.label ? "px-2.5" : "w-7 justify-center"
+          }`}
         >
           <action.icon className="size-3.5" />
           {action.label}
@@ -551,12 +555,9 @@ export function WeekSection({
                               actions={cardActions}
                             />
                             {isShared && (
-                              <Badge
-                                variant="muted"
-                                className="px-1.5 py-0.5 text-[10px] font-medium"
-                              >
+                              <span className="surface-inset rounded-full px-2.5 py-1 text-[10px] font-medium">
                                 from {sharedItem?.owner_name}
-                              </Badge>
+                              </span>
                             )}
                           </div>
                         );
@@ -669,7 +670,12 @@ export function WeekSection({
                             >
                               <PlanItemDetails item={item} weekStart={weekStart} />
                               <div className="px-4 pb-4 pt-1">
-                                <Button asChild variant="outline" size="sm">
+                                <Button
+                                  asChild
+                                  variant="ghost"
+                                  size="sm"
+                                  className="surface-raised rounded-full px-3.5 text-[var(--primary)] hover:bg-[var(--card)] hover:text-[var(--primary)] active:translate-y-px"
+                                >
                                   <Link
                                     href={`/dashboard/${item.content_id}?from=planner&week=${weekStart}`}
                                   >
@@ -781,14 +787,13 @@ export function WeekSection({
                                 <div className="flex items-center gap-1 flex-wrap">
                                   <FileText className="w-3 h-3 text-[var(--accent)]" />
                                   {plannedTimeLabel && (
-                                    <Badge className="bg-white/70 px-1.5 py-0.5 text-[8px] font-semibold text-[var(--foreground)]">
+                                    <Badge className="surface-inset px-1.5 py-0.5 text-[8px] font-semibold text-[var(--foreground)]">
                                       {plannedTimeLabel}
                                     </Badge>
                                   )}
                                   {isShared && (
                                     <Badge
-                                      variant="muted"
-                                      className="rounded bg-white/60 px-1 py-0.5 text-[8px] font-medium"
+                                      className="surface-inset rounded px-1 py-0.5 text-[8px] font-medium text-[var(--foreground)]"
                                     >
                                       {sharedItem?.owner_name}
                                     </Badge>
@@ -834,7 +839,7 @@ export function WeekSection({
                                     onClick={() =>
                                       onLeaveShared(item.id, weekStart)
                                     }
-                                    className="size-5 rounded bg-white text-[10px] shadow-sm hover:bg-white"
+                                    className="size-5 surface-raised rounded text-[10px] hover:bg-[var(--card)]"
                                     title="Leave"
                                   >
                                     <Hand className="size-3" />
@@ -845,7 +850,7 @@ export function WeekSection({
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => onOpenShare(ownItem!)}
-                                      className="h-5 gap-0.5 rounded bg-white px-1.5 text-[9px] font-semibold shadow-sm hover:bg-white"
+                                      className="h-5 gap-0.5 surface-raised rounded px-1.5 text-[9px] font-semibold hover:bg-[var(--card)]"
                                       title="Share"
                                     >
                                       <Users className="size-3" />
@@ -859,7 +864,7 @@ export function WeekSection({
                                       onClick={() =>
                                         onOpenEdit(ownItem!, dateKey)
                                       }
-                                      className="size-5 rounded bg-white text-[10px] shadow-sm hover:bg-white"
+                                      className="size-5 surface-raised rounded text-[10px] hover:bg-[var(--card)]"
                                       title="Edit"
                                     >
                                       <Pencil className="size-3" />
@@ -895,14 +900,13 @@ export function WeekSection({
                                   aria-label={ui.label}
                                 />
                                 {plannedTimeLabel && (
-                                  <Badge className="bg-white/80 px-1.5 py-0.5 text-[8px] font-semibold text-[var(--foreground)]">
+                                  <Badge className="surface-inset px-1.5 py-0.5 text-[8px] font-semibold text-[var(--foreground)]">
                                     {plannedTimeLabel}
                                   </Badge>
                                 )}
                                 {isShared && (
                                   <Badge
-                                    variant="muted"
-                                    className="rounded px-1 py-0.5 text-[8px] font-medium"
+                                    className="surface-inset rounded px-1 py-0.5 text-[8px] font-medium text-[var(--foreground)]"
                                   >
                                     {sharedItem?.owner_name}
                                   </Badge>
@@ -919,7 +923,7 @@ export function WeekSection({
                                         e.stopPropagation();
                                         onShareAutoEvent(ownItem!, weekStart);
                                       }}
-                                      className="h-5 gap-0.5 rounded bg-white/90 px-1.5 text-[9px] font-semibold shadow-sm backdrop-blur hover:bg-white/90"
+                                      className="h-5 gap-0.5 surface-raised rounded px-1.5 text-[9px] font-semibold hover:bg-[var(--card)]"
                                       title="Share"
                                     >
                                       <Users className="size-3" />
@@ -933,7 +937,7 @@ export function WeekSection({
                                         e.stopPropagation();
                                         hideAutoEvent(item.content_id!);
                                       }}
-                                      className="size-5 rounded bg-white/90 text-[10px] shadow-sm backdrop-blur hover:bg-white/90"
+                                      className="size-5 surface-raised rounded text-[10px] hover:bg-[var(--card)]"
                                       title="Hide from plan"
                                     >
                                       <X className="size-3" />
@@ -948,7 +952,7 @@ export function WeekSection({
                                       e.stopPropagation();
                                       onLeaveShared(item.id, weekStart);
                                     }}
-                                    className="size-5 rounded bg-white/90 text-[10px] shadow-sm backdrop-blur hover:bg-white/90"
+                                    className="size-5 surface-raised rounded text-[10px] hover:bg-[var(--card)]"
                                     title="Leave"
                                   >
                                     <Hand className="size-3" />
@@ -963,7 +967,7 @@ export function WeekSection({
                                         e.stopPropagation();
                                         onOpenShare(ownItem!);
                                       }}
-                                      className="h-5 gap-0.5 rounded bg-white/90 px-1.5 text-[9px] font-semibold shadow-sm backdrop-blur hover:bg-white/90"
+                                      className="h-5 gap-0.5 surface-raised rounded px-1.5 text-[9px] font-semibold hover:bg-[var(--card)]"
                                       title="Share"
                                     >
                                       <Users className="size-3" />
@@ -979,7 +983,7 @@ export function WeekSection({
                                         e.stopPropagation();
                                         onOpenEdit(ownItem!, dateKey);
                                       }}
-                                      className="size-5 rounded bg-white/90 text-[10px] shadow-sm backdrop-blur hover:bg-white/90"
+                                      className="size-5 surface-raised rounded text-[10px] hover:bg-[var(--card)]"
                                       title="Edit"
                                     >
                                       <Pencil className="size-3" />
