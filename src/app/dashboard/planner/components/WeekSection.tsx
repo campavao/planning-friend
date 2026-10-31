@@ -750,16 +750,16 @@ export function WeekSection({
                                 <div className="flex items-center gap-1 flex-wrap">
                                   <FileText className="w-3 h-3 text-[var(--accent)]" />
                                   {plannedTimeLabel && (
-                                    <Badge className="surface-inset px-1.5 py-0.5 text-[8px] font-semibold text-[var(--foreground)]">
+                                    <span className="surface-inset inline-flex items-center rounded-full px-1.5 py-0.5 text-[8px] font-semibold text-[var(--foreground)]">
                                       {plannedTimeLabel}
-                                    </Badge>
+                                    </span>
                                   )}
                                   {isShared && (
-                                    <Badge
-                                      className="surface-inset rounded px-1 py-0.5 text-[8px] font-medium text-[var(--foreground)]"
+                                    <span
+                                      className="surface-inset inline-flex items-center rounded px-1 py-0.5 text-[8px] font-medium text-[var(--foreground)]"
                                     >
                                       {sharedItem?.owner_name}
-                                    </Badge>
+                                    </span>
                                   )}
                                 </div>
                                 <p className="flex items-start justify-between gap-0.5 text-xs font-medium">
@@ -863,16 +863,16 @@ export function WeekSection({
                                   aria-label={ui.label}
                                 />
                                 {plannedTimeLabel && (
-                                  <Badge className="surface-inset px-1.5 py-0.5 text-[8px] font-semibold text-[var(--foreground)]">
+                                  <span className="surface-inset inline-flex items-center rounded-full px-1.5 py-0.5 text-[8px] font-semibold text-[var(--foreground)]">
                                     {plannedTimeLabel}
-                                  </Badge>
+                                  </span>
                                 )}
                                 {isShared && (
-                                  <Badge
-                                    className="surface-inset rounded px-1 py-0.5 text-[8px] font-medium text-[var(--foreground)]"
+                                  <span
+                                    className="surface-inset inline-flex items-center rounded px-1 py-0.5 text-[8px] font-medium text-[var(--foreground)]"
                                   >
                                     {sharedItem?.owner_name}
-                                  </Badge>
+                                  </span>
                                 )}
                               </div>
                               <div className="relative z-10 flex gap-0.5">
