@@ -13,6 +13,7 @@ import { formatDateString, parseDateString } from "@/lib/date-utils";
 import {
   ArrowRight,
   ChevronDown,
+  Clock,
   FileText,
   Hand,
   Pencil,
@@ -21,7 +22,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { type ElementType, useMemo, useState } from "react";
 import { categoryUI } from "@/lib/categories";
 import { CategoryMark } from "@/components/category-mark";
 import { SlideOpen } from "@/components/slide-open";
@@ -119,28 +120,74 @@ function ExpandToggle({
   );
 }
 
+/** One of a card's own buttons — Share, Edit, Leave, Hide. */
+interface CardAction {
+  key: string;
+  icon: ElementType;
+  title: string;
+  /** Shown beside the icon; icon-only buttons are named by `title`. */
+  label?: string;
+  onClick: () => void;
+}
+
 /**
- * The row under a mobile card's title: the category mark on the left, and on
- * the right its Share/Edit (or Leave, or Hide) buttons — lifted above the
- * stretched toggle — and the chevron that says the card opens. `expanded` is
- * null for a card with nothing to open.
+ * The planned time and the card's buttons as one white pill, split by
+ * hairlines — they're all "about this occurrence", so they read as a unit.
+ *
+ * The time is text, not a button: the group ignores pointer events so a tap on
+ * it falls through to the card's toggle, and only the buttons opt back in.
+ * Time is always the foreground colour; on a tinted header, tinted text was
+ * the hardest thing on the card to read.
  */
-function CardActions({
+function TimeActionGroup({
+  time,
   actions,
+}: {
+  time: string | null;
+  actions: CardAction[];
+}) {
+  return (
+    <div className="relative z-10 pointer-events-none inline-flex h-8 items-stretch overflow-hidden rounded-full bg-white text-[11px] font-semibold text-[var(--foreground)] shadow-[var(--shadow-sm)] divide-x divide-[var(--border)]">
+      {time && (
+        <span className="flex items-center gap-1 pl-3 pr-2.5">
+          <Clock className="size-3 text-muted-foreground" />
+          {time}
+        </span>
+      )}
+      {actions.map((action) => (
+        <button
+          key={action.key}
+          type="button"
+          onClick={action.onClick}
+          title={action.title}
+          aria-label={action.label ? undefined : action.title}
+          className="pointer-events-auto flex items-center gap-1 px-2.5 first:pl-3 last:pr-3 transition-colors hover:bg-[var(--muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--ring)]"
+        >
+          <action.icon className="size-3.5" />
+          {action.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The row under a mobile card's title: the category mark on the left and the
+ * chevron that says the card opens on the right. Both are decoration — the
+ * row sits under a stretched toggle. `expanded` is null for a card with
+ * nothing to open.
+ */
+function CardMarkRow({
   mark,
   expanded,
 }: {
-  actions: React.ReactNode;
   mark: React.ReactNode;
   expanded: boolean | null;
 }) {
   return (
-    <div className="mt-3 flex items-center gap-1">
+    <div className="mt-3 flex items-center justify-between">
       {mark}
-      <span className="ml-auto flex items-center gap-2">
-        <span className="relative z-10 flex items-center gap-1">{actions}</span>
-        {expanded !== null && <ExpandChevron expanded={expanded} />}
-      </span>
+      {expanded !== null && <ExpandChevron expanded={expanded} />}
     </div>
   );
 }
@@ -450,78 +497,75 @@ export function WeekSection({
                         const plannedTimeLabel = formatItemTime(item);
                         const isExpanded = expandedIds.has(item.id);
 
-                        const actions =
-                          isAutoEvent ? (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  onShareAutoEvent(ownItem!, weekStart)
-                                }
-                                className="h-7 gap-1 rounded-lg bg-white px-2 text-[10px] font-semibold shadow-sm"
-                                title="Share"
+                        // Time and the card's own buttons ride together in
+                        // one white pill at the top of the card.
+                        const cardActions: CardAction[] = isAutoEvent
+                          ? [
+                              {
+                                key: "share",
+                                icon: Users,
+                                label: "Share",
+                                title: "Share",
+                                onClick: () =>
+                                  onShareAutoEvent(ownItem!, weekStart),
+                              },
+                              {
+                                key: "hide",
+                                icon: X,
+                                title: "Hide from plan",
+                                onClick: () => hideAutoEvent(item.content_id!),
+                              },
+                            ]
+                          : isShared
+                            ? [
+                                {
+                                  key: "leave",
+                                  icon: Hand,
+                                  title: "Leave",
+                                  onClick: () =>
+                                    onLeaveShared(item.id, weekStart),
+                                },
+                              ]
+                            : [
+                                {
+                                  key: "share",
+                                  icon: Users,
+                                  label: ownItem?.shared_with?.length
+                                    ? String(ownItem.shared_with.length)
+                                    : "Share",
+                                  title: "Share",
+                                  onClick: () => onOpenShare(ownItem!),
+                                },
+                                {
+                                  key: "edit",
+                                  icon: Pencil,
+                                  title: "Edit",
+                                  onClick: () => onOpenEdit(ownItem!, dateKey),
+                                },
+                              ];
+
+                        const topRow = (
+                          <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                            <TimeActionGroup
+                              time={plannedTimeLabel}
+                              actions={cardActions}
+                            />
+                            {isShared && (
+                              <Badge
+                                variant="muted"
+                                className="px-1.5 py-0.5 text-[10px] font-medium"
                               >
-                                <Users className="size-3" />
-                                Share
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                onClick={() =>
-                                  hideAutoEvent(item.content_id!)
-                                }
-                                className="size-7 rounded-lg bg-white text-xs shadow-sm"
-                                title="Hide from plan"
-                              >
-                                <X className="size-3" />
-                              </Button>
-                            </>
-                          ) : isShared ? (
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() =>
-                                onLeaveShared(item.id, weekStart)
-                              }
-                              className="size-7 rounded-lg bg-white text-xs shadow-sm"
-                              title="Leave"
-                            >
-                              <Hand className="size-3" />
-                            </Button>
-                          ) : (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => onOpenShare(ownItem!)}
-                                className="h-7 gap-1 rounded-lg bg-white px-2 text-[10px] font-semibold shadow-sm"
-                                title="Share"
-                              >
-                                <Users className="size-3" />
-                                {ownItem?.shared_with?.length
-                                  ? ownItem.shared_with.length
-                                  : "Share"}
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                onClick={() =>
-                                  onOpenEdit(ownItem!, dateKey)
-                                }
-                                className="size-7 rounded-lg bg-white text-xs shadow-sm"
-                                title="Edit"
-                              >
-                                <Pencil className="size-3" />
-                              </Button>
-                            </>
-                          );
+                                from {sharedItem?.owner_name}
+                              </Badge>
+                            )}
+                          </div>
+                        );
 
                         // Mobile cards share one header, open or closed: the
-                        // top of the item page — category pill and serif title
-                        // beside a square thumbnail. Opening only slides the
-                        // details in underneath, so the card grows rather
-                        // than changing shape.
+                        // top of the item page — serif title beside a square
+                        // thumbnail, on the category's tint. Opening only
+                        // slides the details in underneath, so the card grows
+                        // rather than changing shape.
                         if (isQuickNote) {
                           // A note with no body has nothing to expand into.
                           const canExpand = !!item.notes?.trim();
@@ -538,26 +582,9 @@ export function WeekSection({
                                     onToggle={() => toggleExpanded(item.id)}
                                   />
                                 )}
-                                {(plannedTimeLabel || isShared) && (
-                                  <div className="flex items-center gap-1.5 flex-wrap mb-2">
-                                    {plannedTimeLabel && (
-                                      <Badge className="bg-white/70 px-2 py-0.5 text-[10px] font-semibold text-[var(--accent)]">
-                                        {plannedTimeLabel}
-                                      </Badge>
-                                    )}
-                                    {isShared && (
-                                      <Badge
-                                        variant="muted"
-                                        className="px-1.5 py-0.5 text-[10px] font-medium"
-                                      >
-                                        from {sharedItem?.owner_name}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                )}
+                                {topRow}
                                 <h3 className="heading-2">{item.note_title}</h3>
-                                <CardActions
-                                  actions={actions}
+                                <CardMarkRow
                                   mark={<CategoryMark category="other" as={NOTE_MARK} />}
                                   expanded={canExpand ? isExpanded : null}
                                 />
@@ -576,9 +603,6 @@ export function WeekSection({
                           );
                         }
 
-                        const ui = categoryUI(
-                          item.content?.category || "other",
-                        );
                         const title = item.content?.title ?? "item";
 
                         // Content item display (mobile)
@@ -587,7 +611,9 @@ export function WeekSection({
                             key={item.id}
                             // The tint is the header's: the details slide in
                             // on white below it.
-                            className={`group rounded-xl border border-[var(--border)] ${ui.bg}`}
+                            className={`group rounded-xl border border-[var(--border)] ${
+                              categoryUI(item.content?.category || "other").bg
+                            }`}
                           >
                             <div className="relative flex gap-3.5 px-4 pt-4 items-start">
                               <ExpandToggle
@@ -596,26 +622,7 @@ export function WeekSection({
                                 onToggle={() => toggleExpanded(item.id)}
                               />
                               <div className="flex-1 min-w-0">
-                                {/* The tint names the category; the pill that
-                                    used to spell it out is now just the mark
-                                    in the row below. */}
-                                {(plannedTimeLabel || isShared) && (
-                                  <div className="flex items-center gap-1.5 flex-wrap mb-2">
-                                    {plannedTimeLabel && (
-                                      <Badge className="bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-[var(--foreground)]">
-                                        {plannedTimeLabel}
-                                      </Badge>
-                                    )}
-                                    {isShared && (
-                                      <Badge
-                                        variant="muted"
-                                        className="px-1.5 py-0.5 text-[10px] font-medium"
-                                      >
-                                        from {sharedItem?.owner_name}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                )}
+                                {topRow}
                                 <h3
                                   className={`heading-2 ${
                                     isExpanded ? "" : "line-clamp-2"
@@ -647,8 +654,7 @@ export function WeekSection({
                                 onToggle={() => toggleExpanded(item.id)}
                                 hidden
                               />
-                              <CardActions
-                                actions={actions}
+                              <CardMarkRow
                                 mark={
                                   <CategoryMark
                                     category={item.content?.category || "other"}
@@ -775,7 +781,7 @@ export function WeekSection({
                                 <div className="flex items-center gap-1 flex-wrap">
                                   <FileText className="w-3 h-3 text-[var(--accent)]" />
                                   {plannedTimeLabel && (
-                                    <Badge className="bg-white/70 px-1.5 py-0.5 text-[8px] font-semibold text-[var(--accent)]">
+                                    <Badge className="bg-white/70 px-1.5 py-0.5 text-[8px] font-semibold text-[var(--foreground)]">
                                       {plannedTimeLabel}
                                     </Badge>
                                   )}
@@ -889,10 +895,7 @@ export function WeekSection({
                                   aria-label={ui.label}
                                 />
                                 {plannedTimeLabel && (
-                                  <Badge
-                                    variant="accent"
-                                    className="px-1.5 py-0.5 text-[8px] font-semibold"
-                                  >
+                                  <Badge className="bg-white/80 px-1.5 py-0.5 text-[8px] font-semibold text-[var(--foreground)]">
                                     {plannedTimeLabel}
                                   </Badge>
                                 )}

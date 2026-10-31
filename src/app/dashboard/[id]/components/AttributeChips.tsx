@@ -97,19 +97,23 @@ interface AttributeChipsProps {
   data: Record<string, unknown> | null | undefined;
   /** Opens the plant breakdown. Without it the plant chip is not tappable. */
   onShowPlants?: () => void;
+  /** Leads the row, centred on the chips — the item page's category mark. */
+  leading?: React.ReactNode;
 }
 
 export function AttributeChips({
   category,
   data,
   onShowPlants,
+  leading,
 }: AttributeChipsProps) {
   const attributes = describeAttributes(category, data);
 
-  if (attributes.length === 0) return null;
+  if (attributes.length === 0 && !leading) return null;
 
   return (
     <div className="flex flex-wrap items-center gap-1.5 px-4 pb-3.5 pt-1.5">
+      {leading}
       {attributes.map((attribute) => (
         <Chip
           key={attribute.key}

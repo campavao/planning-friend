@@ -833,25 +833,18 @@ export default function ContentDetailPage() {
                 category now gets them; the component renders nothing for an item
                 whose fields are all absent. */}
             {!editing && (
-              <div className="flex items-start">
-                {/* Leading the chips, the way planner cards lead their button
-                    row with it. */}
-                <CategoryMark
-                  category={content.category}
-                  className="ml-4 mt-[13px] mb-3"
-                />
-                <div className="flex-1 min-w-0 -ml-2">
-                  <AttributeChips
-                    category={content.category}
-                    data={content.data as Record<string, unknown>}
-                    onShowPlants={
-                      plants.length > 0
-                        ? () => setDrawer({ kind: "plants" })
-                        : undefined
-                    }
-                  />
-                </div>
-              </div>
+              // The mark leads the chips, the way planner cards lead their
+              // bottom row with it.
+              <AttributeChips
+                category={content.category}
+                data={content.data as Record<string, unknown>}
+                onShowPlants={
+                  plants.length > 0
+                    ? () => setDrawer({ kind: "plants" })
+                    : undefined
+                }
+                leading={<CategoryMark category={content.category} />}
+              />
             )}
           </div>
 
