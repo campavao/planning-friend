@@ -11,7 +11,13 @@
 
 import { WeekSection } from "@/app/dashboard/planner/components/WeekSection";
 import type { PlanItemWithSharing } from "@/hooks/usePlanner";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 
 const items: PlanItemWithSharing[] = [
   {
@@ -101,7 +107,7 @@ function firstToggle(name: RegExp) {
 }
 
 describe("WeekSection expandable cards", () => {
-  it("opens a content card's details on tap and closes them on a second", () => {
+  it("opens a content card's details on tap and closes them on a second", async () => {
     renderWeek();
     const toggle = firstToggle(/expand lemon pasta/i);
 
@@ -119,7 +125,10 @@ describe("WeekSection expandable cards", () => {
     );
 
     fireEvent.click(firstToggle(/collapse lemon pasta/i));
-    expect(screen.queryByText("Double the garlic")).toBeNull();
+    // The details slide shut before they leave the DOM.
+    await waitFor(() =>
+      expect(screen.queryByText("Double the garlic")).toBeNull(),
+    );
   });
 
   it("expands a quick note into its body", () => {
@@ -138,7 +147,7 @@ describe("WeekSection expandable cards", () => {
   it("keeps the card's own buttons working without toggling it", () => {
     renderWeek();
     const toggle = firstToggle(/expand lemon pasta/i);
-    const card = toggle.parentElement!;
+    const card = toggle.closest<HTMLElement>(".group")!;
 
     fireEvent.click(within(card).getByTitle("Edit"));
 

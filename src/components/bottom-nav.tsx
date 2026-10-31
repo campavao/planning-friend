@@ -3,6 +3,7 @@
 import { Calendar, Gift, Home, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useHideOnScroll } from "@/hooks/useHideOnScroll";
 import { useTabPrefetch } from "@/hooks/useTabPrefetch";
 
 export const NAV_ITEMS = [
@@ -31,6 +32,10 @@ export function BottomNav() {
   // is instant instead of showing a full-screen spinner each time.
   useTabPrefetch(!!pathname?.startsWith("/dashboard"));
 
+  // Slides away while scrolling down and back on the first scroll up. Keyed
+  // on the path so every page arrives with the nav showing.
+  const hidden = useHideOnScroll(pathname);
+
   // Opening the app always lands on Home. It used to restore the last tab you
   // were on, which meant a fresh open rendered Home and then navigated away
   // from it — the app visibly built itself twice.
@@ -40,11 +45,13 @@ export function BottomNav() {
 
   return (
     <nav
-      className="md:hidden fixed left-0 right-0 z-40 ios-fixed-bottom"
+      className="md:hidden fixed left-0 right-0 z-40 ios-fixed-bottom transition-transform duration-300 ease-out motion-reduce:transition-none"
       style={{
         bottom: 0,
-        WebkitTransform: "translate3d(0,0,0)",
-        transform: "translate3d(0,0,0)",
+        // Still a 3D transform when hidden: the translate3d is the iOS fix
+        // for fixed elements jumping during scroll, so it can't be dropped.
+        WebkitTransform: `translate3d(0,${hidden ? "100%" : "0"},0)`,
+        transform: `translate3d(0,${hidden ? "100%" : "0"},0)`,
         WebkitBackfaceVisibility: "hidden",
         backfaceVisibility: "hidden",
       }}
