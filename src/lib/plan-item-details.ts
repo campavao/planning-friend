@@ -1,4 +1,5 @@
 import { describeAttributes, type ItemAttribute } from "@/lib/attributes";
+import { shortDuration } from "@/lib/short-duration";
 import type { Content, PlanItem } from "@/lib/supabase";
 
 /**
@@ -37,6 +38,12 @@ function str(data: AnyData, field: string): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
+/** A duration field, shortened for a card: "15 minutes" reads "15 min". */
+function duration(data: AnyData, field: string): string | undefined {
+  const value = str(data, field);
+  return value && shortDuration(value);
+}
+
 function strings(data: AnyData, field: string): string[] {
   const value = data[field];
   if (!Array.isArray(value)) return [];
@@ -67,8 +74,8 @@ export function planItemDetails(item: PlanItem): PlanItemDetails {
 
   const timings: string[] = [];
   if (category === "meal" || category === "drink") {
-    const prep = str(data, "prep_time");
-    const cook = str(data, "cook_time");
+    const prep = duration(data, "prep_time");
+    const cook = duration(data, "cook_time");
     const servings = str(data, "servings");
     if (prep) timings.push(`Prep ${prep}`);
     if (cook) timings.push(`Cook ${cook}`);
@@ -114,8 +121,8 @@ export function contentMeta(content: Content): string | undefined {
     switch (content.category) {
       case "meal":
       case "drink": {
-        const prep = str(data, "prep_time");
-        const cook = str(data, "cook_time");
+        const prep = duration(data, "prep_time");
+        const cook = duration(data, "cook_time");
         const servings = str(data, "servings");
         return [
           prep && `${prep} prep`,

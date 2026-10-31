@@ -64,7 +64,7 @@ function Chip({
   // Information is pressed in; the one chip that does something — plants,
   // which opens its breakdown — stands up like any other button.
   const className = cn(
-    "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-semibold",
+    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[12.5px] font-semibold align-middle",
     onClick ? "surface-raised" : "surface-inset"
   );
 
@@ -100,6 +100,8 @@ interface AttributeChipsProps {
   onShowPlants?: () => void;
   /** Leads the row, centred on the chips — the item page's category mark. */
   leading?: React.ReactNode;
+  /** Overrides the row's own padding, for a parent that pads it. */
+  className?: string;
 }
 
 export function AttributeChips({
@@ -107,13 +109,23 @@ export function AttributeChips({
   data,
   onShowPlants,
   leading,
+  className,
 }: AttributeChipsProps) {
   const attributes = describeAttributes(category, data);
 
   if (attributes.length === 0 && !leading) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5 px-4 pb-3.5 pt-1.5">
+    // Inline chips in a plain block rather than a flex row: inline content
+    // flows around a floated element line by line, which lets the item page's
+    // chips start beside its photo and run full width beneath it. A flex row
+    // would be squeezed beside the photo for its whole height.
+    <div
+      className={cn(
+        "px-4 pb-2 pt-1.5 [&>*]:mb-1.5 [&>*]:mr-1.5",
+        className
+      )}
+    >
       {leading}
       {attributes.map((attribute) => (
         <Chip

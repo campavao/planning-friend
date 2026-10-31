@@ -1,5 +1,6 @@
 import type { ContentCategory } from "@/lib/db/types";
 import { countPlants, readPlants } from "@/lib/plants";
+import { shortDuration } from "@/lib/short-duration";
 
 /**
  * The at-a-glance attributes of any saved item (PLA-59).
@@ -107,7 +108,8 @@ export function describeAttributes(
       // A drink's `difficulty` is the same scale as a recipe's `effort` —
       // deliberately the same three values — so it keys the same way.
       push(out, "effort", difficulty ? EFFORT_LABELS[difficulty] : undefined);
-      push(out, "prep", str(d, "prep_time"));
+      const prep = str(d, "prep_time");
+      push(out, "prep", prep && shortDuration(prep));
       break;
     }
 

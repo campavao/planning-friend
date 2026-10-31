@@ -25,6 +25,7 @@ import { NOTE_COMPOSER_PARAM, NOTE_COMPOSER_VALUE } from "@/lib/constants";
 import { isFavorite, saveFavorite } from "@/lib/favorites";
 import { getGoogleMapsUrl, getUberUrl } from "@/lib/map-links";
 import { readPlants } from "@/lib/plants";
+import { shortDuration } from "@/lib/short-duration";
 import type {
   ContentCategory,
   CustomSection,
@@ -39,6 +40,7 @@ import { diffContentData, hasManualEdits } from "@/lib/schemas/content";
 import {
   ArrowLeft,
   BookmarkPlus,
+  ChevronRight,
   Calendar,
   CalendarPlus,
   Car,
@@ -71,6 +73,8 @@ import {
 import Image from "next/image";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import useSWR from "swr";
+import { fetcher } from "@/lib/swr-config";
 import { useSession } from "../useSession";
 import { categoryUI } from "@/lib/categories";
 import { isImageSourcedItem, isVideoSourceUrl } from "@/lib/content-source";
@@ -109,6 +113,10 @@ function getSourceLinkText(url: string): string {
  *  left a visible well of dead space once tags came off the page and the text
  *  column got short. Tilted in a white border, like the photo tucked into a
  *  planner card, so the two read as the same item. */
+/** A raised action button, as on the cards (.surface-raised in globals.css). */
+const RAISED_BUTTON =
+  "surface-raised rounded-full px-3.5 hover:bg-[var(--card)] active:translate-y-px";
+
 const THUMBNAIL_CLASS =
   "relative shrink-0 block w-[92px] h-[92px] rounded-2xl overflow-hidden border-[3px] border-white bg-[var(--muted)] shadow-[var(--shadow-lg)] rotate-[4deg] transition-transform duration-300 ease-out hover:rotate-[7deg] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]";
 
@@ -159,6 +167,7 @@ type OpenDrawer =
   | { kind: "location"; value: string }
   | { kind: "when" }
   | { kind: "plan" }
+  | { kind: "give" }
   | { kind: "eating" }
   | { kind: "notes" }
   | { kind: "plants" }
@@ -267,6 +276,9 @@ export default function ContentDetailPage() {
   const [copying, setCopying] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<OpenDrawer>({ kind: "none" });
+  // Who a gift was just given to, for the button to say so for a moment.
+  const [givenTo, setGivenTo] = useState<string | null>(null);
+  const [giving, setGiving] = useState(false);
   const [planningDay, setPlanningDay] = useState<string | null>(null);
   const [plannedLabel, setPlannedLabel] = useState<string | null>(null);
   const [photoOpen, setPhotoOpen] = useState(false);
@@ -319,6 +331,33 @@ export default function ContentDetailPage() {
       router.push("/dashboard/collection");
     }
   }, [router, searchParams, user]);
+
+  // The people a gift can go to, fetched only once the picker opens.
+  const { data: giveData } = useSWR<{ recipients: { id: string; name: string }[] }>(
+    drawer.kind === "give" ? "/api/gifts/recipients" : null,
+    fetcher
+  );
+  const giveRecipients = giveData?.recipients;
+
+  const handleGive = async (recipientId: string, name: string) => {
+    if (!content) return;
+    setGiving(true);
+    try {
+      const res = await fetch("/api/gifts/assignments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipientId, contentId: content.id }),
+      });
+      if (!res.ok) throw new Error("Failed to add gift");
+      setDrawer({ kind: "none" });
+      setGivenTo(name);
+      setTimeout(() => setGivenTo(null), 2500);
+    } catch (error) {
+      console.error("Failed to give gift:", error);
+    } finally {
+      setGiving(false);
+    }
+  };
 
   const handleShare = useCallback(async () => {
     const url = `${window.location.origin}/dashboard/${id}`;
@@ -616,6 +655,10 @@ export default function ContentDetailPage() {
 
   const eventData = content.data as EventData;
   const eventWhen = [eventData.date, eventData.time].filter(Boolean).join(" · ");
+  const ticketLink =
+    content.category === "event" ? eventData.ticket_link : undefined;
+  const reservationLink =
+    content.category === "event" ? eventData.reservation_link : undefined;
   const plannerQuery = toPlannerDateParams(eventData.date);
   const mealData = content.data as MealData;
   const plants = readPlants(mealData.plants);
@@ -712,46 +755,12 @@ export default function ContentDetailPage() {
           </Card>
         )}
 
-        {/* Shared item banner — anyone can view, only the owner can edit */}
-        {!isEditable && content.status === "completed" && (
-          <Card className="p-4 mb-6 animate-slide-up">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="font-semibold">
-                  {ownerName ? `Shared by ${ownerName}` : "Shared item"}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {user
-                    ? "Save a copy to your collection to edit it"
-                    : "Sign in to save it to your own collection"}
-                </p>
-              </div>
-              {user ? (
-                <Button onClick={handleCopyToCollection} disabled={copying}>
-                  <BookmarkPlus className="w-4 h-4 mr-2" />
-                  {copying ? "Saving..." : "Save to my collection"}
-                </Button>
-              ) : (
-                <Button onClick={() => router.push("/")}>Sign In</Button>
-              )}
-            </div>
-            {copyError && (
-              <p className="text-destructive text-sm mt-2">{copyError}</p>
-            )}
-          </Card>
-        )}
-
         <Card className="overflow-hidden animate-slide-up">
           {/* The header — title, thumbnail, chips — takes the category's tint;
               everything below stays on the card's white. */}
           <div className={editing ? undefined : config.bg}>
-            {/* Hero — title block left, thumbnail right. The image used to be a
-                320px banner above the fold; demoting it puts the facts first,
-                which is what people open a saved item for. Tags are deliberately
-                not shown: they still exist on the item, but the structured rows
-                below are what this view is now organised around. */}
-            <div className="flex gap-3.5 px-4 pt-4 pb-3 items-start">
-              <div className="flex-1 min-w-0">
+            {editing ? (
+              <div className="px-4 pt-4 pb-3">
                 {editing ? (
                   // Changing the category leaves `data` alone — see the reasoning
                   // in PATCH /api/content/[id]. The fields below simply swap to
@@ -772,97 +781,115 @@ export default function ContentDetailPage() {
                     </SelectContent>
                   </Select>
                 ) : null}
-
-                {editing ? (
-                  <Input
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    className="text-xl font-semibold mt-2"
-                    placeholder="Title"
-                    aria-label="Title"
-                  />
-                ) : (
-                  <>
-                    {/* An event's when is the first thing you read about it,
-                        so it sits above the title. */}
-                    {content.category === "event" && eventWhen && (
-                      <p className={`mb-1 text-[13px] font-semibold ${config.text}`}>
-                        {eventWhen}
-                      </p>
-                    )}
-                    {/* No category pill above: the card's tint says what kind
-                        of item this is, and the icon leading the chips names
-                        it. */}
-                    <h1 className="heading-2">{content.title}</h1>
-                  </>
-                )}
+                <Input
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="text-xl font-semibold mt-2"
+                  placeholder="Title"
+                  aria-label="Title"
+                />
               </div>
-
-              {content.thumbnail_url &&
-                !editing &&
-                (thumbnailPlaysSource ? (
-                  <a
-                    href={content.tiktok_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={THUMBNAIL_CLASS}
-                    aria-label={getSourceLinkText(content.tiktok_url)}
-                  >
-                    <ThumbnailBody
-                      src={content.thumbnail_url}
-                      alt={content.title}
-                      icon={Play}
+            ) : (
+              // Hero: the thumbnail floats right and the title and chips flow
+              // around it, so a short title doesn't leave a well of space
+              // while the chips wait for the photo to end. (The image used to
+              // be a 320px banner; demoting it puts the facts first.) flow-root
+              // keeps the float inside the hero.
+              <div className="flow-root px-4 pt-4">
+                {content.thumbnail_url && (
+                  <div className="float-right ml-3.5 mb-2">
+                {content.thumbnail_url &&
+                  (thumbnailPlaysSource ? (
+                    <a
+                      href={content.tiktok_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={THUMBNAIL_CLASS}
+                      aria-label={getSourceLinkText(content.tiktok_url)}
+                    >
+                      <ThumbnailBody
+                        src={content.thumbnail_url}
+                        alt={content.title}
+                        icon={Play}
+                      />
+                    </a>
+                  ) : (
+                    /* The thumbnail is the trigger, so Radix returns focus here
+                       when the viewer closes. */
+                    <PhotoViewerDialog
+                      open={photoOpen}
+                      onOpenChange={setPhotoOpen}
+                      imageUrl={content.thumbnail_url}
+                      itemTitle={content.title}
+                      title={content.title}
+                      trigger={
+                        <button
+                          type="button"
+                          className={THUMBNAIL_CLASS}
+                          aria-label="View full size"
+                        >
+                          <ThumbnailBody
+                            src={content.thumbnail_url}
+                            alt={content.title}
+                            icon={Maximize2}
+                          />
+                        </button>
+                      }
                     />
-                  </a>
-                ) : (
-                  /* The thumbnail is the trigger, so Radix returns focus here
-                     when the viewer closes. */
-                  <PhotoViewerDialog
-                    open={photoOpen}
-                    onOpenChange={setPhotoOpen}
-                    imageUrl={content.thumbnail_url}
-                    itemTitle={content.title}
-                    title={content.title}
-                    trigger={
-                      <button
-                        type="button"
-                        className={THUMBNAIL_CLASS}
-                        aria-label="View full size"
-                      >
-                        <ThumbnailBody
-                          src={content.thumbnail_url}
-                          alt={content.title}
-                          icon={Maximize2}
-                        />
-                      </button>
-                    }
-                  />
-                ))}
-            </div>
+                  ))}
+                  </div>
+                )}
 
-            {/* Attributes sit directly under the title — they are the
-                at-a-glance answer to "is this the one for tonight". Every
-                category now gets them; the component renders nothing for an item
-                whose fields are all absent. */}
-            {!editing && (
-              // The category icon leads the chips — the same marker planner
-              // cards carry in their time chip.
-              <AttributeChips
-                category={content.category}
-                data={content.data as Record<string, unknown>}
-                onShowPlants={
-                  plants.length > 0
-                    ? () => setDrawer({ kind: "plants" })
-                    : undefined
-                }
-                leading={
-                  <TypeChip
-                    category={content.category}
-                    className="px-3 py-1.5 text-[12.5px] [&>svg]:size-[15px]"
-                  />
-                }
-              />
+                {/* A line over the title for what to read first: whose item
+                    this is, when it isn't yours; an event's when. */}
+                {!isEditable && content.status === "completed" && (
+                  <p className="mb-1 text-[13px] font-semibold text-muted-foreground">
+                    {ownerName ? `Shared by ${ownerName}` : "Shared with you"}
+                  </p>
+                )}
+                {content.category === "event" &&
+                  eventWhen &&
+                  (isEditable ? (
+                    // The one place the date shows: tapping it does what the
+                    // date row below the header used to.
+                    <button
+                      type="button"
+                      onClick={() => setDrawer({ kind: "when" })}
+                      className={`mb-1 inline-flex items-center gap-0.5 rounded-md text-[13px] font-semibold ${config.text} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]`}
+                    >
+                      {eventWhen}
+                      <ChevronRight className="size-3.5" />
+                    </button>
+                  ) : (
+                    <p className={`mb-1 text-[13px] font-semibold ${config.text}`}>
+                      {eventWhen}
+                    </p>
+                  ))}
+                {/* No category pill: the tint says what kind of item this is,
+                    and the icon leading the chips names it. */}
+                <h1 className="heading-2">{content.title}</h1>
+
+                {/* Attributes sit directly under the title — the at-a-glance
+                    answer to "is this the one for tonight". */}
+                <AttributeChips
+                  category={content.category}
+                  data={content.data as Record<string, unknown>}
+                  onShowPlants={
+                    plants.length > 0
+                      ? () => setDrawer({ kind: "plants" })
+                      : undefined
+                  }
+                  leading={
+                    <TypeChip
+                      category={content.category}
+                      className="px-2.5 py-1.5 align-middle text-[12.5px] [&>svg]:size-[15px]"
+                    />
+                  }
+                  className="px-0 pt-3"
+                />
+              </div>
             )}
+
             {!editing &&
               (content.category === "meal" || content.category === "drink") && (
                 <RecipeStats
@@ -871,36 +898,102 @@ export default function ContentDetailPage() {
                   servings={mealData.servings}
                 />
               )}
+
             {/* The page's own actions, up where they're seen — they lived
-                only in the overflow menu. Raised, like every button on the
-                cards. Not a bar pinned to the screen's foot: the tab bar
-                already lives there, sliding in and out with the scroll. */}
+                only in the overflow menu, and the item's links (tickets) and
+                the shared-item save sat apart at the foot of the page or in a
+                card of their own. Raised, like every button on the cards; the
+                first is the one this item is for, in the primary colour. Not a
+                bar pinned to the screen's foot: the tab bar already lives
+                there, sliding in and out with the scroll. */}
             {!editing && content.status === "completed" && (
-              <div className="flex flex-wrap gap-2 px-4 pb-4">
-                {isEditable && (
+              <div className="px-4 pb-4">
+                <div className="flex flex-wrap gap-2">
+                  {ticketLink && (
+                    <Button asChild variant="ghost" size="sm" className={`${RAISED_BUTTON} text-[var(--primary)] hover:text-[var(--primary)]`}>
+                      <a href={ticketLink} target="_blank" rel="noopener noreferrer">
+                        <Ticket className="size-4" />
+                        Tickets
+                      </a>
+                    </Button>
+                  )}
+                  {reservationLink && (
+                    <Button asChild variant="ghost" size="sm" className={RAISED_BUTTON}>
+                      <a href={reservationLink} target="_blank" rel="noopener noreferrer">
+                        <Calendar className="size-4" />
+                        Reserve
+                      </a>
+                    </Button>
+                  )}
+                  {isEditable &&
+                    (content.category === "gift_idea" ? (
+                      // A gift is planned for a person, not a day.
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDrawer({ kind: "give" })}
+                        className={`${RAISED_BUTTON} ${
+                          ticketLink ? "" : "text-[var(--primary)] hover:text-[var(--primary)]"
+                        }`}
+                      >
+                        {givenTo ? <Check className="size-4" /> : <Gift className="size-4" />}
+                        {givenTo ? `Added for ${givenTo}` : "Give to someone"}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDrawer({ kind: "plan" })}
+                        className={`${RAISED_BUTTON} ${
+                          ticketLink ? "" : "text-[var(--primary)] hover:text-[var(--primary)]"
+                        }`}
+                      >
+                        <CalendarPlus className="size-4" />
+                        Add to planner
+                      </Button>
+                    ))}
+                  {!isEditable &&
+                    (user ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleCopyToCollection}
+                        disabled={copying}
+                        className={`${RAISED_BUTTON} text-[var(--primary)] hover:text-[var(--primary)]`}
+                      >
+                        <BookmarkPlus className="size-4" />
+                        {copying ? "Saving…" : "Save to my collection"}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => router.push("/")}
+                        className={`${RAISED_BUTTON} text-[var(--primary)] hover:text-[var(--primary)]`}
+                      >
+                        <BookmarkPlus className="size-4" />
+                        Sign in to save
+                      </Button>
+                    ))}
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setDrawer({ kind: "plan" })}
-                    className="surface-raised rounded-full px-3.5 text-[var(--primary)] hover:bg-[var(--card)] hover:text-[var(--primary)] active:translate-y-px"
+                    onClick={handleShare}
+                    className={RAISED_BUTTON}
                   >
-                    <CalendarPlus className="size-4" />
-                    Add to planner
+                    {linkCopied ? (
+                      <Check className="size-4" />
+                    ) : (
+                      <Share2 className="size-4" />
+                    )}
+                    {linkCopied ? "Link copied" : "Share"}
                   </Button>
+                </div>
+                {copyError && (
+                  <p className="text-destructive text-sm mt-2" role="alert">
+                    {copyError}
+                  </p>
                 )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleShare}
-                  className="surface-raised rounded-full px-3.5 hover:bg-[var(--card)] active:translate-y-px"
-                >
-                  {linkCopied ? (
-                    <Check className="size-4" />
-                  ) : (
-                    <Share2 className="size-4" />
-                  )}
-                  {linkCopied ? "Link copied" : "Share"}
-                </Button>
               </div>
             )}
           </div>
@@ -1174,6 +1267,46 @@ export default function ContentDetailPage() {
       </ActionDrawer>
 
       <ActionDrawer
+        open={drawer.kind === "give"}
+        onOpenChange={closeDrawer}
+        title="Give to someone"
+        description={
+          giveRecipients && giveRecipients.length === 0
+            ? "Add the people you buy for on the Gifts page first."
+            : "Pick who this gift is for."
+        }
+      >
+        <div className="pb-2">
+          {giveRecipients === undefined ? (
+            <p className="px-3.5 py-3 text-sm text-muted-foreground">
+              Loading…
+            </p>
+          ) : giveRecipients.length === 0 ? (
+            <DrawerItem
+              icon={Gift}
+              onClick={() => {
+                closeDrawer();
+                router.push("/dashboard/gifts");
+              }}
+            >
+              Go to Gifts
+            </DrawerItem>
+          ) : (
+            giveRecipients.map((recipient) => (
+              <DrawerItem
+                key={recipient.id}
+                icon={Gift}
+                disabled={giving}
+                onClick={() => handleGive(recipient.id, recipient.name)}
+              >
+                {recipient.name}
+              </DrawerItem>
+            ))
+          )}
+        </div>
+      </ActionDrawer>
+
+      <ActionDrawer
         open={drawer.kind === "plan"}
         onOpenChange={closeDrawer}
         title={plannedLabel ? `Added to ${plannedLabel}` : "Add to planner"}
@@ -1269,8 +1402,8 @@ function RecipeStats({
   servings?: string;
 }) {
   const stats = [
-    { label: "Prep", value: prep },
-    { label: "Cook", value: cook },
+    { label: "Prep", value: prep && shortDuration(prep) },
+    { label: "Cook", value: cook && shortDuration(cook) },
     { label: "Serves", value: servings },
   ].filter((stat): stat is { label: string; value: string } => !!stat.value);
 
@@ -1395,8 +1528,9 @@ function EventContent({
   onOpen: (drawer: OpenDrawer) => void;
   canPlan: boolean;
 }) {
-  const when = [data.date, data.time].filter(Boolean).join(" · ");
-
+  // The date and the ticket/reserve links aren't here: the date sits over the
+  // title (tapping it opens what this row used to), and the links are in the
+  // header's action row.
   return (
     <>
       <ItemRows>
@@ -1423,16 +1557,6 @@ function EventContent({
         </ItemRow>
       )}
 
-      {when && (
-        <ItemRow
-          icon={Clock}
-          iconClassName="text-[var(--event)]"
-          onClick={canPlan ? () => onOpen({ kind: "when" }) : undefined}
-        >
-          {when}
-        </ItemRow>
-      )}
-
       {canPlan && (
         <ItemRow
           icon={Utensils}
@@ -1456,12 +1580,6 @@ function EventContent({
         </ItemProse>
       )}
       </ItemRows>
-      <LinkButtons
-        links={[
-          { href: data.ticket_link, label: "Tickets", icon: Ticket },
-          { href: data.reservation_link, label: "Reserve", icon: Calendar },
-        ]}
-      />
     </>
   );
 }
@@ -1535,12 +1653,8 @@ function DateIdeaContent({
 function GiftIdeaContent({ data }: { data: GiftIdeaData }) {
   return (
     <>
+      {/* No price row: the price chip in the header already says it. */}
       <ItemRows>
-        {data.cost && (
-          <ItemRow icon={Gift} iconClassName="text-[var(--gift)]" label="Price">
-            {data.cost}
-          </ItemRow>
-        )}
         {data.description && (
           <ItemProse icon={HelpCircle} label="About this gift">
             {data.description}
