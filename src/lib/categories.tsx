@@ -22,7 +22,6 @@ export interface CategoryUI {
   label: string;
   text: string; // text-color class
   bg: string; // background class
-  solid: string; // full-strength background class, for white-on-colour marks
   badge: "meal" | "drink" | "event" | "date" | "gift" | "travel" | "other"; // ui/badge variant
 }
 
@@ -33,7 +32,6 @@ export const CATEGORY_UI: Record<string, CategoryUI> = {
     badge: "meal",
     text: "text-[var(--meal)]",
     bg: "bg-[var(--meal-bg)]",
-    solid: "bg-[var(--meal)]",
   },
   drink: {
     icon: Coffee,
@@ -41,7 +39,6 @@ export const CATEGORY_UI: Record<string, CategoryUI> = {
     badge: "drink",
     text: "text-[var(--drink)]",
     bg: "bg-[var(--drink-bg)]",
-    solid: "bg-[var(--drink)]",
   },
   event: {
     icon: Calendar,
@@ -49,7 +46,6 @@ export const CATEGORY_UI: Record<string, CategoryUI> = {
     badge: "event",
     text: "text-[var(--event)]",
     bg: "bg-[var(--event-bg)]",
-    solid: "bg-[var(--event)]",
   },
   date_idea: {
     icon: Heart,
@@ -57,7 +53,6 @@ export const CATEGORY_UI: Record<string, CategoryUI> = {
     badge: "date",
     text: "text-[var(--date)]",
     bg: "bg-[var(--date-bg)]",
-    solid: "bg-[var(--date)]",
   },
   gift_idea: {
     icon: Gift,
@@ -65,7 +60,6 @@ export const CATEGORY_UI: Record<string, CategoryUI> = {
     badge: "gift",
     text: "text-[var(--gift)]",
     bg: "bg-[var(--gift-bg)]",
-    solid: "bg-[var(--gift)]",
   },
   travel: {
     icon: Plane,
@@ -73,7 +67,6 @@ export const CATEGORY_UI: Record<string, CategoryUI> = {
     badge: "travel",
     text: "text-[var(--travel)]",
     bg: "bg-[var(--travel-bg)]",
-    solid: "bg-[var(--travel)]",
   },
   other: {
     icon: Pin,
@@ -81,7 +74,6 @@ export const CATEGORY_UI: Record<string, CategoryUI> = {
     badge: "other",
     text: "text-[var(--other)]",
     bg: "bg-[var(--other-bg)]",
-    solid: "bg-[var(--other)]",
   },
 };
 

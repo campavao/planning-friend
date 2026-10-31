@@ -80,7 +80,7 @@ import { ItemNotes } from "./components/ItemNotes";
 import { ContentDataEditor } from "./components/ContentDataEditor";
 import { ItemProse, ItemRow, ItemRows } from "./components/ItemRow";
 import { AttributeChips } from "./components/AttributeChips";
-import { CategoryMark } from "@/components/category-mark";
+import { TypeChip } from "@/components/type-chip";
 import { PlantDrawer } from "./components/PlantDrawer";
 import { SectionEditorDrawer } from "./components/SectionEditorDrawer";
 import { toPlannerDateParams } from "@/lib/event-date";
@@ -833,8 +833,8 @@ export default function ContentDetailPage() {
                 category now gets them; the component renders nothing for an item
                 whose fields are all absent. */}
             {!editing && (
-              // The mark leads the chips, the way planner cards lead their
-              // bottom row with it.
+              // The item's emoji leads the chips — the same marker planner
+              // cards carry in their time chip.
               <AttributeChips
                 category={content.category}
                 data={content.data as Record<string, unknown>}
@@ -843,7 +843,12 @@ export default function ContentDetailPage() {
                     ? () => setDrawer({ kind: "plants" })
                     : undefined
                 }
-                leading={<CategoryMark category={content.category} />}
+                leading={
+                  <TypeChip
+                    category={content.category}
+                    className="px-3 py-1.5 text-[12.5px]"
+                  />
+                }
               />
             )}
           </div>

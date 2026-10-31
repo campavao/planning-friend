@@ -23,8 +23,7 @@ import {
 import Link from "next/link";
 import { type ElementType, useMemo, useState } from "react";
 import { categoryUI } from "@/lib/categories";
-import { categoryEmoji } from "@/lib/constants";
-import { CategoryMark } from "@/components/category-mark";
+import { TypeChip } from "@/components/type-chip";
 import { SlideOpen } from "@/components/slide-open";
 import { PlanItemDetails } from "./PlanItemDetails";
 import { SuggestionStrip } from "./SuggestionStrip";
@@ -131,43 +130,20 @@ interface CardAction {
 }
 
 /**
- * The planned time, pressed into the card as information — see .surface-inset
- * in globals.css. Always the foreground colour: on a tinted header, tinted
- * text was the hardest thing on the card to read.
- *
- * Led by the item's emoji rather than a clock: the time already says it's a
- * time, and the emoji gives the card a second, friendlier cue to its type.
+ * The row at the foot of a mobile card: its own buttons — raised, and lifted
+ * above the stretched toggle — then the chevron that says the card opens.
+ * `expanded` is null for a card with nothing to open.
  */
-function TimeChip({ time, emoji }: { time: string; emoji: string }) {
-  return (
-    <span className="surface-inset inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-[11px] font-semibold text-[var(--foreground)]">
-      <span aria-hidden className="text-xs leading-none">
-        {emoji}
-      </span>
-      {time}
-    </span>
-  );
-}
-
-/**
- * The row under a mobile card's title: the category mark on the left, and on
- * the right the card's own buttons — raised, and lifted above the stretched
- * toggle — then the chevron that says the card opens. `expanded` is null for
- * a card with nothing to open.
- */
-function CardMarkRow({
-  mark,
+function CardActionRow({
   actions,
   expanded,
 }: {
-  mark: React.ReactNode;
   actions: CardAction[];
   expanded: boolean | null;
 }) {
   return (
-    <div className="mt-3 flex items-center gap-2">
-      {mark}
-      <span className="relative z-10 ml-auto flex items-center gap-1.5">
+    <div className="mt-3 flex items-center justify-end gap-2">
+      <span className="relative z-10 flex items-center gap-1.5">
         {actions.map((action) => (
           <button
             key={action.key}
@@ -188,13 +164,6 @@ function CardMarkRow({
     </div>
   );
 }
-
-/** A quick note's stand-in for a category, in the CategoryMark slot. */
-const NOTE_MARK = {
-  icon: FileText,
-  label: "Quick note",
-  solid: "bg-[var(--accent)]",
-};
 
 function ExpandChevron({
   expanded,
@@ -541,20 +510,17 @@ export function WeekSection({
                                 },
                               ];
 
-                        const topRow = (plannedTimeLabel || isShared) && (
+                        const topRow = (
                           <div className="flex items-center gap-1.5 flex-wrap mb-2">
-                            {plannedTimeLabel && (
-                              <TimeChip
-                                time={plannedTimeLabel}
-                                emoji={
-                                  isQuickNote
-                                    ? "📝"
-                                    : categoryEmoji(
-                                        item.content?.category || "other",
-                                      )
-                                }
-                              />
-                            )}
+                            <TypeChip
+                              category={
+                                isQuickNote
+                                  ? "note"
+                                  : item.content?.category || "other"
+                              }
+                              time={plannedTimeLabel}
+                              className="h-7 px-2.5 text-[11px]"
+                            />
                             {isShared && (
                               <span className="surface-inset rounded-full px-2.5 py-1 text-[10px] font-medium">
                                 from {sharedItem?.owner_name}
@@ -586,8 +552,7 @@ export function WeekSection({
                                 )}
                                 {topRow}
                                 <h3 className="heading-2">{item.note_title}</h3>
-                                <CardMarkRow
-                                  mark={<CategoryMark category="other" as={NOTE_MARK} />}
+                                <CardActionRow
                                   actions={cardActions}
                                   expanded={canExpand ? isExpanded : null}
                                 />
@@ -657,12 +622,7 @@ export function WeekSection({
                                 onToggle={() => toggleExpanded(item.id)}
                                 hidden
                               />
-                              <CardMarkRow
-                                mark={
-                                  <CategoryMark
-                                    category={item.content?.category || "other"}
-                                  />
-                                }
+                              <CardActionRow
                                 actions={cardActions}
                                 expanded={isExpanded}
                               />
