@@ -399,7 +399,7 @@ export function WeekSection({
               ref={(el: HTMLDivElement | null) =>
                 registerDayElement(dateKey, el)
               }
-              className={`max-md:rounded-none max-md:bg-transparent max-md:shadow-none max-md:border-b max-md:border-[var(--border)] md:overflow-hidden md:hover:-translate-y-1 md:hover:shadow-[var(--shadow-lg)] ${
+              className={`max-md:rounded-none max-md:bg-transparent max-md:shadow-none md:overflow-hidden md:hover:-translate-y-1 md:hover:shadow-[var(--shadow-lg)] ${
                 isToday ? "md:ring-2 md:ring-[var(--primary)]" : ""
               } ${
                 isHighlighted
@@ -407,39 +407,40 @@ export function WeekSection({
                   : ""
               }`}
             >
-              {/* Mobile Layout: a date gutter, a hairline, then the day's
-                  cards — the shape of a calendar app's day view. */}
+              {/* Mobile Layout: like the hour labels in a calendar's day
+                  view — a small, light date off to the side, sitting on the
+                  hairline that starts the day, with the day's cards beside
+                  it. */}
               <div className="md:hidden flex">
-                <div className="w-14 shrink-0 flex flex-col items-center gap-1 pt-4 pb-3">
+                <div className="w-12 shrink-0 flex flex-col items-start">
                   <span
-                    className={`text-[11px] font-semibold uppercase tracking-wide ${
-                      isToday ? "text-[var(--primary)]" : "text-muted-foreground"
+                    className={`-translate-y-1/2 text-[11px] leading-none whitespace-nowrap ${
+                      isToday
+                        ? "font-semibold text-[var(--primary)]"
+                        : "text-muted-foreground"
                     }`}
+                    aria-label={
+                      isToday
+                        ? `${daysFull[dayIndex]} ${dayOfMonth}, today`
+                        : `${daysFull[dayIndex]} ${dayOfMonth}`
+                    }
                   >
-                    {days[dayIndex]}
-                  </span>
-                  <span
-                    className={`flex size-10 items-center justify-center rounded-full text-lg font-semibold ${
-                      isToday ? "bg-[var(--primary)] text-white" : ""
-                    }`}
-                    aria-label={isToday ? `${daysFull[dayIndex]}, today` : daysFull[dayIndex]}
-                  >
-                    {dayOfMonth}
+                    {days[dayIndex]} {dayOfMonth}
                   </span>
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    className="mt-1 size-8 rounded-full text-muted-foreground hover:bg-[var(--muted)]"
+                    className="mt-1 -ml-1.5 size-7 rounded-full text-muted-foreground/70 hover:bg-[var(--muted)]"
                     onClick={() => onOpenAdd(dateKey)}
                     title={`Add to ${daysFull[dayIndex]}`}
                     aria-label={`Add to ${daysFull[dayIndex]}`}
                   >
-                    <Plus className="size-4" />
+                    <Plus className="size-3.5" />
                   </Button>
                 </div>
                 {/* Room on the right and top for each card's thumbnail,
                     which overhangs its corner. */}
-                <div className="flex-1 min-w-0 border-l border-[var(--border)] pl-3 pr-3 pt-5 pb-4">
+                <div className="flex-1 min-w-0 border-t border-l border-[var(--border)] pl-3 pr-3 pt-6 pb-5">
                   {destinationByDay[dayIndex] && (
                     <Badge
                       variant="travel"
