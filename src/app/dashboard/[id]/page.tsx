@@ -107,9 +107,10 @@ function getSourceLinkText(url: string): string {
 
 /** Square, and no taller than the title block beside it. A portrait thumbnail
  *  left a visible well of dead space once tags came off the page and the text
- *  column got short. */
+ *  column got short. Tilted in a white border, like the photo tucked into a
+ *  planner card, so the two read as the same item. */
 const THUMBNAIL_CLASS =
-  "relative shrink-0 block w-[92px] h-[92px] rounded-2xl overflow-hidden border border-[var(--border)] bg-[var(--muted)] shadow-[var(--shadow-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]";
+  "relative shrink-0 block w-[92px] h-[92px] rounded-2xl overflow-hidden border-[3px] border-white bg-[var(--muted)] shadow-[var(--shadow-lg)] rotate-[4deg] transition-transform duration-300 ease-out hover:rotate-[7deg] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]";
 
 /** What sits inside the thumbnail. Shared by the two things it can be — a
  *  button that expands the image, or a link that opens the video — so only the
@@ -614,6 +615,7 @@ export default function ContentDetailPage() {
     !!content.thumbnail_url && isVideoSourceUrl(content.tiktok_url);
 
   const eventData = content.data as EventData;
+  const eventWhen = [eventData.date, eventData.time].filter(Boolean).join(" · ");
   const plannerQuery = toPlannerDateParams(eventData.date);
   const mealData = content.data as MealData;
   const plants = readPlants(mealData.plants);
@@ -780,9 +782,19 @@ export default function ContentDetailPage() {
                     aria-label="Title"
                   />
                 ) : (
-                  // No category pill above: the card's tint says what kind of
-                  // item this is, and the mark beside the chips names it.
-                  <h1 className="heading-2">{content.title}</h1>
+                  <>
+                    {/* An event's when is the first thing you read about it,
+                        so it sits above the title. */}
+                    {content.category === "event" && eventWhen && (
+                      <p className={`mb-1 text-[13px] font-semibold ${config.text}`}>
+                        {eventWhen}
+                      </p>
+                    )}
+                    {/* No category pill above: the card's tint says what kind
+                        of item this is, and the icon leading the chips names
+                        it. */}
+                    <h1 className="heading-2">{content.title}</h1>
+                  </>
                 )}
               </div>
 
@@ -850,6 +862,46 @@ export default function ContentDetailPage() {
                   />
                 }
               />
+            )}
+            {!editing &&
+              (content.category === "meal" || content.category === "drink") && (
+                <RecipeStats
+                  prep={mealData.prep_time}
+                  cook={mealData.cook_time}
+                  servings={mealData.servings}
+                />
+              )}
+            {/* The page's own actions, up where they're seen — they lived
+                only in the overflow menu. Raised, like every button on the
+                cards. Not a bar pinned to the screen's foot: the tab bar
+                already lives there, sliding in and out with the scroll. */}
+            {!editing && content.status === "completed" && (
+              <div className="flex flex-wrap gap-2 px-4 pb-4">
+                {isEditable && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setDrawer({ kind: "plan" })}
+                    className="surface-raised rounded-full px-3.5 text-[var(--primary)] hover:bg-[var(--card)] hover:text-[var(--primary)] active:translate-y-px"
+                  >
+                    <CalendarPlus className="size-4" />
+                    Add to planner
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleShare}
+                  className="surface-raised rounded-full px-3.5 hover:bg-[var(--card)] active:translate-y-px"
+                >
+                  {linkCopied ? (
+                    <Check className="size-4" />
+                  ) : (
+                    <Share2 className="size-4" />
+                  )}
+                  {linkCopied ? "Link copied" : "Share"}
+                </Button>
+              </div>
             )}
           </div>
 
@@ -947,9 +999,12 @@ export default function ContentDetailPage() {
                   <button
                     type="button"
                     onClick={() => setDrawer({ kind: "section", index: null })}
-                    className="mt-2 mb-4 mx-2 flex items-center gap-2 px-3 py-2.5 w-[calc(100%-1rem)] rounded-2xl border border-dashed border-[var(--border-strong)] text-[13.5px] font-semibold text-muted-foreground transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)] hover:bg-[var(--card)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+                    // A quiet link at the end of the content rather than a
+                    // dashed box in the middle of it: editing is the rarer
+                    // thing to do here than reading.
+                    className="mt-1 mb-3 mx-4 inline-flex items-center gap-1.5 rounded-md text-[13px] font-semibold text-muted-foreground transition-colors hover:text-[var(--primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-3.5 h-3.5" />
                     Add section
                   </button>
                 )}
@@ -1198,9 +1253,13 @@ export default function ContentDetailPage() {
   );
 }
 
-/** Prep/cook/servings, demoted to one quiet line. They were three cards at the
- *  top; they are useful to know and not useful enough to lead with. */
-function RecipeFacts({
+/**
+ * Prep, cook and servings as a row of figures in the header, the way recipe
+ * apps lead with them. They'd been demoted to a quiet line under the
+ * ingredients, which is past where anyone deciding "tonight?" has stopped
+ * reading. Pressed in, as information is on these cards.
+ */
+function RecipeStats({
   prep,
   cook,
   servings,
@@ -1209,19 +1268,27 @@ function RecipeFacts({
   cook?: string;
   servings?: string;
 }) {
-  const parts = [
-    prep && `${prep} prep`,
-    cook && `${cook} cook`,
-    servings && `Serves ${servings}`,
-  ].filter(Boolean) as string[];
+  const stats = [
+    { label: "Prep", value: prep },
+    { label: "Cook", value: cook },
+    { label: "Serves", value: servings },
+  ].filter((stat): stat is { label: string; value: string } => !!stat.value);
 
-  if (parts.length === 0) return null;
+  if (stats.length === 0) return null;
 
   return (
-    <p className="flex items-center gap-1.5 px-2 pt-3 text-[12.5px] font-medium text-muted-foreground">
-      <Clock className="w-3.5 h-3.5" />
-      {parts.join(" · ")}
-    </p>
+    <dl className="surface-inset mx-4 mb-3 grid grid-flow-col auto-cols-fr rounded-2xl px-1 py-2.5 text-center">
+      {stats.map((stat) => (
+        <div key={stat.label} className="px-2">
+          <dt className="text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
+            {stat.label}
+          </dt>
+          <dd className="mt-0.5 text-[14px] font-semibold leading-tight">
+            {stat.value}
+          </dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -1276,11 +1343,6 @@ function MealContent({ data }: { data: MealData }) {
         recipe={data.recipe}
         equipment={data.equipment}
         variant="meal"
-      />
-      <RecipeFacts
-        prep={data.prep_time}
-        cook={data.cook_time}
-        servings={data.servings}
       />
     </div>
   );

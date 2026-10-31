@@ -157,7 +157,13 @@ export function ItemNotes({ contentId, autoOpenComposer }: ItemNotesProps) {
           Notes
         </h3>
         {!composing && (
-          <Button variant="outline" size="sm" onClick={() => setComposing(true)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setComposing(true)}
+            // Raised, like every button on the cards (.surface-raised).
+            className="surface-raised rounded-full px-3.5 text-[var(--primary)] hover:bg-[var(--card)] hover:text-[var(--primary)] active:translate-y-px"
+          >
             Add note
           </Button>
         )}
