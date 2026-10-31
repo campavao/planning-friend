@@ -12,7 +12,11 @@ import {
   CalendarCheck,
 } from "lucide-react";
 import type { ElementType } from "react";
-import { describeAttributes, type AttributeKey } from "@/lib/attributes";
+import {
+  describeAttributes,
+  type AttributeKey,
+  type ItemAttribute,
+} from "@/lib/attributes";
 import type { ContentCategory } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
@@ -56,7 +60,7 @@ function Chip({
   children,
   onClick,
 }: {
-  icon: ElementType;
+  icon: ElementType | null;
   iconClassName: string;
   children: React.ReactNode;
   onClick?: () => void;
@@ -71,7 +75,7 @@ function Chip({
   if (!onClick) {
     return (
       <span className={className}>
-        <Icon className={cn("w-[15px] h-[15px]", iconClassName)} />
+        {Icon && <Icon className={cn("w-[15px] h-[15px]", iconClassName)} />}
         {children}
       </span>
     );
@@ -87,10 +91,21 @@ function Chip({
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
       )}
     >
-      <Icon className={cn("w-[15px] h-[15px]", iconClassName)} />
+      {Icon && <Icon className={cn("w-[15px] h-[15px]", iconClassName)} />}
       {children}
     </button>
   );
+}
+
+// A price that already opens with its currency ("$9.99", "$$") would read
+// "$ $9.99" beside the dollar icon, so the symbol stands in for the icon.
+const CURRENCY_START = /^[$€£¥₹]/;
+
+function iconFor(attribute: ItemAttribute): ElementType | null {
+  if (attribute.key === "price" && CURRENCY_START.test(attribute.label)) {
+    return null;
+  }
+  return ICONS[attribute.key];
 }
 
 interface AttributeChipsProps {
@@ -130,7 +145,7 @@ export function AttributeChips({
       {attributes.map((attribute) => (
         <Chip
           key={attribute.key}
-          icon={ICONS[attribute.key]}
+          icon={iconFor(attribute)}
           iconClassName={ICON_TONES[attribute.key] ?? "text-muted-foreground"}
           onClick={attribute.key === "plants" ? onShowPlants : undefined}
         >

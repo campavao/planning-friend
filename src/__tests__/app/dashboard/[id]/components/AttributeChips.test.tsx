@@ -33,6 +33,17 @@ describe("AttributeChips", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it("doesn't double a price's own currency symbol with the dollar icon", () => {
+    // "$9.99" beside a $ icon read as "$ $9.99".
+    render(<AttributeChips category="gift_idea" data={{ cost: "$9.99" }} />);
+    expect(screen.getByText("$9.99").querySelector("svg")).toBeNull();
+  });
+
+  it("keeps the price icon when the price has no symbol of its own", () => {
+    render(<AttributeChips category="gift_idea" data={{ cost: "20 EUR" }} />);
+    expect(screen.getByText("20 EUR").querySelector("svg")).not.toBeNull();
+  });
+
   it("renders only the attributes that are present", () => {
     render(<AttributeChips category="meal" data={{ spice: "hot" }} />);
     expect(screen.getByText("Hot")).toBeInTheDocument();
