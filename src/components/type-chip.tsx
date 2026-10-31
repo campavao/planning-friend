@@ -5,11 +5,7 @@ import { cn } from "@/lib/utils";
 import { FileText } from "lucide-react";
 
 /** A planner quick note has no category; it borrows this look instead. */
-const NOTE_UI = {
-  icon: FileText,
-  label: "Quick note",
-  text: "text-[var(--accent)]",
-};
+const NOTE_UI = { icon: FileText, label: "Quick note" };
 
 /**
  * What kind of item this is, as its category icon — and, on a planner card,
@@ -30,7 +26,7 @@ export function TypeChip({
   time?: string | null;
   className?: string;
 }) {
-  const { icon: Icon, label, text } =
+  const { icon: Icon, label } =
     category === "note" ? NOTE_UI : categoryUI(category);
 
   return (
@@ -43,7 +39,9 @@ export function TypeChip({
       <Icon
         role="img"
         aria-label={label}
-        className={cn("size-3.5 shrink-0", text)}
+        // The foreground colour, like the time beside it: the card's tint
+        // already carries the category colour.
+        className="size-3.5 shrink-0"
       >
         <title>{label}</title>
       </Icon>
