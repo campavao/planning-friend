@@ -23,6 +23,7 @@ import {
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { categoryUI } from "@/lib/categories";
+import { CategoryMark } from "@/components/category-mark";
 import { SlideOpen } from "@/components/slide-open";
 import { PlanItemDetails } from "./PlanItemDetails";
 import { SuggestionStrip } from "./SuggestionStrip";
@@ -120,27 +121,36 @@ function ExpandToggle({
 
 /**
  * The row under a mobile card's title: its Share/Edit (or Leave, or Hide)
- * buttons, lifted above the stretched toggle, and the chevron that says the
- * card opens. `expanded` is null for a card with nothing to open.
+ * buttons, lifted above the stretched toggle, then — tucked at the far end —
+ * the category mark and the chevron that says the card opens. `expanded` is
+ * null for a card with nothing to open.
  */
 function CardActions({
   actions,
+  mark,
   expanded,
 }: {
   actions: React.ReactNode;
+  mark: React.ReactNode;
   expanded: boolean | null;
 }) {
   return (
     <div className="mt-3 flex items-center gap-1">
       <div className="relative z-10 flex items-center gap-1">{actions}</div>
-      {expanded !== null && (
-        <span className="ml-auto">
-          <ExpandChevron expanded={expanded} />
-        </span>
-      )}
+      <span className="ml-auto flex items-center gap-2">
+        {mark}
+        {expanded !== null && <ExpandChevron expanded={expanded} />}
+      </span>
     </div>
   );
 }
+
+/** A quick note's stand-in for a category, in the CategoryMark slot. */
+const NOTE_MARK = {
+  icon: FileText,
+  label: "Quick note",
+  text: "text-[var(--accent)]",
+};
 
 function ExpandChevron({
   expanded,
@@ -528,30 +538,27 @@ export function WeekSection({
                                     onToggle={() => toggleExpanded(item.id)}
                                   />
                                 )}
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <Badge className="bg-white/70 text-[var(--accent)]">
-                                    <FileText className="w-3.5 h-3.5" />
-                                    Note
-                                  </Badge>
-                                  {plannedTimeLabel && (
-                                    <Badge className="bg-white/70 px-2 py-0.5 text-[10px] font-semibold text-[var(--accent)]">
-                                      {plannedTimeLabel}
-                                    </Badge>
-                                  )}
-                                  {isShared && (
-                                    <Badge
-                                      variant="muted"
-                                      className="px-1.5 py-0.5 text-[10px] font-medium"
-                                    >
-                                      from {sharedItem?.owner_name}
-                                    </Badge>
-                                  )}
-                                </div>
-                                <h3 className="heading-2 mt-2">
-                                  {item.note_title}
-                                </h3>
+                                {(plannedTimeLabel || isShared) && (
+                                  <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                                    {plannedTimeLabel && (
+                                      <Badge className="bg-white/70 px-2 py-0.5 text-[10px] font-semibold text-[var(--accent)]">
+                                        {plannedTimeLabel}
+                                      </Badge>
+                                    )}
+                                    {isShared && (
+                                      <Badge
+                                        variant="muted"
+                                        className="px-1.5 py-0.5 text-[10px] font-medium"
+                                      >
+                                        from {sharedItem?.owner_name}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                )}
+                                <h3 className="heading-2">{item.note_title}</h3>
                                 <CardActions
                                   actions={actions}
+                                  mark={<CategoryMark category="other" as={NOTE_MARK} />}
                                   expanded={canExpand ? isExpanded : null}
                                 />
                               </div>
@@ -572,14 +579,13 @@ export function WeekSection({
                         const ui = categoryUI(
                           item.content?.category || "other",
                         );
-                        const Icon = ui.icon;
                         const title = item.content?.title ?? "item";
 
                         // Content item display (mobile)
                         return (
                           <div
                             key={item.id}
-                            className="group bg-white rounded-xl border border-[var(--border)]"
+                            className={`group rounded-xl ${ui.bg}`}
                           >
                             <div className="relative flex gap-3.5 px-4 pt-4 items-start">
                               <ExpandToggle
@@ -588,30 +594,28 @@ export function WeekSection({
                                 onToggle={() => toggleExpanded(item.id)}
                               />
                               <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <Badge variant={ui.badge}>
-                                    <Icon className="w-3.5 h-3.5" />
-                                    {ui.label}
-                                  </Badge>
-                                  {plannedTimeLabel && (
-                                    <Badge
-                                      variant="accent"
-                                      className="px-2 py-0.5 text-[10px] font-semibold"
-                                    >
-                                      {plannedTimeLabel}
-                                    </Badge>
-                                  )}
-                                  {isShared && (
-                                    <Badge
-                                      variant="muted"
-                                      className="px-1.5 py-0.5 text-[10px] font-medium"
-                                    >
-                                      from {sharedItem?.owner_name}
-                                    </Badge>
-                                  )}
-                                </div>
+                                {/* The tint names the category; the pill that
+                                    used to spell it out is now just the mark
+                                    in the row below. */}
+                                {(plannedTimeLabel || isShared) && (
+                                  <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                                    {plannedTimeLabel && (
+                                      <Badge className="bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-[var(--foreground)]">
+                                        {plannedTimeLabel}
+                                      </Badge>
+                                    )}
+                                    {isShared && (
+                                      <Badge
+                                        variant="muted"
+                                        className="px-1.5 py-0.5 text-[10px] font-medium"
+                                      >
+                                        from {sharedItem?.owner_name}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                )}
                                 <h3
-                                  className={`heading-2 mt-2 ${
+                                  className={`heading-2 ${
                                     isExpanded ? "" : "line-clamp-2"
                                   }`}
                                 >
@@ -643,6 +647,11 @@ export function WeekSection({
                               />
                               <CardActions
                                 actions={actions}
+                                mark={
+                                  <CategoryMark
+                                    category={item.content?.category || "other"}
+                                  />
+                                }
                                 expanded={isExpanded}
                               />
                             </div>
@@ -851,15 +860,17 @@ export function WeekSection({
                           );
                         }
 
-                        const Icon = categoryUI(
+                        const ui = categoryUI(
                           item.content?.category || "other",
-                        ).icon;
+                        );
+                        const Icon = ui.icon;
 
-                        // Content item (desktop)
+                        // Content item (desktop) — tinted like the mobile
+                        // card, with the category's own icon as its label.
                         return (
                           <div
                             key={item.id}
-                            className="group relative bg-white rounded-lg overflow-hidden border border-[var(--border)]"
+                            className={`group relative rounded-lg overflow-hidden ${ui.bg}`}
                           >
                             <ExpandToggle
                               expanded={isExpanded}
@@ -868,7 +879,10 @@ export function WeekSection({
                             />
                             <div className="flex items-center justify-between px-2 pt-2">
                               <div className="flex items-center gap-1 flex-wrap">
-                                <Icon className="w-3 h-3 text-muted-foreground" />
+                                <Icon
+                                  className={`w-3 h-3 ${ui.text}`}
+                                  aria-label={ui.label}
+                                />
                                 {plannedTimeLabel && (
                                   <Badge
                                     variant="accent"

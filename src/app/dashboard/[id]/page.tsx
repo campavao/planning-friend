@@ -80,6 +80,7 @@ import { ItemNotes } from "./components/ItemNotes";
 import { ContentDataEditor } from "./components/ContentDataEditor";
 import { ItemProse, ItemRow, ItemRows } from "./components/ItemRow";
 import { AttributeChips } from "./components/AttributeChips";
+import { CategoryMark } from "@/components/category-mark";
 import { PlantDrawer } from "./components/PlantDrawer";
 import { SectionEditorDrawer } from "./components/SectionEditorDrawer";
 import { toPlannerDateParams } from "@/lib/event-date";
@@ -599,7 +600,6 @@ export default function ContentDetailPage() {
   }
 
   const config = categoryUI(content.category);
-  const Icon = config.icon;
   const starred = isFavorite(content);
 
   // A texted-in photo has no page to visit, so there is no "open the source"
@@ -739,7 +739,7 @@ export default function ContentDetailPage() {
           </Card>
         )}
 
-        <Card className="overflow-hidden animate-slide-up">
+        <Card className={`overflow-hidden animate-slide-up ${config.bg}`}>
           {/* Hero — title block left, thumbnail right. The image used to be a
               320px banner above the fold; demoting it puts the facts first,
               which is what people open a saved item for. Tags are deliberately
@@ -766,12 +766,7 @@ export default function ContentDetailPage() {
                     <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
-              ) : (
-                <Badge variant={config.badge}>
-                  <Icon className="w-3.5 h-3.5" />
-                  {config.label}
-                </Badge>
-              )}
+              ) : null}
 
               {editing ? (
                 <Input
@@ -782,7 +777,9 @@ export default function ContentDetailPage() {
                   aria-label="Title"
                 />
               ) : (
-                <h1 className="heading-2 mt-2">{content.title}</h1>
+                // No category pill above: the card's tint says what kind of
+                // item this is, and the mark beside the chips names it.
+                <h1 className="heading-2">{content.title}</h1>
               )}
             </div>
 
@@ -833,15 +830,25 @@ export default function ContentDetailPage() {
               category now gets them; the component renders nothing for an item
               whose fields are all absent. */}
           {!editing && (
-            <AttributeChips
-              category={content.category}
-              data={content.data as Record<string, unknown>}
-              onShowPlants={
-                plants.length > 0
-                  ? () => setDrawer({ kind: "plants" })
-                  : undefined
-              }
-            />
+            <div className="flex items-start">
+              <div className="flex-1 min-w-0">
+                <AttributeChips
+                  category={content.category}
+                  data={content.data as Record<string, unknown>}
+                  onShowPlants={
+                    plants.length > 0
+                      ? () => setDrawer({ kind: "plants" })
+                      : undefined
+                  }
+                />
+              </div>
+              {/* Out of the way at the end of the chips, the way planner
+                  cards carry it at the end of their button row. */}
+              <CategoryMark
+                category={content.category}
+                className="mr-4 mt-2.5 mb-2"
+              />
+            </div>
           )}
 
           <div className="px-2 pb-6">
