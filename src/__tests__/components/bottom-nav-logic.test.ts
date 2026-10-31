@@ -6,6 +6,7 @@
 import {
   NAV_ITEMS,
   isNavItemActive,
+  scrollsToTopOnRetap,
   showsBottomNav,
 } from "@/components/bottom-nav";
 
@@ -104,5 +105,20 @@ describe("showsBottomNav", () => {
     expect(showsBottomNav("/dashboard")).toBe(true);
     expect(showsBottomNav("/dashboard/gifts")).toBe(true);
     expect(showsBottomNav("/dashboard/abc-123")).toBe(true);
+  });
+});
+
+// ============================================
+// scrollsToTopOnRetap
+// ============================================
+describe("scrollsToTopOnRetap", () => {
+  it("scrolls the list tabs back to the top", () => {
+    expect(scrollsToTopOnRetap("/dashboard")).toBe(true);
+    expect(scrollsToTopOnRetap("/dashboard/gifts")).toBe(true);
+    expect(scrollsToTopOnRetap("/dashboard/friends")).toBe(true);
+  });
+
+  it("leaves the planner where it is", () => {
+    expect(scrollsToTopOnRetap("/dashboard/planner")).toBe(false);
   });
 });

@@ -88,6 +88,7 @@ import { TypeChip } from "@/components/type-chip";
 import { PlantDrawer } from "./components/PlantDrawer";
 import { SectionEditorDrawer } from "./components/SectionEditorDrawer";
 import { toPlannerDateParams } from "@/lib/event-date";
+import { displayPrice } from "@/lib/price";
 
 // Get appropriate link text for the source URL
 function getSourceLinkText(url: string): string {
@@ -1621,7 +1622,7 @@ function DateIdeaContent({
 
       {/* Tag, not Star — a star means "favourited" everywhere else in the app,
           and this row is just the type and price. */}
-      {(data.type || data.price_range) && (
+      {(data.type || displayPrice(data.price_range)) && (
         <ItemRow icon={Tag} iconClassName="text-[var(--date)]">
           <span className="flex flex-wrap gap-2">
             {data.type && (
@@ -1629,8 +1630,8 @@ function DateIdeaContent({
                 {data.type}
               </Badge>
             )}
-            {data.price_range && (
-              <Badge variant="outline">{data.price_range}</Badge>
+            {displayPrice(data.price_range) && (
+              <Badge variant="outline">{displayPrice(data.price_range)}</Badge>
             )}
           </span>
         </ItemRow>
@@ -1798,7 +1799,7 @@ function TravelContent({
         </ItemRow>
       )}
 
-      {(data.type || data.price_range) && (
+      {(data.type || displayPrice(data.price_range)) && (
         <ItemRow icon={Tag} iconClassName="text-muted-foreground">
           <span className="flex flex-wrap gap-2">
             {data.type && (
@@ -1806,8 +1807,8 @@ function TravelContent({
                 {data.type}
               </Badge>
             )}
-            {data.price_range && (
-              <Badge variant="outline">{data.price_range}</Badge>
+            {displayPrice(data.price_range) && (
+              <Badge variant="outline">{displayPrice(data.price_range)}</Badge>
             )}
           </span>
         </ItemRow>
