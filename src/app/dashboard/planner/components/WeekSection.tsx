@@ -422,8 +422,10 @@ export function WeekSection({
                       <Skeleton className="h-16 rounded-xl" />
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      {itemsByDay[dayIndex].map((item) => {
+                    // Roomier than desktop: each card's thumbnail pops out
+                    // past its top edge, into the gap above.
+                    <div className="space-y-4">
+                      {itemsByDay[dayIndex].map((item, itemIndex) => {
                         const isShared = item.isSharedWithMe;
                         const isAutoEvent =
                           !isShared &&
@@ -577,7 +579,7 @@ export function WeekSection({
                         return (
                           <div
                             key={item.id}
-                            className="group bg-white rounded-xl overflow-hidden border border-[var(--border)]"
+                            className="group bg-white rounded-xl border border-[var(--border)]"
                           >
                             <div className="relative flex gap-3.5 px-4 pt-4 items-start">
                               <ExpandToggle
@@ -617,10 +619,18 @@ export function WeekSection({
                                 </h3>
                               </div>
                               {item.content?.thumbnail_url && (
+                                // Pops out past the card's corner, tilted like
+                                // a photo tucked into it — alternating so a
+                                // day's stack doesn't lean one way. Taps pass
+                                // through to the toggle underneath.
                                 <img
                                   src={item.content.thumbnail_url}
                                   alt=""
-                                  className="w-[92px] h-[92px] shrink-0 rounded-2xl object-cover border border-[var(--border)] shadow-[var(--shadow-sm)]"
+                                  className={`relative pointer-events-none w-[92px] h-[92px] shrink-0 -mt-7 -mr-6 rounded-2xl object-cover border-[3px] border-white shadow-[var(--shadow-lg)] transition-transform duration-300 ease-out motion-reduce:transition-none ${
+                                    itemIndex % 2 === 0
+                                      ? "rotate-[5deg] group-hover:rotate-[8deg]"
+                                      : "-rotate-[4deg] group-hover:-rotate-[7deg]"
+                                  }`}
                                 />
                               )}
                             </div>
