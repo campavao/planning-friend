@@ -25,6 +25,7 @@ import { type ElementType, useMemo, useState } from "react";
 import { categoryUI } from "@/lib/categories";
 import { TypeChip } from "@/components/type-chip";
 import { SlideOpen } from "@/components/slide-open";
+import { planItemMeta } from "@/lib/plan-item-details";
 import { PlanItemDetails } from "./PlanItemDetails";
 import { SuggestionStrip } from "./SuggestionStrip";
 import { WeekPlantScore } from "./WeekPlantScore";
@@ -126,23 +127,31 @@ interface CardAction {
   title: string;
   /** Shown beside the icon; icon-only buttons are named by `title`. */
   label?: string;
+  /** A count in a small bubble on the button — how many people it's shared with. */
+  badge?: number;
   onClick: () => void;
 }
 
 /**
- * The row at the foot of a mobile card: its own buttons — raised, and lifted
- * above the stretched toggle — then the chevron that says the card opens.
- * `expanded` is null for a card with nothing to open.
+ * The row at the foot of a mobile card: the one fact worth knowing without
+ * opening it (cook time, venue — see planItemMeta) on the left, then its own
+ * buttons — raised, and lifted above the stretched toggle — and the chevron
+ * that says the card opens. `expanded` is null for a card with nothing to open.
  */
 function CardActionRow({
+  meta,
   actions,
   expanded,
 }: {
+  meta?: string;
   actions: CardAction[];
   expanded: boolean | null;
 }) {
   return (
-    <div className="mt-3 flex items-center justify-end gap-2">
+    <div className="mt-2.5 flex items-center gap-2">
+      <span className="flex-1 min-w-0 truncate text-xs text-muted-foreground">
+        {meta}
+      </span>
       <span className="relative z-10 flex items-center gap-1.5">
         {actions.map((action) => (
           <button
@@ -151,12 +160,20 @@ function CardActionRow({
             onClick={action.onClick}
             title={action.title}
             aria-label={action.label ? undefined : action.title}
-            className={`surface-raised flex h-7 items-center gap-1 rounded-full text-[11px] font-semibold transition-transform active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] ${
+            className={`surface-raised relative flex h-7 items-center gap-1 rounded-full text-[11px] font-semibold transition-transform active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] ${
               action.label ? "px-2.5" : "w-7 justify-center"
             }`}
           >
             <action.icon className="size-3.5" />
             {action.label}
+            {!!action.badge && (
+              <span
+                aria-hidden
+                className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--primary)] px-1 text-[9px] font-bold text-white"
+              >
+                {action.badge}
+              </span>
+            )}
           </button>
         ))}
       </span>
@@ -237,6 +254,11 @@ export function WeekSection({
   };
 
   const todayKey = formatDateString(new Date());
+  const tomorrowKey = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return formatDateString(d);
+  })();
 
   const dayInfos = useMemo(() => {
     const start = parseDateString(weekStart);
@@ -341,7 +363,7 @@ export function WeekSection({
   return (
     <section className="mb-8 md:mb-3" data-week={weekStart}>
       {/* Week label (mobile only — desktop reads as a continuous calendar) */}
-      <div className="mb-2 px-1 flex md:hidden items-center justify-center gap-2 flex-wrap">
+      <div className="mb-2 flex md:hidden items-center gap-2 flex-wrap">
         <h2 className="text-base font-semibold text-muted-foreground">
           {weekRangeLabel}
         </h2>
@@ -424,9 +446,19 @@ export function WeekSection({
                         : `${daysFull[dayIndex]} ${dayOfMonth}`
                     }
                   >
+                    {isToday
+                      ? "Today · "
+                      : dateKey === tomorrowKey
+                        ? "Tomorrow · "
+                        : ""}
                     {days[dayIndex]} {dayOfMonth}
                   </span>
-                  <span aria-hidden className="h-px flex-1 bg-[var(--border)]" />
+                  <span
+                    aria-hidden
+                    className={`h-px flex-1 ${
+                      isToday ? "bg-[var(--primary)]/50" : "bg-[var(--border)]"
+                    }`}
+                  />
                   <Button
                     variant="ghost"
                     size="icon-sm"
@@ -440,7 +472,11 @@ export function WeekSection({
                 </div>
                 {/* A little room on the right and top for each card's
                     thumbnail, which overhangs its corner. */}
-                <div className="pr-2 pt-5 pb-4">
+                <div
+                  className={`pr-2 ${
+                    itemsByDay[dayIndex].length > 0 ? "pt-5 pb-4" : "pt-1 pb-3"
+                  }`}
+                >
                   {destinationByDay[dayIndex] && (
                     <Badge
                       variant="travel"
@@ -477,13 +513,13 @@ export function WeekSection({
                         const isExpanded = expandedIds.has(item.id);
 
                         // The card's own buttons, raised in the row at its
-                        // foot beside the category mark.
+                        // foot. Icon-only: the row also carries the card's
+                        // meta line, and labels would crowd it out.
                         const cardActions: CardAction[] = isAutoEvent
                           ? [
                               {
                                 key: "share",
                                 icon: Users,
-                                label: "Share",
                                 title: "Share",
                                 onClick: () =>
                                   onShareAutoEvent(ownItem!, weekStart),
@@ -509,10 +545,10 @@ export function WeekSection({
                                 {
                                   key: "share",
                                   icon: Users,
-                                  label: ownItem?.shared_with?.length
-                                    ? String(ownItem.shared_with.length)
+                                  badge: ownItem?.shared_with?.length,
+                                  title: ownItem?.shared_with?.length
+                                    ? `Shared with ${ownItem.shared_with.length}`
                                     : "Share",
-                                  title: "Share",
                                   onClick: () => onOpenShare(ownItem!),
                                 },
                                 {
@@ -564,7 +600,9 @@ export function WeekSection({
                                   />
                                 )}
                                 {topRow}
-                                <h3 className="heading-2">{item.note_title}</h3>
+                                <h3 className="font-display text-[17px] font-semibold leading-snug">
+                                  {item.note_title}
+                                </h3>
                                 <CardActionRow
                                   actions={cardActions}
                                   expanded={canExpand ? isExpanded : null}
@@ -604,8 +642,11 @@ export function WeekSection({
                               />
                               <div className="flex-1 min-w-0">
                                 {topRow}
+                                {/* Item-page serif, a size down: a planner card
+                                    is a row in a list, and at the page's size
+                                    most titles took two lines. */}
                                 <h3
-                                  className={`heading-2 ${
+                                  className={`font-display text-[17px] font-semibold leading-snug ${
                                     isExpanded ? "" : "line-clamp-2"
                                   }`}
                                 >
@@ -620,7 +661,7 @@ export function WeekSection({
                                 <img
                                   src={item.content.thumbnail_url}
                                   alt=""
-                                  className={`relative pointer-events-none w-[92px] h-[92px] shrink-0 -mt-7 -mr-6 rounded-2xl object-cover border-[3px] border-white shadow-[var(--shadow-lg)] transition-transform duration-300 ease-out motion-reduce:transition-none ${
+                                  className={`relative pointer-events-none w-20 h-20 shrink-0 -mt-6 -mr-5 rounded-2xl object-cover border-[3px] border-white shadow-[var(--shadow-lg)] transition-transform duration-300 ease-out motion-reduce:transition-none ${
                                     itemIndex % 2 === 0
                                       ? "rotate-[5deg] group-hover:rotate-[8deg]"
                                       : "-rotate-[4deg] group-hover:-rotate-[7deg]"
@@ -636,6 +677,7 @@ export function WeekSection({
                                 hidden
                               />
                               <CardActionRow
+                                meta={planItemMeta(item)}
                                 actions={cardActions}
                                 expanded={isExpanded}
                               />
@@ -665,7 +707,22 @@ export function WeekSection({
                         );
                       })}
 
-                      {showSuggestions && (
+                      {/* An empty day says so, quietly, rather than leaving a
+                          bare line — and the line is the way to fill it. */}
+                      {itemsByDay[dayIndex].length === 0 &&
+                        !(showSuggestions && suggestionsMeta.enabled) && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenAdd(dateKey)}
+                          className="text-xs text-muted-foreground/80 hover:text-[var(--primary)] transition-colors"
+                        >
+                          Nothing planned
+                        </button>
+                      )}
+
+                      {/* With suggestions off the strip only says the day is
+                          empty, which the line above already does quietly. */}
+                      {showSuggestions && suggestionsMeta.enabled && (
                         <SuggestionStrip
                           dayIndex={dayIndex}
                           picks={dayPicks}

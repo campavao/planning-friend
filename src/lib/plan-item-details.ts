@@ -95,3 +95,48 @@ export function planItemDetails(item: PlanItem): PlanItemDetails {
     note,
   };
 }
+
+/**
+ * The one line a closed planner card carries under its title — the fact you'd
+ * otherwise open the card for. Cook time for a recipe, the venue for an event,
+ * where a trip goes, what a gift costs. Two facts at most: it is one line on a
+ * phone, and a third would only ever be truncated.
+ */
+export function planItemMeta(item: PlanItem): string | undefined {
+  const content = item.content;
+  if (!content) return undefined;
+  const data = (content.data ?? {}) as AnyData;
+
+  const parts: (string | undefined)[] = (() => {
+    switch (content.category) {
+      case "meal":
+      case "drink": {
+        const prep = str(data, "prep_time");
+        const cook = str(data, "cook_time");
+        const servings = str(data, "servings");
+        return [
+          prep && `${prep} prep`,
+          cook && `${cook} cook`,
+          servings && `Serves ${servings}`,
+        ];
+      }
+      // Not the event's own time: the card's time chip already shows when
+      // it's planned, and the two read as a duplicate side by side.
+      case "event":
+        return [str(data, "location") ?? str(data, "date")];
+      case "date_idea":
+        return [str(data, "location"), str(data, "price_range")];
+      case "travel": {
+        const city = str(data, "destination_city");
+        return [city ?? str(data, "location"), str(data, "price_range")];
+      }
+      case "gift_idea":
+        return [str(data, "cost")];
+      default:
+        return [];
+    }
+  })();
+
+  const present = parts.filter((part): part is string => !!part).slice(0, 2);
+  return present.length ? present.join(" · ") : undefined;
+}

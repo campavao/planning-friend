@@ -4,7 +4,7 @@
  * an item missing those fields renders nothing rather than empty rows.
  */
 
-import { planItemDetails } from "@/lib/plan-item-details";
+import { planItemDetails, planItemMeta } from "@/lib/plan-item-details";
 import type { Content, PlanItem } from "@/lib/supabase";
 
 function planned(
@@ -110,5 +110,43 @@ describe("planItemDetails", () => {
     expect(details.location).toBeUndefined();
     expect(details.ingredients).toEqual([]);
     expect(details.note).toBeUndefined();
+  });
+});
+
+describe("planItemMeta", () => {
+  it("gives a recipe its timings, capped at two facts", () => {
+    expect(
+      planItemMeta(
+        planned("meal", { prep_time: "10 min", cook_time: "20 min", servings: "4" }),
+      ),
+    ).toBe("10 min prep · 20 min cook");
+  });
+
+  it("gives an event its venue, not the time its chip already shows", () => {
+    expect(
+      planItemMeta(planned("event", { location: "The Fillmore", time: "8pm" })),
+    ).toBe("The Fillmore");
+  });
+
+  it("prefers a trip's destination city to its venue", () => {
+    expect(
+      planItemMeta(
+        planned("travel", { destination_city: "Lisbon", location: "Hotel X" }),
+      ),
+    ).toBe("Lisbon");
+  });
+
+  it("is nothing when the item has nothing to say, or is a quick note", () => {
+    expect(planItemMeta(planned("event", {}))).toBeUndefined();
+    expect(
+      planItemMeta({
+        id: "n",
+        plan_id: "p",
+        planned_date: "2026-08-23T00:00:00Z",
+        slot_order: 0,
+        created_at: "",
+        note_title: "Call mom",
+      }),
+    ).toBeUndefined();
   });
 });
