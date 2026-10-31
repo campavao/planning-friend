@@ -39,6 +39,7 @@ import {
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import useSWR from "swr";
+import { displayPrice } from "@/lib/price";
 import { fetcher } from "@/lib/swr-config";
 import { useSession } from "../useSession";
 import { ListSkeleton } from "@/components/Skeletons";
@@ -462,9 +463,9 @@ export default function GiftPlannerPage() {
                                 {title}
                               </p>
                             )}
-                            {giftData?.cost && (
+                            {displayPrice(giftData?.cost) && (
                               <span className="surface-inset mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold">
-                                {giftData.cost}
+                                {displayPrice(giftData?.cost)}
                               </span>
                             )}
                           </div>
@@ -677,9 +678,9 @@ export default function GiftPlannerPage() {
                         </p>
                       )}
                     </div>
-                    {giftData?.cost && (
+                    {displayPrice(giftData?.cost) && (
                       <span className="surface-inset shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold">
-                        {giftData.cost}
+                        {displayPrice(giftData?.cost)}
                       </span>
                     )}
                   </button>

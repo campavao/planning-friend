@@ -1,6 +1,7 @@
 import type { ContentCategory } from "@/lib/db/types";
 import { countPlants, readPlants } from "@/lib/plants";
 import { shortDuration } from "@/lib/short-duration";
+import { displayPrice } from "@/lib/price";
 
 /**
  * The at-a-glance attributes of any saved item (PLA-59).
@@ -126,14 +127,14 @@ export function describeAttributes(
     case "date_idea": {
       const type = str(d, "type");
       push(out, "type", type ? humanise(type) : undefined);
-      push(out, "price", str(d, "price_range"));
+      push(out, "price", displayPrice(d.price_range));
       break;
     }
 
     case "travel": {
       const type = str(d, "type");
       push(out, "type", type ? humanise(type) : undefined);
-      push(out, "price", str(d, "price_range"));
+      push(out, "price", displayPrice(d.price_range));
       // City alone is ambiguous — there is a Paris in Texas — so the country
       // rides along whenever both are known.
       const city = str(d, "destination_city");
@@ -145,7 +146,7 @@ export function describeAttributes(
     case "gift_idea": {
       // Keys as `price`, not `cost`: "show me the cheap ones" is one question
       // whether it is asked of a gift or a restaurant.
-      push(out, "price", str(d, "cost"));
+      push(out, "price", displayPrice(d.cost));
       break;
     }
 

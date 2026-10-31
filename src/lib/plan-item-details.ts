@@ -1,4 +1,5 @@
 import { describeAttributes, type ItemAttribute } from "@/lib/attributes";
+import { displayPrice } from "@/lib/price";
 import { shortDuration } from "@/lib/short-duration";
 import type { Content, PlanItem } from "@/lib/supabase";
 
@@ -135,13 +136,13 @@ export function contentMeta(content: Content): string | undefined {
       case "event":
         return [str(data, "location") ?? str(data, "date")];
       case "date_idea":
-        return [str(data, "location"), str(data, "price_range")];
+        return [str(data, "location"), displayPrice(data.price_range)];
       case "travel": {
         const city = str(data, "destination_city");
-        return [city ?? str(data, "location"), str(data, "price_range")];
+        return [city ?? str(data, "location"), displayPrice(data.price_range)];
       }
       case "gift_idea":
-        return [str(data, "cost")];
+        return [displayPrice(data.cost)];
       default:
         return [];
     }

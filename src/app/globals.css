@@ -222,37 +222,26 @@
 
 /* ===== NAVIGATION ===== */
 
-.nav-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.75rem 0.5rem;
-  color: var(--muted-foreground);
-  transition: all 0.2s ease;
+/* Bottom nav tabs. Hover is for pointers that really hover: a phone keeps
+   :hover on the last thing tapped until the next tap, which left the tab you
+   just opened stuck grey. A tap gets a press instead, gone on release. */
+.nav-tab {
+  transition: background-color 0.2s ease, color 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.nav-item.active {
-  color: var(--primary);
+.nav-tab-icon {
+  transition: transform 0.15s ease;
 }
 
-.nav-item.active .nav-icon {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-  color: white;
+.nav-tab:active .nav-tab-icon {
+  transform: scale(0.88);
 }
 
-.nav-icon {
-  width: 2.5rem;
-  height: 2.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.nav-item:hover .nav-icon {
-  background: var(--muted);
+@media (hover: hover) and (pointer: fine) {
+  .nav-tab:not([data-active]):hover {
+    background-color: var(--muted);
+  }
 }
 
 /* ===== LOADING ===== */
