@@ -65,7 +65,10 @@ export function CollapsibleSection({
         />
       </button>
 
-      <div id={bodyId} hidden={!open} className="pb-4 pl-9">
+      {/* Flush with the section icon rather than indented to the title: the
+          checkboxes and step numbers already mark each row, and the indent
+          only squeezed the text on a phone. */}
+      <div id={bodyId} hidden={!open} className="pb-4">
         {children}
       </div>
     </div>
