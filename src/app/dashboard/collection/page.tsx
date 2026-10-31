@@ -1,6 +1,7 @@
 "use client";
 
 import { AddContactButton } from "@/components/add-contact-button";
+import { PageHeader } from "@/components/page-header";
 import { CategoryTabs } from "@/components/category-tabs";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -8,7 +9,6 @@ import { useContent } from "@/hooks/useContent";
 import { saveFavorite, setFavorite } from "@/lib/favorites";
 import {
   AlertCircle,
-  ArrowLeft,
   Calendar,
   Gift,
   RefreshCw,
@@ -121,7 +121,6 @@ export default function CollectionPage() {
   };
 
   // Count stats (only completed items)
-  const completedContent = content.filter((c) => c.status === "completed");
   const processingItems = content.filter((c) => c.status === "processing");
   const failedItems = content.filter((c) => c.status === "failed");
   const processingCount = processingItems.length;
@@ -130,17 +129,12 @@ export default function CollectionPage() {
   if (isInitialLoading) {
     return (
       <main className="min-h-screen pb-28 md:pb-8 bg-background">
-        <div className="sticky top-0 z-20 bg-[var(--background)]">
-          <div className="relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary-light)]/20 via-transparent to-[var(--accent)]/10" />
-            <div className="relative max-w-7xl mx-auto px-4 md:px-6 pt-4 pb-3">
-              <h1 className="heading-1">My Collection</h1>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                Loading your collection…
-              </p>
-            </div>
-          </div>
-        </div>
+        <PageHeader
+          title="Collection"
+          backHref="/dashboard"
+          backOnMobile
+          wide
+        />
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
           <CardGridSkeleton />
         </div>
@@ -150,63 +144,45 @@ export default function CollectionPage() {
 
   return (
     <main className="min-h-screen pb-28 md:pb-8 bg-background">
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-20 bg-[var(--background)]">
-        <div className="relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary-light)]/20 via-transparent to-[var(--accent)]/10" />
-          <div className="relative max-w-7xl mx-auto px-4 md:px-6 pt-4 pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {/* The collection has no bottom-nav tab of its own, so it
-                    always needs a way back up to the dashboard. */}
-                <Link href="/dashboard" aria-label="Back to home">
-                  <Button variant="ghost" size="icon" className="w-9 h-9 -ml-2">
-                    <ArrowLeft className="w-5 h-5" />
-                  </Button>
-                </Link>
-                <div>
-                  <h1 className="heading-1">
-                    My Collection
-                  </h1>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    {completedContent.length} saved items
-                  </p>
-                </div>
-              </div>
-
-              {/* Desktop Actions */}
-              <div className="hidden md:flex items-center gap-3">
-                <Link href="/dashboard/planner">
-                  <Button>
-                    <Calendar className="w-4 h-4 mr-2" />
-                    Plan Week
-                  </Button>
-                </Link>
-                <Link href="/dashboard/gifts">
-                  <Button variant="outline">
-                    <Gift className="w-4 h-4 mr-2" />
-                    Gifts
-                  </Button>
-                </Link>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleRefresh}
-                  disabled={isValidating}
-                  className="w-10 h-10 rounded-xl"
-                >
-                  <RefreshCw
-                    className={`w-4 h-4 ${isValidating ? "animate-spin" : ""}`}
-                  />
-                </Button>
-              </div>
-            </div>
+      {/* The collection has no bottom-nav tab of its own, so it always needs
+          a way back up to the dashboard. */}
+      <PageHeader
+        title="Collection"
+        backHref="/dashboard"
+        backOnMobile
+        wide
+        action={
+          <div className="hidden md:flex items-center gap-3">
+            <Link href="/dashboard/planner">
+              <Button>
+                <Calendar className="w-4 h-4 mr-2" />
+                Plan Week
+              </Button>
+            </Link>
+            <Link href="/dashboard/gifts">
+              <Button variant="outline">
+                <Gift className="w-4 h-4 mr-2" />
+                Gifts
+              </Button>
+            </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={isValidating}
+              aria-label="Refresh"
+              className="w-10 h-10 rounded-xl"
+            >
+              <RefreshCw
+                className={`w-4 h-4 ${isValidating ? "animate-spin" : ""}`}
+              />
+            </Button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 md:px-6 pt-4 pb-6">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 pt-1 pb-6">
         {/* Processing Banner */}
         {processingCount > 0 && (
           <Card className="border border-[var(--border)] shadow-none state-processing p-4 mb-6 animate-slide-up">

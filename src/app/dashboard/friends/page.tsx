@@ -1,21 +1,29 @@
 "use client";
 
+import { InitialsAvatar } from "@/components/initials-avatar";
+import { ListGroup } from "@/components/list-group";
+import { HEADER_ACTION_CLASS, PageHeader } from "@/components/page-header";
+import {
+  ActionDrawer,
+  DrawerItem,
+  DrawerSeparator,
+} from "@/components/ui/action-drawer";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import type { Friend } from "@/lib/supabase";
 import { formatPhoneNumber } from "@/lib/utils";
 import {
-  ArrowLeft,
   Check,
+  MoreHorizontal,
   Pencil,
   Plus,
+  Search,
   Smartphone,
   Star,
   Trash2,
+  UserPlus,
   Users,
 } from "lucide-react";
-import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/swr-config";
@@ -49,6 +57,8 @@ export default function FriendsPage() {
   const [importingContacts, setImportingContacts] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [menuFor, setMenuFor] = useState<Friend | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Session handling (redirect to login if unauthenticated) matches the rest
@@ -295,51 +305,95 @@ export default function FriendsPage() {
       (friend.phone_number && friend.phone_number.includes(query))
     );
   });
+  const favorites = filteredFriends.filter((friend) => friend.is_favorite);
+  const everyone = filteredFriends.filter((friend) => !friend.is_favorite);
 
-  const FriendsHeader = (
-    <div className="bg-[var(--secondary)] px-4 py-5 sticky top-0 z-20">
-      <div className="max-w-4xl mx-auto flex items-center gap-4">
-        <Link href="/dashboard" className="hidden md:inline-flex">
-          <Button
-            variant="ghost"
-            className="text-white hover:bg-white/10 rounded-xl"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
-        </Link>
-        <h1 className="heading-1 text-white">Friends</h1>
-      </div>
-    </div>
+  const header = (
+    <PageHeader
+      title="Friends"
+      count={loading ? undefined : friends.length}
+      backHref="/dashboard"
+      action={
+        <button
+          type="button"
+          onClick={() => setAddMenuOpen(true)}
+          aria-label="Add friends"
+          className={HEADER_ACTION_CLASS}
+        >
+          <Plus className="size-5" />
+        </button>
+      }
+    />
   );
 
   if (loading) {
     return (
       <main className="min-h-screen pb-28 md:pb-8 bg-[var(--background)]">
-        {FriendsHeader}
-        <div className="max-w-4xl mx-auto px-3 md:px-4 py-6">
+        {header}
+        <div className="max-w-4xl mx-auto px-4 md:px-6 py-4">
           <ListSkeleton count={5} />
         </div>
       </main>
     );
   }
 
+  const renderRow = (friend: Friend) => (
+    <div key={friend.id} className="flex items-center gap-3 px-4 py-3">
+      <InitialsAvatar name={friend.name} />
+      {editingId === friend.id ? (
+        <form
+          className="flex flex-1 gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleUpdateName(friend.id);
+          }}
+        >
+          <Input
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            onKeyDown={(e) => e.key === "Escape" && setEditingId(null)}
+            aria-label="Name"
+            className="h-9 flex-1"
+            autoFocus
+          />
+          <Button type="submit" size="sm" variant="secondary">
+            Save
+          </Button>
+        </form>
+      ) : (
+        <>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[15px] font-medium">{friend.name}</p>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              {friend.phone_number && (
+                <span>{formatPhoneNumber(friend.phone_number)}</span>
+              )}
+              {friend.linked_user_id && (
+                <span className="surface-inset inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold text-foreground">
+                  <Check className="size-3 text-[var(--secondary-dark)]" />
+                  On Planning Friend
+                </span>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMenuFor(friend)}
+            aria-label={`Options for ${friend.name}`}
+            className="surface-raised inline-flex size-9 shrink-0 items-center justify-center rounded-full transition-transform active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+          >
+            <MoreHorizontal className="size-4" />
+          </button>
+        </>
+      )}
+    </div>
+  );
+
   return (
     <main className="min-h-screen pb-28 md:pb-8 bg-[var(--background)]">
-      {FriendsHeader}
+      {header}
 
-      <div className="max-w-4xl mx-auto px-3 md:px-4 py-6">
-        {/* Search Bar */}
-        <div className="mb-4">
-          <Input
-            type="text"
-            placeholder="Search friends..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full"
-          />
-        </div>
-
+      <div className="max-w-4xl mx-auto px-4 md:px-6 pt-1 pb-6 space-y-6">
         {/* Hidden file input for vCard import */}
         <input
           ref={fileInputRef}
@@ -349,48 +403,45 @@ export default function FriendsPage() {
           className="hidden"
         />
 
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-2 mb-6">
-          <Button
-            onClick={handleImportContacts}
-            disabled={importingContacts}
-            variant="outline"
-            className="flex-1 rounded-xl border-[var(--border)] hover:bg-[var(--muted)]"
-          >
-            <Smartphone className="w-4 h-4 mr-2" />
-            {importingContacts ? "Importing..." : "Import Contacts"}
-          </Button>
-          <Button
-            onClick={() => setShowAddManual(!showAddManual)}
-            variant="secondary"
-            className="flex-1"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Manually
-          </Button>
-        </div>
+        {friends.length > 0 && (
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+            <Input
+              type="search"
+              placeholder="Search friends"
+              aria-label="Search friends"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 text-sm"
+            />
+          </div>
+        )}
+
+        {importingContacts && (
+          <p className="text-sm text-muted-foreground">Importing contacts…</p>
+        )}
 
         {/* Manual Add Form */}
         {showAddManual && (
-          <Card className="mb-6">
-            <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl">
-              <h2 className="font-semibold text-base flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[var(--secondary)]/10 flex items-center justify-center">
-                  <Plus className="w-4 h-4 text-[var(--secondary)]" />
-                </div>
-                Add a Friend
-              </h2>
-            </div>
-            <div className="p-4 space-y-3">
+          <ListGroup label="Add a friend">
+            <form
+              className="p-4 space-y-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleAddFriend();
+              }}
+            >
               <Input
-                placeholder="Name *"
+                placeholder="Name"
+                aria-label="Name"
                 value={newFriendName}
                 onChange={(e) => setNewFriendName(e.target.value)}
                 autoFocus
               />
               <Input
                 type="tel"
-                placeholder="Phone number *"
+                placeholder="Phone number"
+                aria-label="Phone number"
                 value={newFriendPhone}
                 onChange={(e) =>
                   setNewFriendPhone(formatPhoneNumber(e.target.value))
@@ -398,7 +449,7 @@ export default function FriendsPage() {
               />
               <div className="flex gap-2">
                 <Button
-                  onClick={handleAddFriend}
+                  type="submit"
                   disabled={
                     addingFriend ||
                     !newFriendName.trim() ||
@@ -410,138 +461,126 @@ export default function FriendsPage() {
                   {addingFriend ? "Adding..." : "Add Friend"}
                 </Button>
                 <Button
+                  type="button"
                   variant="ghost"
                   onClick={() => {
                     setShowAddManual(false);
                     setNewFriendName("");
                     setNewFriendPhone("");
                   }}
-                  className="rounded-xl border border-[var(--border)]"
+                  className="surface-raised rounded-full"
                 >
                   Cancel
                 </Button>
               </div>
-            </div>
-          </Card>
+            </form>
+          </ListGroup>
         )}
 
-        {/* Friends List */}
+        {/* Friends List — favourites first, as their own group, rather than
+            a star column that only said the same thing row by row. */}
         {filteredFriends.length === 0 ? (
-          <Card className="p-8 text-center">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--secondary)]/10 flex items-center justify-center">
-              <Users className="w-8 h-8 text-[var(--secondary)]" />
+          <div className="py-12 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--meal-bg)] flex items-center justify-center">
+              <Users className="w-8 h-8 text-[var(--secondary-dark)]" />
             </div>
-            <h3 className="font-semibold text-lg mb-2">
+            <h3 className="font-semibold text-lg mb-1">
               {searchQuery ? "No friends found" : "No friends yet"}
             </h3>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground mb-5">
               {searchQuery
-                ? "Try a different search term"
-                : "Add friends to share your plans with them!"}
+                ? "Try a different name or number"
+                : "Add friends to share your plans with them."}
             </p>
-          </Card>
-        ) : (
-          <div className="space-y-2">
-            {filteredFriends.map((friend) => (
-              <Card
-                key={friend.id}
-                className="p-4 flex items-center gap-3 group hover:-translate-y-1 hover:shadow-[var(--shadow-lg)]"
-              >
-                {/* Favorite Star */}
-                <button
-                  onClick={() => handleToggleFavorite(friend)}
-                  className="transition-transform hover:scale-110"
-                  title={
-                    friend.is_favorite
-                      ? "Remove from favorites"
-                      : "Add to favorites"
-                  }
-                >
-                  <Star
-                    className={`w-5 h-5 ${
-                      friend.is_favorite
-                        ? "fill-yellow-400 text-yellow-400"
-                        : "text-muted-foreground"
-                    }`}
-                  />
-                </button>
-
-                {/* Friend Info */}
-                <div className="flex-1 min-w-0">
-                  {editingId === friend.id ? (
-                    <div className="flex gap-2">
-                      <Input
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        onKeyDown={(e) =>
-                          e.key === "Enter" && handleUpdateName(friend.id)
-                        }
-                        className="flex-1"
-                        autoFocus
-                      />
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => handleUpdateName(friend.id)}
-                      >
-                        Save
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setEditingId(null)}
-                        className="rounded-lg border border-[var(--border)]"
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  ) : (
-                    <>
-                      <p className="font-medium truncate">{friend.name}</p>
-                      {friend.phone_number && (
-                        <p className="text-sm text-muted-foreground">
-                          {formatPhoneNumber(friend.phone_number)}
-                        </p>
-                      )}
-                      {friend.linked_user_id && (
-                        <span className="inline-flex items-center gap-1 text-xs text-[var(--primary)]">
-                          <Check className="w-3 h-3" />
-                          Planning Friend user
-                        </span>
-                      )}
-                    </>
-                  )}
-                </div>
-
-                {/* Actions */}
-                {editingId !== friend.id && (
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setEditingId(friend.id);
-                        setEditName(friend.name);
-                      }}
-                      className="rounded-lg hover:bg-[var(--muted)]"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleDeleteFriend(friend.id)}
-                      className="rounded-lg text-destructive hover:bg-red-50"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                )}
-              </Card>
-            ))}
+            {!searchQuery && (
+              <Button onClick={() => setAddMenuOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add friends
+              </Button>
+            )}
           </div>
+        ) : (
+          <>
+            {favorites.length > 0 && (
+              <ListGroup label="Favorites">{favorites.map(renderRow)}</ListGroup>
+            )}
+            {everyone.length > 0 && (
+              <ListGroup label={favorites.length > 0 ? "Everyone" : undefined}>
+                {everyone.map(renderRow)}
+              </ListGroup>
+            )}
+          </>
         )}
       </div>
+
+      <ActionDrawer
+        open={addMenuOpen}
+        onOpenChange={setAddMenuOpen}
+        title="Add friends"
+      >
+        <DrawerItem
+          icon={Smartphone}
+          onClick={() => {
+            setAddMenuOpen(false);
+            handleImportContacts();
+          }}
+        >
+          Import from contacts
+        </DrawerItem>
+        <DrawerItem
+          icon={UserPlus}
+          onClick={() => {
+            setAddMenuOpen(false);
+            setShowAddManual(true);
+          }}
+        >
+          Add by phone number
+        </DrawerItem>
+      </ActionDrawer>
+
+      {/* Per-friend actions. They used to appear on hover, which a phone
+          never does — so on mobile a friend couldn't be renamed or removed. */}
+      <ActionDrawer
+        open={menuFor !== null}
+        onOpenChange={(open) => !open && setMenuFor(null)}
+        title={menuFor?.name ?? "Friend"}
+      >
+        {menuFor && (
+          <>
+            <DrawerItem
+              icon={Star}
+              onClick={() => {
+                handleToggleFavorite(menuFor);
+                setMenuFor(null);
+              }}
+            >
+              {menuFor.is_favorite ? "Remove from favorites" : "Add to favorites"}
+            </DrawerItem>
+            <DrawerItem
+              icon={Pencil}
+              onClick={() => {
+                setEditingId(menuFor.id);
+                setEditName(menuFor.name);
+                setMenuFor(null);
+              }}
+            >
+              Rename
+            </DrawerItem>
+            <DrawerSeparator />
+            <DrawerItem
+              icon={Trash2}
+              destructive
+              onClick={() => {
+                const id = menuFor.id;
+                setMenuFor(null);
+                handleDeleteFriend(id);
+              }}
+            >
+              Remove friend
+            </DrawerItem>
+          </>
+        )}
+      </ActionDrawer>
     </main>
   );
 }

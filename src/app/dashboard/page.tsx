@@ -12,7 +12,6 @@ import { useContent } from "@/hooks/useContent";
 import { usePlanner } from "@/hooks/usePlanner";
 import { useSlideIn } from "@/hooks/useSlideIn";
 import { getItemDateKey } from "@/lib/plan-dates";
-import { contentMeta } from "@/lib/plan-item-details";
 import { fetcher } from "@/lib/swr-config";
 import type { GiftRecipientWithAssignments, PlanItem } from "@/lib/supabase";
 import {
@@ -319,13 +318,6 @@ export default function DashboardHome() {
                     content={item}
                     index={index}
                     href={`/dashboard/${item.id}?from=home`}
-                    // The one fact worth seeing before opening it — cook
-                    // time, venue — as on a planner card.
-                    meta={
-                      contentMeta(item) ? (
-                        <p className="truncate text-xs">{contentMeta(item)}</p>
-                      ) : null
-                    }
                   />
                 </RailItem>
               ))}

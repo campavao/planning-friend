@@ -25,6 +25,14 @@ export function isNavItemActive(itemHref: string, pathname: string): boolean {
     : pathname.startsWith(itemHref);
 }
 
+// Screens that stand alone: sign-in, and the status page the share sheet lands
+// on, which is a moment between apps rather than a place in this one.
+const NO_NAV_PATHS = new Set(["/", "/dashboard/share"]);
+
+export function showsBottomNav(pathname: string | null): boolean {
+  return !NO_NAV_PATHS.has(pathname ?? "");
+}
+
 export function BottomNav() {
   const pathname = usePathname();
 
@@ -40,8 +48,7 @@ export function BottomNav() {
   // were on, which meant a fresh open rendered Home and then navigated away
   // from it — the app visibly built itself twice.
 
-  // Don't show on login page
-  if (pathname === "/") return null;
+  if (!showsBottomNav(pathname)) return null;
 
   return (
     <nav

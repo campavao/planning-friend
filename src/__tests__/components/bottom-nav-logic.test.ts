@@ -3,7 +3,11 @@
  * Imports real exports — no duplicated logic
  */
 
-import { NAV_ITEMS, isNavItemActive } from "@/components/bottom-nav";
+import {
+  NAV_ITEMS,
+  isNavItemActive,
+  showsBottomNav,
+} from "@/components/bottom-nav";
 
 // ============================================
 // NAV_ITEMS configuration
@@ -84,5 +88,21 @@ describe("isNavItemActive", () => {
         expect(isNavItemActive(item.href, "/")).toBe(false);
       }
     });
+  });
+});
+
+// ============================================
+// showsBottomNav
+// ============================================
+describe("showsBottomNav", () => {
+  it("hides on sign-in and the share status page", () => {
+    expect(showsBottomNav("/")).toBe(false);
+    expect(showsBottomNav("/dashboard/share")).toBe(false);
+  });
+
+  it("shows on the dashboard pages", () => {
+    expect(showsBottomNav("/dashboard")).toBe(true);
+    expect(showsBottomNav("/dashboard/gifts")).toBe(true);
+    expect(showsBottomNav("/dashboard/abc-123")).toBe(true);
   });
 });

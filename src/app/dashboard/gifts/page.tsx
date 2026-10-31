@@ -1,8 +1,13 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
+import { InitialsAvatar } from "@/components/initials-avatar";
+import { HEADER_ACTION_CLASS, PageHeader } from "@/components/page-header";
+import {
+  ActionDrawer,
+  DrawerItem,
+  DrawerSeparator,
+} from "@/components/ui/action-drawer";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogClose,
@@ -17,18 +22,18 @@ import type {
   GiftRecipientWithAssignments,
 } from "@/lib/supabase";
 import {
-  ArrowLeft,
   Check,
   Eye,
   EyeOff,
-  ExternalLink,
   Gift,
+  MoreHorizontal,
   Pencil,
   PenLine,
   Plus,
+  Search,
   ShoppingCart,
   Trash2,
-  User,
+  UserPlus,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -47,6 +52,8 @@ export default function GiftPlannerPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showGiven, setShowGiven] = useState(false);
   const [addingNote, setAddingNote] = useState(false);
+  const [addingPerson, setAddingPerson] = useState(false);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
   const keyboardInset = useKeyboardInset();
 
   // Session handling (redirect to login if unauthenticated) is consistent
@@ -89,6 +96,7 @@ export default function GiftPlannerPage() {
 
       if (res.ok) {
         setNewRecipientName("");
+        setAddingPerson(false);
         refresh();
       }
     } catch (error) {
@@ -226,316 +234,341 @@ export default function GiftPlannerPage() {
     });
   };
 
-  const GiftsHeader = (
-    <div className="bg-[var(--accent)] px-4 py-5 sticky top-0 z-20">
-      <div className="max-w-4xl mx-auto flex items-center gap-4">
-        <Link href="/dashboard" className="hidden md:inline-flex">
-          <Button
-            variant="ghost"
-            className="text-white hover:bg-white/10 rounded-xl"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
-        </Link>
-        <h1 className="heading-1 text-white">Gift Ideas</h1>
-      </div>
-    </div>
+  const anyGiven = recipients.some((r) =>
+    r.assignments.some((a: GiftAssignment) => a.given_at)
+  );
+
+  const header = (
+    <PageHeader
+      title="Gifts"
+      count={loading ? undefined : recipients.length}
+      backHref="/dashboard"
+      action={
+        <button
+          type="button"
+          onClick={() => setAddingPerson(true)}
+          aria-label="Add a person"
+          className={HEADER_ACTION_CLASS}
+        >
+          <UserPlus className="size-5" />
+        </button>
+      }
+    />
   );
 
   if (loading) {
     return (
       <main className="min-h-screen pb-28 md:pb-8 bg-[var(--background)]">
-        {GiftsHeader}
-        <div className="max-w-4xl mx-auto px-3 md:px-4 py-6">
+        {header}
+        <div className="max-w-4xl mx-auto px-4 md:px-6 py-4">
           <ListSkeleton count={4} />
         </div>
       </main>
     );
   }
 
+  const addPersonForm = (
+    <form
+      className="flex gap-2 rounded-2xl bg-[var(--card)] p-3 shadow-[var(--shadow-card)]"
+      onSubmit={(e) => {
+        e.preventDefault();
+        addRecipient();
+      }}
+    >
+      <Input
+        placeholder="Name (Mom, Dad, Best Friend…)"
+        aria-label="Name"
+        value={newRecipientName}
+        onChange={(e) => setNewRecipientName(e.target.value)}
+        onKeyDown={(e) => e.key === "Escape" && setAddingPerson(false)}
+        className="h-10 flex-1"
+        autoFocus
+      />
+      <Button type="submit" disabled={!newRecipientName.trim()}>
+        Add
+      </Button>
+    </form>
+  );
+
   return (
     <main className="min-h-screen pb-28 md:pb-8 bg-[var(--background)]">
-      {GiftsHeader}
+      {header}
 
-      <div className="max-w-4xl mx-auto px-3 md:px-4 py-6">
-        {/* Add New Person */}
-        <Card className="mb-6">
-          <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl">
-            <h2 className="font-semibold text-base flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center">
-                <Plus className="w-4 h-4 text-[var(--accent)]" />
-              </div>
-              Add a Person
-            </h2>
-          </div>
-          <div className="p-4 flex gap-2">
-            <Input
-              placeholder="Enter name (e.g., Mom, Dad, Best Friend)"
-              value={newRecipientName}
-              onChange={(e) => setNewRecipientName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addRecipient()}
-              className="flex-1"
-            />
-            <Button onClick={addRecipient} variant="secondary">
-              <Gift className="w-4 h-4 mr-2" />
-              Add
-            </Button>
-          </div>
-        </Card>
-
-        {/* Recipients List */}
+      <div className="max-w-4xl mx-auto px-4 md:px-6 pt-1 pb-6 space-y-4">
         {recipients.length === 0 ? (
-          <Card className="p-8 text-center">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--accent)]/10 flex items-center justify-center">
-              <Gift className="w-8 h-8 text-[var(--accent)]" />
+          <div className="py-10 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--gift-bg)] flex items-center justify-center">
+              <Gift className="w-8 h-8 text-[var(--gift)]" />
             </div>
-            <h3 className="font-semibold text-lg mb-2">
-              No people added yet
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              Add people you want to give gifts to, then assign gift ideas to
-              them.
+            <h3 className="font-semibold text-lg mb-1">No one to shop for yet</h3>
+            <p className="text-sm text-muted-foreground mb-5">
+              Add the people you buy for, then keep their gift ideas together.
             </p>
-          </Card>
+            <div className="max-w-sm mx-auto text-left">{addPersonForm}</div>
+          </div>
         ) : (
-          <div className="space-y-4">
-            {/* Show/hide given gifts toggle */}
-            {recipients.some((r) =>
-              r.assignments.some((a: GiftAssignment) => a.given_at)
-            ) && (
+          <>
+            {anyGiven && (
               <div className="flex justify-end">
-                <Button
-                  variant="ghost"
+                <button
+                  type="button"
                   onClick={() => setShowGiven(!showGiven)}
-                  className="h-auto p-0 gap-1.5 text-sm font-normal text-muted-foreground hover:text-foreground hover:bg-transparent"
+                  className="inline-flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground hover:text-foreground"
                 >
                   {showGiven ? (
-                    <EyeOff className="w-4 h-4" />
+                    <EyeOff className="size-4" />
                   ) : (
-                    <Eye className="w-4 h-4" />
+                    <Eye className="size-4" />
                   )}
-                  {showGiven ? "Hide" : "Show"} given gifts
-                </Button>
+                  {showGiven ? "Hide" : "Show"} given
+                </button>
               </div>
             )}
-            {recipients.map((recipient) => (
-              <Card key={recipient.id} className="overflow-hidden">
-                <CardHeader className="pb-3 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl">
-                  <div className="flex items-center justify-between">
+
+            {addingPerson && addPersonForm}
+
+            {recipients.map((recipient) => {
+              const given = recipient.assignments.filter(
+                (a: GiftAssignment) => a.given_at
+              ).length;
+              const total = recipient.assignments.length;
+              const visible = recipient.assignments.filter(
+                (a: GiftAssignment) => showGiven || !a.given_at
+              );
+              const hiddenGiven = showGiven ? 0 : given;
+
+              return (
+                <section
+                  key={recipient.id}
+                  className="overflow-hidden rounded-2xl bg-[var(--card)] shadow-[var(--shadow-card)]"
+                >
+                  {/* The person, the way a registry opens with whose it is:
+                      their name large, and how far along the list is. */}
+                  <div className="flex items-center gap-3 px-4 pt-4 pb-3">
+                    <InitialsAvatar name={recipient.name} className="size-11 text-base" />
                     {editingId === recipient.id ? (
-                      <div className="flex gap-2 flex-1 mr-2">
+                      <form
+                        className="flex flex-1 gap-2"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          updateRecipient(recipient.id);
+                        }}
+                      >
                         <Input
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
                           onKeyDown={(e) =>
-                            e.key === "Enter" && updateRecipient(recipient.id)
+                            e.key === "Escape" && setEditingId(null)
                           }
-                          className="flex-1"
+                          aria-label="Name"
+                          className="h-9 flex-1"
                           autoFocus
                         />
-                        <Button
-                          size="sm"
-                          onClick={() => updateRecipient(recipient.id)}
-                        >
+                        <Button type="submit" size="sm">
                           Save
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setEditingId(null)}
-                          className="rounded-lg border border-[var(--border)]"
-                        >
-                          Cancel
-                        </Button>
-                      </div>
+                      </form>
                     ) : (
                       <>
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-lg bg-[var(--muted)] flex items-center justify-center">
-                            <User className="w-4 h-4" />
-                          </div>
-                          {recipient.name}
-                          <Badge className="ml-2 bg-[var(--accent)]/10 text-[var(--accent)]">
-                            {recipient.assignments.length} gift
-                            {recipient.assignments.length !== 1 ? "s" : ""}
-                          </Badge>
-                        </CardTitle>
-                        <div className="flex gap-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setEditingId(recipient.id);
-                              setEditName(recipient.name);
-                            }}
-                            className="rounded-lg hover:bg-[var(--muted)]"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="rounded-lg text-destructive hover:bg-red-50"
-                            onClick={() => deleteRecipient(recipient.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                        <div className="min-w-0 flex-1">
+                          <h2 className="font-display text-lg font-semibold leading-tight truncate">
+                            {recipient.name}
+                          </h2>
+                          <p className="text-xs text-muted-foreground">
+                            {total === 0
+                              ? "No ideas yet"
+                              : `${total} ${total === 1 ? "idea" : "ideas"}${
+                                  given > 0 ? ` · ${given} given` : ""
+                                }`}
+                          </p>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => setMenuFor(recipient.id)}
+                          aria-label={`Options for ${recipient.name}`}
+                          className="surface-raised inline-flex size-9 shrink-0 items-center justify-center rounded-full transition-transform active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+                        >
+                          <MoreHorizontal className="size-4" />
+                        </button>
                       </>
                     )}
                   </div>
-                </CardHeader>
-                <CardContent className="pt-4 bg-white rounded-b-2xl">
-                  {/* Assigned Gifts */}
-                  {recipient.assignments.length > 0 && (
-                    <div className="space-y-2 mb-4">
-                      {recipient.assignments
-                        .filter((a: GiftAssignment) => showGiven || !a.given_at)
-                        .map((assignment: GiftAssignment) => {
-                          const giftData = assignment.content
-                            ?.data as GiftIdeaData | undefined;
-                          const isGiven = !!assignment.given_at;
-                          const isNote = !assignment.content;
-                          return (
-                            <div
-                              key={assignment.id}
-                              className={`group flex items-center gap-3 rounded-xl p-3 ${
-                                isGiven
-                                  ? "bg-[var(--muted)]/50 opacity-60"
-                                  : "bg-[var(--muted)]"
-                              }`}
-                            >
-                              {isNote ? (
-                                <div className="w-12 h-12 shrink-0 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center">
-                                  <PenLine className="w-5 h-5 text-[var(--accent)]" />
-                                </div>
-                              ) : (
-                                assignment.content?.thumbnail_url && (
-                                  <img
-                                    src={assignment.content.thumbnail_url}
-                                    alt=""
-                                    className={`w-12 h-12 object-cover shrink-0 rounded-lg ${
-                                      isGiven ? "grayscale" : ""
-                                    }`}
-                                  />
-                                )
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <p
-                                  className={`font-medium text-sm line-clamp-1 ${
-                                    isGiven ? "line-through text-muted-foreground" : ""
-                                  }`}
-                                >
-                                  {assignment.content?.title ??
-                                    assignment.note_title}
-                                </p>
-                                {giftData?.cost && (
-                                  <p
-                                    className={`text-sm font-semibold ${
-                                      isGiven
-                                        ? "text-muted-foreground line-through"
-                                        : "text-[var(--accent)]"
-                                    }`}
-                                  >
-                                    {giftData.cost}
-                                  </p>
-                                )}
-                              </div>
-                              <div className="flex gap-1 shrink-0 items-center">
-                                {giftData?.amazon_link && !isGiven && (
-                                  <a
-                                    href={giftData.amazon_link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-xs text-orange-500 hover:underline flex items-center gap-1"
-                                  >
-                                    <ShoppingCart className="w-3 h-3" />
-                                    Amazon
-                                  </a>
-                                )}
-                                <Button
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  onClick={() =>
-                                    toggleGiftGiven(assignment.id, isGiven)
-                                  }
-                                  className={
-                                    isGiven
-                                      ? "text-[var(--secondary)] bg-[var(--secondary)]/10 hover:text-[var(--secondary)] hover:bg-[var(--secondary)]/10"
-                                      : "text-muted-foreground hover:text-[var(--secondary)] hover:bg-[var(--secondary)]/10"
-                                  }
-                                  title={isGiven ? "Mark as not given" : "Mark as given"}
-                                >
-                                  <Check className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  onClick={() =>
-                                    removeAssignment(assignment.id)
-                                  }
-                                  className="text-destructive hover:text-destructive hover:bg-red-50 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-                                >
-                                  <X className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      {/* Show count of hidden given gifts */}
-                      {!showGiven &&
-                        recipient.assignments.filter(
-                          (a: GiftAssignment) => a.given_at
-                        ).length > 0 && (
-                          <Button
-                            variant="ghost"
-                            onClick={() => setShowGiven(true)}
-                            className="h-auto w-full py-1 px-0 text-xs font-normal text-muted-foreground hover:text-foreground hover:bg-transparent"
-                          >
-                            {
-                              recipient.assignments.filter(
-                                (a: GiftAssignment) => a.given_at
-                              ).length
-                            }{" "}
-                            given gift
-                            {recipient.assignments.filter(
-                              (a: GiftAssignment) => a.given_at
-                            ).length !== 1
-                              ? "s"
-                              : ""}{" "}
-                            hidden
-                          </Button>
-                        )}
-                    </div>
-                  )}
 
-                  {/* Add Gift Button */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full border-2 border-dashed border-[var(--border)] rounded-xl hover:bg-[var(--muted)]"
-                    onClick={() => setAssigningTo(recipient.id)}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Gift Idea
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  <div className="divide-y divide-[var(--border)] border-t border-[var(--border)]">
+                    {visible.map((assignment: GiftAssignment) => {
+                      const giftData = assignment.content?.data as
+                        | GiftIdeaData
+                        | undefined;
+                      const isGiven = !!assignment.given_at;
+                      const isNote = !assignment.content;
+                      const title =
+                        assignment.content?.title ?? assignment.note_title;
+                      return (
+                        <div
+                          key={assignment.id}
+                          className="flex items-center gap-3 px-4 py-3"
+                        >
+                          {/* Given is a checkbox — the list is a shopping
+                              list, and that's how you tick one off. */}
+                          <button
+                            type="button"
+                            role="checkbox"
+                            aria-checked={isGiven}
+                            aria-label={`${title}: given`}
+                            onClick={() =>
+                              toggleGiftGiven(assignment.id, isGiven)
+                            }
+                            className={`flex size-6 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] ${
+                              isGiven
+                                ? "bg-[var(--secondary-dark)] text-white"
+                                : "surface-inset text-transparent hover:text-muted-foreground"
+                            }`}
+                          >
+                            <Check className="size-3.5" strokeWidth={3} />
+                          </button>
+                          {isNote ? (
+                            <div className="size-12 shrink-0 rounded-xl bg-[var(--gift-bg)] flex items-center justify-center">
+                              <PenLine className="size-5 text-[var(--gift)]" />
+                            </div>
+                          ) : assignment.content?.thumbnail_url ? (
+                            <img
+                              src={assignment.content.thumbnail_url}
+                              alt=""
+                              className={`size-12 shrink-0 rounded-xl object-cover ${
+                                isGiven ? "grayscale opacity-60" : ""
+                              }`}
+                            />
+                          ) : null}
+                          <div className="min-w-0 flex-1">
+                            {assignment.content ? (
+                              <Link
+                                href={`/dashboard/${assignment.content.id}`}
+                                className={`text-sm font-medium leading-snug line-clamp-2 hover:underline ${
+                                  isGiven
+                                    ? "line-through text-muted-foreground"
+                                    : ""
+                                }`}
+                              >
+                                {title}
+                              </Link>
+                            ) : (
+                              <p
+                                className={`text-sm font-medium leading-snug line-clamp-2 ${
+                                  isGiven
+                                    ? "line-through text-muted-foreground"
+                                    : ""
+                                }`}
+                              >
+                                {title}
+                              </p>
+                            )}
+                            {giftData?.cost && (
+                              <span className="surface-inset mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold">
+                                {giftData.cost}
+                              </span>
+                            )}
+                          </div>
+                          {giftData?.amazon_link && !isGiven && (
+                            <a
+                              href={giftData.amazon_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label="Buy on Amazon"
+                              title="Buy on Amazon"
+                              className="surface-raised inline-flex size-9 shrink-0 items-center justify-center rounded-full transition-transform active:translate-y-px"
+                            >
+                              <ShoppingCart className="size-4" />
+                            </a>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => removeAssignment(assignment.id)}
+                            aria-label={`Remove ${title}`}
+                            className="-mr-1.5 inline-flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-[var(--muted)] hover:text-destructive"
+                          >
+                            <X className="size-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+
+                    {hiddenGiven > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowGiven(true)}
+                        className="w-full px-4 py-2 text-left text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        {hiddenGiven} given {hiddenGiven === 1 ? "gift" : "gifts"} hidden
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setAssigningTo(recipient.id)}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-[var(--primary)] hover:bg-[var(--background)]"
+                    >
+                      <span className="flex size-6 items-center justify-center">
+                        <Plus className="size-4" />
+                      </span>
+                      Add gift idea
+                    </button>
+                  </div>
+                </section>
+              );
+            })}
+
+            {!addingPerson && (
+              <button
+                type="button"
+                onClick={() => setAddingPerson(true)}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[var(--border)] py-3.5 text-sm font-medium text-muted-foreground hover:bg-[var(--muted)]"
+              >
+                <UserPlus className="size-4" />
+                Add a person
+              </button>
+            )}
+          </>
         )}
 
-        {/* Empty State for Gift Ideas */}
         {giftIdeas.length === 0 && recipients.length > 0 && (
-          <Card className="p-6 mt-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              No gift ideas saved yet. Text a TikTok or Instagram with product
-              recommendations to save gift ideas!
-            </p>
-          </Card>
+          <p className="px-4 text-center text-xs text-muted-foreground">
+            Text a TikTok or Reel with a product in it to save gift ideas.
+          </p>
         )}
       </div>
+
+      {/* Per-person actions */}
+      <ActionDrawer
+        open={menuFor !== null}
+        onOpenChange={(open) => !open && setMenuFor(null)}
+        title={recipients.find((r) => r.id === menuFor)?.name ?? "Person"}
+      >
+        <DrawerItem
+          icon={Pencil}
+          onClick={() => {
+            const recipient = recipients.find((r) => r.id === menuFor);
+            if (recipient) {
+              setEditingId(recipient.id);
+              setEditName(recipient.name);
+            }
+            setMenuFor(null);
+          }}
+        >
+          Rename
+        </DrawerItem>
+        <DrawerSeparator />
+        <DrawerItem
+          icon={Trash2}
+          destructive
+          onClick={() => {
+            const id = menuFor;
+            setMenuFor(null);
+            if (id) deleteRecipient(id);
+          }}
+        >
+          Delete person
+        </DrawerItem>
+      </ActionDrawer>
 
       {/* Assign Gift Modal */}
       {assigningTo !== null && (
@@ -557,49 +590,55 @@ export default function GiftPlannerPage() {
                   }
                 : undefined
             }
-            className="top-auto bottom-0 left-0 translate-x-0 translate-y-0 md:top-[50%] md:bottom-auto md:left-[50%] md:translate-x-[-50%] md:translate-y-[-50%] w-full max-w-full sm:max-w-full md:max-w-lg rounded-t-2xl rounded-b-none md:rounded-b-2xl p-0 gap-0 max-h-[80vh] flex flex-col overflow-hidden"
+            className="top-auto bottom-0 left-0 translate-x-0 translate-y-0 md:top-[50%] md:bottom-auto md:left-[50%] md:translate-x-[-50%] md:translate-y-[-50%] w-full max-w-full sm:max-w-full md:max-w-lg rounded-t-3xl rounded-b-none md:rounded-b-3xl p-0 gap-0 max-h-[80vh] flex flex-col overflow-hidden"
           >
-            <div className="p-4 border-b border-[var(--border)] flex items-center justify-between bg-gradient-to-r from-[var(--accent)] to-[var(--accent-dark)] md:rounded-t-2xl">
-              <DialogTitle className="font-semibold text-base leading-normal text-white">
-                Add Gift for{" "}
+            {/* Plain white: the old gradient faded to white exactly where the
+                white close button sat, so the button vanished. */}
+            <div className="px-4 pt-4 pb-3 flex items-center justify-between gap-3">
+              <DialogTitle className="heading-2 leading-tight">
+                Gift for{" "}
                 {recipients.find((r) => r.id === assigningTo)?.name}
               </DialogTitle>
               <DialogClose
                 aria-label="Close"
-                className="text-white/80 hover:text-white p-2 -m-1 rounded-lg hover:bg-white/10 transition-colors"
+                className="surface-raised inline-flex size-9 shrink-0 items-center justify-center rounded-full transition-transform active:translate-y-px"
               >
-                <X className="w-5 h-5" />
+                <X className="size-4" />
               </DialogClose>
             </div>
 
             {/* One field: filters saved ideas, or becomes a quick note */}
             <form
-              className="p-4 border-b border-[var(--border)] bg-white"
+              className="px-4 pb-3 border-b border-[var(--border)]"
               onSubmit={(e) => {
                 e.preventDefault();
                 addGiftNote(assigningTo);
               }}
             >
-              <Input
-                type="text"
-                placeholder="Search saved ideas, or type a gift..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full"
-                enterKeyHint="done"
-              />
+              <div className="relative">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  type="text"
+                  placeholder="Search saved ideas, or type a gift"
+                  aria-label="Search saved ideas, or type a gift"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 text-sm"
+                  enterKeyHint="done"
+                />
+              </div>
             </form>
 
-            <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-2">
+            <div className="flex-1 overflow-y-auto overscroll-contain divide-y divide-[var(--border)]">
               {/* The typed text as a note first, then saved ideas */}
               {searchQuery.trim() && (
                 <button
                   onClick={() => addGiftNote(assigningTo)}
                   disabled={addingNote}
-                  className="w-full bg-white border border-[var(--accent)]/40 rounded-xl p-3 text-left flex items-center gap-3 hover:border-[var(--accent)] hover:shadow-sm transition-all disabled:opacity-60"
+                  className="w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-[var(--background)] transition-colors disabled:opacity-60"
                 >
-                  <div className="w-14 h-14 shrink-0 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center">
-                    <PenLine className="w-5 h-5 text-[var(--accent)]" />
+                  <div className="size-12 shrink-0 rounded-xl bg-[var(--gift-bg)] flex items-center justify-center">
+                    <PenLine className="size-5 text-[var(--gift)]" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <span className="text-sm font-medium line-clamp-1">
@@ -611,6 +650,7 @@ export default function GiftPlannerPage() {
                         : "Quick note — no saved item needed"}
                     </p>
                   </div>
+                  <Plus className="size-4 text-[var(--primary)] shrink-0" />
                 </button>
               )}
 
@@ -620,30 +660,27 @@ export default function GiftPlannerPage() {
                   <button
                     key={gift.id}
                     onClick={() => assignGift(assigningTo, gift.id)}
-                    className="w-full bg-white border border-[var(--border)] rounded-xl p-3 text-left flex items-center gap-3 hover:border-[var(--accent)]/30 hover:shadow-sm transition-all"
+                    className="w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-[var(--background)] transition-colors"
                   >
                     {gift.thumbnail_url && (
                       <img
                         src={gift.thumbnail_url}
                         alt=""
-                        className="w-14 h-14 object-cover shrink-0 rounded-lg"
+                        className="size-12 object-cover shrink-0 rounded-xl"
                       />
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm line-clamp-1">{gift.title}</p>
-                      {giftData?.cost && (
-                        <p className="text-sm text-[var(--accent)] font-semibold">
-                          {giftData.cost}
-                        </p>
-                      )}
                       {giftData?.description && (
                         <p className="text-xs text-muted-foreground line-clamp-1">
                           {giftData.description}
                         </p>
                       )}
                     </div>
-                    {giftData?.amazon_link && (
-                      <ExternalLink className="w-4 h-4 text-muted-foreground shrink-0" />
+                    {giftData?.cost && (
+                      <span className="surface-inset shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold">
+                        {giftData.cost}
+                      </span>
                     )}
                   </button>
                 );
@@ -651,7 +688,7 @@ export default function GiftPlannerPage() {
 
               {getFilteredGifts(assigningTo).length === 0 &&
                 !searchQuery.trim() && (
-                  <div className="text-center py-8 text-muted-foreground">
+                  <div className="text-center py-8 px-4 text-muted-foreground">
                     <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-[var(--muted)] flex items-center justify-center">
                       <Gift className="w-6 h-6" />
                     </div>

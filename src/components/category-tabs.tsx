@@ -2,8 +2,6 @@
 
 import { AddContactButton } from "@/components/add-contact-button";
 import { ContentCard } from "@/components/content-card";
-import { TagFilter } from "@/components/tag-filter";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -130,6 +128,32 @@ export function getCounts(content: ContentWithTags[], selectedTags: string[], se
   };
 }
 
+/** A filter pill: raised while off, filled once it's narrowing the grid. */
+function FilterChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium transition-all active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] ${
+        active
+          ? "bg-foreground text-background"
+          : "surface-raised text-foreground"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 function EmptyState({ category, hasFilters }: { category: string; hasFilters: boolean }) {
   const Icon = TABS.find((t) => t.id === category)?.icon || Smartphone;
 
@@ -232,7 +256,7 @@ export function CategoryTabs({
       </div>
 
       {/* Tabs */}
-      <TabsList className="mb-5 hide-scrollbar h-auto w-full justify-start gap-2 overflow-x-auto rounded-none bg-transparent p-0 pb-2">
+      <TabsList className="mb-1 hide-scrollbar h-auto w-full justify-start gap-2 overflow-x-auto rounded-none bg-transparent p-0 pb-2">
         {TABS.map((tab) => {
           const count = counts[tab.id as keyof typeof counts];
           const Icon = tab.icon;
@@ -245,45 +269,53 @@ export function CategoryTabs({
             >
               {Icon && <Icon className="w-4 h-4" />}
               <span>{tab.label}</span>
-              <span className="text-xs opacity-70">({count})</span>
+              <span className="text-xs opacity-60">{count}</span>
             </TabsTrigger>
           );
         })}
       </TabsList>
 
-      {/* Starred. Its own row rather than a tab, because it narrows whichever
-          category is open instead of being one of them. */}
-      <div className="mb-5 flex items-center gap-2">
-        <Badge
-          asChild
-          variant={starredOnly ? "default" : "muted"}
-          className={starredOnly ? "shadow-sm" : "hover:bg-[var(--border)]"}
-        >
-          <button
+      {/* Starred and the tags in one scrolling row of filters. Starred sits
+          first rather than being a tab, because it narrows whichever category
+          is open instead of being one of them. */}
+      <div className="-mx-4 md:mx-0 mb-4 overflow-x-auto hide-scrollbar">
+        <div className="flex w-max items-center gap-2 px-4 md:px-0 py-1">
+          <FilterChip
+            active={starredOnly}
             onClick={() => setStarredOnly((prev) => !prev)}
-            aria-pressed={starredOnly}
-            className="px-3 py-1.5 font-medium transition-all"
           >
             <Star
-              className={`w-3.5 h-3.5 ${starredOnly ? "fill-current" : ""}`}
+              className={`size-3.5 ${starredOnly ? "fill-current" : ""}`}
             />
             Starred
-            <span className="text-xs opacity-70">({starredCount})</span>
-          </button>
-        </Badge>
+            <span className="opacity-60">{starredCount}</span>
+          </FilterChip>
+          {allTags.length > 0 && (
+            <span aria-hidden className="mx-1 h-5 w-px bg-[var(--border)]" />
+          )}
+          {allTags.map((tag) => (
+            <FilterChip
+              key={tag.id}
+              active={selectedTags.includes(tag.id)}
+              onClick={() =>
+                setSelectedTags((prev) => toggleTag(prev, tag.id))
+              }
+            >
+              {tag.name}
+            </FilterChip>
+          ))}
+          {selectedTags.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setSelectedTags([])}
+              className="inline-flex items-center gap-1 px-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+            >
+              <X className="size-3" />
+              Clear
+            </button>
+          )}
+        </div>
       </div>
-
-      {/* Tag Filter */}
-      {allTags.length > 0 && (
-        <Card className="mb-6 border border-[var(--border)] p-4 shadow-none">
-          <TagFilter
-            tags={allTags}
-            selectedTags={selectedTags}
-            onToggle={(tagId) => setSelectedTags((prev) => toggleTag(prev, tagId))}
-            onClear={() => setSelectedTags([])}
-          />
-        </Card>
-      )}
 
       {/* Content */}
       {TABS.map((tab) => {
@@ -293,7 +325,12 @@ export function CategoryTabs({
             {items.length === 0 ? (
               <EmptyState category={tab.id} hasFilters={hasFilters} />
             ) : (
-              <ContentGrid items={items} onToggleFavorite={onToggleFavorite} />
+              <>
+                <p className="mb-3 text-[13px] font-medium text-muted-foreground">
+                  {items.length} {items.length === 1 ? "item" : "items"}
+                </p>
+                <ContentGrid items={items} onToggleFavorite={onToggleFavorite} />
+              </>
             )}
           </TabsContent>
         );

@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { AlertCircle, Check } from "lucide-react";
 
 function ShareStatusContent() {
   const router = useRouter();
@@ -56,8 +57,8 @@ function ShareStatusContent() {
 
       {status === "success" && (
         <>
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-green-50 flex items-center justify-center">
-            <span className="text-3xl">✓</span>
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--meal-bg)] flex items-center justify-center">
+            <Check className="w-8 h-8 text-[var(--secondary-dark)]" strokeWidth={2.5} />
           </div>
           <h1 className="heading-2 mb-2">Saved!</h1>
           <p className="text-muted-foreground text-sm">{message}</p>
@@ -66,13 +67,13 @@ function ShareStatusContent() {
 
       {status === "error" && (
         <>
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-red-50 flex items-center justify-center">
-            <span className="text-3xl">!</span>
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-50 flex items-center justify-center">
+            <AlertCircle className="w-8 h-8 text-destructive" />
           </div>
-          <h1 className="heading-2 mb-2">Oops!</h1>
+          <h1 className="heading-2 mb-2">Couldn&apos;t save that</h1>
           <p className="text-muted-foreground text-sm mb-4">{message}</p>
           <Button onClick={() => router.push("/dashboard")}>
-            Go to Dashboard
+            Back to Planning Friend
           </Button>
         </>
       )}
