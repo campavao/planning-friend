@@ -71,7 +71,7 @@ export function PlanItemCard({ item, index = 0, href }: PlanItemCardProps) {
             src={item.content.thumbnail_url}
             alt=""
             className={cn(
-              "relative pointer-events-none size-16 shrink-0 -mt-5 -mr-4 rounded-2xl object-cover border-[3px] border-white shadow-[var(--shadow-lg)]",
+              "relative pointer-events-none size-24 shrink-0 -mt-6 -mr-5 rounded-2xl object-cover border-[3px] border-white shadow-[var(--shadow-lg)]",
               "transition-transform duration-300 ease-out motion-reduce:transition-none",
               index % 2 === 0
                 ? "rotate-[5deg] group-hover:rotate-[8deg]"

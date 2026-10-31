@@ -661,7 +661,7 @@ export function WeekSection({
                                 <img
                                   src={item.content.thumbnail_url}
                                   alt=""
-                                  className={`relative pointer-events-none w-20 h-20 shrink-0 -mt-6 -mr-5 rounded-2xl object-cover border-[3px] border-white shadow-[var(--shadow-lg)] transition-transform duration-300 ease-out motion-reduce:transition-none ${
+                                  className={`relative pointer-events-none w-30 h-30 shrink-0 -mt-7 -mr-6 rounded-2xl object-cover border-[3px] border-white shadow-[var(--shadow-lg)] transition-transform duration-300 ease-out motion-reduce:transition-none ${
                                     itemIndex % 2 === 0
                                       ? "rotate-[5deg] group-hover:rotate-[8deg]"
                                       : "-rotate-[4deg] group-hover:-rotate-[7deg]"

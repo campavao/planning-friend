@@ -109,16 +109,16 @@ function getSourceLinkText(url: string): string {
   }
 }
 
-/** Square, and no taller than the title block beside it. A portrait thumbnail
- *  left a visible well of dead space once tags came off the page and the text
- *  column got short. Tilted in a white border, like the photo tucked into a
- *  planner card, so the two read as the same item. */
+/** Square: a portrait thumbnail left a visible well of dead space once tags
+ *  came off the page. Tilted in a white border and popping out past the card's
+ *  corner, like the photo tucked into a planner card, so the two read as the
+ *  same item. */
 /** A raised action button, as on the cards (.surface-raised in globals.css). */
 const RAISED_BUTTON =
   "surface-raised rounded-full px-3.5 hover:bg-[var(--card)] active:translate-y-px";
 
 const THUMBNAIL_CLASS =
-  "relative shrink-0 block w-[92px] h-[92px] rounded-2xl overflow-hidden border-[3px] border-white bg-[var(--muted)] shadow-[var(--shadow-lg)] rotate-[4deg] transition-transform duration-300 ease-out hover:rotate-[7deg] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]";
+  "relative shrink-0 block w-[138px] h-[138px] rounded-2xl overflow-hidden border-[3px] border-white bg-[var(--muted)] shadow-[var(--shadow-lg)] rotate-[4deg] transition-transform duration-300 ease-out hover:rotate-[7deg] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]";
 
 /** What sits inside the thumbnail. Shared by the two things it can be — a
  *  button that expands the image, or a link that opens the video — so only the
@@ -134,7 +134,7 @@ function ThumbnailBody({
 }) {
   return (
     <>
-      <Image src={src} alt={alt} fill sizes="92px" className="object-cover" />
+      <Image src={src} alt={alt} fill sizes="138px" className="object-cover" />
       <span className="absolute right-1.5 bottom-1.5 w-[22px] h-[22px] rounded-lg bg-black/55 backdrop-blur-[2px] flex items-center justify-center">
         <Icon className="w-3 h-3 text-white" />
       </span>
@@ -755,10 +755,12 @@ export default function ContentDetailPage() {
           </Card>
         )}
 
-        <Card className="overflow-hidden animate-slide-up">
+        {/* Not overflow-hidden: the thumbnail pops out past the card's top
+            corner, so the tinted header rounds its own top instead. */}
+        <Card className="animate-slide-up">
           {/* The header — title, thumbnail, chips — takes the category's tint;
               everything below stays on the card's white. */}
-          <div className={editing ? undefined : config.bg}>
+          <div className={`rounded-t-2xl ${editing ? "" : config.bg}`}>
             {editing ? (
               <div className="px-4 pt-4 pb-3">
                 {editing ? (
@@ -797,7 +799,7 @@ export default function ContentDetailPage() {
               // keeps the float inside the hero.
               <div className="flow-root px-4 pt-4">
                 {content.thumbnail_url && (
-                  <div className="float-right ml-3.5 mb-2">
+                  <div className="relative float-right ml-3.5 mb-2 -mt-8 -mr-5">
                 {content.thumbnail_url &&
                   (thumbnailPlaysSource ? (
                     <a
