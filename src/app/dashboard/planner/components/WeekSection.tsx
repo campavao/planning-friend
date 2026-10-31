@@ -376,7 +376,9 @@ export function WeekSection({
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
+      {/* Mobile reads like a calendar's day view: rows split by hairlines,
+          not a stack of floating cards. Desktop keeps its grid of cards. */}
+      <div className="grid grid-cols-1 md:grid-cols-7 md:gap-3">
         {dayInfos.map(({ dayIndex, dateKey, dayOfMonth, monthShort }) => {
           const isToday = dateKey === todayKey;
           const isHighlighted = highlightDate === dateKey;
@@ -397,48 +399,58 @@ export function WeekSection({
               ref={(el: HTMLDivElement | null) =>
                 registerDayElement(dateKey, el)
               }
-              className={`overflow-hidden hover:-translate-y-1 hover:shadow-[var(--shadow-lg)] ${
-                isToday ? "ring-2 ring-[var(--primary)]" : ""
-              } ${isHighlighted ? "ring-2 ring-[var(--accent)]" : ""}`}
+              className={`max-md:rounded-none max-md:bg-transparent max-md:shadow-none max-md:border-b max-md:border-[var(--border)] md:overflow-hidden md:hover:-translate-y-1 md:hover:shadow-[var(--shadow-lg)] ${
+                isToday ? "md:ring-2 md:ring-[var(--primary)]" : ""
+              } ${
+                isHighlighted
+                  ? "md:ring-2 md:ring-[var(--accent)] max-md:bg-[var(--accent-light)]/40"
+                  : ""
+              }`}
             >
-              {/* Mobile Layout */}
-              <div className="md:hidden">
-                <div className="p-3">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-base font-semibold text-[var(--primary)]">
-                        {String(dayOfMonth).padStart(2, "0")}
-                      </span>
-                      <span className="text-sm font-medium">
-                        {daysFull[dayIndex]}
-                      </span>
-                      {isToday && (
-                        <Badge className="bg-[var(--primary)] text-white text-[10px]">
-                          Today
-                        </Badge>
-                      )}
-                      {destinationByDay[dayIndex] && (
-                        <Badge
-                          variant="travel"
-                          className="text-[10px] px-1.5 py-0.5 max-w-[9rem]"
-                        >
-                          <Plane className="w-2.5 h-2.5 shrink-0" />
-                          <span className="truncate">
-                            {destinationByDay[dayIndex]}
-                          </span>
-                        </Badge>
-                      )}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2 text-xs rounded-lg hover:bg-[var(--muted)]"
-                      onClick={() => onOpenAdd(dateKey)}
+              {/* Mobile Layout: a date gutter, a hairline, then the day's
+                  cards — the shape of a calendar app's day view. */}
+              <div className="md:hidden flex">
+                <div className="w-14 shrink-0 flex flex-col items-center gap-1 pt-4 pb-3">
+                  <span
+                    className={`text-[11px] font-semibold uppercase tracking-wide ${
+                      isToday ? "text-[var(--primary)]" : "text-muted-foreground"
+                    }`}
+                  >
+                    {days[dayIndex]}
+                  </span>
+                  <span
+                    className={`flex size-10 items-center justify-center rounded-full text-lg font-semibold ${
+                      isToday ? "bg-[var(--primary)] text-white" : ""
+                    }`}
+                    aria-label={isToday ? `${daysFull[dayIndex]}, today` : daysFull[dayIndex]}
+                  >
+                    {dayOfMonth}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="mt-1 size-8 rounded-full text-muted-foreground hover:bg-[var(--muted)]"
+                    onClick={() => onOpenAdd(dateKey)}
+                    title={`Add to ${daysFull[dayIndex]}`}
+                    aria-label={`Add to ${daysFull[dayIndex]}`}
+                  >
+                    <Plus className="size-4" />
+                  </Button>
+                </div>
+                {/* Room on the right and top for each card's thumbnail,
+                    which overhangs its corner. */}
+                <div className="flex-1 min-w-0 border-l border-[var(--border)] pl-3 pr-3 pt-5 pb-4">
+                  {destinationByDay[dayIndex] && (
+                    <Badge
+                      variant="travel"
+                      className="mb-3 text-[10px] px-1.5 py-0.5 max-w-full"
                     >
-                      <Plus className="w-3 h-3 mr-1" />
-                      Add
-                    </Button>
-                  </div>
+                      <Plane className="w-2.5 h-2.5 shrink-0" />
+                      <span className="truncate">
+                        {destinationByDay[dayIndex]}
+                      </span>
+                    </Badge>
+                  )}
 
                   {loading ? (
                     <div className="space-y-2">
