@@ -833,7 +833,7 @@ export default function ContentDetailPage() {
                 category now gets them; the component renders nothing for an item
                 whose fields are all absent. */}
             {!editing && (
-              // The item's emoji leads the chips — the same marker planner
+              // The category icon leads the chips — the same marker planner
               // cards carry in their time chip.
               <AttributeChips
                 category={content.category}
@@ -846,7 +846,7 @@ export default function ContentDetailPage() {
                 leading={
                   <TypeChip
                     category={content.category}
-                    className="px-3 py-1.5 text-[12.5px]"
+                    className="px-3 py-1.5 text-[12.5px] [&>svg]:size-[15px]"
                   />
                 }
               />

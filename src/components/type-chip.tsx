@@ -1,16 +1,23 @@
 "use client";
 
 import { categoryUI } from "@/lib/categories";
-import { categoryEmoji } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { FileText } from "lucide-react";
+
+/** A planner quick note has no category; it borrows this look instead. */
+const NOTE_UI = {
+  icon: FileText,
+  label: "Quick note",
+  text: "text-[var(--accent)]",
+};
 
 /**
- * What kind of item this is, as its emoji — and, on a planner card, when it's
- * planned for.
+ * What kind of item this is, as its category icon — and, on a planner card,
+ * when it's planned for.
  *
  * Pressed into the card as information (.surface-inset in globals.css). The
- * card's tint already says the category at a glance; the emoji is the one
- * marker on top of that, so there's no separate type badge or icon.
+ * card's tint already says the category at a glance; the icon is the one
+ * marker on top of that, so there's no separate type badge.
  *
  * `"note"` stands in for a planner quick note, which has no category.
  */
@@ -23,9 +30,8 @@ export function TypeChip({
   time?: string | null;
   className?: string;
 }) {
-  const isNote = category === "note";
-  const emoji = isNote ? "📝" : categoryEmoji(category);
-  const label = isNote ? "Quick note" : categoryUI(category).label;
+  const { icon: Icon, label, text } =
+    category === "note" ? NOTE_UI : categoryUI(category);
 
   return (
     <span
@@ -34,9 +40,13 @@ export function TypeChip({
         className,
       )}
     >
-      <span role="img" aria-label={label} title={label} className="leading-none">
-        {emoji}
-      </span>
+      <Icon
+        role="img"
+        aria-label={label}
+        className={cn("size-3.5 shrink-0", text)}
+      >
+        <title>{label}</title>
+      </Icon>
       {time}
     </span>
   );
