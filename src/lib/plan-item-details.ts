@@ -1,5 +1,5 @@
 import { describeAttributes, type ItemAttribute } from "@/lib/attributes";
-import type { PlanItem } from "@/lib/supabase";
+import type { Content, PlanItem } from "@/lib/supabase";
 
 /**
  * What a planner card shows once it is expanded.
@@ -103,8 +103,11 @@ export function planItemDetails(item: PlanItem): PlanItemDetails {
  * phone, and a third would only ever be truncated.
  */
 export function planItemMeta(item: PlanItem): string | undefined {
-  const content = item.content;
-  if (!content) return undefined;
+  return item.content ? contentMeta(item.content) : undefined;
+}
+
+/** planItemMeta for a saved item on its own — the home page's collection row. */
+export function contentMeta(content: Content): string | undefined {
   const data = (content.data ?? {}) as AnyData;
 
   const parts: (string | undefined)[] = (() => {
