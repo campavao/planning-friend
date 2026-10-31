@@ -72,7 +72,8 @@ export function PlanItemDetails({
       : "text-[var(--meal)]";
 
   return (
-    <>
+    // A little air between the card's tinted header and the first chips.
+    <div className="pt-2">
       <AttributeChips
         category={item.content.category}
         data={item.content.data as Record<string, unknown>}
@@ -151,7 +152,7 @@ export function PlanItemDetails({
           )}
         </ItemRows>
       </div>
-    </>
+    </div>
   );
 }
 

@@ -120,9 +120,9 @@ function ExpandToggle({
 }
 
 /**
- * The row under a mobile card's title: its Share/Edit (or Leave, or Hide)
- * buttons, lifted above the stretched toggle, then — tucked at the far end —
- * the category mark and the chevron that says the card opens. `expanded` is
+ * The row under a mobile card's title: the category mark on the left, and on
+ * the right its Share/Edit (or Leave, or Hide) buttons — lifted above the
+ * stretched toggle — and the chevron that says the card opens. `expanded` is
  * null for a card with nothing to open.
  */
 function CardActions({
@@ -136,9 +136,9 @@ function CardActions({
 }) {
   return (
     <div className="mt-3 flex items-center gap-1">
-      <div className="relative z-10 flex items-center gap-1">{actions}</div>
+      {mark}
       <span className="ml-auto flex items-center gap-2">
-        {mark}
+        <span className="relative z-10 flex items-center gap-1">{actions}</span>
         {expanded !== null && <ExpandChevron expanded={expanded} />}
       </span>
     </div>
@@ -149,7 +149,7 @@ function CardActions({
 const NOTE_MARK = {
   icon: FileText,
   label: "Quick note",
-  text: "text-[var(--accent)]",
+  solid: "bg-[var(--accent)]",
 };
 
 function ExpandChevron({
@@ -528,7 +528,7 @@ export function WeekSection({
                           return (
                             <div
                               key={item.id}
-                              className="group bg-[var(--accent-light)] rounded-xl overflow-hidden"
+                              className="group bg-[var(--accent-light)] rounded-xl overflow-hidden border border-[var(--border)]"
                             >
                               <div className="relative px-4 pt-4 pb-3">
                                 {canExpand && (
@@ -563,8 +563,8 @@ export function WeekSection({
                                 />
                               </div>
                               {canExpand && (
-                                <SlideOpen open={isExpanded}>
-                                  <div className="px-4 pb-4">
+                                <SlideOpen open={isExpanded} className="bg-white">
+                                  <div className="px-4 py-3">
                                     <PlanItemDetails
                                       item={item}
                                       weekStart={weekStart}
@@ -585,7 +585,9 @@ export function WeekSection({
                         return (
                           <div
                             key={item.id}
-                            className={`group rounded-xl ${ui.bg}`}
+                            // The tint is the header's: the details slide in
+                            // on white below it.
+                            className={`group rounded-xl border border-[var(--border)] ${ui.bg}`}
                           >
                             <div className="relative flex gap-3.5 px-4 pt-4 items-start">
                               <ExpandToggle
@@ -655,7 +657,10 @@ export function WeekSection({
                                 expanded={isExpanded}
                               />
                             </div>
-                            <SlideOpen open={isExpanded}>
+                            <SlideOpen
+                              open={isExpanded}
+                              className="bg-white rounded-b-[11px]"
+                            >
                               <PlanItemDetails item={item} weekStart={weekStart} />
                               <div className="px-4 pb-4 pt-1">
                                 <Button asChild variant="outline" size="sm">
@@ -865,19 +870,19 @@ export function WeekSection({
                         );
                         const Icon = ui.icon;
 
-                        // Content item (desktop) — tinted like the mobile
-                        // card, with the category's own icon as its label.
+                        // Content item (desktop) — header tinted like the
+                        // mobile card, with the category's icon as its label.
                         return (
                           <div
                             key={item.id}
-                            className={`group relative rounded-lg overflow-hidden ${ui.bg}`}
+                            className="group relative bg-white rounded-lg overflow-hidden border border-[var(--border)]"
                           >
                             <ExpandToggle
                               expanded={isExpanded}
                               label={item.content?.title ?? "item"}
                               onToggle={() => toggleExpanded(item.id)}
                             />
-                            <div className="flex items-center justify-between px-2 pt-2">
+                            <div className={`flex items-center justify-between px-2 pt-2 pb-1 ${ui.bg}`}>
                               <div className="flex items-center gap-1 flex-wrap">
                                 <Icon
                                   className={`w-3 h-3 ${ui.text}`}
@@ -987,7 +992,7 @@ export function WeekSection({
                                 className="w-full h-20 object-cover"
                               />
                             )}
-                            <div className="p-2 pt-1">
+                            <div className={`p-2 pt-1.5 ${ui.bg}`}>
                               <p className="flex items-start justify-between gap-0.5 text-xs font-medium">
                                 <span
                                   className={isExpanded ? "" : "line-clamp-2"}

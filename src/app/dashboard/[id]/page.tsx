@@ -739,117 +739,121 @@ export default function ContentDetailPage() {
           </Card>
         )}
 
-        <Card className={`overflow-hidden animate-slide-up ${config.bg}`}>
-          {/* Hero — title block left, thumbnail right. The image used to be a
-              320px banner above the fold; demoting it puts the facts first,
-              which is what people open a saved item for. Tags are deliberately
-              not shown: they still exist on the item, but the structured rows
-              below are what this view is now organised around. */}
-          <div className="flex gap-3.5 px-4 pt-4 pb-3 items-start">
-            <div className="flex-1 min-w-0">
-              {editing ? (
-                // Changing the category leaves `data` alone — see the reasoning
-                // in PATCH /api/content/[id]. The fields below simply swap to
-                // the new shape, and anything the new shape doesn't show is
-                // still there if the category is switched back.
-                <Select value={editCategory} onValueChange={setEditCategory}>
-                  <SelectTrigger className="text-sm font-semibold cursor-pointer">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="meal">Recipe</SelectItem>
-                    <SelectItem value="drink">Drink</SelectItem>
-                    <SelectItem value="event">Event</SelectItem>
-                    <SelectItem value="date_idea">Restaurant</SelectItem>
-                    <SelectItem value="gift_idea">Gift</SelectItem>
-                    <SelectItem value="travel">Travel</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              ) : null}
-
-              {editing ? (
-                <Input
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  className="text-xl font-semibold mt-2"
-                  placeholder="Title"
-                  aria-label="Title"
-                />
-              ) : (
-                // No category pill above: the card's tint says what kind of
-                // item this is, and the mark beside the chips names it.
-                <h1 className="heading-2">{content.title}</h1>
-              )}
-            </div>
-
-            {content.thumbnail_url &&
-              !editing &&
-              (thumbnailPlaysSource ? (
-                <a
-                  href={content.tiktok_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={THUMBNAIL_CLASS}
-                  aria-label={getSourceLinkText(content.tiktok_url)}
-                >
-                  <ThumbnailBody
-                    src={content.thumbnail_url}
-                    alt={content.title}
-                    icon={Play}
-                  />
-                </a>
-              ) : (
-                /* The thumbnail is the trigger, so Radix returns focus here
-                   when the viewer closes. */
-                <PhotoViewerDialog
-                  open={photoOpen}
-                  onOpenChange={setPhotoOpen}
-                  imageUrl={content.thumbnail_url}
-                  itemTitle={content.title}
-                  title={content.title}
-                  trigger={
-                    <button
-                      type="button"
-                      className={THUMBNAIL_CLASS}
-                      aria-label="View full size"
-                    >
-                      <ThumbnailBody
-                        src={content.thumbnail_url}
-                        alt={content.title}
-                        icon={Maximize2}
-                      />
-                    </button>
-                  }
-                />
-              ))}
-          </div>
-
-          {/* Attributes sit directly under the title — they are the
-              at-a-glance answer to "is this the one for tonight". Every
-              category now gets them; the component renders nothing for an item
-              whose fields are all absent. */}
-          {!editing && (
-            <div className="flex items-start">
+        <Card className="overflow-hidden animate-slide-up">
+          {/* The header — title, thumbnail, chips — takes the category's tint;
+              everything below stays on the card's white. */}
+          <div className={editing ? undefined : config.bg}>
+            {/* Hero — title block left, thumbnail right. The image used to be a
+                320px banner above the fold; demoting it puts the facts first,
+                which is what people open a saved item for. Tags are deliberately
+                not shown: they still exist on the item, but the structured rows
+                below are what this view is now organised around. */}
+            <div className="flex gap-3.5 px-4 pt-4 pb-3 items-start">
               <div className="flex-1 min-w-0">
-                <AttributeChips
-                  category={content.category}
-                  data={content.data as Record<string, unknown>}
-                  onShowPlants={
-                    plants.length > 0
-                      ? () => setDrawer({ kind: "plants" })
-                      : undefined
-                  }
-                />
+                {editing ? (
+                  // Changing the category leaves `data` alone — see the reasoning
+                  // in PATCH /api/content/[id]. The fields below simply swap to
+                  // the new shape, and anything the new shape doesn't show is
+                  // still there if the category is switched back.
+                  <Select value={editCategory} onValueChange={setEditCategory}>
+                    <SelectTrigger className="text-sm font-semibold cursor-pointer">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="meal">Recipe</SelectItem>
+                      <SelectItem value="drink">Drink</SelectItem>
+                      <SelectItem value="event">Event</SelectItem>
+                      <SelectItem value="date_idea">Restaurant</SelectItem>
+                      <SelectItem value="gift_idea">Gift</SelectItem>
+                      <SelectItem value="travel">Travel</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : null}
+
+                {editing ? (
+                  <Input
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="text-xl font-semibold mt-2"
+                    placeholder="Title"
+                    aria-label="Title"
+                  />
+                ) : (
+                  // No category pill above: the card's tint says what kind of
+                  // item this is, and the mark beside the chips names it.
+                  <h1 className="heading-2">{content.title}</h1>
+                )}
               </div>
-              {/* Out of the way at the end of the chips, the way planner
-                  cards carry it at the end of their button row. */}
-              <CategoryMark
-                category={content.category}
-                className="mr-4 mt-2.5 mb-2"
-              />
+
+              {content.thumbnail_url &&
+                !editing &&
+                (thumbnailPlaysSource ? (
+                  <a
+                    href={content.tiktok_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={THUMBNAIL_CLASS}
+                    aria-label={getSourceLinkText(content.tiktok_url)}
+                  >
+                    <ThumbnailBody
+                      src={content.thumbnail_url}
+                      alt={content.title}
+                      icon={Play}
+                    />
+                  </a>
+                ) : (
+                  /* The thumbnail is the trigger, so Radix returns focus here
+                     when the viewer closes. */
+                  <PhotoViewerDialog
+                    open={photoOpen}
+                    onOpenChange={setPhotoOpen}
+                    imageUrl={content.thumbnail_url}
+                    itemTitle={content.title}
+                    title={content.title}
+                    trigger={
+                      <button
+                        type="button"
+                        className={THUMBNAIL_CLASS}
+                        aria-label="View full size"
+                      >
+                        <ThumbnailBody
+                          src={content.thumbnail_url}
+                          alt={content.title}
+                          icon={Maximize2}
+                        />
+                      </button>
+                    }
+                  />
+                ))}
             </div>
-          )}
+
+            {/* Attributes sit directly under the title — they are the
+                at-a-glance answer to "is this the one for tonight". Every
+                category now gets them; the component renders nothing for an item
+                whose fields are all absent. */}
+            {!editing && (
+              <div className="flex items-start">
+                {/* Leading the chips, the way planner cards lead their button
+                    row with it. */}
+                <CategoryMark
+                  category={content.category}
+                  className="ml-4 mt-[13px] mb-3"
+                />
+                <div className="flex-1 min-w-0 -ml-2">
+                  <AttributeChips
+                    category={content.category}
+                    data={content.data as Record<string, unknown>}
+                    onShowPlants={
+                      plants.length > 0
+                        ? () => setDrawer({ kind: "plants" })
+                        : undefined
+                    }
+                  />
+                </div>
+              </div>
+            )}
+          </div>
 
           <div className="px-2 pb-6">
             {editing ? (
