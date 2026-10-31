@@ -1,7 +1,7 @@
 import { BottomNav } from "@/components/bottom-nav";
 import { SWRProvider } from "@/lib/swr-config";
 import { Analytics } from "@vercel/analytics/next";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Sans, Fraunces } from "next/font/google";
 import "./globals.css";
 
@@ -51,6 +51,16 @@ export const metadata: Metadata = {
   other: {
     "mobile-web-app-capable": "yes",
   },
+};
+
+// viewport-fit=cover lets the page run to the bottom edge of the screen. Without
+// it, iOS reports every env(safe-area-inset-*) as 0, so the bottom nav's
+// home-indicator padding (and the drawers') did nothing, and the nav was
+// positioned against a viewport that stopped short of the screen's edge.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

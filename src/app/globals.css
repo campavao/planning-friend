@@ -457,15 +457,12 @@
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
   }
-  
-  html, body {
-    height: 100%;
-    height: -webkit-fill-available;
-  }
 
+  /* No height: -webkit-fill-available on html/body. It pinned the document
+     to the toolbar-shrunk height, which on iOS 26 left fixed elements laid
+     out against a viewport that ended above the screen's bottom edge — the
+     bottom nav floated mid-screen with the page scrolling underneath it. */
   body {
-    min-height: 100vh;
-    min-height: -webkit-fill-available;
     -webkit-overflow-scrolling: touch;
   }
 }

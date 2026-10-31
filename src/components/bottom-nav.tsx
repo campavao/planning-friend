@@ -25,6 +25,10 @@ export function isNavItemActive(itemHref: string, pathname: string): boolean {
     : pathname.startsWith(itemHref);
 }
 
+// The nav's shadow reaches 24px above it (-4px offset, 20px blur); hiding by
+// exactly 100% would leave that strip on screen.
+const HIDDEN_OFFSET = "calc(100% + 24px)";
+
 // Screens that stand alone: sign-in, and the status page the share sheet lands
 // on, which is a moment between apps rather than a place in this one.
 const NO_NAV_PATHS = new Set(["/", "/dashboard/share"]);
@@ -57,13 +61,19 @@ export function BottomNav() {
         bottom: 0,
         // Still a 3D transform when hidden: the translate3d is the iOS fix
         // for fixed elements jumping during scroll, so it can't be dropped.
-        WebkitTransform: `translate3d(0,${hidden ? "100%" : "0"},0)`,
-        transform: `translate3d(0,${hidden ? "100%" : "0"},0)`,
+        // Past its own height by the shadow's reach, or the upward shadow is
+        // left behind as a grey band along the bottom edge.
+        WebkitTransform: `translate3d(0,${hidden ? HIDDEN_OFFSET : "0"},0)`,
+        transform: `translate3d(0,${hidden ? HIDDEN_OFFSET : "0"},0)`,
         WebkitBackfaceVisibility: "hidden",
         backfaceVisibility: "hidden",
       }}
     >
-      <div className="bg-white/95 backdrop-blur-lg border-t border-[var(--border)] shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+      <div
+        className={`bg-white/95 backdrop-blur-lg border-t border-[var(--border)] transition-shadow duration-300 ${
+          hidden ? "shadow-none" : "shadow-[0_-4px_20px_rgba(0,0,0,0.05)]"
+        }`}
+      >
         <div className="flex justify-around items-center px-2 py-1">
           {NAV_ITEMS.map((item) => {
             const isActive = isNavItemActive(item.href, pathname);
