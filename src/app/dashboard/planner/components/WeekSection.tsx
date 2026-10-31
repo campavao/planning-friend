@@ -131,66 +131,54 @@ interface CardAction {
 }
 
 /**
- * The planned time and the card's buttons as one unit — they're all "about
- * this occurrence". The group is an inset tray, the time pressed into it as
- * information, and the buttons stand up out of it: the surface rule that runs
- * through the cards (see .surface-inset in globals.css).
- *
- * The time is text, not a button: the group ignores pointer events so a tap on
- * it falls through to the card's toggle, and only the buttons opt back in.
- * Time is always the foreground colour; on a tinted header, tinted text was
- * the hardest thing on the card to read.
+ * The planned time, pressed into the card as information — see .surface-inset
+ * in globals.css. Always the foreground colour: on a tinted header, tinted
+ * text was the hardest thing on the card to read.
  */
-function TimeActionGroup({
-  time,
-  actions,
-}: {
-  time: string | null;
-  actions: CardAction[];
-}) {
+function TimeChip({ time }: { time: string }) {
   return (
-    <div className="surface-inset relative z-10 pointer-events-none inline-flex h-9 items-center gap-1 rounded-full p-1 text-[11px] font-semibold text-[var(--foreground)]">
-      {time && (
-        <span className="flex items-center gap-1 pl-2 pr-1">
-          <Clock className="size-3 text-muted-foreground" />
-          {time}
-        </span>
-      )}
-      {actions.map((action) => (
-        <button
-          key={action.key}
-          type="button"
-          onClick={action.onClick}
-          title={action.title}
-          aria-label={action.label ? undefined : action.title}
-          className={`surface-raised pointer-events-auto flex h-7 items-center gap-1 rounded-full transition-transform active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] ${
-            action.label ? "px-2.5" : "w-7 justify-center"
-          }`}
-        >
-          <action.icon className="size-3.5" />
-          {action.label}
-        </button>
-      ))}
-    </div>
+    <span className="surface-inset inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-[11px] font-semibold text-[var(--foreground)]">
+      <Clock className="size-3 text-muted-foreground" />
+      {time}
+    </span>
   );
 }
 
 /**
- * The row under a mobile card's title: the category mark on the left and the
- * chevron that says the card opens on the right. Both are decoration — the
- * row sits under a stretched toggle. `expanded` is null for a card with
- * nothing to open.
+ * The row under a mobile card's title: the category mark on the left, and on
+ * the right the card's own buttons — raised, and lifted above the stretched
+ * toggle — then the chevron that says the card opens. `expanded` is null for
+ * a card with nothing to open.
  */
 function CardMarkRow({
   mark,
+  actions,
   expanded,
 }: {
   mark: React.ReactNode;
+  actions: CardAction[];
   expanded: boolean | null;
 }) {
   return (
-    <div className="mt-3 flex items-center justify-between">
+    <div className="mt-3 flex items-center gap-2">
       {mark}
+      <span className="relative z-10 ml-auto flex items-center gap-1.5">
+        {actions.map((action) => (
+          <button
+            key={action.key}
+            type="button"
+            onClick={action.onClick}
+            title={action.title}
+            aria-label={action.label ? undefined : action.title}
+            className={`surface-raised flex h-7 items-center gap-1 rounded-full text-[11px] font-semibold transition-transform active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] ${
+              action.label ? "px-2.5" : "w-7 justify-center"
+            }`}
+          >
+            <action.icon className="size-3.5" />
+            {action.label}
+          </button>
+        ))}
+      </span>
       {expanded !== null && <ExpandChevron expanded={expanded} />}
     </div>
   );
@@ -501,8 +489,8 @@ export function WeekSection({
                         const plannedTimeLabel = formatItemTime(item);
                         const isExpanded = expandedIds.has(item.id);
 
-                        // Time and the card's own buttons ride together in
-                        // one white pill at the top of the card.
+                        // The card's own buttons, raised in the row at its
+                        // foot beside the category mark.
                         const cardActions: CardAction[] = isAutoEvent
                           ? [
                               {
@@ -548,12 +536,11 @@ export function WeekSection({
                                 },
                               ];
 
-                        const topRow = (
+                        const topRow = (plannedTimeLabel || isShared) && (
                           <div className="flex items-center gap-1.5 flex-wrap mb-2">
-                            <TimeActionGroup
-                              time={plannedTimeLabel}
-                              actions={cardActions}
-                            />
+                            {plannedTimeLabel && (
+                              <TimeChip time={plannedTimeLabel} />
+                            )}
                             {isShared && (
                               <span className="surface-inset rounded-full px-2.5 py-1 text-[10px] font-medium">
                                 from {sharedItem?.owner_name}
@@ -587,6 +574,7 @@ export function WeekSection({
                                 <h3 className="heading-2">{item.note_title}</h3>
                                 <CardMarkRow
                                   mark={<CategoryMark category="other" as={NOTE_MARK} />}
+                                  actions={cardActions}
                                   expanded={canExpand ? isExpanded : null}
                                 />
                               </div>
@@ -661,6 +649,7 @@ export function WeekSection({
                                     category={item.content?.category || "other"}
                                   />
                                 }
+                                actions={cardActions}
                                 expanded={isExpanded}
                               />
                             </div>
