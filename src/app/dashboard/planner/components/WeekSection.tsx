@@ -684,7 +684,10 @@ export function WeekSection({
                             </div>
                             <SlideOpen
                               open={isExpanded}
-                              className="bg-white rounded-b-[11px]"
+                              // The card's own corner (rounded-xl) less its
+                              // 1px border, so the white sits inside the curve.
+                              // The card can't clip it: its thumbnail overhangs.
+                              className="bg-white rounded-b-[calc(var(--radius-xl)-1px)]"
                             >
                               <PlanItemDetails item={item} weekStart={weekStart} />
                               <div className="px-4 pb-4 pt-1">
