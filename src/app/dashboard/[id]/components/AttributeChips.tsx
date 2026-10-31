@@ -61,10 +61,11 @@ function Chip({
   children: React.ReactNode;
   onClick?: () => void;
 }) {
+  // Information is pressed in; the one chip that does something — plants,
+  // which opens its breakdown — stands up like any other button.
   const className = cn(
-    "inline-flex items-center gap-1.5 rounded-full border border-[var(--border)]",
-    "bg-[var(--card)] px-3 py-1.5 text-[12.5px] font-semibold",
-    "shadow-[var(--shadow-sm)]"
+    "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-semibold",
+    onClick ? "surface-raised" : "surface-inset"
   );
 
   if (!onClick) {
@@ -82,7 +83,7 @@ function Chip({
       onClick={onClick}
       className={cn(
         className,
-        "transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--background)]",
+        "transition-transform active:translate-y-px",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
       )}
     >
@@ -97,19 +98,23 @@ interface AttributeChipsProps {
   data: Record<string, unknown> | null | undefined;
   /** Opens the plant breakdown. Without it the plant chip is not tappable. */
   onShowPlants?: () => void;
+  /** Leads the row, centred on the chips — the item page's category mark. */
+  leading?: React.ReactNode;
 }
 
 export function AttributeChips({
   category,
   data,
   onShowPlants,
+  leading,
 }: AttributeChipsProps) {
   const attributes = describeAttributes(category, data);
 
-  if (attributes.length === 0) return null;
+  if (attributes.length === 0 && !leading) return null;
 
   return (
     <div className="flex flex-wrap items-center gap-1.5 px-4 pb-3.5 pt-1.5">
+      {leading}
       {attributes.map((attribute) => (
         <Chip
           key={attribute.key}

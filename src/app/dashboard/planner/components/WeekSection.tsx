@@ -11,6 +11,8 @@ import {
 import type { Content, SharedPlanItem, Tag } from "@/lib/supabase";
 import { formatDateString, parseDateString } from "@/lib/date-utils";
 import {
+  ArrowRight,
+  ChevronDown,
   FileText,
   Hand,
   Pencil,
@@ -19,8 +21,11 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { type ElementType, useMemo, useState } from "react";
 import { categoryUI } from "@/lib/categories";
+import { TypeChip } from "@/components/type-chip";
+import { SlideOpen } from "@/components/slide-open";
+import { PlanItemDetails } from "./PlanItemDetails";
 import { SuggestionStrip } from "./SuggestionStrip";
 import { WeekPlantScore } from "./WeekPlantScore";
 import {
@@ -79,6 +84,104 @@ function getHiddenAutoEvents(weekStart: string): Set<string> {
   }
 }
 
+/**
+ * Makes a card's summary expand on tap, the way CardLink makes a content card
+ * navigate: a button stretched over the region rather than wrapped around it,
+ * because the card's Share/Edit buttons sit inside the same box and a button
+ * can't contain buttons. Those lift above it with z-10.
+ */
+function ExpandToggle({
+  expanded,
+  label,
+  onToggle,
+  hidden = false,
+}: {
+  expanded: boolean;
+  label: string;
+  onToggle: () => void;
+  /**
+   * A second tap target for the same card — the row the chevron sits in.
+   * Kept out of the accessibility tree and the tab order so a screen reader
+   * meets one toggle per card, not two.
+   */
+  hidden?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      aria-expanded={expanded}
+      aria-label={`${expanded ? "Collapse" : "Expand"} ${label}`}
+      aria-hidden={hidden || undefined}
+      tabIndex={hidden ? -1 : undefined}
+      onClick={onToggle}
+      className="absolute inset-0 rounded-[inherit] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+    />
+  );
+}
+
+/** One of a card's own buttons — Share, Edit, Leave, Hide. */
+interface CardAction {
+  key: string;
+  icon: ElementType;
+  title: string;
+  /** Shown beside the icon; icon-only buttons are named by `title`. */
+  label?: string;
+  onClick: () => void;
+}
+
+/**
+ * The row at the foot of a mobile card: its own buttons — raised, and lifted
+ * above the stretched toggle — then the chevron that says the card opens.
+ * `expanded` is null for a card with nothing to open.
+ */
+function CardActionRow({
+  actions,
+  expanded,
+}: {
+  actions: CardAction[];
+  expanded: boolean | null;
+}) {
+  return (
+    <div className="mt-3 flex items-center justify-end gap-2">
+      <span className="relative z-10 flex items-center gap-1.5">
+        {actions.map((action) => (
+          <button
+            key={action.key}
+            type="button"
+            onClick={action.onClick}
+            title={action.title}
+            aria-label={action.label ? undefined : action.title}
+            className={`surface-raised flex h-7 items-center gap-1 rounded-full text-[11px] font-semibold transition-transform active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] ${
+              action.label ? "px-2.5" : "w-7 justify-center"
+            }`}
+          >
+            <action.icon className="size-3.5" />
+            {action.label}
+          </button>
+        ))}
+      </span>
+      {expanded !== null && <ExpandChevron expanded={expanded} />}
+    </div>
+  );
+}
+
+function ExpandChevron({
+  expanded,
+  className = "w-4 h-4",
+}: {
+  expanded: boolean;
+  className?: string;
+}) {
+  return (
+    <ChevronDown
+      aria-hidden
+      className={`${className} mt-0.5 shrink-0 text-muted-foreground transition-transform ${
+        expanded ? "rotate-180" : ""
+      }`}
+    />
+  );
+}
+
 export function WeekSection({
   weekStart,
   enabled,
@@ -117,6 +220,18 @@ export function WeekSection({
           JSON.stringify([...next]),
         );
       } catch {}
+      return next;
+    });
+  };
+
+  // Item ids, not per-layout: only one of the mobile and desktop trees is
+  // ever visible, and a card opened on one should stay open across a resize.
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
+  const toggleExpanded = (itemId: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
       return next;
     });
   };
@@ -330,8 +445,10 @@ export function WeekSection({
                       <Skeleton className="h-16 rounded-xl" />
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      {itemsByDay[dayIndex].map((item) => {
+                    // Roomier than desktop: each card's thumbnail pops out
+                    // past its top edge, into the gap above.
+                    <div className="space-y-4">
+                      {itemsByDay[dayIndex].map((item, itemIndex) => {
                         const isShared = item.isSharedWithMe;
                         const isAutoEvent =
                           !isShared &&
@@ -344,200 +461,193 @@ export function WeekSection({
                           : null;
                         const isQuickNote = !item.content_id && item.note_title;
                         const plannedTimeLabel = formatItemTime(item);
+                        const isExpanded = expandedIds.has(item.id);
 
-                        // Quick note display (mobile)
+                        // The card's own buttons, raised in the row at its
+                        // foot beside the category mark.
+                        const cardActions: CardAction[] = isAutoEvent
+                          ? [
+                              {
+                                key: "share",
+                                icon: Users,
+                                label: "Share",
+                                title: "Share",
+                                onClick: () =>
+                                  onShareAutoEvent(ownItem!, weekStart),
+                              },
+                              {
+                                key: "hide",
+                                icon: X,
+                                title: "Hide from plan",
+                                onClick: () => hideAutoEvent(item.content_id!),
+                              },
+                            ]
+                          : isShared
+                            ? [
+                                {
+                                  key: "leave",
+                                  icon: Hand,
+                                  title: "Leave",
+                                  onClick: () =>
+                                    onLeaveShared(item.id, weekStart),
+                                },
+                              ]
+                            : [
+                                {
+                                  key: "share",
+                                  icon: Users,
+                                  label: ownItem?.shared_with?.length
+                                    ? String(ownItem.shared_with.length)
+                                    : "Share",
+                                  title: "Share",
+                                  onClick: () => onOpenShare(ownItem!),
+                                },
+                                {
+                                  key: "edit",
+                                  icon: Pencil,
+                                  title: "Edit",
+                                  onClick: () => onOpenEdit(ownItem!, dateKey),
+                                },
+                              ];
+
+                        const topRow = (
+                          <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                            <TypeChip
+                              category={
+                                isQuickNote
+                                  ? "note"
+                                  : item.content?.category || "other"
+                              }
+                              time={plannedTimeLabel}
+                              className="h-7 px-2.5 text-[11px]"
+                            />
+                            {isShared && (
+                              <span className="surface-inset rounded-full px-2.5 py-1 text-[10px] font-medium">
+                                from {sharedItem?.owner_name}
+                              </span>
+                            )}
+                          </div>
+                        );
+
+                        // Mobile cards share one header, open or closed: the
+                        // top of the item page — serif title beside a square
+                        // thumbnail, on the category's tint. Opening only
+                        // slides the details in underneath, so the card grows
+                        // rather than changing shape.
                         if (isQuickNote) {
+                          // A note with no body has nothing to expand into.
+                          const canExpand = !!item.notes?.trim();
                           return (
                             <div
                               key={item.id}
-                              className="group relative bg-[var(--accent-light)] rounded-xl overflow-hidden p-3"
+                              className="group bg-[var(--accent-light)] rounded-xl overflow-hidden border border-[var(--border)]"
                             >
-                              <div className="flex flex-col gap-1 pr-16">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <FileText className="w-4 h-4 text-[var(--accent)]" />
-                                  {plannedTimeLabel && (
-                                    <Badge className="bg-white/70 px-2 py-0.5 text-[10px] font-semibold text-[var(--accent)]">
-                                      {plannedTimeLabel}
-                                    </Badge>
-                                  )}
-                                  {isShared && (
-                                    <Badge
-                                      variant="muted"
-                                      className="px-1.5 py-0.5 text-[10px] font-medium"
-                                    >
-                                      from {sharedItem?.owner_name}
-                                    </Badge>
-                                  )}
-                                </div>
-                                <p className="font-medium text-sm">
-                                  {item.note_title}
-                                </p>
-                              </div>
-                              <div className="absolute top-2 right-2 flex gap-1">
-                                {isShared ? (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    onClick={() =>
-                                      onLeaveShared(item.id, weekStart)
-                                    }
-                                    className="size-7 rounded-lg bg-white text-xs shadow-sm"
-                                    title="Leave"
-                                  >
-                                    <Hand className="size-3" />
-                                  </Button>
-                                ) : (
-                                  <>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => onOpenShare(ownItem!)}
-                                      className="h-7 gap-1 rounded-lg bg-white px-2 text-[10px] font-semibold shadow-sm"
-                                      title="Share"
-                                    >
-                                      <Users className="size-3" />
-                                      {ownItem?.shared_with?.length
-                                        ? ownItem.shared_with.length
-                                        : "Share"}
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon-sm"
-                                      onClick={() =>
-                                        onOpenEdit(ownItem!, dateKey)
-                                      }
-                                      className="size-7 rounded-lg bg-white text-xs shadow-sm"
-                                      title="Edit"
-                                    >
-                                      <Pencil className="size-3" />
-                                    </Button>
-                                  </>
+                              <div className="relative px-4 pt-4 pb-3">
+                                {canExpand && (
+                                  <ExpandToggle
+                                    expanded={isExpanded}
+                                    label={item.note_title!}
+                                    onToggle={() => toggleExpanded(item.id)}
+                                  />
                                 )}
+                                {topRow}
+                                <h3 className="heading-2">{item.note_title}</h3>
+                                <CardActionRow
+                                  actions={cardActions}
+                                  expanded={canExpand ? isExpanded : null}
+                                />
                               </div>
+                              {canExpand && (
+                                <SlideOpen open={isExpanded} className="bg-white">
+                                  <div className="px-4 py-3">
+                                    <PlanItemDetails
+                                      item={item}
+                                      weekStart={weekStart}
+                                    />
+                                  </div>
+                                </SlideOpen>
+                              )}
                             </div>
                           );
                         }
 
-                        const Icon = categoryUI(
-                          item.content?.category || "other",
-                        ).icon;
+                        const title = item.content?.title ?? "item";
 
                         // Content item display (mobile)
                         return (
                           <div
                             key={item.id}
-                            className="group relative bg-white rounded-xl overflow-hidden border border-[var(--border)] flex items-stretch min-h-20"
+                            // The tint is the header's: the details slide in
+                            // on white below it.
+                            className={`group rounded-xl border border-[var(--border)] ${
+                              categoryUI(item.content?.category || "other").bg
+                            }`}
                           >
-                            {item.content?.thumbnail_url && (
-                              <div className="w-20 shrink-0 relative overflow-hidden">
+                            <div className="relative flex gap-3.5 px-4 pt-4 items-start">
+                              <ExpandToggle
+                                expanded={isExpanded}
+                                label={title}
+                                onToggle={() => toggleExpanded(item.id)}
+                              />
+                              <div className="flex-1 min-w-0">
+                                {topRow}
+                                <h3
+                                  className={`heading-2 ${
+                                    isExpanded ? "" : "line-clamp-2"
+                                  }`}
+                                >
+                                  {title}
+                                </h3>
+                              </div>
+                              {item.content?.thumbnail_url && (
+                                // Pops out past the card's corner, tilted like
+                                // a photo tucked into it — alternating so a
+                                // day's stack doesn't lean one way. Taps pass
+                                // through to the toggle underneath.
                                 <img
                                   src={item.content.thumbnail_url}
                                   alt=""
-                                  className="absolute inset-0 w-full h-full object-cover rounded-l-xl"
+                                  className={`relative pointer-events-none w-[92px] h-[92px] shrink-0 -mt-7 -mr-6 rounded-2xl object-cover border-[3px] border-white shadow-[var(--shadow-lg)] transition-transform duration-300 ease-out motion-reduce:transition-none ${
+                                    itemIndex % 2 === 0
+                                      ? "rotate-[5deg] group-hover:rotate-[8deg]"
+                                      : "-rotate-[4deg] group-hover:-rotate-[7deg]"
+                                  }`}
                                 />
-                              </div>
-                            )}
-                            <div className="flex-1 min-w-0 p-2 flex flex-col gap-1.5">
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <Icon className="w-3.5 h-3.5 text-muted-foreground" />
-                                  <span className="text-xs text-muted-foreground capitalize">
-                                    {item.content?.category?.replace("_", " ")}
-                                  </span>
-                                  {plannedTimeLabel && (
-                                    <Badge
-                                      variant="accent"
-                                      className="px-2 py-0.5 text-[10px] font-semibold"
-                                    >
-                                      {plannedTimeLabel}
-                                    </Badge>
-                                  )}
-                                  {isShared && (
-                                    <Badge
-                                      variant="muted"
-                                      className="px-1.5 py-0.5 text-[10px] font-medium"
-                                    >
-                                      from {sharedItem?.owner_name}
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="flex gap-1 shrink-0">
-                                  {isAutoEvent ? (
-                                    <>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() =>
-                                          onShareAutoEvent(ownItem!, weekStart)
-                                        }
-                                        className="h-7 gap-1 rounded-lg bg-white px-2 text-[10px] font-semibold shadow-sm"
-                                        title="Share"
-                                      >
-                                        <Users className="size-3" />
-                                        Share
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon-sm"
-                                        onClick={() =>
-                                          hideAutoEvent(item.content_id!)
-                                        }
-                                        className="size-7 rounded-lg bg-white text-xs shadow-sm"
-                                        title="Hide from plan"
-                                      >
-                                        <X className="size-3" />
-                                      </Button>
-                                    </>
-                                  ) : isShared ? (
-                                    <Button
-                                      variant="ghost"
-                                      size="icon-sm"
-                                      onClick={() =>
-                                        onLeaveShared(item.id, weekStart)
-                                      }
-                                      className="size-7 rounded-lg bg-white text-xs shadow-sm"
-                                      title="Leave"
-                                    >
-                                      <Hand className="size-3" />
-                                    </Button>
-                                  ) : (
-                                    <>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => onOpenShare(ownItem!)}
-                                        className="h-7 gap-1 rounded-lg bg-white px-2 text-[10px] font-semibold shadow-sm"
-                                        title="Share"
-                                      >
-                                        <Users className="size-3" />
-                                        {ownItem?.shared_with?.length
-                                          ? ownItem.shared_with.length
-                                          : "Share"}
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon-sm"
-                                        onClick={() =>
-                                          onOpenEdit(ownItem!, dateKey)
-                                        }
-                                        className="size-7 rounded-lg bg-white text-xs shadow-sm"
-                                        title="Edit"
-                                      >
-                                        <Pencil className="size-3" />
-                                      </Button>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                              <Link
-                                href={`/dashboard/${item.content_id}?from=planner&week=${weekStart}`}
-                                className="block"
-                              >
-                                <p className="font-medium text-sm line-clamp-2">
-                                  {item.content?.title}
-                                </p>
-                              </Link>
+                              )}
                             </div>
+                            <div className="relative px-4 pb-3">
+                              <ExpandToggle
+                                expanded={isExpanded}
+                                label={title}
+                                onToggle={() => toggleExpanded(item.id)}
+                                hidden
+                              />
+                              <CardActionRow
+                                actions={cardActions}
+                                expanded={isExpanded}
+                              />
+                            </div>
+                            <SlideOpen
+                              open={isExpanded}
+                              className="bg-white rounded-b-[11px]"
+                            >
+                              <PlanItemDetails item={item} weekStart={weekStart} />
+                              <div className="px-4 pb-4 pt-1">
+                                <Button
+                                  asChild
+                                  variant="ghost"
+                                  size="sm"
+                                  className="surface-raised rounded-full px-3.5 text-[var(--primary)] hover:bg-[var(--card)] hover:text-[var(--primary)] active:translate-y-px"
+                                >
+                                  <Link
+                                    href={`/dashboard/${item.content_id}?from=planner&week=${weekStart}`}
+                                  >
+                                    Open
+                                    <ArrowRight className="size-3.5" />
+                                  </Link>
+                                </Button>
+                              </div>
+                            </SlideOpen>
                           </div>
                         );
                       })}
@@ -626,36 +736,65 @@ export function WeekSection({
                           : null;
                         const isQuickNote = !item.content_id && item.note_title;
                         const plannedTimeLabel = formatItemTime(item);
+                        const isExpanded = expandedIds.has(item.id);
 
                         // Quick note (desktop)
                         if (isQuickNote) {
+                          const canExpand = !!item.notes?.trim();
                           return (
                             <div
                               key={item.id}
                               className="group relative bg-[var(--accent-light)] rounded-lg overflow-hidden p-2"
                             >
-                              <div className="flex flex-col gap-1">
+                              <div className="relative flex flex-col gap-1">
                                 <div className="flex items-center gap-1 flex-wrap">
                                   <FileText className="w-3 h-3 text-[var(--accent)]" />
                                   {plannedTimeLabel && (
-                                    <Badge className="bg-white/70 px-1.5 py-0.5 text-[8px] font-semibold text-[var(--accent)]">
+                                    <Badge className="surface-inset px-1.5 py-0.5 text-[8px] font-semibold text-[var(--foreground)]">
                                       {plannedTimeLabel}
                                     </Badge>
                                   )}
                                   {isShared && (
                                     <Badge
-                                      variant="muted"
-                                      className="rounded bg-white/60 px-1 py-0.5 text-[8px] font-medium"
+                                      className="surface-inset rounded px-1 py-0.5 text-[8px] font-medium text-[var(--foreground)]"
                                     >
                                       {sharedItem?.owner_name}
                                     </Badge>
                                   )}
                                 </div>
-                                <p className="text-xs font-medium line-clamp-2">
-                                  {item.note_title}
+                                <p className="flex items-start justify-between gap-0.5 text-xs font-medium">
+                                  <span
+                                    className={isExpanded ? "" : "line-clamp-2"}
+                                  >
+                                    {item.note_title}
+                                  </span>
+                                  {canExpand && (
+                                    <ExpandChevron
+                                      expanded={isExpanded}
+                                      className="w-3 h-3"
+                                    />
+                                  )}
                                 </p>
+                                {canExpand && (
+                                  <ExpandToggle
+                                    expanded={isExpanded}
+                                    label={item.note_title!}
+                                    onToggle={() => toggleExpanded(item.id)}
+                                  />
+                                )}
                               </div>
-                              <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {canExpand && (
+                                <SlideOpen open={isExpanded}>
+                                  <div className="pt-1.5">
+                                    <PlanItemDetails
+                                      item={item}
+                                      weekStart={weekStart}
+                                      compact
+                                    />
+                                  </div>
+                                </SlideOpen>
+                              )}
+                              <div className="absolute top-1 right-1 z-10 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                 {isShared ? (
                                   <Button
                                     variant="ghost"
@@ -663,7 +802,7 @@ export function WeekSection({
                                     onClick={() =>
                                       onLeaveShared(item.id, weekStart)
                                     }
-                                    className="size-5 rounded bg-white text-[10px] shadow-sm hover:bg-white"
+                                    className="size-5 surface-raised rounded text-[10px] hover:bg-[var(--card)]"
                                     title="Leave"
                                   >
                                     <Hand className="size-3" />
@@ -674,7 +813,7 @@ export function WeekSection({
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => onOpenShare(ownItem!)}
-                                      className="h-5 gap-0.5 rounded bg-white px-1.5 text-[9px] font-semibold shadow-sm hover:bg-white"
+                                      className="h-5 gap-0.5 surface-raised rounded px-1.5 text-[9px] font-semibold hover:bg-[var(--card)]"
                                       title="Share"
                                     >
                                       <Users className="size-3" />
@@ -688,7 +827,7 @@ export function WeekSection({
                                       onClick={() =>
                                         onOpenEdit(ownItem!, dateKey)
                                       }
-                                      className="size-5 rounded bg-white text-[10px] shadow-sm hover:bg-white"
+                                      className="size-5 surface-raised rounded text-[10px] hover:bg-[var(--card)]"
                                       title="Edit"
                                     >
                                       <Pencil className="size-3" />
@@ -700,37 +839,43 @@ export function WeekSection({
                           );
                         }
 
-                        const Icon = categoryUI(
+                        const ui = categoryUI(
                           item.content?.category || "other",
-                        ).icon;
+                        );
+                        const Icon = ui.icon;
 
-                        // Content item (desktop)
+                        // Content item (desktop) — header tinted like the
+                        // mobile card, with the category's icon as its label.
                         return (
                           <div
                             key={item.id}
                             className="group relative bg-white rounded-lg overflow-hidden border border-[var(--border)]"
                           >
-                            <div className="flex items-center justify-between px-2 pt-2">
+                            <ExpandToggle
+                              expanded={isExpanded}
+                              label={item.content?.title ?? "item"}
+                              onToggle={() => toggleExpanded(item.id)}
+                            />
+                            <div className={`flex items-center justify-between px-2 pt-2 pb-1 ${ui.bg}`}>
                               <div className="flex items-center gap-1 flex-wrap">
-                                <Icon className="w-3 h-3 text-muted-foreground" />
+                                <Icon
+                                  className={`w-3 h-3 ${ui.text}`}
+                                  aria-label={ui.label}
+                                />
                                 {plannedTimeLabel && (
-                                  <Badge
-                                    variant="accent"
-                                    className="px-1.5 py-0.5 text-[8px] font-semibold"
-                                  >
+                                  <Badge className="surface-inset px-1.5 py-0.5 text-[8px] font-semibold text-[var(--foreground)]">
                                     {plannedTimeLabel}
                                   </Badge>
                                 )}
                                 {isShared && (
                                   <Badge
-                                    variant="muted"
-                                    className="rounded px-1 py-0.5 text-[8px] font-medium"
+                                    className="surface-inset rounded px-1 py-0.5 text-[8px] font-medium text-[var(--foreground)]"
                                   >
                                     {sharedItem?.owner_name}
                                   </Badge>
                                 )}
                               </div>
-                              <div className="flex gap-0.5">
+                              <div className="relative z-10 flex gap-0.5">
                                 {isAutoEvent ? (
                                   <>
                                     <Button
@@ -741,7 +886,7 @@ export function WeekSection({
                                         e.stopPropagation();
                                         onShareAutoEvent(ownItem!, weekStart);
                                       }}
-                                      className="h-5 gap-0.5 rounded bg-white/90 px-1.5 text-[9px] font-semibold shadow-sm backdrop-blur hover:bg-white/90"
+                                      className="h-5 gap-0.5 surface-raised rounded px-1.5 text-[9px] font-semibold hover:bg-[var(--card)]"
                                       title="Share"
                                     >
                                       <Users className="size-3" />
@@ -755,7 +900,7 @@ export function WeekSection({
                                         e.stopPropagation();
                                         hideAutoEvent(item.content_id!);
                                       }}
-                                      className="size-5 rounded bg-white/90 text-[10px] shadow-sm backdrop-blur hover:bg-white/90"
+                                      className="size-5 surface-raised rounded text-[10px] hover:bg-[var(--card)]"
                                       title="Hide from plan"
                                     >
                                       <X className="size-3" />
@@ -770,7 +915,7 @@ export function WeekSection({
                                       e.stopPropagation();
                                       onLeaveShared(item.id, weekStart);
                                     }}
-                                    className="size-5 rounded bg-white/90 text-[10px] shadow-sm backdrop-blur hover:bg-white/90"
+                                    className="size-5 surface-raised rounded text-[10px] hover:bg-[var(--card)]"
                                     title="Leave"
                                   >
                                     <Hand className="size-3" />
@@ -785,7 +930,7 @@ export function WeekSection({
                                         e.stopPropagation();
                                         onOpenShare(ownItem!);
                                       }}
-                                      className="h-5 gap-0.5 rounded bg-white/90 px-1.5 text-[9px] font-semibold shadow-sm backdrop-blur hover:bg-white/90"
+                                      className="h-5 gap-0.5 surface-raised rounded px-1.5 text-[9px] font-semibold hover:bg-[var(--card)]"
                                       title="Share"
                                     >
                                       <Users className="size-3" />
@@ -801,7 +946,7 @@ export function WeekSection({
                                         e.stopPropagation();
                                         onOpenEdit(ownItem!, dateKey);
                                       }}
-                                      className="size-5 rounded bg-white/90 text-[10px] shadow-sm backdrop-blur hover:bg-white/90"
+                                      className="size-5 surface-raised rounded text-[10px] hover:bg-[var(--card)]"
                                       title="Edit"
                                     >
                                       <Pencil className="size-3" />
@@ -810,25 +955,37 @@ export function WeekSection({
                                 )}
                               </div>
                             </div>
-                            <Link
-                              href={`/dashboard/${item.content_id}?from=planner&week=${weekStart}`}
-                              className="block"
-                            >
-                              {item.content?.thumbnail_url && (
-                                <img
-                                  src={item.content.thumbnail_url}
-                                  alt=""
-                                  className="w-full h-20 object-cover"
+                            {item.content?.thumbnail_url && (
+                              <img
+                                src={item.content.thumbnail_url}
+                                alt=""
+                                className="w-full h-20 object-cover"
+                              />
+                            )}
+                            <div className={`p-2 pt-1.5 ${ui.bg}`}>
+                              <p className="flex items-start justify-between gap-0.5 text-xs font-medium">
+                                <span
+                                  className={isExpanded ? "" : "line-clamp-2"}
+                                >
+                                  {item.content?.title}
+                                </span>
+                                <ExpandChevron
+                                  expanded={isExpanded}
+                                  className="w-3 h-3"
                                 />
-                              )}
-                              <div className="p-2 pt-1">
-                                <div className="flex flex-col gap-1">
-                                  <p className="text-xs font-medium line-clamp-2">
-                                    {item.content?.title}
-                                  </p>
-                                </div>
+                              </p>
+                            </div>
+                            {/* Above the stretched toggle, so the Maps and
+                                Open links inside take their own taps. */}
+                            <SlideOpen open={isExpanded}>
+                              <div className="relative z-10 border-t border-[var(--border)] px-2 py-2">
+                                <PlanItemDetails
+                                  item={item}
+                                  weekStart={weekStart}
+                                  compact
+                                />
                               </div>
-                            </Link>
+                            </SlideOpen>
                           </div>
                         );
                       })}
