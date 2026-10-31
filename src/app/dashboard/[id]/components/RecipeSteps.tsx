@@ -2,6 +2,7 @@
 
 import { Check, CookingPot, Salad, Scroll } from "lucide-react";
 import { useState } from "react";
+import { splitIngredientAmount } from "@/lib/ingredient-amount";
 import { cn } from "@/lib/utils";
 import { CollapsibleSection } from "./CollapsibleSection";
 
@@ -80,7 +81,7 @@ function Checklist({
                   isChecked && "line-through text-muted-foreground"
                 )}
               >
-                {item}
+                <IngredientText text={item} />
               </span>
             </button>
           </li>
@@ -207,5 +208,16 @@ export function RecipeSteps({
         </CollapsibleSection>
       )}
     </div>
+  );
+}
+
+/** An ingredient line with its amount in bold, so the list scans by quantity. */
+function IngredientText({ text }: { text: string }) {
+  const { amount, rest } = splitIngredientAmount(text);
+  if (!amount) return <>{text}</>;
+  return (
+    <>
+      <span className="font-semibold">{amount}</span> {rest}
+    </>
   );
 }

@@ -1,5 +1,6 @@
 import { describeAttributes, type ItemAttribute } from "@/lib/attributes";
-import type { PlanItem } from "@/lib/supabase";
+import { shortDuration } from "@/lib/short-duration";
+import type { Content, PlanItem } from "@/lib/supabase";
 
 /**
  * What a planner card shows once it is expanded.
@@ -37,6 +38,12 @@ function str(data: AnyData, field: string): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
+/** A duration field, shortened for a card: "15 minutes" reads "15 min". */
+function duration(data: AnyData, field: string): string | undefined {
+  const value = str(data, field);
+  return value && shortDuration(value);
+}
+
 function strings(data: AnyData, field: string): string[] {
   const value = data[field];
   if (!Array.isArray(value)) return [];
@@ -67,8 +74,8 @@ export function planItemDetails(item: PlanItem): PlanItemDetails {
 
   const timings: string[] = [];
   if (category === "meal" || category === "drink") {
-    const prep = str(data, "prep_time");
-    const cook = str(data, "cook_time");
+    const prep = duration(data, "prep_time");
+    const cook = duration(data, "cook_time");
     const servings = str(data, "servings");
     if (prep) timings.push(`Prep ${prep}`);
     if (cook) timings.push(`Cook ${cook}`);
@@ -94,4 +101,52 @@ export function planItemDetails(item: PlanItem): PlanItemDetails {
     description: str(data, "description"),
     note,
   };
+}
+
+/**
+ * The one line a closed planner card carries under its title — the fact you'd
+ * otherwise open the card for. Cook time for a recipe, the venue for an event,
+ * where a trip goes, what a gift costs. Two facts at most: it is one line on a
+ * phone, and a third would only ever be truncated.
+ */
+export function planItemMeta(item: PlanItem): string | undefined {
+  return item.content ? contentMeta(item.content) : undefined;
+}
+
+/** planItemMeta for a saved item on its own — the home page's collection row. */
+export function contentMeta(content: Content): string | undefined {
+  const data = (content.data ?? {}) as AnyData;
+
+  const parts: (string | undefined)[] = (() => {
+    switch (content.category) {
+      case "meal":
+      case "drink": {
+        const prep = duration(data, "prep_time");
+        const cook = duration(data, "cook_time");
+        const servings = str(data, "servings");
+        return [
+          prep && `${prep} prep`,
+          cook && `${cook} cook`,
+          servings && `Serves ${servings}`,
+        ];
+      }
+      // Not the event's own time: the card's time chip already shows when
+      // it's planned, and the two read as a duplicate side by side.
+      case "event":
+        return [str(data, "location") ?? str(data, "date")];
+      case "date_idea":
+        return [str(data, "location"), str(data, "price_range")];
+      case "travel": {
+        const city = str(data, "destination_city");
+        return [city ?? str(data, "location"), str(data, "price_range")];
+      }
+      case "gift_idea":
+        return [str(data, "cost")];
+      default:
+        return [];
+    }
+  })();
+
+  const present = parts.filter((part): part is string => !!part).slice(0, 2);
+  return present.length ? present.join(" · ") : undefined;
 }

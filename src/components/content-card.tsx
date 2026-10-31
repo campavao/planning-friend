@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FavoriteButton } from "@/components/favorite-button";
@@ -24,7 +23,7 @@ import {
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { type ElementType, useState } from "react";
 import { categoryUI } from "@/lib/categories";
 import { useSlideIn } from "@/hooks/useSlideIn";
 
@@ -64,6 +63,28 @@ function LocationLink({ location }: { location: string }) {
         {location}
       </span>
     </a>
+  );
+}
+
+/** A category's icon in a small white disc, standing in for its named badge. */
+function CategoryIcon({
+  icon: Icon,
+  label,
+  className,
+}: {
+  icon: ElementType;
+  label: string;
+  className: string;
+}) {
+  return (
+    <span
+      role="img"
+      aria-label={label}
+      title={label}
+      className="surface-raised inline-flex size-7 items-center justify-center rounded-full"
+    >
+      <Icon className={`size-3.5 ${className}`} aria-hidden />
+    </span>
   );
 }
 
@@ -268,9 +289,7 @@ function ContentCardInner({
   href?: string | null;
   onToggleFavorite?: (next: boolean) => void;
 }) {
-  const { icon: Icon, label, badge: badgeVariant } = categoryUI(
-    content.category
-  );
+  const { icon: Icon, label, text: iconTone } = categoryUI(content.category);
   const slide = slideInProps(useSlideIn(SLIDE_IN_GROUP), index);
   const starred = isFavorite(content);
   const star = onToggleFavorite ? (
@@ -302,12 +321,10 @@ function ContentCardInner({
               <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
             </div>
 
-            {/* Category badge overlay */}
+            {/* Category as its icon alone, the way planner cards carry it —
+                the name is there for screen readers and on hover. */}
             <div className="absolute top-3 left-3">
-              <Badge variant={badgeVariant} className="shadow-sm">
-                <Icon className="w-3 h-3" />
-                {label}
-              </Badge>
+              <CategoryIcon icon={Icon} label={label} className={iconTone} />
             </div>
 
             {star && <div className="absolute top-3 right-3">{star}</div>}
@@ -320,10 +337,7 @@ function ContentCardInner({
               carries the star instead. */}
           {!content.thumbnail_url && (
             <div className="flex items-center justify-between gap-2 mb-2 -mr-1.5">
-              <Badge variant={badgeVariant}>
-                <Icon className="w-3 h-3" />
-                {label}
-              </Badge>
+              <CategoryIcon icon={Icon} label={label} className={iconTone} />
               {star}
             </div>
           )}

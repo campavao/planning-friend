@@ -12,7 +12,11 @@ import {
   CalendarCheck,
 } from "lucide-react";
 import type { ElementType } from "react";
-import { describeAttributes, type AttributeKey } from "@/lib/attributes";
+import {
+  describeAttributes,
+  type AttributeKey,
+  type ItemAttribute,
+} from "@/lib/attributes";
 import type { ContentCategory } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
@@ -56,7 +60,7 @@ function Chip({
   children,
   onClick,
 }: {
-  icon: ElementType;
+  icon: ElementType | null;
   iconClassName: string;
   children: React.ReactNode;
   onClick?: () => void;
@@ -64,14 +68,14 @@ function Chip({
   // Information is pressed in; the one chip that does something — plants,
   // which opens its breakdown — stands up like any other button.
   const className = cn(
-    "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-semibold",
+    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[12.5px] font-semibold align-middle",
     onClick ? "surface-raised" : "surface-inset"
   );
 
   if (!onClick) {
     return (
       <span className={className}>
-        <Icon className={cn("w-[15px] h-[15px]", iconClassName)} />
+        {Icon && <Icon className={cn("w-[15px] h-[15px]", iconClassName)} />}
         {children}
       </span>
     );
@@ -87,10 +91,21 @@ function Chip({
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
       )}
     >
-      <Icon className={cn("w-[15px] h-[15px]", iconClassName)} />
+      {Icon && <Icon className={cn("w-[15px] h-[15px]", iconClassName)} />}
       {children}
     </button>
   );
+}
+
+// A price that already opens with its currency ("$9.99", "$$") would read
+// "$ $9.99" beside the dollar icon, so the symbol stands in for the icon.
+const CURRENCY_START = /^[$€£¥₹]/;
+
+function iconFor(attribute: ItemAttribute): ElementType | null {
+  if (attribute.key === "price" && CURRENCY_START.test(attribute.label)) {
+    return null;
+  }
+  return ICONS[attribute.key];
 }
 
 interface AttributeChipsProps {
@@ -100,6 +115,8 @@ interface AttributeChipsProps {
   onShowPlants?: () => void;
   /** Leads the row, centred on the chips — the item page's category mark. */
   leading?: React.ReactNode;
+  /** Overrides the row's own padding, for a parent that pads it. */
+  className?: string;
 }
 
 export function AttributeChips({
@@ -107,18 +124,28 @@ export function AttributeChips({
   data,
   onShowPlants,
   leading,
+  className,
 }: AttributeChipsProps) {
   const attributes = describeAttributes(category, data);
 
   if (attributes.length === 0 && !leading) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5 px-4 pb-3.5 pt-1.5">
+    // Inline chips in a plain block rather than a flex row: inline content
+    // flows around a floated element line by line, which lets the item page's
+    // chips start beside its photo and run full width beneath it. A flex row
+    // would be squeezed beside the photo for its whole height.
+    <div
+      className={cn(
+        "px-4 pb-2 pt-1.5 [&>*]:mb-1.5 [&>*]:mr-1.5",
+        className
+      )}
+    >
       {leading}
       {attributes.map((attribute) => (
         <Chip
           key={attribute.key}
-          icon={ICONS[attribute.key]}
+          icon={iconFor(attribute)}
           iconClassName={ICON_TONES[attribute.key] ?? "text-muted-foreground"}
           onClick={attribute.key === "plants" ? onShowPlants : undefined}
         >

@@ -7,10 +7,12 @@ import { NamePromptModal } from "@/components/name-prompt-modal";
 import { PlanItemCard } from "@/components/plan-item-card";
 import { CardRailSkeleton } from "@/components/Skeletons";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useContent } from "@/hooks/useContent";
 import { usePlanner } from "@/hooks/usePlanner";
 import { useSlideIn } from "@/hooks/useSlideIn";
 import { getItemDateKey } from "@/lib/plan-dates";
+import { contentMeta } from "@/lib/plan-item-details";
 import { fetcher } from "@/lib/swr-config";
 import type { GiftRecipientWithAssignments, PlanItem } from "@/lib/supabase";
 import {
@@ -18,22 +20,18 @@ import {
   getWeekStartDay,
   getWeekStartForDate,
 } from "@/lib/utils";
-import {
-  CalendarPlus,
-  ChevronRight,
-  Gift,
-  LayoutGrid,
-  Sparkles,
-  UserPlus,
-} from "lucide-react";
-import type { ElementType, ReactNode } from "react";
+import { CalendarPlus, Check, Gift, Sparkles, UserPlus } from "lucide-react";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import useSWR from "swr";
 import { useSession } from "./useSession";
 
-// The rail previews the collection; the tile at the end opens the full page.
+// The rail previews the collection; "See all" in its header opens the rest.
 const COLLECTION_PREVIEW_COUNT = 10;
+
+// Today is a list, so it's capped — past this the planner is the better view.
+const TODAY_LIST_LIMIT = 4;
 
 // The clock is browser state. This page is prerendered, so reading it during
 // render would bake the build machine's date into the HTML — hence a null
@@ -68,22 +66,21 @@ function greetingFor(date: Date): string {
 
 function SectionHeader({
   title,
-  href,
-  hint,
+  action,
 }: {
   title: string;
-  href: string;
-  hint?: string;
+  /** The way into the full page, at the header's right — "See all 5". */
+  action: { href: string; label: string };
 }) {
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-6 flex items-center justify-between mb-3">
-      <Link href={href} className="group flex items-center gap-1">
-        <h2 className="heading-2">{title}</h2>
-        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-[var(--primary)] transition-colors" />
+    <div className="max-w-7xl mx-auto px-4 md:px-6 flex items-baseline justify-between mb-3">
+      <h2 className="heading-2">{title}</h2>
+      <Link
+        href={action.href}
+        className="shrink-0 text-sm font-semibold text-[var(--primary)] hover:underline"
+      >
+        {action.label}
       </Link>
-      {hint && (
-        <span className="text-sm text-muted-foreground shrink-0">{hint}</span>
-      )}
     </div>
   );
 }
@@ -118,32 +115,6 @@ function RailItem({ children }: { children: ReactNode }) {
   return <div className="w-36 md:w-44 shrink-0">{children}</div>;
 }
 
-/** Dashed tile that closes out a rail — "add another", "see everything". */
-function RailAction({
-  href,
-  icon: Icon,
-  label,
-}: {
-  href: string;
-  icon: ElementType;
-  label: string;
-}) {
-  return (
-    <RailItem>
-      <Link href={href} className="block h-full">
-        <Card className="h-full min-h-44 flex flex-col items-center justify-center gap-2 border-2 border-dashed border-[var(--border)] bg-transparent shadow-none hover:border-[var(--primary)] hover:bg-[var(--background-alt)] transition-colors">
-          <div className="w-10 h-10 rounded-xl bg-[var(--muted)] flex items-center justify-center">
-            <Icon className="w-5 h-5 text-muted-foreground" />
-          </div>
-          <span className="px-2 text-center text-xs font-medium text-muted-foreground">
-            {label}
-          </span>
-        </Card>
-      </Link>
-    </RailItem>
-  );
-}
-
 function EmptySection({ children }: { children: ReactNode }) {
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-6">
@@ -171,6 +142,10 @@ export default function DashboardHome() {
 
   const { content, isLoading: contentLoading } = useContent();
   const { plan, sharedItems, isLoading: plannerLoading } = usePlanner(weekStart);
+  const { data: nameData } = useSWR<{ name: string | null }>(
+    "/api/users/name",
+    fetcher
+  );
   const { data: giftData, isLoading: giftsLoading } = useSWR<{
     recipients: GiftRecipientWithAssignments[];
   }>("/api/gifts/recipients?include=assignments", fetcher);
@@ -221,21 +196,34 @@ export default function DashboardHome() {
   // then take it back a frame later.
   const todayLoading = !now || (plannerLoading && todayItems.length === 0);
 
+  const firstName = nameData?.name?.trim().split(/\s+/)[0];
+  const todaySummary = todayLoading
+    ? " "
+    : todayItems.length === 0
+      ? "Nothing planned today"
+      : `${todayItems.length} ${
+          todayItems.length === 1 ? "thing" : "things"
+        } planned today`;
+
+  // The date small above, the greeting by name, and a line on the day — the
+  // whole morning check in three lines.
   const header = (
     <div className="sticky top-0 z-20 bg-[var(--background)]">
-      <div>
-        <div className="max-w-7xl mx-auto px-4 md:px-6 pt-2 pb-3">
-          <h1 className="heading-2">{now ? greetingFor(now) : "Hello"}</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {now
-              ? now.toLocaleDateString(undefined, {
-                  weekday: "long",
-                  month: "long",
-                  day: "numeric",
-                })
-              : " "}
-          </p>
-        </div>
+      <div className="max-w-7xl mx-auto px-4 md:px-6 pt-2 pb-3">
+        <p className="text-xs text-muted-foreground">
+          {now
+            ? now.toLocaleDateString(undefined, {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+              })
+            : " "}
+        </p>
+        <h1 className="heading-2 mt-0.5">
+          {now ? greetingFor(now) : "Hello"}
+          {firstName ? `, ${firstName}` : ""}
+        </h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{todaySummary}</p>
       </div>
     </div>
   );
@@ -245,19 +233,18 @@ export default function DashboardHome() {
       {header}
 
       <div className="py-6 space-y-8">
-        {/* Today */}
+        {/* Today — a short list, not a rail: it's what you act on, and it
+            reads the same as the day does in the planner. */}
         <section className={slideIn}>
           <SectionHeader
             title="Today"
-            href="/dashboard/planner"
-            hint={
-              todayItems.length > 0
-                ? `${todayItems.length} planned`
-                : undefined
-            }
+            action={{ href: "/dashboard/planner", label: "Planner" }}
           />
           {todayLoading ? (
-            <CardRailSkeleton count={2} />
+            <div className="max-w-7xl mx-auto px-4 md:px-6 space-y-3">
+              <Skeleton className="h-24 rounded-xl" />
+              <Skeleton className="h-24 rounded-xl" />
+            </div>
           ) : todayItems.length === 0 ? (
             <EmptySection>
               <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-[var(--event-bg)] flex items-center justify-center">
@@ -275,26 +262,29 @@ export default function DashboardHome() {
               </Link>
             </EmptySection>
           ) : (
-            <CardRail>
-              {todayItems.map((item, index) => (
-                <RailItem key={item.id}>
-                  <PlanItemCard
-                    item={item}
-                    index={index}
-                    href={
-                      item.content_id
-                        ? `/dashboard/${item.content_id}?from=home`
-                        : null
-                    }
-                  />
-                </RailItem>
+            // Room on the right and top for each card's tilted thumbnail.
+            <div className="max-w-7xl mx-auto pl-4 pr-6 md:pl-6 md:pr-8 pt-3 space-y-4">
+              {todayItems.slice(0, TODAY_LIST_LIMIT).map((item, index) => (
+                <PlanItemCard
+                  key={item.id}
+                  item={item}
+                  index={index}
+                  href={
+                    item.content_id
+                      ? `/dashboard/${item.content_id}?from=home`
+                      : null
+                  }
+                />
               ))}
-              <RailAction
-                href="/dashboard/planner"
-                icon={CalendarPlus}
-                label="Plan something"
-              />
-            </CardRail>
+              {todayItems.length > TODAY_LIST_LIMIT && (
+                <Link
+                  href="/dashboard/planner"
+                  className="block text-sm font-semibold text-[var(--primary)]"
+                >
+                  {todayItems.length - TODAY_LIST_LIMIT} more in the planner
+                </Link>
+              )}
+            </div>
           )}
         </section>
 
@@ -302,8 +292,10 @@ export default function DashboardHome() {
         <section className={`${slideIn} stagger-2`}>
           <SectionHeader
             title="Collection"
-            href="/dashboard/collection"
-            hint={savedCount > 0 ? `${savedCount} saved` : undefined}
+            action={{
+              href: "/dashboard/collection",
+              label: savedCount > 0 ? `See all ${savedCount}` : "See all",
+            }}
           />
           {contentLoading && content.length === 0 ? (
             <CardRailSkeleton />
@@ -327,27 +319,33 @@ export default function DashboardHome() {
                     content={item}
                     index={index}
                     href={`/dashboard/${item.id}?from=home`}
+                    // The one fact worth seeing before opening it — cook
+                    // time, venue — as on a planner card.
+                    meta={
+                      contentMeta(item) ? (
+                        <p className="truncate text-xs">{contentMeta(item)}</p>
+                      ) : null
+                    }
                   />
                 </RailItem>
               ))}
-              <RailAction
-                href="/dashboard/collection"
-                icon={LayoutGrid}
-                label={
-                  savedCount > COLLECTION_PREVIEW_COUNT
-                    ? `See all ${savedCount}`
-                    : "See all"
-                }
-              />
             </CardRail>
           )}
         </section>
 
-        {/* Gifts */}
+        {/* Gifts — people as a strip of avatars: a name and a count is all
+            each one says, and a tall card per person spent a screen on it. */}
         <section className={`${slideIn} stagger-2`}>
-          <SectionHeader title="Gifts" href="/dashboard/gifts" />
+          <SectionHeader
+            title="Gifts"
+            action={{ href: "/dashboard/gifts", label: "See all" }}
+          />
           {giftsLoading && recipients.length === 0 ? (
-            <CardRailSkeleton count={2} />
+            <div className="max-w-7xl mx-auto px-4 md:px-6 flex gap-4">
+              {[0, 1, 2].map((i) => (
+                <Skeleton key={i} className="size-14 rounded-full" />
+              ))}
+            </div>
           ) : recipients.length === 0 ? (
             <EmptySection>
               <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-[var(--gift-bg)] flex items-center justify-center">
@@ -365,41 +363,56 @@ export default function DashboardHome() {
               </Link>
             </EmptySection>
           ) : (
-            <CardRail>
-              {recipients.map((recipient) => {
-                const pending = recipient.assignments.filter(
-                  (a) => !a.given_at
-                ).length;
-                return (
-                  <RailItem key={recipient.id}>
-                    <Link href="/dashboard/gifts" className="block h-full">
-                      <Card className="h-full min-h-44 p-4 flex flex-col items-center justify-center gap-3 text-center cursor-pointer hover:-translate-y-1 hover:shadow-[var(--shadow-lg)]">
-                        <div className="w-14 h-14 rounded-2xl bg-[var(--gift-bg)] flex items-center justify-center">
-                          <span className="text-xl font-semibold text-[var(--gift)]">
-                            {recipient.name.charAt(0).toUpperCase()}
+            <div className="max-w-7xl mx-auto overflow-x-auto hide-scrollbar">
+              <div className="flex w-max gap-4 px-4 md:px-6 pt-1 pb-2">
+                {recipients.map((recipient) => {
+                  const pending = recipient.assignments.filter(
+                    (a) => !a.given_at
+                  ).length;
+                  return (
+                    <Link
+                      key={recipient.id}
+                      href="/dashboard/gifts"
+                      aria-label={`${recipient.name}, ${
+                        pending > 0
+                          ? `${pending} to buy`
+                          : recipient.assignments.length > 0
+                            ? "all set"
+                            : "no gift ideas yet"
+                      }`}
+                      className="w-16 flex flex-col items-center gap-1.5 text-center"
+                    >
+                      <span className="relative flex size-14 items-center justify-center rounded-full bg-[var(--gift-bg)] text-lg font-semibold text-[var(--gift)]">
+                        {recipient.name.charAt(0).toUpperCase()}
+                        {pending > 0 ? (
+                          <span className="absolute -top-0.5 -right-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--primary)] px-1 text-[10px] font-bold text-white ring-2 ring-[var(--background)]">
+                            {pending}
                           </span>
-                        </div>
-                        <div>
-                          <p className="font-semibold text-sm line-clamp-1">
-                            {recipient.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {pending > 0
-                              ? `${pending} to buy`
-                              : "All set"}
-                          </p>
-                        </div>
-                      </Card>
+                        ) : recipient.assignments.length > 0 ? (
+                          // Bought for, not merely empty: someone with no
+                          // ideas yet isn't "all set".
+                          <span className="absolute -top-0.5 -right-0.5 flex size-5 items-center justify-center rounded-full bg-[var(--secondary-dark)] text-white ring-2 ring-[var(--background)]">
+                            <Check className="size-3" />
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="w-full truncate text-xs font-medium">
+                        {recipient.name}
+                      </span>
                     </Link>
-                  </RailItem>
-                );
-              })}
-              <RailAction
-                href="/dashboard/gifts"
-                icon={UserPlus}
-                label="Add a person"
-              />
-            </CardRail>
+                  );
+                })}
+                <Link
+                  href="/dashboard/gifts"
+                  className="w-16 flex flex-col items-center gap-1.5 text-center"
+                >
+                  <span className="flex size-14 items-center justify-center rounded-full border-2 border-dashed border-[var(--border)] text-muted-foreground">
+                    <UserPlus className="size-5" />
+                  </span>
+                  <span className="text-xs text-muted-foreground">Add</span>
+                </Link>
+              </div>
+            </div>
           )}
         </section>
       </div>

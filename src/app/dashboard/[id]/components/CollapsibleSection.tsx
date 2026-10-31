@@ -53,7 +53,8 @@ export function CollapsibleSection({
         </span>
         <h3 className="heading-3 flex-1">{title}</h3>
         {typeof count === "number" && count > 0 && (
-          <span className="text-[11.5px] font-semibold text-muted-foreground bg-[var(--muted)] rounded-full px-2 py-0.5">
+          // A count is information, so it sits pressed in (.surface-inset).
+          <span className="surface-inset text-[11.5px] font-semibold text-muted-foreground rounded-full px-2 py-0.5">
             {count}
           </span>
         )}
