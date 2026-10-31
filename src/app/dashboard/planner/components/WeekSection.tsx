@@ -408,13 +408,12 @@ export function WeekSection({
               }`}
             >
               {/* Mobile Layout: like the hour labels in a calendar's day
-                  view — a small, light date off to the side, sitting on the
-                  hairline that starts the day, with the day's cards beside
-                  it. */}
-              <div className="md:hidden flex">
-                <div className="w-12 shrink-0 flex flex-col items-start">
+                  view — a small, light date at the start of the hairline that
+                  opens the day, with the day's cards full width beneath it. */}
+              <div className="md:hidden">
+                <div className="flex items-center gap-2 pt-2">
                   <span
-                    className={`-translate-y-1/2 text-[11px] leading-none whitespace-nowrap ${
+                    className={`text-[11px] leading-none whitespace-nowrap ${
                       isToday
                         ? "font-semibold text-[var(--primary)]"
                         : "text-muted-foreground"
@@ -427,10 +426,11 @@ export function WeekSection({
                   >
                     {days[dayIndex]} {dayOfMonth}
                   </span>
+                  <span aria-hidden className="h-px flex-1 bg-[var(--border)]" />
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    className="mt-1 -ml-1.5 size-7 rounded-full text-muted-foreground/70 hover:bg-[var(--muted)]"
+                    className="-mr-1 size-7 rounded-full text-muted-foreground/70 hover:bg-[var(--muted)]"
                     onClick={() => onOpenAdd(dateKey)}
                     title={`Add to ${daysFull[dayIndex]}`}
                     aria-label={`Add to ${daysFull[dayIndex]}`}
@@ -438,9 +438,9 @@ export function WeekSection({
                     <Plus className="size-3.5" />
                   </Button>
                 </div>
-                {/* Room on the right and top for each card's thumbnail,
-                    which overhangs its corner. */}
-                <div className="flex-1 min-w-0 border-t border-l border-[var(--border)] pl-3 pr-3 pt-6 pb-5">
+                {/* A little room on the right and top for each card's
+                    thumbnail, which overhangs its corner. */}
+                <div className="pr-2 pt-5 pb-4">
                   {destinationByDay[dayIndex] && (
                     <Badge
                       variant="travel"
