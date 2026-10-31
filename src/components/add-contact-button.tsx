@@ -1,11 +1,12 @@
 "use client";
 
+import { ListRow } from "@/components/list-group";
 import { Button } from "@/components/ui/button";
 import { formatPhoneNumber } from "@/lib/utils";
 import { Smartphone } from "lucide-react";
 
 interface AddContactButtonProps {
-  variant?: "button" | "link" | "inline";
+  variant?: "button" | "link" | "inline" | "row";
   className?: string;
 }
 
@@ -75,6 +76,18 @@ END:VCARD`;
       >
         {formatPhoneNumber(phoneNumber)}
       </Button>
+    );
+  }
+
+  if (variant === "row") {
+    return (
+      <ListRow
+        icon={<Smartphone className="size-[18px] text-muted-foreground" />}
+        label="Add to contacts"
+        description={formatPhoneNumber(phoneNumber) || undefined}
+        onClick={handleAddContact}
+        className={className}
+      />
     );
   }
 

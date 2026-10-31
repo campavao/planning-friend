@@ -4,24 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FavoriteButton } from "@/components/favorite-button";
 import { isFavorite } from "@/lib/favorites";
-import type {
-  Content,
-  ContentWithTags,
-  DateIdeaData,
-  DrinkData,
-  EventData,
-  GiftIdeaData,
-  MealData,
-  Tag,
-  TravelData,
-} from "@/lib/supabase";
-import {
-  Clock,
-  Loader2,
-  MapPin,
-  Plane,
-  XCircle,
-} from "lucide-react";
+import { contentMeta } from "@/lib/plan-item-details";
+import type { Content, ContentWithTags, Tag } from "@/lib/supabase";
+import { Loader2, XCircle } from "lucide-react";
 import Link from "next/link";
 import { type ElementType, useState } from "react";
 import { categoryUI } from "@/lib/categories";
@@ -44,26 +29,6 @@ export function getGoogleMapsUrl(location: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
     location
   )}`;
-}
-
-// Clickable location component
-function LocationLink({ location }: { location: string }) {
-  return (
-    <a
-      href={getGoogleMapsUrl(location)}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={(e) => e.stopPropagation()}
-      // relative+z-10 lifts this above the card's stretched link overlay;
-      // without it the overlay swallows the click and Maps never opens.
-      className="relative z-10 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[var(--primary)] transition-colors"
-    >
-      <MapPin className="w-3 h-3" />
-      <span className="line-clamp-1 underline underline-offset-2">
-        {location}
-      </span>
-    </a>
-  );
 }
 
 /** A category's icon in a small white disc, standing in for its named badge. */
@@ -200,7 +165,7 @@ function ProcessingCard({
         className={`overflow-hidden cursor-pointer h-full hover:-translate-y-1 hover:shadow-[var(--shadow-lg)] ${slide.className}`}
         style={slide.style}
       >
-        <div className="aspect-square bg-[var(--accent-light)] flex items-center justify-center">
+        <div className="aspect-[4/3] bg-[var(--accent-light)] flex items-center justify-center">
           <div className="text-center">
             <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-[var(--accent)] flex items-center justify-center">
               <Loader2 className="w-7 h-7 text-white animate-spin" />
@@ -253,7 +218,7 @@ function FailedCard({
         className={`overflow-hidden cursor-pointer h-full hover:-translate-y-1 hover:shadow-[var(--shadow-lg)] state-error ${slide.className}`}
         style={slide.style}
       >
-        <div className="aspect-square bg-red-50 flex items-center justify-center">
+        <div className="aspect-[4/3] bg-red-50 flex items-center justify-center">
           <div className="text-center">
             <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-red-100 flex items-center justify-center">
               <XCircle className="w-7 h-7 text-destructive" />
@@ -311,7 +276,7 @@ function ContentCardInner({
             placeholder, and carry their category badge inline instead. */}
         {content.thumbnail_url && (
           <div className="relative">
-            <div className="relative aspect-square overflow-hidden">
+            <div className="relative aspect-[4/3] overflow-hidden">
               <img
                 src={content.thumbnail_url}
                 alt={content.title}
@@ -346,256 +311,11 @@ function ContentCardInner({
           </h3>
 
           {meta && (
-            <div className="mt-2 text-muted-foreground">{meta}</div>
+            <div className="mt-1 text-muted-foreground">{meta}</div>
           )}
         </div>
       </Card>
     </CardLink>
-  );
-}
-
-function MealCard({
-  content,
-  data,
-  tags,
-  index = 0,
-  href,
-  onToggleFavorite,
-}: {
-  content: Content;
-  data: MealData;
-  tags?: Tag[];
-  index?: number;
-  href?: string | null;
-  onToggleFavorite?: (next: boolean) => void;
-}) {
-  return (
-    <ContentCardInner
-      content={content}
-      tags={tags}
-      index={index}
-      href={href}
-      onToggleFavorite={onToggleFavorite}
-      meta={
-        <div className="hidden md:flex flex-wrap gap-2 text-xs">
-          {data.ingredients && data.ingredients.length > 0 && (
-            <span className="text-muted-foreground">{data.ingredients.length} ingredients</span>
-          )}
-          {data.prep_time && (
-            <span className="flex items-center gap-1 text-muted-foreground">
-              <Clock className="w-3 h-3" />
-              {data.prep_time}
-            </span>
-          )}
-        </div>
-      }
-    />
-  );
-}
-
-function DrinkCard({
-  content,
-  data,
-  tags,
-  index = 0,
-  href,
-  onToggleFavorite,
-}: {
-  content: Content;
-  data: DrinkData;
-  tags?: Tag[];
-  index?: number;
-  href?: string | null;
-  onToggleFavorite?: (next: boolean) => void;
-}) {
-  return (
-    <ContentCardInner
-      content={content}
-      tags={tags}
-      index={index}
-      href={href}
-      onToggleFavorite={onToggleFavorite}
-      meta={
-        <div className="hidden md:flex flex-wrap gap-2 text-xs">
-          {data.ingredients && data.ingredients.length > 0 && (
-            <span className="text-muted-foreground">{data.ingredients.length} ingredients</span>
-          )}
-          {data.type && <span className="capitalize text-muted-foreground">{data.type}</span>}
-        </div>
-      }
-    />
-  );
-}
-
-function EventCard({
-  content,
-  data,
-  tags,
-  index = 0,
-  href,
-  onToggleFavorite,
-}: {
-  content: Content;
-  data: EventData;
-  tags?: Tag[];
-  index?: number;
-  href?: string | null;
-  onToggleFavorite?: (next: boolean) => void;
-}) {
-  return (
-    <ContentCardInner
-      content={content}
-      tags={tags}
-      index={index}
-      href={href}
-      onToggleFavorite={onToggleFavorite}
-      meta={
-        <div className="hidden md:block space-y-1 text-xs">
-          {data.location && <LocationLink location={data.location} />}
-          {data.date && (
-            <p className="text-muted-foreground">
-              {data.date} {data.time && `• ${data.time}`}
-            </p>
-          )}
-        </div>
-      }
-    />
-  );
-}
-
-function DateIdeaCard({
-  content,
-  data,
-  tags,
-  index = 0,
-  href,
-  onToggleFavorite,
-}: {
-  content: Content;
-  data: DateIdeaData;
-  tags?: Tag[];
-  index?: number;
-  href?: string | null;
-  onToggleFavorite?: (next: boolean) => void;
-}) {
-  return (
-    <ContentCardInner
-      content={content}
-      tags={tags}
-      index={index}
-      href={href}
-      onToggleFavorite={onToggleFavorite}
-      meta={
-        <div className="hidden md:block space-y-1 text-xs">
-          {data.location && <LocationLink location={data.location} />}
-          {data.price_range && (
-            <p className="text-muted-foreground">{data.price_range}</p>
-          )}
-        </div>
-      }
-    />
-  );
-}
-
-function GiftIdeaCard({
-  content,
-  data,
-  tags,
-  index = 0,
-  href,
-  onToggleFavorite,
-}: {
-  content: Content;
-  data: GiftIdeaData;
-  tags?: Tag[];
-  index?: number;
-  href?: string | null;
-  onToggleFavorite?: (next: boolean) => void;
-}) {
-  return (
-    <ContentCardInner
-      content={content}
-      tags={tags}
-      index={index}
-      href={href}
-      onToggleFavorite={onToggleFavorite}
-      meta={
-        data.cost && (
-          <p className="text-sm font-semibold text-[var(--gift)]">{data.cost}</p>
-        )
-      }
-    />
-  );
-}
-
-function TravelCard({
-  content,
-  data,
-  tags,
-  index = 0,
-  href,
-  onToggleFavorite,
-}: {
-  content: Content;
-  data: TravelData;
-  tags?: Tag[];
-  index?: number;
-  href?: string | null;
-  onToggleFavorite?: (next: boolean) => void;
-}) {
-  return (
-    <ContentCardInner
-      content={content}
-      tags={tags}
-      index={index}
-      href={href}
-      onToggleFavorite={onToggleFavorite}
-      meta={
-        <div className="hidden md:block space-y-1 text-xs">
-          {data.location && <LocationLink location={data.location} />}
-          {data.destination_country && (
-            <p className="flex items-center gap-1 text-muted-foreground">
-              <Plane className="w-3 h-3" />
-              {data.destination_city && `${data.destination_city}, `}
-              {data.destination_country}
-            </p>
-          )}
-        </div>
-      }
-    />
-  );
-}
-
-function OtherCard({
-  content,
-  tags,
-  index = 0,
-  href,
-  onToggleFavorite,
-}: {
-  content: Content;
-  tags?: Tag[];
-  index?: number;
-  href?: string | null;
-  onToggleFavorite?: (next: boolean) => void;
-}) {
-  const data = content.data as { description?: string };
-
-  return (
-    <ContentCardInner
-      content={content}
-      tags={tags}
-      index={index}
-      href={href}
-      onToggleFavorite={onToggleFavorite}
-      meta={
-        data.description && (
-          <p className="hidden md:block text-xs line-clamp-2 text-muted-foreground">
-            {data.description}
-          </p>
-        )
-      }
-    />
   );
 }
 
@@ -619,97 +339,24 @@ export function ContentCard({
     return <FailedCard content={content} index={index} />;
   }
 
-  // An explicit meta replaces the per-category one, so callers like the
-  // planner can show a planned time in the same slot.
-  if (meta !== undefined) {
-    return (
-      <ContentCardInner
-        content={content}
-        tags={contentTags}
-        index={index}
-        href={href}
-        onToggleFavorite={onToggleFavorite}
-        meta={meta}
-      />
-    );
-  }
-
-  switch (content.category) {
-    case "meal":
-      return (
-        <MealCard
-          content={content}
-          data={content.data as MealData}
-          tags={contentTags}
-          index={index}
-          href={href}
-          onToggleFavorite={onToggleFavorite}
-        />
-      );
-    case "drink":
-      return (
-        <DrinkCard
-          content={content}
-          data={content.data as DrinkData}
-          tags={contentTags}
-          index={index}
-          href={href}
-          onToggleFavorite={onToggleFavorite}
-        />
-      );
-    case "event":
-      return (
-        <EventCard
-          content={content}
-          data={content.data as EventData}
-          tags={contentTags}
-          index={index}
-          href={href}
-          onToggleFavorite={onToggleFavorite}
-        />
-      );
-    case "date_idea":
-      return (
-        <DateIdeaCard
-          content={content}
-          data={content.data as DateIdeaData}
-          tags={contentTags}
-          index={index}
-          href={href}
-          onToggleFavorite={onToggleFavorite}
-        />
-      );
-    case "gift_idea":
-      return (
-        <GiftIdeaCard
-          content={content}
-          data={content.data as GiftIdeaData}
-          tags={contentTags}
-          index={index}
-          href={href}
-          onToggleFavorite={onToggleFavorite}
-        />
-      );
-    case "travel":
-      return (
-        <TravelCard
-          content={content}
-          data={content.data as TravelData}
-          tags={contentTags}
-          index={index}
-          href={href}
-          onToggleFavorite={onToggleFavorite}
-        />
-      );
-    default:
-      return (
-        <OtherCard
-          content={content}
-          tags={contentTags}
-          index={index}
-          href={href}
-          onToggleFavorite={onToggleFavorite}
-        />
-      );
-  }
+  // An explicit meta replaces the default one, so callers like the planner
+  // can show a planned time in the same slot. The default is the same short
+  // line the home page and planner cards use — cook time, venue, price.
+  const fallback = contentMeta(content);
+  return (
+    <ContentCardInner
+      content={content}
+      tags={contentTags}
+      index={index}
+      href={href}
+      onToggleFavorite={onToggleFavorite}
+      meta={
+        meta !== undefined ? (
+          meta
+        ) : fallback ? (
+          <p className="truncate text-xs">{fallback}</p>
+        ) : null
+      }
+    />
+  );
 }

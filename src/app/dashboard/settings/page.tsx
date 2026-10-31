@@ -5,10 +5,11 @@ import {
   PhoneNumberDisplay,
 } from "@/components/add-contact-button";
 import { AddToHomeScreenButton } from "@/components/add-to-homescreen-button";
+import { InitialsAvatar } from "@/components/initials-avatar";
+import { ListGroup, ListRow } from "@/components/list-group";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -18,20 +19,14 @@ import {
 } from "@/components/ui/select";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { clearSWRCache, fetcher } from "@/lib/swr-config";
-import { getWeekStartDay, setWeekStartDay } from "@/lib/utils";
+import {
+  formatPhoneNumber,
+  getWeekStartDay,
+  setWeekStartDay,
+} from "@/lib/utils";
 import useSWR from "swr";
 import { useSession } from "../useSession";
-import {
-  Bell,
-  Calendar,
-  Hand,
-  Info,
-  Loader2,
-  LogOut,
-  MapPin,
-  User,
-  Users,
-} from "lucide-react";
+import { Loader2, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -88,7 +83,7 @@ export default function SettingsPage() {
     isSupported,
   } = usePushNotifications();
 
-  const { isLoading: sessionLoading } = useSession();
+  const { user, isLoading: sessionLoading } = useSession();
 
   // These are edit-in-place forms, so disable focus revalidation — a
   // background refetch must not overwrite what the user is typing. The fields
@@ -163,8 +158,7 @@ export default function SettingsPage() {
     }
   };
 
-  const handleToggleNoteReminders = () => {
-    const next = !noteRemindersEnabled;
+  const handleToggleNoteReminders = (next: boolean) => {
     setNoteRemindersEnabled(next);
     saveNoteReminders({ note_reminders_enabled: next });
   };
@@ -237,6 +231,14 @@ export default function SettingsPage() {
     router.push("/");
   };
 
+  const savedName = nameData?.name ?? "";
+  const nameDirty = userName.trim() !== "" && userName.trim() !== savedName;
+  const savedRegion = settingsData?.settings?.home_region ?? "";
+  const savedCountry = settingsData?.settings?.home_country ?? "";
+  const locationDirty =
+    homeRegion !== savedRegion || homeCountry !== savedCountry;
+  const pushBlocked = permission === "denied";
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -247,389 +249,264 @@ export default function SettingsPage() {
 
   return (
     <main className="min-h-screen pb-28 md:pb-8 bg-[var(--background)]">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] px-4 py-5 sticky top-0 z-20">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="heading-1 text-white">
-            Settings
-          </h1>
-          <p className="text-white/80 text-sm mt-1">
-            Customize your experience
-          </p>
-        </div>
-      </div>
+      <PageHeader title="Settings" />
 
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
-        {/* Profile / Name */}
-        <Card>
-          <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center">
-              <User className="w-5 h-5 text-[var(--primary)]" />
-            </div>
-            <div>
-              <h2 className="font-semibold text-base">
-                Your Profile
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Shown to friends when you share plans
+      {/* One grouped list rather than a card per setting: each card's tinted
+          header and icon tile cost more than the setting it introduced. */}
+      <div className="max-w-2xl mx-auto px-4 md:px-6 pt-1 pb-6 space-y-7">
+        {/* Who you are, the way an account page opens */}
+        <ListGroup footer="Shown to friends when you share plans.">
+          <div className="flex items-center gap-3.5 px-4 py-4">
+            <InitialsAvatar
+              name={savedName || "?"}
+              className="size-14 text-lg"
+            />
+            <div className="min-w-0">
+              <p className="font-display text-lg font-semibold leading-tight truncate">
+                {savedName || "Add your name"}
               </p>
-            </div>
-          </div>
-
-          <div className="p-4 space-y-4">
-            <div>
-              <Label className="mb-1.5">
-                Your Name
-              </Label>
-              <Input
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-                placeholder="Enter your name"
-                maxLength={100}
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <Button
-                onClick={handleSaveName}
-                disabled={savingName || !userName.trim()}
-              >
-                {savingName ? "Saving..." : "Save Name"}
-              </Button>
-              {nameMessage && (
-                <span
-                  className={`text-sm font-medium ${
-                    nameMessage.includes("Failed")
-                      ? "text-destructive"
-                      : "text-[var(--primary)]"
-                  }`}
-                >
-                  {nameMessage}
-                </span>
+              {user?.phoneNumber && (
+                <p className="text-sm text-muted-foreground">
+                  {formatPhoneNumber(user.phoneNumber)}
+                </p>
               )}
             </div>
           </div>
-        </Card>
+          <FieldRow label="Name">
+            <input
+              value={userName}
+              onChange={(e) => setUserName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && nameDirty && handleSaveName()}
+              placeholder="Your name"
+              aria-label="Your name"
+              maxLength={100}
+              className={FIELD_INPUT}
+            />
+          </FieldRow>
+        </ListGroup>
+        <SaveLine
+          visible={nameDirty || !!nameMessage}
+          saving={savingName}
+          message={nameMessage}
+          onSave={handleSaveName}
+        />
 
-        {/* Home Location */}
-        <Card>
-          <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[var(--secondary)]/10 flex items-center justify-center">
-              <MapPin className="w-5 h-5 text-[var(--secondary)]" />
-            </div>
-            <div>
-              <h2 className="font-semibold text-base">
-                Home Location
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Places outside this will be marked as Travel
-              </p>
-            </div>
-          </div>
+        <ListGroup
+          label="Home location"
+          footer="Places outside it are marked as Travel."
+        >
+          <FieldRow label="City">
+            <input
+              value={homeRegion}
+              onChange={(e) => setHomeRegion(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && locationDirty && handleSave()}
+              placeholder="Chicago, IL"
+              aria-label="City or region"
+              className={FIELD_INPUT}
+            />
+          </FieldRow>
+          <FieldRow label="Country">
+            <input
+              value={homeCountry}
+              onChange={(e) => setHomeCountry(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && locationDirty && handleSave()}
+              placeholder="United States"
+              aria-label="Country"
+              className={FIELD_INPUT}
+            />
+          </FieldRow>
+        </ListGroup>
+        <SaveLine
+          visible={locationDirty || !!message}
+          saving={saving}
+          message={message}
+          onSave={handleSave}
+        />
 
-          <div className="p-4 space-y-4">
-            <div>
-              <Label className="mb-1.5">
-                City / Region
-              </Label>
-              <Input
-                value={homeRegion}
-                onChange={(e) => setHomeRegion(e.target.value)}
-                placeholder="e.g., Chicago, IL"
-              />
-            </div>
-            <div>
-              <Label className="mb-1.5">
-                Country
-              </Label>
-              <Input
-                value={homeCountry}
-                onChange={(e) => setHomeCountry(e.target.value)}
-                placeholder="e.g., United States"
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <Button
-                onClick={handleSave}
-                disabled={saving}
+        <ListGroup label="Planner">
+          <ListRow label="Week starts on">
+            <Select
+              value={String(weekStartDayValue)}
+              onValueChange={(v) => handleWeekStartChange(Number(v))}
+            >
+              <SelectTrigger
+                size="sm"
+                aria-label="Week starts on"
+                className={SELECT_TRIGGER}
               >
-                {saving ? "Saving..." : "Save Location"}
-              </Button>
-              {message && (
-                <span className="text-sm text-[var(--primary)] font-medium">
-                  {message}
-                </span>
-              )}
-            </div>
-          </div>
-        </Card>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {WEEK_START_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={String(option.value)}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </ListRow>
+          <ListRow
+            label="Share your planner"
+            description="Invite friends from the planner"
+            href="/dashboard/planner"
+          />
+        </ListGroup>
 
-        {/* Calendar Preferences */}
-        <Card>
-          <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[var(--accent)]/20 flex items-center justify-center">
-              <Calendar className="w-5 h-5 text-[var(--accent)]" />
-            </div>
-            <div>
-              <h2 className="font-semibold text-base">
-                Calendar Preferences
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Customize your weekly planner display
-              </p>
-            </div>
-          </div>
-
-          <div className="p-4 space-y-4">
-            <div>
-              <Label className="mb-1.5">
-                Week starts on
-              </Label>
+        <ListGroup
+          label="Notifications"
+          footer={
+            noteReminderMessage ? (
+              <span
+                className={
+                  noteReminderMessage.includes("Failed")
+                    ? "text-destructive"
+                    : "text-[var(--secondary-dark)]"
+                }
+              >
+                {noteReminderMessage}
+              </span>
+            ) : undefined
+          }
+        >
+          <ListRow
+            label="Push notifications"
+            description={
+              !isSupported
+                ? "Not supported in this browser"
+                : pushBlocked
+                  ? "Blocked — allow them in browser settings"
+                  : pushError
+                    ? <span className="text-destructive">{pushError}</span>
+                    : "When a saved link finishes processing"
+            }
+          >
+            {pushChecking || pushLoading ? (
+              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            ) : (
+              <Switch
+                checked={isSubscribed}
+                onCheckedChange={(next) => (next ? subscribe() : unsubscribe())}
+                disabled={!isSupported || pushBlocked}
+                aria-label="Push notifications"
+              />
+            )}
+          </ListRow>
+          {/* Post-event note reminders. Shown regardless of push support:
+              the preference is stored server-side and the reminder is what
+              the push would be delivering. */}
+          <ListRow
+            label="Ask how it went"
+            description="A nudge to note how a planned item actually was"
+          >
+            <Switch
+              checked={noteRemindersEnabled}
+              onCheckedChange={handleToggleNoteReminders}
+              aria-label="Ask how it went"
+            />
+          </ListRow>
+          {noteRemindersEnabled && (
+            <ListRow label="When to ask">
               <Select
-                value={String(weekStartDayValue)}
-                onValueChange={(v) => handleWeekStartChange(Number(v))}
+                value={String(noteReminderDelay)}
+                onValueChange={(v) => handleNoteReminderDelayChange(Number(v))}
               >
-                <SelectTrigger className="w-full max-w-xs">
+                <SelectTrigger size="sm" aria-label="When to ask" className={SELECT_TRIGGER}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {WEEK_START_OPTIONS.map((option) => (
+                  {NOTE_REMINDER_DELAY_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={String(option.value)}>
                       {option.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground mt-2">
-                Changes take effect immediately
-              </p>
-            </div>
-          </div>
-        </Card>
+            </ListRow>
+          )}
+        </ListGroup>
 
-        {/* Push Notifications */}
-        <Card>
-          <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
-              <Bell className="w-5 h-5 text-blue-500" />
-            </div>
-            <div>
-              <h2 className="font-semibold text-base">
-                Notifications
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Get notified when content finishes processing
-              </p>
-            </div>
-          </div>
+        <ListGroup
+          label="Planning Friend"
+          footer={
+            <>
+              Text links to <PhoneNumberDisplay /> to save them. Version 1.0
+            </>
+          }
+        >
+          <AddContactButton variant="row" />
+          <AddToHomeScreenButton variant="row" />
+        </ListGroup>
 
-          <div className="p-4">
-            {!isSupported ? (
-              <p className="text-sm text-muted-foreground">
-                Push notifications are not supported in this browser.
-              </p>
-            ) : pushChecking ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Checking...
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {permission === "denied" ? (
-                  <p className="text-sm text-amber-600">
-                    Notifications are blocked. Enable them in browser settings.
-                  </p>
-                ) : isSubscribed ? (
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                      <span className="text-sm text-muted-foreground">
-                        Enabled
-                      </span>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={unsubscribe}
-                      disabled={pushLoading}
-                      className="rounded-lg border-[var(--border)]"
-                    >
-                      {pushLoading ? "..." : "Turn Off"}
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    onClick={subscribe}
-                    disabled={pushLoading}
-                  >
-                    <Bell className="w-4 h-4 mr-2" />
-                    {pushLoading ? "Enabling..." : "Enable Notifications"}
-                  </Button>
-                )}
-                {pushError && (
-                  <p className="text-sm text-destructive">
-                    {pushError}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Post-event note reminders. Shown regardless of push support:
-                the preference is stored server-side and the reminder is what
-                the push would be delivering. */}
-            <div className="mt-4 pt-4 border-t border-[var(--border)] space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="font-medium text-sm">
-                    Ask how it went
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    A nudge to note down how a planned item actually was
-                  </p>
-                </div>
-                <Button
-                  variant={noteRemindersEnabled ? "outline" : "default"}
-                  size="sm"
-                  onClick={handleToggleNoteReminders}
-                  aria-pressed={noteRemindersEnabled}
-                  className="rounded-lg"
-                >
-                  {noteRemindersEnabled ? "Turn Off" : "Turn On"}
-                </Button>
-              </div>
-
-              {noteRemindersEnabled && (
-                <div>
-                  <Label className="mb-1.5">
-                    When to ask
-                  </Label>
-                  <Select
-                    value={String(noteReminderDelay)}
-                    onValueChange={(v) =>
-                      handleNoteReminderDelayChange(Number(v))
-                    }
-                  >
-                    <SelectTrigger className="w-full max-w-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {NOTE_REMINDER_DELAY_OPTIONS.map((option) => (
-                        <SelectItem
-                          key={option.value}
-                          value={String(option.value)}
-                        >
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {noteReminderMessage && (
-                <p
-                  className={`text-sm font-medium ${
-                    noteReminderMessage.includes("Failed")
-                      ? "text-destructive"
-                      : "text-[var(--primary)]"
-                  }`}
-                >
-                  {noteReminderMessage}
-                </p>
-              )}
-            </div>
-          </div>
-        </Card>
-
-        {/* Planner Sharing */}
-        <Card>
-          <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
-              <Users className="w-5 h-5 text-purple-500" />
-            </div>
-            <div>
-              <h2 className="font-semibold text-base">
-                Planner Sharing
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Share your weekly planner with friends
-              </p>
-            </div>
-          </div>
-
-          <div className="p-4">
-            <Button
-              variant="outline"
-              onClick={() => router.push("/dashboard/planner")}
-              className="rounded-xl border-[var(--border)] hover:bg-[var(--muted)]"
-            >
-              <Calendar className="w-4 h-4 mr-2" />
-              Go to Planner
-            </Button>
-          </div>
-        </Card>
-
-        {/* About */}
-        <Card>
-          <div className="p-4 border-b border-[var(--border)] bg-[var(--background-alt)] rounded-t-2xl flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[var(--muted)] flex items-center justify-center">
-              <Info className="w-5 h-5 text-muted-foreground" />
-            </div>
-            <div>
-              <h2 className="font-semibold text-base">
-                About Planning Friend
-              </h2>
-            </div>
-          </div>
-
-          <div className="p-4 space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Your personal assistant for collecting and organizing ideas from
-              social media. Text links to save meals, events, date ideas, and
-              more!
-            </p>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <AddContactButton variant="button" />
-              <AddToHomeScreenButton variant="button" />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Text links to <PhoneNumberDisplay /> to save content
-            </p>
-
-            <p className="text-xs text-muted-foreground">
-              Version 1.0
-            </p>
-          </div>
-        </Card>
-
-        {/* Sign Out */}
-        <Card className="border-red-200">
-          <div className="p-4 border-b border-red-200 bg-red-50 rounded-t-2xl flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
-              <Hand className="w-5 h-5 text-destructive" />
-            </div>
-            <div>
-              <h2 className="font-semibold text-base text-destructive">
-                Sign Out
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Sign out of this device
-              </p>
-            </div>
-          </div>
-
-          <div className="p-4">
-            <Button
-              variant="outline"
-              onClick={handleLogout}
-              className="rounded-xl border-red-200 text-destructive hover:bg-red-50"
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
-            </Button>
-          </div>
-        </Card>
+        <ListGroup>
+          <ListRow
+            icon={<LogOut className="size-[18px] text-destructive" />}
+            label="Sign out"
+            destructive
+            onClick={handleLogout}
+          />
+        </ListGroup>
       </div>
     </main>
+  );
+}
+
+const FIELD_INPUT =
+  "min-w-0 flex-1 bg-transparent text-right text-[15px] placeholder:text-muted-foreground focus:outline-none";
+
+const SELECT_TRIGGER =
+  "h-auto border-none bg-transparent px-0 py-0 text-[15px] text-muted-foreground shadow-none focus:ring-0";
+
+/** A label on the left and its value, editable in place, on the right. */
+function FieldRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="flex min-h-[52px] items-center gap-3 px-4 py-3 focus-within:bg-[var(--background)]">
+      <span className="shrink-0 text-[15px] font-medium">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+/**
+ * The Save for a group of fields, shown only once something in it changed —
+ * a permanent button under every field read as a form to fill in, when most
+ * visits change nothing.
+ */
+function SaveLine({
+  visible,
+  saving,
+  message,
+  onSave,
+}: {
+  visible: boolean;
+  saving: boolean;
+  message: string;
+  onSave: () => void;
+}) {
+  if (!visible) return null;
+  return (
+    <div className="-mt-5 flex items-center justify-end gap-3 px-1">
+      {message && (
+        <span
+          className={`text-sm font-medium ${
+            message.includes("Failed")
+              ? "text-destructive"
+              : "text-[var(--secondary-dark)]"
+          }`}
+        >
+          {message}
+        </span>
+      )}
+      {!message && (
+        <Button size="sm" onClick={onSave} disabled={saving}>
+          {saving ? "Saving..." : "Save"}
+        </Button>
+      )}
+    </div>
   );
 }

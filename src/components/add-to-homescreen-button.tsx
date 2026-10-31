@@ -1,5 +1,6 @@
 "use client";
 
+import { ListRow } from "@/components/list-group";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -8,12 +9,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { MonitorSmartphone } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const HOMESCREEN_PROMPT_KEY = "homescreen-prompt-dismissed";
 
 interface AddToHomeScreenButtonProps {
-  variant?: "button" | "link";
+  variant?: "button" | "link" | "row";
   className?: string;
 }
 
@@ -65,7 +67,15 @@ export function AddToHomeScreenButton({
 
   return (
     <>
-      {variant === "link" ? (
+      {variant === "row" ? (
+        <ListRow
+          icon={<MonitorSmartphone className="size-[18px] text-muted-foreground" />}
+          label="Add to home screen"
+          description="Open it like an app"
+          onClick={handleClick}
+          className={className}
+        />
+      ) : variant === "link" ? (
         <Button
           variant='link'
           onClick={handleClick}

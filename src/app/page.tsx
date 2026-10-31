@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { AddContactButton } from "@/components/add-contact-button";
 import { formatPhoneNumber } from "@/lib/utils";
 import { ArrowRight, Calendar, MessageCircle, Sparkles, Compass, Heart, ChefHat } from "lucide-react";
@@ -16,6 +15,27 @@ import { ArrowRight, Calendar, MessageCircle, Sparkles, Compass, Heart, ChefHat 
 // we were signed out. Reusing it lands us on "/" again, which reads as the
 // submit button doing nothing at all. A document load re-runs middleware with
 // the new cookie and starts from a clean client cache.
+const HOW_IT_WORKS = [
+  {
+    icon: MessageCircle,
+    tone: "bg-gradient-to-br from-[var(--secondary)] to-[var(--secondary-dark)]",
+    title: "Text a link",
+    body: "Any TikTok, Instagram, or website link",
+  },
+  {
+    icon: Sparkles,
+    tone: "bg-gradient-to-br from-[var(--accent)] to-[#E09048]",
+    title: "We pull out the details",
+    body: "Recipes, places, dates, and prices",
+  },
+  {
+    icon: Calendar,
+    tone: "bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)]",
+    title: "Plan it later",
+    body: "Drop it into your week when you're ready",
+  },
+];
+
 function goToDashboard() {
   window.location.replace("/dashboard");
 }
@@ -158,36 +178,46 @@ export default function Home() {
 
         {/* Login Card */}
         <div className="w-full max-w-sm px-4 animate-slide-up stagger-2">
+          {/* A plain card that asks one question, the way a phone sign-in
+              does — the orange banner said "Welcome Back" to everyone,
+              including people arriving for the first time. */}
           <Card className="overflow-hidden">
-            <div className="bg-gradient-to-r from-[var(--primary)] to-[var(--primary-dark)] px-5 py-4">
-              <h2 className="text-lg font-semibold text-white">
-                {step === "phone" ? "Welcome Back" : "Enter Code"}
+            <div className="px-5 pt-5">
+              <h2 className="heading-2">
+                {step === "phone" ? "What’s your number?" : "Enter the code"}
               </h2>
-              <p className="text-white/80 text-sm mt-0.5">
+              <p className="text-sm text-muted-foreground mt-1">
                 {step === "phone"
-                  ? "Sign in with your phone number"
-                  : `We sent a code to ${phoneNumber}`}
+                  ? "We’ll text you a code to sign in."
+                  : `We sent it to ${phoneNumber}.`}
               </p>
             </div>
 
             <div className="p-5">
               {step === "phone" ? (
                 <form onSubmit={handleSendCode} className="space-y-4">
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground mb-2 block">
-                      Phone Number
-                    </Label>
+                  {/* US numbers only, so the country code is shown rather
+                      than asked for. */}
+                  <div className="relative">
+                    <span
+                      aria-hidden
+                      className="surface-inset pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 rounded-lg px-2.5 py-1.5 text-base font-semibold"
+                    >
+                      +1
+                    </span>
                     <Input
                       type="tel"
+                      autoComplete="tel-national"
+                      aria-label="Phone number"
                       placeholder="(555) 123-4567"
                       value={phoneNumber}
                       onChange={handlePhoneChange}
-                      className="text-center text-lg h-14"
+                      className="h-14 pl-[4.25rem] text-lg"
                       maxLength={14}
                     />
                   </div>
                   {error && (
-                    <p className="text-destructive text-sm text-center">
+                    <p className="text-destructive text-sm">
                       {error}
                     </p>
                   )}
@@ -205,10 +235,8 @@ export default function Home() {
               ) : (
                 <form onSubmit={handleVerify} className="space-y-4">
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground mb-2 block">
-                      Verification Code
-                    </Label>
                     <Input
+                      aria-label="Verification code"
                       type="text"
                       inputMode="numeric"
                       autoComplete="one-time-code"
@@ -225,7 +253,7 @@ export default function Home() {
                     />
                   </div>
                   {error && (
-                    <p className="text-destructive text-sm text-center">
+                    <p className="text-destructive text-sm">
                       {error}
                     </p>
                   )}
@@ -255,52 +283,32 @@ export default function Home() {
           </Card>
         </div>
 
-        {/* How it works */}
-        <div className="mt-12 w-full max-w-3xl animate-slide-up stagger-3 px-4">
-          <h2 className="heading-2 text-center mb-6">
-            How It Works
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Step 1 */}
-            <Card className="p-4 text-center group">
-              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-[var(--secondary)] to-[var(--secondary-dark)] flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                <MessageCircle className="w-6 h-6 text-white" />
+        {/* How it works — a numbered list rather than three tall centred
+            cards, so the whole idea fits on one screen under the form. */}
+        <div className="mt-10 w-full max-w-sm px-4 animate-slide-up stagger-3">
+          <h2 className="heading-2 mb-3 px-1">How it works</h2>
+          <Card className="divide-y divide-[var(--border)] overflow-hidden">
+            {HOW_IT_WORKS.map(({ icon: Icon, tone, title, body }, index) => (
+              <div key={title} className="flex items-center gap-3.5 px-4 py-3.5">
+                <div
+                  className={`relative flex size-10 shrink-0 items-center justify-center rounded-xl ${tone}`}
+                >
+                  <Icon className="size-5 text-white" />
+                  <span className="absolute -top-1.5 -left-1.5 flex size-5 items-center justify-center rounded-full bg-[var(--card)] text-[10px] font-bold shadow-sm">
+                    {index + 1}
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-[15px] font-semibold leading-tight">{title}</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">{body}</p>
+                </div>
               </div>
-              <div className="text-xs font-semibold text-[var(--primary)] mb-1">Step 1</div>
-              <h3 className="font-semibold mb-1">Text a Link</h3>
-              <p className="text-muted-foreground text-xs">
-                Send any TikTok, Instagram, or website link
-              </p>
-            </Card>
-
-            {/* Step 2 */}
-            <Card className="p-4 text-center group">
-              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-[var(--accent)] to-[#E09048] flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                <Sparkles className="w-6 h-6 text-white" />
-              </div>
-              <div className="text-xs font-semibold text-[var(--primary)] mb-1">Step 2</div>
-              <h3 className="font-semibold mb-1">AI Extracts</h3>
-              <p className="text-muted-foreground text-xs">
-                We pull out recipes, places, and ideas for you
-              </p>
-            </Card>
-
-            {/* Step 3 */}
-            <Card className="p-4 text-center group">
-              <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                <Calendar className="w-6 h-6 text-white" />
-              </div>
-              <div className="text-xs font-semibold text-[var(--primary)] mb-1">Step 3</div>
-              <h3 className="font-semibold mb-1">Plan Later</h3>
-              <p className="text-muted-foreground text-xs">
-                Browse and plan with your organized collection
-              </p>
-            </Card>
-          </div>
+            ))}
+          </Card>
         </div>
 
         {/* Feature highlights */}
-        <div className="mt-10 w-full max-w-lg px-4 animate-slide-up stagger-4">
+        <div className="mt-6 w-full max-w-sm px-4 animate-slide-up stagger-4">
           <Card className="bg-gradient-to-br from-[var(--card)] to-[var(--background-alt)] shadow-[var(--shadow-md)] p-5">
             <div className="grid grid-cols-4 gap-3 text-center">
               <div>
