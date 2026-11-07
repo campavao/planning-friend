@@ -420,6 +420,108 @@
   }
 }
 
+/* ===== SHEET MOTION =====
+   Small, quick feedback for the add sheets. Everything springs on the same
+   curve the sheet itself opens on, and all of it stops for reduced motion. */
+
+/* Rows cascade in when a list appears or a tab changes; --i is the row's
+   index, capped so a long list doesn't keep arriving. */
+@keyframes sheet-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.sheet-row-in {
+  animation: sheet-row-in 340ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  animation-delay: calc(min(var(--i, 0), 8) * 28ms);
+}
+
+/* + becoming a check: a pop, and the check drawn rather than swapped in. */
+@keyframes toggle-pop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.22);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.toggle-pop {
+  animation: toggle-pop 340ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes check-draw {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.check-draw path {
+  stroke-dasharray: 24;
+  animation: check-draw 260ms ease-out 60ms both;
+}
+
+/* A number that just changed — "Done · 3 added". */
+@keyframes count-bump {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.count-bump {
+  display: inline-block;
+  animation: count-bump 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* A swapped-in idea arrives from the side the swap button points to. */
+@keyframes draft-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.draft-in {
+  animation: draft-in 320ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-row-in,
+  .toggle-pop,
+  .count-bump,
+  .draft-in,
+  .check-draw path {
+    animation: none !important;
+  }
+}
+
+/* iOS zooms the page into any text field under 16px the moment it's focused,
+   and leaves it zoomed. On touch screens no field goes below that, whatever
+   size a component asks for. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: max(16px, 1em) !important;
+  }
+}
+
 /* ===== UTILITIES ===== */
 
 .hide-scrollbar {

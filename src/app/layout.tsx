@@ -2,19 +2,25 @@ import { BottomNav } from "@/components/bottom-nav";
 import { SWRProvider } from "@/lib/swr-config";
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata, Viewport } from "next";
-import { DM_Sans, Fraunces } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-const dmSans = DM_Sans({
+// The fonts ship with the app (variable, latin, SIL OFL — licenses alongside
+// in ./fonts) rather than coming from Google Fonts at build time. Fetching
+// them during `next build` failed whenever Google was slow or unreachable from
+// CI, which turned unrelated changes red.
+const dmSans = localFont({
+  src: "./fonts/dm-sans-latin-wght.woff2",
   variable: "--font-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: "100 1000",
+  display: "swap",
 });
 
-const fraunces = Fraunces({
+const fraunces = localFont({
+  src: "./fonts/fraunces-latin-wght.woff2",
   variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: "100 900",
+  display: "swap",
 });
 
 export const metadata: Metadata = {

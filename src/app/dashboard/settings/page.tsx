@@ -451,7 +451,7 @@ export default function SettingsPage() {
 }
 
 const FIELD_INPUT =
-  "min-w-0 flex-1 bg-transparent text-right text-[15px] placeholder:text-muted-foreground focus:outline-none";
+  "min-w-0 flex-1 bg-transparent text-right text-base placeholder:text-muted-foreground focus:outline-none";
 
 const SELECT_TRIGGER =
   "h-auto border-none bg-transparent px-0 py-0 text-[15px] text-muted-foreground shadow-none focus:ring-0";

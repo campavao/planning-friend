@@ -1,7 +1,6 @@
 "use client";
 
 import type { ElementType } from "react";
-import { upcomingDays } from "@/lib/plan-dates";
 import { describeDaysSince, type PlanHistorySummary } from "@/lib/plan-history";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -73,8 +72,6 @@ import {
 import Image from "next/image";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import useSWR from "swr";
-import { fetcher } from "@/lib/swr-config";
 import { useSession } from "../useSession";
 import { categoryUI } from "@/lib/categories";
 import { isImageSourcedItem, isVideoSourceUrl } from "@/lib/content-source";
@@ -84,6 +81,8 @@ import { ItemNotes } from "./components/ItemNotes";
 import { ContentDataEditor } from "./components/ContentDataEditor";
 import { ItemProse, ItemRow, ItemRows } from "./components/ItemRow";
 import { AttributeChips } from "./components/AttributeChips";
+import { GiveSheet } from "./components/GiveSheet";
+import { PlanSheet } from "./components/PlanSheet";
 import { TypeChip } from "@/components/type-chip";
 import { PlantDrawer } from "./components/PlantDrawer";
 import { SectionEditorDrawer } from "./components/SectionEditorDrawer";
@@ -279,9 +278,6 @@ export default function ContentDetailPage() {
   const [drawer, setDrawer] = useState<OpenDrawer>({ kind: "none" });
   // Who a gift was just given to, for the button to say so for a moment.
   const [givenTo, setGivenTo] = useState<string | null>(null);
-  const [giving, setGiving] = useState(false);
-  const [planningDay, setPlanningDay] = useState<string | null>(null);
-  const [plannedLabel, setPlannedLabel] = useState<string | null>(null);
   const [photoOpen, setPhotoOpen] = useState(false);
 
   const isEditable = !!user && content?.user_id === user.id;
@@ -333,31 +329,9 @@ export default function ContentDetailPage() {
     }
   }, [router, searchParams, user]);
 
-  // The people a gift can go to, fetched only once the picker opens.
-  const { data: giveData } = useSWR<{ recipients: { id: string; name: string }[] }>(
-    drawer.kind === "give" ? "/api/gifts/recipients" : null,
-    fetcher
-  );
-  const giveRecipients = giveData?.recipients;
-
-  const handleGive = async (recipientId: string, name: string) => {
-    if (!content) return;
-    setGiving(true);
-    try {
-      const res = await fetch("/api/gifts/assignments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipientId, contentId: content.id }),
-      });
-      if (!res.ok) throw new Error("Failed to add gift");
-      setDrawer({ kind: "none" });
-      setGivenTo(name);
-      setTimeout(() => setGivenTo(null), 2500);
-    } catch (error) {
-      console.error("Failed to give gift:", error);
-    } finally {
-      setGiving(false);
-    }
+  const handleGiven = (name: string) => {
+    setGivenTo(name);
+    setTimeout(() => setGivenTo(null), 2500);
   };
 
   const handleShare = useCallback(async () => {
@@ -501,47 +475,6 @@ export default function ContentDetailPage() {
       console.error("Failed to delete:", error);
     } finally {
       setDeleting(false);
-    }
-  };
-
-  /**
-   * Put this item on a day.
-   *
-   * Sends `plannedDate` and lets the server derive the week from it. The client
-   * has a user-configurable week start (Sunday or Monday) while the stored plan
-   * is always Monday-based, so computing weekStart here would be a second
-   * opinion on a question the server already answers correctly.
-   */
-  const handleAddToPlanner = async (date: Date, label: string) => {
-    if (!content) return;
-    const key = date.toISOString();
-    setPlanningDay(key);
-    try {
-      const res = await fetch("/api/planner", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contentId: content.id,
-          plannedDate: key,
-          source: "manual",
-        }),
-      });
-      if (!res.ok) throw new Error(`Failed: ${res.status}`);
-      setPlannedLabel(label);
-      // The "coming up" line is now stale by exactly the thing just added.
-      mutatePlanHistory();
-      // Left open briefly so the confirmation is actually seen; planning two
-      // days in a row is common enough that closing instantly would annoy.
-      setTimeout(() => {
-        setPlannedLabel(null);
-        setDrawer({ kind: "none" });
-      }, 1400);
-    } catch (error) {
-      console.error("Failed to add to planner:", error);
-      setPlannedLabel("Could not add — try again");
-      setTimeout(() => setPlannedLabel(null), 2500);
-    } finally {
-      setPlanningDay(null);
     }
   };
 
@@ -1269,71 +1202,21 @@ export default function ContentDetailPage() {
         </DrawerItem>
       </ActionDrawer>
 
-      <ActionDrawer
+      <GiveSheet
         open={drawer.kind === "give"}
-        onOpenChange={closeDrawer}
-        title="Give to someone"
-        description={
-          giveRecipients && giveRecipients.length === 0
-            ? "Add the people you buy for on the Gifts page first."
-            : "Pick who this gift is for."
-        }
-      >
-        <div className="pb-2">
-          {giveRecipients === undefined ? (
-            <p className="px-3.5 py-3 text-sm text-muted-foreground">
-              Loading…
-            </p>
-          ) : giveRecipients.length === 0 ? (
-            <DrawerItem
-              icon={Gift}
-              onClick={() => {
-                closeDrawer();
-                router.push("/dashboard/gifts");
-              }}
-            >
-              Go to Gifts
-            </DrawerItem>
-          ) : (
-            giveRecipients.map((recipient) => (
-              <DrawerItem
-                key={recipient.id}
-                icon={Gift}
-                disabled={giving}
-                onClick={() => handleGive(recipient.id, recipient.name)}
-              >
-                {recipient.name}
-              </DrawerItem>
-            ))
-          )}
-        </div>
-      </ActionDrawer>
+        onOpenChange={(open) => !open && closeDrawer()}
+        contentId={content.id}
+        contentTitle={content.title}
+        onGiven={handleGiven}
+      />
 
-      <ActionDrawer
+      <PlanSheet
         open={drawer.kind === "plan"}
-        onOpenChange={closeDrawer}
-        title={plannedLabel ? `Added to ${plannedLabel}` : "Add to planner"}
-        description={
-          plannedLabel ? undefined : "Pick a day. You can move it later."
-        }
-      >
-        <div className="pb-2">
-          {upcomingDays().map(({ date, label, sub }) => {
-            const key = date.toISOString();
-            return (
-              <DrawerItem
-                key={key}
-                icon={CalendarPlus}
-                hint={sub}
-                disabled={planningDay !== null}
-                onClick={() => handleAddToPlanner(date, `${label} · ${sub}`)}
-              >
-                {label}
-              </DrawerItem>
-            );
-          })}
-        </div>
-      </ActionDrawer>
+        onOpenChange={(open) => !open && closeDrawer()}
+        contentId={content.id}
+        contentTitle={content.title}
+        onPlanned={() => mutatePlanHistory()}
+      />
 
       <ActionDrawer
         open={drawer.kind === "eating"}

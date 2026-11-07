@@ -42,67 +42,22 @@ export function formatItemTime(item: DatedItem): string | null {
 }
 
 /**
- * The next fortnight, as options for "add this to a day".
+ * Whether a day shows a suggestion.
  *
- * A list rather than a date picker: adding a saved recipe to the plan is a
- * next-few-days decision almost every time, and a scrollable list of real days
- * is one tap where a calendar widget is three. Anything further out is what the
- * planner itself is for.
+ * Only an empty day does. A day that already has plans doesn't need an idea
+ * pushed at it, and ideas under every day outnumbered the real plans — the
+ * planner read as a list of things the app wanted rather than things you'd
+ * chosen. The add sheet still offers ideas for any day.
  *
- * Times are set to 19:00 local, matching the slot the planner's own add flow
- * defaults to, so an item added from either place lands in the same place.
- */
-export interface UpcomingDay {
-  date: Date;
-  /** "Today", "Tomorrow", or the weekday name. */
-  label: string;
-  /** "Aug 27" — always shown, because "Tuesday" alone is ambiguous twice over. */
-  sub: string;
-}
-
-export function upcomingDays(count = 14, from: Date = new Date()): UpcomingDay[] {
-  const out: UpcomingDay[] = [];
-  const start = new Date(from);
-  start.setHours(19, 0, 0, 0);
-
-  for (let i = 0; i < count; i++) {
-    const date = new Date(start);
-    date.setDate(date.getDate() + i);
-    const label =
-      i === 0
-        ? "Today"
-        : i === 1
-          ? "Tomorrow"
-          : date.toLocaleDateString("en-US", { weekday: "long" });
-    out.push({
-      date,
-      label,
-      sub: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-    });
-  }
-  return out;
-}
-
-/**
- * Whether a day shows its suggestion strip.
- *
- * Extracted from WeekSection because inlining it produced a real bug: the
- * toggle was prefixed onto an existing `empty || hasPicks` expression without
- * parentheses, and `&&` binds tighter than `||`, so it became
- * `(!hidden && empty) || hasPicks` — every day with picks ignored the toggle
- * entirely. A three-argument boolean is worth testing precisely because it is
- * the kind of thing that looks obviously right while being wrong.
- *
- * `hidden` short-circuits everything: off has to mean off, including on an
- * empty day where the strip would otherwise stay to explain itself.
+ * `hidden` short-circuits everything: off has to mean off. (This was once an
+ * inline `!hidden && empty || hasPicks`, where `&&` binding tighter than `||`
+ * let every day with picks ignore the toggle.) An empty day keeps the strip
+ * even with no picks, so it can say why it's empty.
  */
 export function shouldShowSuggestions(
   hidden: boolean,
-  plannedCount: number,
-  pickCount: number
+  plannedCount: number
 ): boolean {
   if (hidden) return false;
-  // An empty day keeps the strip even with no picks, so it can say why it is
-  // empty rather than rendering blank.
-  return plannedCount === 0 || pickCount > 0;
+  return plannedCount === 0;
 }

@@ -406,12 +406,9 @@ export function WeekSection({
           const isHighlighted = highlightDate === dateKey;
           const dayRefreshing = refreshingKey === `${weekStart}:${dayIndex}`;
           const dayPicks = filterPicksForDay(dayIndex);
-          // The engine owns the "is this day full?" rule — a day holding one
-          // item still gets picks. The client just shows what it was sent.
           const showSuggestions = shouldShowSuggestions(
             suggestionsHidden,
             itemsByDay[dayIndex].length,
-            dayPicks.length,
           );
 
           return (
