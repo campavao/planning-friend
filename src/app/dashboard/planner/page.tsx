@@ -37,8 +37,8 @@ import {
 } from "@/lib/date-utils";
 import {
   ArrowLeft,
-  ArrowUp,
   Calendar,
+  CalendarDays,
   Check,
   ChevronDown,
   ChevronRight,
@@ -47,11 +47,11 @@ import {
   Heart,
   PenLine,
   Plus,
+  RefreshCw,
   Search,
-  Lightbulb,
-  LightbulbOff,
   Share2,
   ShoppingCart,
+  Sparkles,
   Star,
   Trash2,
   User,
@@ -75,12 +75,16 @@ import { useSession } from "../useSession";
 import { categoryUI } from "@/lib/categories";
 import { DateJumpControls } from "./components/DateJumpControls";
 import { PlannerSearch } from "./components/PlannerSearch";
-import { SuggestionStrip } from "./components/SuggestionStrip";
+import {
+  DraftRow,
+  type SuggestionPickView,
+} from "./components/SuggestionStrip";
 import { WeekSection } from "./components/WeekSection";
 import { getItemDateKey } from "@/lib/plan-dates";
 import { contentMeta } from "@/lib/plan-item-details";
 import {
   DEFAULT_PLAN_TIME,
+  describeTime,
   plannedDateFor,
   shortDayLabel,
 } from "@/lib/plan-time";
@@ -173,6 +177,17 @@ function addWeeksTo(weekStart: string, count: number): string {
   date.setDate(date.getDate() + count * 7);
   return formatDateString(date);
 }
+
+type PickTab = "ideas" | "recent" | "all";
+
+const PICK_TABS: { id: PickTab; label: string }[] = [
+  { id: "ideas", label: "Ideas" },
+  { id: "recent", label: "Recent" },
+  { id: "all", label: "All saved" },
+];
+
+/** How many recently saved items the Recent tab lists. */
+const RECENT_LIMIT = 15;
 
 const ADD_SHEET_CATEGORIES: {
   id: ContentCategory | "all";
@@ -280,10 +295,21 @@ function PlannerContent() {
     null,
   );
   // What this visit to the add sheet has put on the day, so each row can show
-  // a check and take it back off. Content id or note title → plan item id.
+  // a check and take it back off. Content id → plan item id.
   const [addedItems, setAddedItems] = useState<Record<string, string>>({});
-  const [addedNotes, setAddedNotes] = useState<Record<string, string>>({});
   const [pendingAddKey, setPendingAddKey] = useState<string | null>(null);
+  // Ideas added this visit. The engine stops suggesting something once it's
+  // planned, so without this an idea would vanish the moment you added it
+  // instead of showing its check.
+  const [addedIdeas, setAddedIdeas] = useState<SuggestionPickView[]>([]);
+  // The sheet's mode: picking from the collection, or writing a note.
+  const [sheetMode, setSheetMode] = useState<"pick" | "note">("pick");
+  // While editing, Replace… opens the picker to swap the item.
+  const [replacing, setReplacing] = useState(false);
+  // The day and time controls fold into one pill until tapped.
+  const [whenOpen, setWhenOpen] = useState(false);
+  // null: let the sheet choose — Ideas when there are any, otherwise All.
+  const [pickTab, setPickTab] = useState<PickTab | null>(null);
   const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(
     new Set(),
   );
@@ -667,23 +693,30 @@ function PlannerContent() {
 
   const resetAdded = () => {
     setAddedItems({});
-    setAddedNotes({});
+    setAddedIdeas([]);
+  };
+
+  const resetSheet = () => {
+    setEntryQuery("");
+    resetAdded();
+    setSheetMode("pick");
+    setReplacing(false);
+    setWhenOpen(false);
+    setPickTab(null);
   };
 
   const openAddModal = (dateKey: string) => {
+    resetSheet();
     setPlannedTime(DEFAULT_PLAN_TIME);
     setEditingItem(null);
-    setEntryQuery("");
-    resetAdded();
     setAddingToDate(dateKey);
   };
 
   const closeAddModal = () => {
     setAddingToDate(null);
     setEditingItem(null);
-    setEntryQuery("");
     setAddingQuickNote(false);
-    resetAdded();
+    resetSheet();
   };
 
   /**
@@ -706,7 +739,7 @@ function PlannerContent() {
   };
 
   const openEditModal = (item: PlanItemWithSharing, dateKey: string) => {
-    resetAdded();
+    resetSheet();
     setEditingItem(item);
     setPlannedTime(getTimeInputValue(item.planned_date));
     // A note opens with its own title in the field, ready to be reworded.
@@ -741,7 +774,11 @@ function PlannerContent() {
    * reopening the sheet for each was most of the work of planning one. In edit
    * mode a row swaps the item instead, and that does finish the job.
    */
-  const addToDay = async (contentId: string, dateKey: string) => {
+  const addToDay = async (
+    contentId: string,
+    dateKey: string,
+    source?: "ai_suggested",
+  ) => {
     const plannedDate = getPlannedDateTime(dateKey, plannedTime);
     if (!plannedDate) return;
 
@@ -769,7 +806,11 @@ function PlannerContent() {
       const res = await fetch("/api/planner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contentId, plannedDate }),
+        body: JSON.stringify({
+          contentId,
+          plannedDate,
+          ...(source ? { source } : {}),
+        }),
       });
       if (res.ok) {
         const body = (await res.json()) as { item?: { id: string } };
@@ -794,13 +835,6 @@ function PlannerContent() {
     await removeFromDay(itemId, weekOf(dateKey));
     setAddedItems((prev) => withoutKey(prev, contentId));
     setPendingAddKey(null);
-  };
-
-  const removeAddedNote = async (title: string, dateKey: string) => {
-    const itemId = addedNotes[title];
-    if (!itemId) return;
-    await removeFromDay(itemId, weekOf(dateKey));
-    setAddedNotes((prev) => withoutKey(prev, title));
   };
 
   /**
@@ -841,14 +875,11 @@ function PlannerContent() {
         }),
       });
 
+      // A note is one thing written for one day, so writing it finishes
+      // the job — unlike picking, where a day is often several things.
       if (res.ok) {
-        const body = (await res.json()) as { item?: { id: string } };
-        const itemId = body.item?.id;
-        if (itemId) {
-          setAddedNotes((prev) => ({ ...prev, [noteTitle]: itemId }));
-        }
-        setEntryQuery("");
         revalidateDate(dateKey);
+        closeAddModal();
       }
     } catch (error) {
       console.error("Failed to add quick note:", error);
@@ -1201,7 +1232,12 @@ function PlannerContent() {
   const hasActiveFilters =
     categoryFilter !== "all" || selectedTagIds.length > 0;
 
-  const getFilteredContent = () => {
+  /**
+   * Everything that can go on the sheet's day: saved items that aren't gifts
+   * and aren't already planned that week. Something added from this sheet
+   * stays, with its check, so it can be taken back off.
+   */
+  const getPickableContent = (): ContentWithTags[] => {
     if (!library?.availableContent) return [];
 
     // keepPreviousData means modalData can briefly belong to another week;
@@ -1211,17 +1247,20 @@ function PlannerContent() {
     const planItems: PlanItemWithSharing[] = modalReady
       ? modalData.plan?.items || []
       : [];
-    const availableContent: ContentWithTags[] =
-      library.availableContent as ContentWithTags[];
     const usedIds = new Set(
       planItems.map((i: PlanItemWithSharing) => i.content_id) || [],
     );
 
-    const matching = availableContent.filter((c: ContentWithTags) => {
-      // Something added from this sheet stays in the list with its check, so
-      // it can be taken back off.
-      if (usedIds.has(c.id) && !(c.id in addedItems)) return false;
-      if (c.category === "gift_idea") return false;
+    return (library.availableContent as ContentWithTags[]).filter(
+      (c) =>
+        c.category !== "gift_idea" &&
+        (!usedIds.has(c.id) || c.id in addedItems),
+    );
+  };
+
+  /** The All tab: pickable items narrowed by the category and tag chips. */
+  const getFilteredContent = () =>
+    getPickableContent().filter((c: ContentWithTags) => {
       if (categoryFilter !== "all" && c.category !== categoryFilter)
         return false;
 
@@ -1236,10 +1275,6 @@ function PlannerContent() {
       return true;
     });
 
-    // Same matching as the collection page, so typing an ingredient or a
-    // place name finds the item whose title doesn't mention it.
-    return filterBySearch(matching, entryQuery);
-  };
 
   /**
    * Quick notes planned before that match what is being typed (PLA-43).
@@ -1479,16 +1514,79 @@ function PlannerContent() {
 
   // The add/edit sheet's derived state.
   const sheetQuery = entryQuery.trim();
+  // Editing shows the item and when it happens; Replace… swaps to the picker.
+  const sheetEditing = !!editingItem && !replacing;
   const sheetEditingNote = !!editingItem && !editingItem.content_id;
-  const sheetResults = addingToDate !== null ? getFilteredContent() : [];
-  const sheetAddedNoteTitles = Object.keys(addedNotes);
-  // Past notes only once something is typed: unprompted, a week of one-off
-  // notes ("Flight to Chicago") crowded the collection off the screen.
-  const sheetNoteChips = getMatchingNotes().filter(
-    (note) => !(note in addedNotes)
+  const sheetPickable = addingToDate !== null ? getPickableContent() : [];
+  const sheetIdeas: SuggestionPickView[] = [
+    ...addedIdeas,
+    ...modalPicks.filter(
+      (pick) => !addedIdeas.some((added) => added.contentId === pick.contentId),
+    ),
+  ].filter((pick) => contentById.has(pick.contentId));
+  const sheetTab: PickTab =
+    pickTab ?? (sheetIdeas.length > 0 && !replacing ? "ideas" : "all");
+  const sheetRows: ContentWithTags[] = sheetQuery
+    ? filterBySearch(sheetPickable, sheetQuery)
+    : sheetTab === "recent"
+      ? [...sheetPickable]
+          .sort((a, b) => b.created_at.localeCompare(a.created_at))
+          .slice(0, RECENT_LIMIT)
+      : sheetTab === "all"
+        ? getFilteredContent()
+        : [];
+  const sheetNoteChips = sheetMode === "note" ? getMatchingNotes() : [];
+  // Ideas are for filling a day, not for swapping an item already on it.
+  const sheetTabs = PICK_TABS.filter(
+    (tab) => !(replacing && tab.id === "ideas"),
   );
-  const sheetAddedCount =
-    Object.keys(addedItems).length + sheetAddedNoteTitles.length;
+  const sheetAddedCount = Object.keys(addedItems).length;
+  const sheetWeekday = addingToDate
+    ? parseDateString(addingToDate).toLocaleDateString("en-US", {
+        weekday: "long",
+      })
+    : "";
+
+  /** Put an idea on the day — or take it back off if it's already there. */
+  const toggleIdea = (pick: SuggestionPickView) => {
+    if (!addingToDate) return;
+    if (pick.contentId in addedItems) {
+      removeAddedItem(pick.contentId, addingToDate);
+      return;
+    }
+    setAddedIdeas((prev) =>
+      prev.some((p) => p.contentId === pick.contentId) ? prev : [...prev, pick],
+    );
+    addToDay(pick.contentId, addingToDate, "ai_suggested");
+  };
+
+  /** One row of the picker: photo, title, the card's detail line, and +. */
+  const renderPickRow = (content: ContentWithTags) => {
+    const added = content.id in addedItems;
+    return (
+      <li key={content.id} className="flex items-center gap-3 px-4 py-2.5">
+        <SheetThumb content={content} />
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-1 text-[15px] font-medium">
+            {content.title}
+          </p>
+          <p className="truncate text-xs text-muted-foreground">
+            {contentMeta(content) ?? categoryUI(content.category).label}
+          </p>
+        </div>
+        <AddToggle
+          added={added}
+          pending={pendingAddKey === content.id}
+          label={content.title}
+          onToggle={() =>
+            added && addingToDate
+              ? removeAddedItem(content.id, addingToDate)
+              : addingToDate && addToDay(content.id, addingToDate)
+          }
+        />
+      </li>
+    );
+  };
 
   // The header renders no matter what. Swapping the whole page for a spinner
   // until the focused date resolved meant the header tore down and slid back
@@ -1523,11 +1621,23 @@ function PlannerContent() {
                 suggestionsHidden ? "Show suggestions" : "Hide suggestions"
               }
             >
-              {suggestionsHidden ? (
-                <LightbulbOff className="w-4 h-4 text-muted-foreground" />
-              ) : (
-                <Lightbulb className="w-4 h-4 text-[var(--primary)]" />
-              )}
+              {/* The same sparkle that marks every idea, so the toggle
+                  says what it turns off. Struck through when off. */}
+              <span className="relative inline-flex">
+                <Sparkles
+                  className={`w-4 h-4 ${
+                    suggestionsHidden
+                      ? "text-muted-foreground"
+                      : "text-[var(--accent)]"
+                  }`}
+                />
+                {suggestionsHidden && (
+                  <span
+                    aria-hidden
+                    className="absolute left-1/2 top-1/2 h-px w-5 -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-muted-foreground"
+                  />
+                )}
+              </span>
             </Button>
           </div>
           <h1 className="heading-2 text-xl md:text-2xl">Planner</h1>
@@ -1637,96 +1747,193 @@ function PlannerContent() {
         </div>
       </div>
 
-      {/* Add / edit sheet */}
+      {/* Add / edit sheet. Three focused views instead of one that did
+          everything: the picker (the day's +), a note, and edit. */}
       {addingToDate !== null && (
         <Sheet
           open
           onOpenChange={(o) => {
             if (!o) closeAddModal();
           }}
+          // The picker keeps one height while you type and switch tabs.
+          fullHeight={!sheetEditing && sheetMode === "pick"}
           title={
-            editingItem
+            sheetEditing
               ? "Edit plan"
-              : `Add to ${shortDayLabel(addingToDate)}`
+              : sheetMode === "note"
+                ? `Note for ${shortDayLabel(addingToDate)}`
+                : `Add to ${shortDayLabel(addingToDate)}`
           }
-          // Adding: the week strip is the header — its selected day says
-          // which day, and the title row's height goes to the list instead.
           header={
-            editingItem ? undefined : (
-              <WeekStrip
-                value={addingToDate}
-                onChange={changeSheetDay}
-                weekStartDay={weekStartDay}
-              />
+            sheetEditing ? undefined : (
+              <div className="flex items-center gap-2">
+                {/* When, folded into one pill: the day you tapped and the
+                    usual time. It opens only to change them. */}
+                <button
+                  type="button"
+                  onClick={() => setWhenOpen((open) => !open)}
+                  aria-expanded={whenOpen}
+                  className="surface-raised inline-flex min-w-0 items-center gap-1.5 rounded-full py-1.5 pl-3 pr-2.5 text-[15px] font-semibold transition-transform active:translate-y-px"
+                >
+                  <CalendarDays className="size-4 shrink-0 text-[var(--primary)]" />
+                  <span className="truncate">
+                    {shortDayLabel(addingToDate)} · {describeTime(plannedTime)}
+                  </span>
+                  <ChevronDown
+                    className={`size-4 shrink-0 text-muted-foreground transition-transform ${
+                      whenOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+                <span className="flex-1" />
+                {!replacing &&
+                  (sheetMode === "pick" ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSheetMode("note");
+                        setEntryQuery("");
+                      }}
+                      className="surface-raised inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium transition-transform active:translate-y-px"
+                    >
+                      <PenLine className="size-3.5 text-[var(--primary)]" />
+                      Note
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSheetMode("pick");
+                        setEntryQuery("");
+                      }}
+                      className="surface-raised inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium transition-transform active:translate-y-px"
+                    >
+                      <Search className="size-3.5 text-[var(--primary)]" />
+                      Collection
+                    </button>
+                  ))}
+              </div>
             )
           }
           top={
             <>
-              {editingItem?.content && (
+              {sheetEditing && editingItem?.content && (
                 <div className="surface-inset flex items-center gap-3 rounded-2xl p-2.5">
                   <SheetThumb content={editingItem.content} />
-                  <div className="min-w-0">
-                    <p className="line-clamp-1 text-[15px] font-medium">
-                      {editingItem.content.title}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Pick a new day or time, or swap it below
-                    </p>
-                  </div>
+                  <p className="line-clamp-2 min-w-0 text-[15px] font-medium">
+                    {editingItem.content.title}
+                  </p>
                 </div>
               )}
-              {editingItem && (
-                <WeekStrip
-                  value={addingToDate}
-                  onChange={changeSheetDay}
-                  weekStartDay={weekStartDay}
-                />
-              )}
-              <TimeChips value={plannedTime} onChange={setPlannedTime} />
-              {/* One field: it filters the collection, and what's typed can
-                  go on the day as a note. */}
-              <form
-                className="relative"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  addQuickNote(addingToDate);
-                }}
-              >
-                <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              {sheetEditing && sheetEditingNote && (
                 <Input
-                  type="text"
                   value={entryQuery}
                   onChange={(e) => setEntryQuery(e.target.value)}
-                  placeholder={
-                    sheetEditingNote
-                      ? "Note"
-                      : "Search or type a note"
-                  }
-                  aria-label={
-                    sheetEditingNote ? "Note" : "Search or type a note"
-                  }
-                  enterKeyHint={sheetEditingNote ? "done" : "send"}
-                  className="h-11 pl-10 pr-12 text-base"
+                  aria-label="Note"
+                  className="h-11 text-base"
                 />
-                {sheetQuery && (
+              )}
+              {(sheetEditing || whenOpen) && (
+                <>
+                  <WeekStrip
+                    value={addingToDate}
+                    onChange={changeSheetDay}
+                    weekStartDay={weekStartDay}
+                  />
+                  <TimeChips value={plannedTime} onChange={setPlannedTime} />
+                </>
+              )}
+              {!sheetEditing && sheetMode === "note" && (
+                <form
+                  className="relative"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    addQuickNote(addingToDate);
+                  }}
+                >
+                  <PenLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={entryQuery}
+                    onChange={(e) => setEntryQuery(e.target.value)}
+                    placeholder="Leftovers, dinner at Mom’s…"
+                    aria-label="Note"
+                    enterKeyHint="done"
+                    autoFocus
+                    className="h-11 pl-10 pr-12 text-base"
+                  />
                   <button
                     type="submit"
-                    disabled={addingQuickNote}
-                    aria-label={
-                      sheetEditingNote
-                        ? "Save note"
-                        : `Add “${sheetQuery}” as a note`
-                    }
-                    className="absolute right-1.5 top-1/2 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--primary)] text-white transition-transform active:scale-95 disabled:opacity-60"
+                    disabled={!sheetQuery || addingQuickNote}
+                    aria-label="Add note"
+                    className="absolute right-1.5 top-1/2 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--primary)] text-white transition-transform active:scale-95 disabled:opacity-40"
                   >
-                    <ArrowUp className="size-4" strokeWidth={2.5} />
+                    <Check className="size-4" strokeWidth={3} />
                   </button>
-                )}
-              </form>
+                </form>
+              )}
+              {!sheetEditing && sheetMode === "pick" && (
+                <>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      type="search"
+                      value={entryQuery}
+                      onChange={(e) => setEntryQuery(e.target.value)}
+                      placeholder="Search your collection"
+                      aria-label="Search your collection"
+                      enterKeyHint="search"
+                      className="h-11 pl-10 pr-10 text-base [&::-webkit-search-cancel-button]:hidden"
+                    />
+                    {entryQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setEntryQuery("")}
+                        aria-label="Clear search"
+                        className="absolute right-2 top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-[var(--muted)]"
+                      >
+                        <X className="size-4" />
+                      </button>
+                    )}
+                  </div>
+                  {!sheetQuery && (
+                    <div
+                      role="tablist"
+                      aria-label="Show"
+                      className="surface-inset grid gap-1 rounded-full p-1"
+                      style={{
+                        gridTemplateColumns: `repeat(${sheetTabs.length}, minmax(0, 1fr))`,
+                      }}
+                    >
+                      {sheetTabs.map((tab) => {
+                        const selected = sheetTab === tab.id;
+                        return (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            role="tab"
+                            aria-selected={selected}
+                            onClick={() => setPickTab(tab.id)}
+                            className={`inline-flex items-center justify-center gap-1 rounded-full py-1.5 text-[13px] font-medium transition-colors ${
+                              selected
+                                ? "bg-[var(--card)] text-foreground shadow-[0_1px_3px_rgba(45,52,54,0.15)]"
+                                : "text-muted-foreground"
+                            }`}
+                          >
+                            {tab.id === "ideas" && (
+                              <Sparkles className="size-3.5 text-[var(--accent)]" />
+                            )}
+                            {tab.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              )}
             </>
           }
           footer={
-            editingItem ? (
+            sheetEditing ? (
               <div className="flex gap-2">
                 <Button
                   variant="ghost"
@@ -1736,6 +1943,19 @@ function PlannerContent() {
                   <Trash2 className="size-4" />
                   Delete
                 </Button>
+                {!sheetEditingNote && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setReplacing(true);
+                      setPickTab(null);
+                      setEntryQuery("");
+                    }}
+                    className="surface-raised rounded-full"
+                  >
+                    Replace…
+                  </Button>
+                )}
                 <Button
                   className="flex-1"
                   disabled={addingQuickNote || (sheetEditingNote && !sheetQuery)}
@@ -1748,123 +1968,28 @@ function PlannerContent() {
                   Save
                 </Button>
               </div>
-            ) : sheetAddedCount > 0 ? (
-              <Button className="w-full" onClick={closeAddModal}>
-                Done · {sheetAddedCount} added
+            ) : sheetMode === "note" ? undefined : replacing ? (
+              <Button
+                variant="ghost"
+                className="surface-raised w-full rounded-full"
+                onClick={() => {
+                  setReplacing(false);
+                  setEntryQuery("");
+                }}
+              >
+                Keep {editingItem?.content?.title ?? "it"}
               </Button>
-            ) : undefined
+            ) : (
+              <Button className="w-full" onClick={closeAddModal}>
+                {sheetAddedCount > 0 ? `Done · ${sheetAddedCount} added` : "Done"}
+              </Button>
+            )
           }
         >
-          {!sheetEditingNote && (
-            // Categories and tags in one scrolling row, like the collection,
-            // instead of a row of each.
-            <div className="sticky top-0 z-10 bg-[var(--card)]">
-              {/* The padding lives inside the scroller, which clips vertically
-                  too — outside it, the chips' shadows were cut flat. */}
-              <div className="overflow-x-auto hide-scrollbar">
-                <div className="flex w-max items-center gap-2 px-4 pt-2.5 pb-3">
-                  {ADD_SHEET_CATEGORIES.map((cat) => {
-                    const active = categoryFilter === cat.id;
-                    return (
-                      <button
-                        key={cat.id}
-                        type="button"
-                        onClick={() => setCategoryFilter(cat.id)}
-                        aria-pressed={active}
-                        className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium transition-all active:translate-y-px ${
-                          active
-                            ? "bg-foreground text-background"
-                            : "surface-raised"
-                        }`}
-                      >
-                        {cat.icon && <cat.icon className="size-3.5" />}
-                        {cat.label}
-                      </button>
-                    );
-                  })}
-                  {(library?.allTags?.length ?? 0) > 0 && (
-                    <span aria-hidden className="mx-1 h-5 w-px bg-[var(--border)]" />
-                  )}
-                  {library?.allTags?.map((tag: Tag) => {
-                    const active = selectedTagIds.includes(tag.id);
-                    return (
-                      <button
-                        key={tag.id}
-                        type="button"
-                        onClick={() => toggleTagSelection(tag.id)}
-                        aria-pressed={active}
-                        className={`inline-flex shrink-0 items-center rounded-full px-3 py-1.5 text-[13px] font-medium transition-all active:translate-y-px ${
-                          active
-                            ? "bg-foreground text-background"
-                            : "surface-raised"
-                        }`}
-                      >
-                        {tag.name}
-                      </button>
-                    );
-                  })}
-                  {hasActiveFilters && (
-                    <button
-                      type="button"
-                      onClick={clearAllFilters}
-                      className="inline-flex items-center gap-1 px-2 text-xs font-medium text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="size-3" />
-                      Clear
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* What's typed, as a note — first, so it's never under the fold */}
-          {sheetQuery && !sheetEditingNote && (
-            <button
-              type="button"
-              onClick={() => addQuickNote(addingToDate)}
-              disabled={addingQuickNote}
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[var(--background)] disabled:opacity-60"
-            >
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-light)]">
-                <PenLine className="size-5 text-[var(--primary)]" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="line-clamp-1 text-[15px] font-medium">
-                  {editingItem ? "Make it a note" : "Add as a note"}: &ldquo;
-                  {sheetQuery}&rdquo;
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {addingQuickNote ? "Saving…" : "No saved item needed"}
-                </span>
-              </span>
-              <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--primary)] text-white">
-                <ArrowUp className="size-4" strokeWidth={2.5} />
-              </span>
-            </button>
-          )}
-
-          {/* Notes you plan again and again, one tap each */}
-          {!editingItem &&
-            (sheetAddedNoteTitles.length > 0 || sheetNoteChips.length > 0) && (
-              <SheetSection label="Notes">
-                {/* One scrolling line, padded inside so the chips' shadows
-                    aren't clipped. */}
-                <div className="-mt-1.5 -mb-3 overflow-x-auto hide-scrollbar">
-                  <div className="flex w-max gap-2 px-4 pt-1.5 pb-3">
-                  {sheetAddedNoteTitles.map((title) => (
-                    <button
-                      key={`added-${title}`}
-                      type="button"
-                      onClick={() => removeAddedNote(title, addingToDate)}
-                      aria-pressed
-                      aria-label={`Remove note ${title}`}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[var(--secondary-dark)] px-3 py-1.5 text-[13px] font-medium text-white"
-                    >
-                      <Check className="size-3.5" strokeWidth={3} />
-                      {title}
-                    </button>
-                  ))}
+          {sheetEditing ? null : sheetMode === "note" ? (
+            sheetNoteChips.length > 0 ? (
+              <SheetSection label="Used before">
+                <div className="flex flex-wrap gap-2 px-4 pb-4">
                   {sheetNoteChips.map((note) => (
                     <button
                       key={note}
@@ -1877,105 +2002,225 @@ function PlannerContent() {
                       {note}
                     </button>
                   ))}
-                  </div>
                 </div>
               </SheetSection>
-            )}
-
-          {/* Suggested for this day — set aside once you start typing, so the
-              results you asked for stay at the top */}
-          {!sheetQuery && !editingItem && modalWeek && modalPicks.length > 0 && (
+            ) : null
+          ) : sheetQuery ? (
+            <>
+              <SheetSection
+                label="Results"
+                action={
+                  <span className="text-xs text-muted-foreground">
+                    {sheetRows.length}
+                  </span>
+                }
+              >
+                <ul className="divide-y divide-[var(--border)]">
+                  {sheetRows.map(renderPickRow)}
+                </ul>
+              </SheetSection>
+              {/* Not in the collection: it can still go on the day, as a
+                  note — in the note sheet, with what was typed. */}
+              {!replacing && (
+                <button
+                  type="button"
+                  onClick={() => setSheetMode("note")}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--background)]"
+                >
+                  <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-light)]">
+                    <PenLine className="size-5 text-[var(--primary)]" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="line-clamp-1 text-[15px] font-medium">
+                      Add &ldquo;{sheetQuery}&rdquo; as a note
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {sheetRows.length === 0
+                        ? "Nothing saved matches"
+                        : "No saved item needed"}
+                    </span>
+                  </span>
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                </button>
+              )}
+            </>
+          ) : sheetTab === "ideas" ? (
             <SheetSection
-              label={`Suggested for ${parseDateString(addingToDate).toLocaleDateString("en-US", { weekday: "long" })}`}
-            >
-              <div className="px-4">
-                <SuggestionStrip
-                  dayIndex={modalDayIndex}
-                  picks={modalPicks}
-                  contentById={contentById}
-                  weekStart={modalWeek}
-                  onAdd={(contentId, dayIndex) =>
-                    addSuggestionToDay(contentId, dayIndex, modalWeek)
-                  }
-                  onDismiss={(contentId, dayIndex) =>
-                    dismissSuggestion(contentId, dayIndex, modalWeek)
-                  }
-                  onRefresh={(dayIndex) =>
-                    refreshDaySuggestions(dayIndex, modalWeek)
-                  }
-                  isRefreshing={
-                    refreshingKey === `${modalWeek}:${modalDayIndex}`
-                  }
-                  emptyPool={false}
-                  layout="mobile"
-                />
-              </div>
-            </SheetSection>
-          )}
-
-          {!sheetEditingNote && (
-            <SheetSection
-              label={editingItem ? "Swap it for" : "From your collection"}
+              label={`Ideas for ${sheetWeekday}`}
               action={
-                <span className="text-xs text-muted-foreground">
-                  {sheetResults.length}
-                </span>
+                sheetIdeas.some((pick) => !(pick.contentId in addedItems)) ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = sheetIdeas.find(
+                        (pick) => !(pick.contentId in addedItems),
+                      );
+                      if (next) toggleIdea(next);
+                    }}
+                    className="inline-flex items-center gap-1 text-[13px] font-semibold text-[var(--primary)]"
+                  >
+                    <Sparkles className="size-3.5" />
+                    Surprise me
+                  </button>
+                ) : undefined
               }
             >
-              <ul className="divide-y divide-[var(--border)]">
-                {sheetResults.map((content: ContentWithTags) => {
-                  const added = content.id in addedItems;
+              <div className="space-y-2 px-4 pb-4">
+                {sheetIdeas.map((pick) => {
+                  const content = contentById.get(pick.contentId);
+                  if (!content) return null;
                   return (
-                    <li
-                      key={content.id}
-                      className="flex items-center gap-3 px-4 py-2.5"
-                    >
-                      <SheetThumb content={content} />
-                      <div className="min-w-0 flex-1">
-                        <p className="line-clamp-1 text-[15px] font-medium">
-                          {content.title}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {contentMeta(content) ??
-                            categoryUI(content.category).label}
-                        </p>
-                      </div>
-                      <AddToggle
-                        added={added}
-                        pending={pendingAddKey === content.id}
-                        label={content.title}
-                        onToggle={() =>
-                          added
-                            ? removeAddedItem(content.id, addingToDate)
-                            : addToDay(content.id, addingToDate)
-                        }
-                      />
-                    </li>
+                    <DraftRow
+                      key={pick.contentId}
+                      content={content}
+                      why={pick.why}
+                      added={pick.contentId in addedItems}
+                      pending={pendingAddKey === pick.contentId}
+                      onAdd={() => toggleIdea(pick)}
+                      onSwap={
+                        modalWeek
+                          ? () =>
+                              dismissSuggestion(
+                                pick.contentId,
+                                modalDayIndex,
+                                modalWeek,
+                              )
+                          : undefined
+                      }
+                    />
                   );
                 })}
-              </ul>
-              {sheetResults.length === 0 && (
-                <div className="px-4 py-8 text-center text-muted-foreground">
-                  <p className="text-sm font-medium">
-                    {sheetQuery
-                      ? "Nothing saved matches — add it as a note"
-                      : "Nothing to add here"}
-                  </p>
-                  {hasActiveFilters && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearAllFilters}
-                      className="mt-2 text-xs"
-                    >
-                      Clear filters
-                    </Button>
-                  )}
+                {sheetIdeas.length === 0 && (
+                  <div className="py-6 text-center text-sm text-muted-foreground">
+                    <p>No ideas for this day right now.</p>
+                    {modalWeek && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          refreshDaySuggestions(modalDayIndex, modalWeek)
+                        }
+                        disabled={
+                          refreshingKey === `${modalWeek}:${modalDayIndex}`
+                        }
+                        className="mt-2 text-[var(--primary)]"
+                      >
+                        <RefreshCw
+                          className={`size-3.5 ${
+                            refreshingKey === `${modalWeek}:${modalDayIndex}`
+                              ? "animate-spin"
+                              : ""
+                          }`}
+                        />
+                        Find more
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </SheetSection>
+          ) : (
+            <>
+              {sheetTab === "all" && (
+                // Categories and tags in one scrolling row. The padding
+                // lives inside the scroller, which clips vertically too.
+                <div className="sticky top-0 z-10 bg-[var(--card)]">
+                  <div className="overflow-x-auto hide-scrollbar">
+                    <div className="flex w-max items-center gap-2 px-4 pt-2.5 pb-3">
+                      {ADD_SHEET_CATEGORIES.map((cat) => {
+                        const active = categoryFilter === cat.id;
+                        return (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => setCategoryFilter(cat.id)}
+                            aria-pressed={active}
+                            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium transition-all active:translate-y-px ${
+                              active
+                                ? "bg-foreground text-background"
+                                : "surface-raised"
+                            }`}
+                          >
+                            {cat.icon && <cat.icon className="size-3.5" />}
+                            {cat.label}
+                          </button>
+                        );
+                      })}
+                      {(library?.allTags?.length ?? 0) > 0 && (
+                        <span
+                          aria-hidden
+                          className="mx-1 h-5 w-px bg-[var(--border)]"
+                        />
+                      )}
+                      {library?.allTags?.map((tag: Tag) => {
+                        const active = selectedTagIds.includes(tag.id);
+                        return (
+                          <button
+                            key={tag.id}
+                            type="button"
+                            onClick={() => toggleTagSelection(tag.id)}
+                            aria-pressed={active}
+                            className={`inline-flex shrink-0 items-center rounded-full px-3 py-1.5 text-[13px] font-medium transition-all active:translate-y-px ${
+                              active
+                                ? "bg-foreground text-background"
+                                : "surface-raised"
+                            }`}
+                          >
+                            {tag.name}
+                          </button>
+                        );
+                      })}
+                      {hasActiveFilters && (
+                        <button
+                          type="button"
+                          onClick={clearAllFilters}
+                          className="inline-flex items-center gap-1 px-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="size-3" />
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
-            </SheetSection>
+              <SheetSection
+                label={
+                  replacing
+                    ? "Swap it for"
+                    : sheetTab === "recent"
+                      ? "Recently saved"
+                      : "Your collection"
+                }
+                className={sheetTab === "all" ? "pt-0" : undefined}
+                action={
+                  <span className="text-xs text-muted-foreground">
+                    {sheetRows.length}
+                  </span>
+                }
+              >
+                <ul className="divide-y divide-[var(--border)]">
+                  {sheetRows.map(renderPickRow)}
+                </ul>
+                {sheetRows.length === 0 && (
+                  <div className="px-4 py-8 text-center text-muted-foreground">
+                    <p className="text-sm font-medium">Nothing to add here</p>
+                    {hasActiveFilters && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearAllFilters}
+                        className="mt-2 text-xs"
+                      >
+                        Clear filters
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </SheetSection>
+              <div className="h-4" />
+            </>
           )}
-          <div className="h-4" />
         </Sheet>
       )}
 

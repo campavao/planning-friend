@@ -1,4 +1,5 @@
 import {
+  describeTime,
   formatTimeLabel,
   plannedDateFor,
   shiftWeeks,
@@ -62,5 +63,16 @@ describe("shiftWeeks", () => {
 describe("shortDayLabel", () => {
   it("reads like a title", () => {
     expect(shortDayLabel("2026-11-08")).toBe("Sun, Nov 8");
+  });
+});
+
+describe("describeTime", () => {
+  it("names a preset by its meal", () => {
+    expect(describeTime("19:00")).toBe("Dinner");
+    expect(describeTime("09:00")).toBe("Breakfast");
+  });
+
+  it("spells out any other time", () => {
+    expect(describeTime("18:30")).toBe("6:30 PM");
   });
 });

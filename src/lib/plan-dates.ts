@@ -42,25 +42,22 @@ export function formatItemTime(item: DatedItem): string | null {
 }
 
 /**
- * Whether a day shows its suggestion strip.
+ * Whether a day shows a suggestion.
  *
- * Extracted from WeekSection because inlining it produced a real bug: the
- * toggle was prefixed onto an existing `empty || hasPicks` expression without
- * parentheses, and `&&` binds tighter than `||`, so it became
- * `(!hidden && empty) || hasPicks` — every day with picks ignored the toggle
- * entirely. A three-argument boolean is worth testing precisely because it is
- * the kind of thing that looks obviously right while being wrong.
+ * Only an empty day does. A day that already has plans doesn't need an idea
+ * pushed at it, and ideas under every day outnumbered the real plans — the
+ * planner read as a list of things the app wanted rather than things you'd
+ * chosen. The add sheet still offers ideas for any day.
  *
- * `hidden` short-circuits everything: off has to mean off, including on an
- * empty day where the strip would otherwise stay to explain itself.
+ * `hidden` short-circuits everything: off has to mean off. (This was once an
+ * inline `!hidden && empty || hasPicks`, where `&&` binding tighter than `||`
+ * let every day with picks ignore the toggle.) An empty day keeps the strip
+ * even with no picks, so it can say why it's empty.
  */
 export function shouldShowSuggestions(
   hidden: boolean,
-  plannedCount: number,
-  pickCount: number
+  plannedCount: number
 ): boolean {
   if (hidden) return false;
-  // An empty day keeps the strip even with no picks, so it can say why it is
-  // empty rather than rendering blank.
-  return plannedCount === 0 || pickCount > 0;
+  return plannedCount === 0;
 }

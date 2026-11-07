@@ -26,38 +26,50 @@ const CONTENT: Content & { tags?: Tag[] } = {
 
 const contentById = new Map([[CONTENT.id, CONTENT]]);
 
+const SECOND: Content & { tags?: Tag[] } = {
+  ...CONTENT,
+  id: "c2",
+  title: "Lentil soup",
+};
+
+const twoItems = new Map([
+  [CONTENT.id, CONTENT],
+  [SECOND.id, SECOND],
+]);
+
 function renderStrip(props: Partial<React.ComponentProps<typeof SuggestionStrip>> = {}) {
   const onRefresh = jest.fn();
+  const onAdd = jest.fn();
+  const onDismiss = jest.fn();
   const view = render(
     <SuggestionStrip
       dayIndex={3}
       picks={[]}
       contentById={contentById}
       weekStart="2026-03-09"
-      onAdd={jest.fn()}
-      onDismiss={jest.fn()}
+      onAdd={onAdd}
+      onDismiss={onDismiss}
       onRefresh={onRefresh}
       {...props}
     />
   );
-  return { ...view, onRefresh };
+  return { ...view, onRefresh, onAdd, onDismiss };
 }
 
 describe("SuggestionStrip states", () => {
-  it("shows skeletons while the week is loading", () => {
+  it("shows a draft placeholder while the week is loading", () => {
     const { container } = renderStrip({ loading: true });
-    expect(screen.getByText("Suggested")).toBeTruthy();
+    expect(screen.getByLabelText("Loading an idea")).toBeTruthy();
     expect(
       container.querySelectorAll('[data-slot="skeleton"]').length
     ).toBeGreaterThan(0);
-    expect(screen.queryByText(/Nothing left to suggest/)).toBeNull();
+    expect(screen.queryByText(/No more ideas/)).toBeNull();
   });
 
   it("falls back to the plain empty-day copy when the feature is off", () => {
     renderStrip({ featureEnabled: false });
     expect(screen.getByText("No plans yet")).toBeTruthy();
-    expect(screen.queryByText(/Nothing left to suggest/)).toBeNull();
-    expect(screen.queryByText("Suggested")).toBeNull();
+    expect(screen.queryByText(/No more ideas/)).toBeNull();
   });
 
   it("asks for more saved ideas when the library is too small", () => {
@@ -65,13 +77,13 @@ describe("SuggestionStrip states", () => {
     expect(
       screen.getByText("Save 3+ ideas to unlock smart suggestions.")
     ).toBeTruthy();
-    expect(screen.queryByText(/Nothing left to suggest/)).toBeNull();
+    expect(screen.queryByText(/No more ideas/)).toBeNull();
   });
 
-  it("says the engine came up empty, and keeps refresh reachable", () => {
+  it("says the engine came up empty, and offers to look again", () => {
     const { onRefresh } = renderStrip({ picks: [] });
 
-    expect(screen.getByText(/Nothing left to suggest for this day/)).toBeTruthy();
+    expect(screen.getByText("No more ideas for this day")).toBeTruthy();
     expect(screen.queryByText("No plans yet")).toBeNull();
 
     fireEvent.click(screen.getByTitle("Refresh suggestions"));
@@ -80,13 +92,38 @@ describe("SuggestionStrip states", () => {
 
   it("treats a pick for content it cannot resolve as an empty day", () => {
     renderStrip({ picks: [{ contentId: "missing", why: null }] });
-    expect(screen.getByText(/Nothing left to suggest for this day/)).toBeTruthy();
+    expect(screen.getByText("No more ideas for this day")).toBeTruthy();
   });
 
-  it("renders the picks it can resolve", () => {
+  it("renders the idea with its reason", () => {
     renderStrip({ picks: [{ contentId: "c1", why: "Thursday is usually fish" }] });
     expect(screen.getByText("Miso salmon")).toBeTruthy();
     expect(screen.getByText("Thursday is usually fish")).toBeTruthy();
-    expect(screen.queryByText(/Nothing left to suggest/)).toBeNull();
+    expect(screen.queryByText(/No more ideas/)).toBeNull();
+  });
+
+  it("shows one idea at a time, the first it can resolve", () => {
+    renderStrip({
+      contentById: twoItems,
+      picks: [
+        { contentId: "missing", why: null },
+        { contentId: "c1", why: null },
+        { contentId: "c2", why: null },
+      ],
+    });
+    expect(screen.getByText("Miso salmon")).toBeTruthy();
+    expect(screen.queryByText("Lentil soup")).toBeNull();
+  });
+
+  it("adds the idea, or swaps it for the next", () => {
+    const { onAdd, onDismiss } = renderStrip({
+      picks: [{ contentId: "c1", why: null }],
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add Miso salmon" }));
+    expect(onAdd).toHaveBeenCalledWith("c1", 3);
+    fireEvent.click(
+      screen.getByRole("button", { name: /Show another idea instead of Miso salmon/ })
+    );
+    expect(onDismiss).toHaveBeenCalledWith("c1", 3);
   });
 });

@@ -70,6 +70,14 @@ export function shiftWeeks(dateKey: string, weeks: number): string {
   return formatDateString(date);
 }
 
+/** "Dinner" for a preset time, "6:30 PM" for any other. */
+export function describeTime(time: string): string {
+  return (
+    TIME_PRESETS.find((preset) => preset.value === time)?.label ??
+    formatTimeLabel(time)
+  );
+}
+
 /** "Sat, Nov 8" — short enough for a sheet title or a button. */
 export function shortDayLabel(dateKey: string): string {
   return parseDateString(dateKey).toLocaleDateString("en-US", {

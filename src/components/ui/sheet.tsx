@@ -98,6 +98,7 @@ export function Sheet({
   header,
   top,
   footer,
+  fullHeight = false,
   children,
 }: {
   open: boolean;
@@ -108,6 +109,12 @@ export function Sheet({
   header?: React.ReactNode;
   top?: React.ReactNode;
   footer?: React.ReactNode;
+  /**
+   * A fixed height instead of fitting the content. For a sheet whose list
+   * changes as you type or switch tabs: fitting made it grow and shrink under
+   * your thumb with every keystroke.
+   */
+  fullHeight?: boolean;
   children?: React.ReactNode;
 }) {
   const keyboardInset = useKeyboardInset();
@@ -131,7 +138,8 @@ export function Sheet({
             ...(keyboardInset
               ? {
                   bottom: keyboardInset,
-                  maxHeight: `calc(100dvh - ${keyboardInset}px - 1rem)`,
+                  [fullHeight ? "height" : "maxHeight"]:
+                    `min(${fullHeight ? "90dvh" : "88dvh"}, calc(100dvh - ${keyboardInset}px - 1rem))`,
                 }
               : null),
             ...(drag.offset
@@ -140,7 +148,8 @@ export function Sheet({
             transition: drag.dragging ? "none" : undefined,
           }}
           className={cn(
-            "fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[88dvh] w-full max-w-lg flex-col",
+            "fixed inset-x-0 bottom-0 z-50 mx-auto flex w-full max-w-lg flex-col",
+            fullHeight ? "h-[90dvh]" : "max-h-[88dvh]",
             "rounded-t-3xl bg-[var(--card)] shadow-[var(--shadow-xl)] focus:outline-none",
             "md:bottom-4 md:rounded-b-3xl",
             "data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom",
@@ -181,9 +190,11 @@ export function Sheet({
             </div>
           </div>
           {top && <div className="shrink-0 space-y-3 px-4 pb-3">{top}</div>}
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-[var(--border)]">
-            {children}
-          </div>
+          {children && (
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-[var(--border)]">
+              {children}
+            </div>
+          )}
           {footer && (
             <div className="shrink-0 border-t border-[var(--border)] px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
               {footer}
