@@ -1,7 +1,7 @@
 "use client";
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
+import { useRef, useState } from "react";
 import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +20,76 @@ import { cn } from "@/lib/utils";
  * already says what it's for — the planner's week strip shows the day better
  * than "Add to Sun, Nov 8" did, and the line it saves goes to the list. The
  * title is still there for screen readers.
+ *
+ * It closes the way a sheet does on a phone: drag it down by the handle or the
+ * header, tap outside it, or press Escape. There's no visible close button —
+ * the close control is still there for screen readers.
  */
+
+/** How far a drag has to travel, or how fast (px/ms), to close the sheet. */
+const CLOSE_DISTANCE = 110;
+const CLOSE_VELOCITY = 0.6;
+
+/** Starts once the finger has clearly moved down, so a tap is still a tap. */
+const DRAG_SLOP = 6;
+
+function useDragToClose(onClose: () => void) {
+  const [offset, setOffset] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const start = useRef<{ y: number; t: number; id: number } | null>(null);
+  const moved = useRef(false);
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    start.current = { y: e.clientY, t: Date.now(), id: e.pointerId };
+    moved.current = false;
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!start.current || start.current.id !== e.pointerId) return;
+    const dy = e.clientY - start.current.y;
+    if (!moved.current) {
+      if (dy < DRAG_SLOP) return;
+      moved.current = true;
+      setDragging(true);
+      e.currentTarget.setPointerCapture(e.pointerId);
+    }
+    setOffset(Math.max(0, dy));
+  };
+
+  const end = (e: React.PointerEvent) => {
+    if (!start.current || start.current.id !== e.pointerId) return;
+    const dy = e.clientY - start.current.y;
+    const velocity = dy / Math.max(1, Date.now() - start.current.t);
+    start.current = null;
+    setDragging(false);
+    if (moved.current && (dy > CLOSE_DISTANCE || velocity > CLOSE_VELOCITY)) {
+      onClose();
+      // The exit animation continues from where the finger left it.
+      return;
+    }
+    setOffset(0);
+  };
+
+  return {
+    offset,
+    dragging,
+    handlers: {
+      onPointerDown,
+      onPointerMove,
+      onPointerUp: end,
+      onPointerCancel: end,
+      // A drag that started on a day or a chip mustn't also tap it.
+      onClickCapture: (e: React.MouseEvent) => {
+        if (moved.current) {
+          e.preventDefault();
+          e.stopPropagation();
+          moved.current = false;
+        }
+      },
+    },
+  };
+}
 export function Sheet({
   open,
   onOpenChange,
@@ -42,6 +111,7 @@ export function Sheet({
   children?: React.ReactNode;
 }) {
   const keyboardInset = useKeyboardInset();
+  const drag = useDragToClose(() => onOpenChange(false));
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -57,56 +127,58 @@ export function Sheet({
           // Opening shouldn't throw the keyboard up over the day strip and
           // suggestions; the field is one tap away when it's what you want.
           onOpenAutoFocus={(e) => e.preventDefault()}
-          style={
-            keyboardInset
+          style={{
+            ...(keyboardInset
               ? {
                   bottom: keyboardInset,
                   maxHeight: `calc(100dvh - ${keyboardInset}px - 1rem)`,
                 }
-              : undefined
-          }
+              : null),
+            ...(drag.offset
+              ? { transform: `translateY(${drag.offset}px)` }
+              : null),
+            transition: drag.dragging ? "none" : undefined,
+          }}
           className={cn(
             "fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[88dvh] w-full max-w-lg flex-col",
             "rounded-t-3xl bg-[var(--card)] shadow-[var(--shadow-xl)] focus:outline-none",
             "md:bottom-4 md:rounded-b-3xl",
             "data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom",
             "data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom",
-            "duration-200"
+            "transition-transform duration-200"
           )}
         >
-          <div
-            aria-hidden
-            className="mx-auto mt-2 mb-1 h-1 w-9 shrink-0 rounded-full bg-[var(--border-strong)]"
-          />
-          <div
-            className={cn(
-              "flex shrink-0 items-start gap-3 pt-1",
-              header ? "px-4 pb-2" : "px-5 pb-3"
-            )}
-          >
-            <div className="min-w-0 flex-1">
-              <DialogPrimitive.Title
-                className={header ? "sr-only" : "heading-2 leading-tight"}
-              >
-                {title}
-              </DialogPrimitive.Title>
-              {header}
-              {subtitle ? (
-                <DialogPrimitive.Description className="mt-0.5 truncate text-sm text-muted-foreground">
-                  {subtitle}
-                </DialogPrimitive.Description>
-              ) : (
-                <DialogPrimitive.Description className="sr-only">
-                  {title}
-                </DialogPrimitive.Description>
-              )}
+          {/* The handle and the header are the drag zone. touch-none keeps the
+              browser from claiming the gesture as a scroll. */}
+          <div {...drag.handlers} className="shrink-0 touch-none select-none">
+            <div aria-hidden className="flex justify-center pt-2 pb-1.5">
+              <div className="h-1 w-9 rounded-full bg-[var(--border-strong)]" />
             </div>
-            <DialogPrimitive.Close
-              aria-label="Close"
-              className="surface-raised -mr-1 inline-flex size-9 shrink-0 items-center justify-center rounded-full transition-transform active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+            <div
+              className={cn(
+                "flex items-start gap-3 pt-0.5",
+                header ? "px-4 pb-2" : "px-5 pb-3"
+              )}
             >
-              <X className="size-4" />
-            </DialogPrimitive.Close>
+              <div className="min-w-0 flex-1">
+                <DialogPrimitive.Title
+                  className={header ? "sr-only" : "heading-2 leading-tight"}
+                >
+                  {title}
+                </DialogPrimitive.Title>
+                {header}
+                {subtitle ? (
+                  <DialogPrimitive.Description className="mt-0.5 truncate text-sm text-muted-foreground">
+                    {subtitle}
+                  </DialogPrimitive.Description>
+                ) : (
+                  <DialogPrimitive.Description className="sr-only">
+                    {title}
+                  </DialogPrimitive.Description>
+                )}
+              </div>
+              <DialogPrimitive.Close className="sr-only">Close</DialogPrimitive.Close>
+            </div>
           </div>
           {top && <div className="shrink-0 space-y-3 px-4 pb-3">{top}</div>}
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-[var(--border)]">
