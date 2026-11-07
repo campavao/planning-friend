@@ -592,8 +592,10 @@ export default function GiftPlannerPage() {
               {/* Whose list, switchable without closing — shopping for one
                   person tends to turn up ideas for the next. */}
               {recipients.length > 1 && (
-                <div className="-mx-4 overflow-x-auto hide-scrollbar">
-                  <div className="flex w-max gap-2 px-4">
+                // Room for the chips' shadows inside the scroller, which
+                // clips vertically too; the margins hand it back.
+                <div className="-mx-4 -mt-1.5 -mb-3 overflow-x-auto hide-scrollbar">
+                  <div className="flex w-max gap-2 px-4 pt-1.5 pb-3">
                     {recipients.map((recipient) => {
                       const selected = recipient.id === assigningRecipient.id;
                       return (

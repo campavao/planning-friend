@@ -1743,9 +1743,11 @@ function PlannerContent() {
           {!sheetEditingNote && (
             // Categories and tags in one scrolling row, like the collection,
             // instead of a row of each.
-            <div className="sticky top-0 z-10 bg-[var(--card)] py-2.5">
+            <div className="sticky top-0 z-10 bg-[var(--card)]">
+              {/* The padding lives inside the scroller, which clips vertically
+                  too — outside it, the chips' shadows were cut flat. */}
               <div className="overflow-x-auto hide-scrollbar">
-                <div className="flex w-max items-center gap-2 px-4">
+                <div className="flex w-max items-center gap-2 px-4 pt-2.5 pb-3">
                   {ADD_SHEET_CATEGORIES.map((cat) => {
                     const active = categoryFilter === cat.id;
                     return (

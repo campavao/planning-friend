@@ -278,8 +278,11 @@ export function CategoryTabs({
       {/* Starred and the tags in one scrolling row of filters. Starred sits
           first rather than being a tab, because it narrows whichever category
           is open instead of being one of them. */}
-      <div className="-mx-4 md:mx-0 mb-4 overflow-x-auto hide-scrollbar">
-        <div className="flex w-max items-center gap-2 px-4 md:px-0 py-1">
+      {/* Scrolling sideways clips vertically too, so the chips' shadows need
+          room inside the scroller: 6px above and 12px below covers the raised
+          shadow (0 3px 8px), and the margins hand that space back. */}
+      <div className="-mx-4 md:mx-0 -mt-0.5 mb-2 overflow-x-auto hide-scrollbar">
+        <div className="flex w-max items-center gap-2 px-4 md:px-0 pt-1.5 pb-3">
           <FilterChip
             active={starredOnly}
             onClick={() => setStarredOnly((prev) => !prev)}
