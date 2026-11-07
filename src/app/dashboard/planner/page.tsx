@@ -4,6 +4,7 @@ import { AddToggle } from "@/components/add-toggle";
 import { filterBySearch } from "@/components/category-tabs";
 import { TimeChips } from "@/components/time-chips";
 import { Sheet, SheetSection } from "@/components/ui/sheet";
+import { SlideOpen } from "@/components/slide-open";
 import { WeekStrip } from "@/components/week-strip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1561,10 +1562,16 @@ function PlannerContent() {
   };
 
   /** One row of the picker: photo, title, the card's detail line, and +. */
-  const renderPickRow = (content: ContentWithTags) => {
+  const renderPickRow = (content: ContentWithTags, index: number) => {
     const added = content.id in addedItems;
     return (
-      <li key={content.id} className="flex items-center gap-3 px-4 py-2.5">
+      <li
+        key={content.id}
+        className={`sheet-row-in flex items-center gap-3 px-4 py-2.5 transition-colors duration-300 ${
+          added ? "bg-[var(--meal-bg)]/60" : ""
+        }`}
+        style={{ "--i": index } as React.CSSProperties}
+      >
         <SheetThumb content={content} />
         <div className="min-w-0 flex-1">
           <p className="line-clamp-1 text-[15px] font-medium">
@@ -1833,7 +1840,7 @@ function PlannerContent() {
                   className="h-11 text-base"
                 />
               )}
-              {(sheetEditing || whenOpen) && (
+              {sheetEditing ? (
                 <>
                   <WeekStrip
                     value={addingToDate}
@@ -1842,6 +1849,16 @@ function PlannerContent() {
                   />
                   <TimeChips value={plannedTime} onChange={setPlannedTime} />
                 </>
+              ) : (
+                // The pill's panel slides open rather than appearing.
+                <SlideOpen open={whenOpen} className="space-y-3 px-px pb-1">
+                  <WeekStrip
+                    value={addingToDate}
+                    onChange={changeSheetDay}
+                    weekStartDay={weekStartDay}
+                  />
+                  <TimeChips value={plannedTime} onChange={setPlannedTime} />
+                </SlideOpen>
               )}
               {!sheetEditing && sheetMode === "note" && (
                 <form
@@ -1899,11 +1916,24 @@ function PlannerContent() {
                     <div
                       role="tablist"
                       aria-label="Show"
-                      className="surface-inset grid gap-1 rounded-full p-1"
+                      className="surface-inset relative grid gap-1 rounded-full p-1"
                       style={{
                         gridTemplateColumns: `repeat(${sheetTabs.length}, minmax(0, 1fr))`,
                       }}
                     >
+                      {/* One highlight that slides to the chosen tab, rather
+                          than each tab lighting up on its own. */}
+                      <span
+                        aria-hidden
+                        className="absolute inset-y-1 left-1 rounded-full bg-[var(--card)] shadow-[0_1px_3px_rgba(45,52,54,0.15)] transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
+                        style={{
+                          width: `calc((100% - 0.5rem - ${sheetTabs.length - 1} * 0.25rem) / ${sheetTabs.length})`,
+                          transform: `translateX(calc(${Math.max(
+                            0,
+                            sheetTabs.findIndex((tab) => tab.id === sheetTab),
+                          )} * (100% + 0.25rem)))`,
+                        }}
+                      />
                       {sheetTabs.map((tab) => {
                         const selected = sheetTab === tab.id;
                         return (
@@ -1913,9 +1943,9 @@ function PlannerContent() {
                             role="tab"
                             aria-selected={selected}
                             onClick={() => setPickTab(tab.id)}
-                            className={`inline-flex items-center justify-center gap-1 rounded-full py-1.5 text-[13px] font-medium transition-colors ${
+                            className={`relative inline-flex items-center justify-center gap-1 rounded-full py-1.5 text-[13px] font-medium transition-colors duration-300 ${
                               selected
-                                ? "bg-[var(--card)] text-foreground shadow-[0_1px_3px_rgba(45,52,54,0.15)]"
+                                ? "text-foreground"
                                 : "text-muted-foreground"
                             }`}
                           >
@@ -1981,7 +2011,17 @@ function PlannerContent() {
               </Button>
             ) : (
               <Button className="w-full" onClick={closeAddModal}>
-                {sheetAddedCount > 0 ? `Done · ${sheetAddedCount} added` : "Done"}
+                {sheetAddedCount > 0 ? (
+                  <>
+                    Done ·{" "}
+                    <span key={sheetAddedCount} className="count-bump">
+                      {sheetAddedCount}
+                    </span>{" "}
+                    added
+                  </>
+                ) : (
+                  "Done"
+                )}
               </Button>
             )
           }
@@ -2066,12 +2106,14 @@ function PlannerContent() {
               }
             >
               <div className="space-y-2 px-4 pb-4">
-                {sheetIdeas.map((pick) => {
+                {sheetIdeas.map((pick, index) => {
                   const content = contentById.get(pick.contentId);
                   if (!content) return null;
                   return (
                     <DraftRow
                       key={pick.contentId}
+                      className="sheet-row-in"
+                      style={{ "--i": index } as React.CSSProperties}
                       content={content}
                       why={pick.why}
                       added={pick.contentId in addedItems}
@@ -2199,7 +2241,7 @@ function PlannerContent() {
                   </span>
                 }
               >
-                <ul className="divide-y divide-[var(--border)]">
+                <ul key={sheetTab} className="divide-y divide-[var(--border)]">
                   {sheetRows.map(renderPickRow)}
                 </ul>
                 {sheetRows.length === 0 && (

@@ -472,7 +472,7 @@ export default function GiftPlannerPage() {
                               </p>
                             )}
                             {displayPrice(giftData?.cost) && (
-                              <span className="surface-inset mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold">
+                              <span className="surface-inset mt-1 inline-block max-w-full truncate rounded-full px-2 py-0.5 align-top text-xs font-semibold">
                                 {displayPrice(giftData?.cost)}
                               </span>
                             )}
@@ -593,8 +593,9 @@ export default function GiftPlannerPage() {
                   person tends to turn up ideas for the next. */}
               {recipients.length > 1 && (
                 // Room for the chips' shadows inside the scroller, which
-                // clips vertically too; the margins hand it back.
-                <div className="-mx-4 -mt-1.5 -mb-3 overflow-x-auto hide-scrollbar">
+                // clips vertically too. Only the top is handed back: the
+                // bottom padding is the gap to the search field.
+                <div className="-mx-4 -mt-1.5 -mb-1 overflow-x-auto hide-scrollbar">
                   <div className="flex w-max gap-2 px-4 pt-1.5 pb-3">
                     {recipients.map((recipient) => {
                       const selected = recipient.id === assigningRecipient.id;
@@ -607,7 +608,7 @@ export default function GiftPlannerPage() {
                             setSearchQuery("");
                           }}
                           aria-pressed={selected}
-                          className={`inline-flex shrink-0 items-center gap-2 rounded-full py-1 pl-1 pr-3 text-[13px] font-medium transition-all active:translate-y-px ${
+                          className={`inline-flex shrink-0 items-center gap-2 rounded-full py-1 pl-1 pr-3 text-[13px] font-medium transition-colors duration-300 active:scale-95 ${
                             selected
                               ? "bg-foreground text-background"
                               : "surface-raised"
@@ -692,10 +693,11 @@ export default function GiftPlannerPage() {
           {assigningNotes.length > 0 && !searchQuery.trim() && (
             <SheetSection label="Typed gifts">
               <ul className="divide-y divide-[var(--border)]">
-                {assigningNotes.map((assignment) => (
+                {assigningNotes.map((assignment, index) => (
                   <li
                     key={assignment.id}
-                    className="flex items-center gap-3 px-4 py-2.5"
+                    className="sheet-row-in flex items-center gap-3 bg-[var(--meal-bg)]/60 px-4 py-2.5"
+                    style={{ "--i": index } as React.CSSProperties}
                   >
                     <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[var(--gift-bg)]">
                       <PenLine className="size-5 text-[var(--gift)]" />
@@ -722,8 +724,13 @@ export default function GiftPlannerPage() {
               </span>
             }
           >
-            <ul className="divide-y divide-[var(--border)]">
-              {filteredGifts.map((gift) => {
+            {/* Keyed by person, so switching whose list it is replays the
+                cascade and the checks visibly change over. */}
+            <ul
+              key={assigningRecipient.id}
+              className="divide-y divide-[var(--border)]"
+            >
+              {filteredGifts.map((gift, index) => {
                 const giftData = gift.data as GiftIdeaData;
                 const price = displayPrice(giftData?.cost);
                 const onList = assigningRecipient.assignments.some(
@@ -732,7 +739,10 @@ export default function GiftPlannerPage() {
                 return (
                   <li
                     key={gift.id}
-                    className="flex items-center gap-3 px-4 py-2.5"
+                    className={`sheet-row-in flex items-center gap-3 px-4 py-2.5 transition-colors duration-300 ${
+                      onList ? "bg-[var(--meal-bg)]/60" : ""
+                    }`}
+                    style={{ "--i": index } as React.CSSProperties}
                   >
                     {gift.thumbnail_url ? (
                       <img
@@ -749,9 +759,11 @@ export default function GiftPlannerPage() {
                       <p className="line-clamp-1 text-[15px] font-medium">
                         {gift.title}
                       </p>
-                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
                         {price && (
-                          <span className="surface-inset shrink-0 rounded-full px-1.5 py-px font-semibold text-foreground">
+                          // Never wider than half the line, so an odd
+                          // price can't push the row past the screen.
+                          <span className="surface-inset max-w-[50%] shrink-0 truncate rounded-full px-1.5 py-px font-semibold text-foreground">
                             {price}
                           </span>
                         )}

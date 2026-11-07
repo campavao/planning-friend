@@ -51,6 +51,8 @@ export function DraftRow({
   onAdd,
   onSwap,
   compact = false,
+  className,
+  style,
 }: {
   content: Content;
   why: string | null;
@@ -60,6 +62,8 @@ export function DraftRow({
   onAdd: () => void;
   onSwap?: () => void;
   compact?: boolean;
+  className?: string;
+  style?: React.CSSProperties;
 }) {
   const ui = categoryUI(content.category);
   const body = (
@@ -105,12 +109,14 @@ export function DraftRow({
 
   return (
     <div
+      style={style}
       className={cn(
-        "flex items-center gap-2.5 rounded-2xl border border-dashed transition-colors",
+        "flex items-center gap-2.5 rounded-2xl border border-dashed transition-colors duration-300",
         compact ? "px-2 py-1.5" : "px-3 py-2",
         added
           ? "border-transparent bg-[var(--meal-bg)]"
-          : "border-[var(--border-strong)]"
+          : "border-[var(--border-strong)]",
+        className
       )}
     >
       {href ? (
@@ -233,6 +239,8 @@ export function SuggestionStrip({
 
   return (
     <DraftRow
+      key={pick.contentId}
+      className="draft-in"
       content={content}
       why={pick.why}
       href={`/dashboard/${content.id}?from=planner&week=${weekStart}`}

@@ -121,13 +121,16 @@ export function GiveSheet({
         <p className="px-4 py-6 text-sm text-muted-foreground">Loading…</p>
       ) : (
         <ul className="divide-y divide-[var(--border)]">
-          {recipients.map((recipient) => {
+          {recipients.map((recipient, index) => {
             const onList = !!assignmentFor(recipient);
             const ideas = recipient.assignments.length;
             return (
               <li
                 key={recipient.id}
-                className="flex items-center gap-3 px-4 py-2.5"
+                className={`sheet-row-in flex items-center gap-3 px-4 py-2.5 transition-colors duration-300 ${
+                  onList ? "bg-[var(--meal-bg)]/60" : ""
+                }`}
+                style={{ "--i": index } as React.CSSProperties}
               >
                 <InitialsAvatar name={recipient.name} />
                 <div className="min-w-0 flex-1">

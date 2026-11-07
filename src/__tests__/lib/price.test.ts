@@ -17,6 +17,25 @@ describe("displayPrice", () => {
     expect(displayPrice("Varies")).toBeUndefined();
   });
 
+  it("drops placeholders that happen to carry a figure", () => {
+    expect(
+      displayPrice("Price not mentioned (includes $25 McDonald's gift card)")
+    ).toBeUndefined();
+    expect(displayPrice("Not specified, around $20")).toBeUndefined();
+    expect(displayPrice("$15–$40, varies by size")).toBeUndefined();
+  });
+
+  it("drops a sentence about the price", () => {
+    expect(
+      displayPrice("About $30 at most stores, more online")
+    ).toBeUndefined();
+  });
+
+  it("keeps ranges and approximations", () => {
+    expect(displayPrice("$15–$40")).toBe("$15–$40");
+    expect(displayPrice("~$20")).toBe("~$20");
+  });
+
   it("drops empty and non-string values", () => {
     expect(displayPrice("   ")).toBeUndefined();
     expect(displayPrice(undefined)).toBeUndefined();

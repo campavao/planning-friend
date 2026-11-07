@@ -154,7 +154,9 @@ export function Sheet({
             "md:bottom-4 md:rounded-b-3xl",
             "data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom",
             "data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom",
-            "transition-transform duration-200"
+            // The iOS sheet curve: quick out of the gate, long soft landing.
+            // It also carries the spring-back after a short drag.
+            "transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
           )}
         >
           {/* The handle and the header are the drag zone. touch-none keeps the
@@ -191,7 +193,9 @@ export function Sheet({
           </div>
           {top && <div className="shrink-0 space-y-3 px-4 pb-3">{top}</div>}
           {children && (
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-[var(--border)]">
+            // Vertical only: one over-wide row used to let the whole list
+            // slide sideways under the thumb.
+            <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain border-t border-[var(--border)]">
               {children}
             </div>
           )}
