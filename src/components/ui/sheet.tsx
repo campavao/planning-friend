@@ -15,12 +15,18 @@ import { cn } from "@/lib/utils";
  * week strip, the search field), `children` scrolls, and `footer` holds the
  * one action that finishes the job. The whole sheet rests on the on-screen
  * keyboard rather than sliding under it.
+ *
+ * `header` replaces the visible title row for a sheet whose first control
+ * already says what it's for — the planner's week strip shows the day better
+ * than "Add to Sun, Nov 8" did, and the line it saves goes to the list. The
+ * title is still there for screen readers.
  */
 export function Sheet({
   open,
   onOpenChange,
   title,
   subtitle,
+  header,
   top,
   footer,
   children,
@@ -29,6 +35,8 @@ export function Sheet({
   onOpenChange: (open: boolean) => void;
   title: React.ReactNode;
   subtitle?: React.ReactNode;
+  /** Shown beside the close button in place of the title. */
+  header?: React.ReactNode;
   top?: React.ReactNode;
   footer?: React.ReactNode;
   children?: React.ReactNode;
@@ -70,11 +78,19 @@ export function Sheet({
             aria-hidden
             className="mx-auto mt-2 mb-1 h-1 w-9 shrink-0 rounded-full bg-[var(--border-strong)]"
           />
-          <div className="flex shrink-0 items-start gap-3 px-5 pt-1 pb-3">
+          <div
+            className={cn(
+              "flex shrink-0 items-start gap-3 pt-1",
+              header ? "px-4 pb-2" : "px-5 pb-3"
+            )}
+          >
             <div className="min-w-0 flex-1">
-              <DialogPrimitive.Title className="heading-2 leading-tight">
+              <DialogPrimitive.Title
+                className={header ? "sr-only" : "heading-2 leading-tight"}
+              >
                 {title}
               </DialogPrimitive.Title>
+              {header}
               {subtitle ? (
                 <DialogPrimitive.Description className="mt-0.5 truncate text-sm text-muted-foreground">
                   {subtitle}

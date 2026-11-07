@@ -240,7 +240,7 @@ export function CategoryTabs({
           }}
           placeholder="Search your collection..."
           aria-label="Search your collection"
-          className="pl-10 pr-10 text-sm [&::-webkit-search-cancel-button]:hidden"
+          className="pl-10 pr-10 text-base [&::-webkit-search-cancel-button]:hidden"
         />
         {search && (
           <Button

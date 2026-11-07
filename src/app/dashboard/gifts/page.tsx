@@ -635,11 +635,11 @@ export default function GiftPlannerPage() {
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   type="text"
-                  placeholder="Search saved ideas, or type a gift"
+                  placeholder="Search or type a gift"
                   aria-label="Search saved ideas, or type a gift"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-11 pl-10 pr-12 text-[15px]"
+                  className="h-11 pl-10 pr-12 text-base"
                   enterKeyHint="send"
                 />
                 {searchQuery.trim() && (

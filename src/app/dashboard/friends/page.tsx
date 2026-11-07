@@ -412,7 +412,7 @@ export default function FriendsPage() {
               aria-label="Search friends"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 text-sm"
+              className="pl-10 text-base"
             />
           </div>
         )}

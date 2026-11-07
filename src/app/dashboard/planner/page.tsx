@@ -1482,9 +1482,11 @@ function PlannerContent() {
   const sheetEditingNote = !!editingItem && !editingItem.content_id;
   const sheetResults = addingToDate !== null ? getFilteredContent() : [];
   const sheetAddedNoteTitles = Object.keys(addedNotes);
-  const sheetNoteChips = (
-    sheetQuery ? getMatchingNotes() : (library?.recentNotes ?? []).slice(0, 6)
-  ).filter((note) => !(note in addedNotes));
+  // Past notes only once something is typed: unprompted, a week of one-off
+  // notes ("Flight to Chicago") crowded the collection off the screen.
+  const sheetNoteChips = getMatchingNotes().filter(
+    (note) => !(note in addedNotes)
+  );
   const sheetAddedCount =
     Object.keys(addedItems).length + sheetAddedNoteTitles.length;
 
@@ -1647,6 +1649,17 @@ function PlannerContent() {
               ? "Edit plan"
               : `Add to ${shortDayLabel(addingToDate)}`
           }
+          // Adding: the week strip is the header — its selected day says
+          // which day, and the title row's height goes to the list instead.
+          header={
+            editingItem ? undefined : (
+              <WeekStrip
+                value={addingToDate}
+                onChange={changeSheetDay}
+                weekStartDay={weekStartDay}
+              />
+            )
+          }
           top={
             <>
               {editingItem?.content && (
@@ -1662,11 +1675,13 @@ function PlannerContent() {
                   </div>
                 </div>
               )}
-              <WeekStrip
-                value={addingToDate}
-                onChange={changeSheetDay}
-                weekStartDay={weekStartDay}
-              />
+              {editingItem && (
+                <WeekStrip
+                  value={addingToDate}
+                  onChange={changeSheetDay}
+                  weekStartDay={weekStartDay}
+                />
+              )}
               <TimeChips value={plannedTime} onChange={setPlannedTime} />
               {/* One field: it filters the collection, and what's typed can
                   go on the day as a note. */}
@@ -1685,13 +1700,13 @@ function PlannerContent() {
                   placeholder={
                     sheetEditingNote
                       ? "Note"
-                      : "Search your collection, or type a note"
+                      : "Search or type a note"
                   }
                   aria-label={
                     sheetEditingNote ? "Note" : "Search or type a note"
                   }
                   enterKeyHint={sheetEditingNote ? "done" : "send"}
-                  className="h-11 pl-10 pr-12 text-[15px]"
+                  className="h-11 pl-10 pr-12 text-base"
                 />
                 {sheetQuery && (
                   <button
@@ -1833,7 +1848,10 @@ function PlannerContent() {
           {!editingItem &&
             (sheetAddedNoteTitles.length > 0 || sheetNoteChips.length > 0) && (
               <SheetSection label="Notes">
-                <div className="flex flex-wrap gap-2 px-4">
+                {/* One scrolling line, padded inside so the chips' shadows
+                    aren't clipped. */}
+                <div className="-mt-1.5 -mb-3 overflow-x-auto hide-scrollbar">
+                  <div className="flex w-max gap-2 px-4 pt-1.5 pb-3">
                   {sheetAddedNoteTitles.map((title) => (
                     <button
                       key={`added-${title}`}
@@ -1859,6 +1877,7 @@ function PlannerContent() {
                       {note}
                     </button>
                   ))}
+                  </div>
                 </div>
               </SheetSection>
             )}

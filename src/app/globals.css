@@ -420,6 +420,17 @@
   }
 }
 
+/* iOS zooms the page into any text field under 16px the moment it's focused,
+   and leaves it zoomed. On touch screens no field goes below that, whatever
+   size a component asks for. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: max(16px, 1em) !important;
+  }
+}
+
 /* ===== UTILITIES ===== */
 
 .hide-scrollbar {
